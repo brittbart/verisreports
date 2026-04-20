@@ -75,9 +75,13 @@ def get_source():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 @app.route('/api/health', methods=['GET'])
-
 def health():
-    return jsonify({'status': 'ok', 'version': '1.0'})
+    return jsonify({
+        'status': 'ok',
+        'version': '2.0',
+        'db_host': os.environ.get('DB_HOST', 'NOT SET'),
+        'db_port': os.environ.get('DB_PORT', 'NOT SET')
+    })
 
 @app.route('/api/stats', methods=['GET'])
 def stats():
