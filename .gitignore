@@ -1,0 +1,8 @@
+.env
+*.sql
+venv/
+__pycache__/
+*.pyc
+*.log
+claims_*.json
+articles_*.json

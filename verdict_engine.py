@@ -1,0 +1,266 @@
+import os
+import json
+import psycopg2
+import anthropic
+from dotenv import load_dotenv
+
+load_dotenv()
+client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+
+def get_connection():
+    return psycopg2.connect(
+        dbname=os.getenv('DB_NAME'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        host=os.getenv('DB_HOST'),
+        port=os.getenv('DB_PORT', '5432')
+    )
+
+def check_database_first(cursor, claim_text):
+    try:
+        cursor.execute('''
+            SELECT verdict, confidence_score, verdict_summary
+            FROM claims
+            WHERE verdict IS NOT NULL
+            AND similarity(claim_text, %s) > 0.6
+            ORDER BY confidence_score DESC
+            LIMIT 1
+        ''', (claim_text,))
+        return cursor.fetchone()
+    except Exception:
+        return None
+
+
+def check_source_consensus(cursor, claim_text):
+    try:
+        cursor.execute('''
+            SELECT verdict, COUNT(*) as count
+            FROM claims
+            WHERE verdict IS NOT NULL
+            AND similarity(claim_text, %s) > 0.5
+            GROUP BY verdict
+            ORDER BY count DESC
+            LIMIT 1
+        ''', (claim_text,))
+        return cursor.fetchone()
+    except Exception:
+        return None
+    
+def analyse_claim(claim_text, speaker, claim_type,
+                  article_title, source_name, cursor=None):
+
+    if cursor:
+        db_result = check_database_first(cursor, claim_text)
+        if db_result:
+            verdict, confidence, summary = db_result
+            print(f"  -> Database match: {verdict}")
+            return {
+                "verdict": verdict,
+                "confidence_score": confidence,
+                "verdict_summary": summary,
+                "full_analysis": "Matched verified claim in Veris database.",
+                "sources_used": "Veris internal database"
+            }
+
+        consensus = check_source_consensus(cursor, claim_text)
+        if consensus and consensus[1] >= 3:
+            verdict, count = consensus
+            print(f"  -> Consensus: {verdict} ({count} sources)")
+            return {
+                "verdict": verdict,
+                "confidence_score": 2,
+                "verdict_summary": f"Consensus from {count} sources.",
+                "full_analysis": f"{count} sources agree on this verdict.",
+                "sources_used": "Veris source consensus"
+            }
+
+    print(f"  -> Web search verification...")
+    prompt = f"""You are the Veris fact-checking engine. Your job is to verify claims with rigorous, defensible standards. Use web search to find primary sources.
+
+CLAIM: {claim_text}
+SPEAKER: {speaker}
+TYPE: {claim_type}
+ARTICLE: {article_title}
+SOURCE: {source_name}
+
+VERIFICATION STANDARDS — read carefully before assigning a verdict:
+
+
+INDEPENDENCE RULE — CRITICAL:
+Two sources are only independent if they obtained the information through different means. Multiple outlets repeating the same wire report = ONE source, not multiple. To call something verified you must find sources that independently confirmed the fact through different channels.
+
+VERDICT DEFINITIONS — apply strictly:
+
+- verified: Confirmed by at least TWO genuinely independent sources from Tier 1 or above, each having obtained the information through different means. If you cannot find this, do NOT use verified.
+
+- plausible: Consistent with available evidence but only confirmed by one credible source, or by multiple sources all citing the same original report. Use this when the claim seems likely true but true independence cannot be established.
+
+- disputed: ANY credible source contradicts the claim, OR evidence is genuinely mixed. Do not default to plausible when evidence is mixed — use disputed. This verdict is underused and should be applied whenever you find meaningful contradiction.
+
+- overstated: The core fact is real but the specific figure, scale, or characterisation is exaggerated or imprecise. Use when a claim is directionally correct but materially misleading in its specifics.
+
+- not_supported: Positive evidence contradicts the claim, OR the claim makes specific assertions that authoritative sources explicitly refute.
+
+- not_verifiable: The claim cannot be confirmed or denied because primary sources are unavailable, access is restricted, or the event is too recent. Use sparingly — exhaust search options first.
+
+- opinion: A value judgement, prediction, or normative claim that cannot be true or false. Also use for analyst conclusions presented as facts.
+
+CONFIDENCE SCORE — assign based on source quality, not just number of sources:
+- 3: Verified by two or more genuinely independent sources with original reporting
+- 2: Verified by one credible source with original reporting, or plausible based on consistent but non-independent reporting
+- 1: Plausible or disputed, or claim is inherently difficult to verify
+
+SEARCH INSTRUCTIONS:
+1. Search for the specific claim first
+2. Find the original source — who first reported this?
+3. Find a second source that independently verified it (not just repeated it)
+4. If you find any contradiction from a credible source, assign disputed
+5. Note the quality of sources in your analysis
+
+Return ONLY this JSON:
+{{
+  "verdict": "verdict here",
+  "confidence_score": 1,
+  "verdict_summary": "one sentence plain-language explanation",
+  "full_analysis": "2-3 sentences explaining what you found, what sources you used, and why you assigned this verdict",
+  "sources_used": "specific named sources and whether each independently confirmed the fact"
+}}"""
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1000,
+            tools=[
+                {
+                    "type": "web_search_20250305",
+                    "name": "web_search"
+                }
+            ],
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        response_text = ""
+        for block in message.content:
+            if hasattr(block, "text"):
+                response_text += block.text
+        response_text = response_text.strip()
+        start = response_text.find('{')
+        end = response_text.rfind('}') + 1
+        if start == -1 or end == 0:
+            return None
+        return json.loads(response_text[start:end])
+    except Exception as e:
+        print(f"    Error: {str(e)}")
+        return None
+    
+def update_source_profile(cursor, source_name, verdict):
+    field_map = {
+        'verified': 'verified_count',
+        'plausible': 'verified_count',
+        'disputed': 'disputed_count',
+        'overstated': 'overstated_count',
+        'not_verifiable': 'not_verifiable_count',
+        'opinion': 'not_verifiable_count'
+    }
+    field = field_map.get(verdict, 'not_verifiable_count')
+    try:
+        cursor.execute(f"""
+            UPDATE sources
+            SET total_claims_checked = total_claims_checked + 1,
+                {field} = {field} + 1,
+                last_analysed = NOW()
+            WHERE name = %s;
+        """, (source_name,))
+    except Exception:
+        pass
+
+
+def calculate_reliability_score(cursor, source_name):
+    try:
+        cursor.execute("""
+            SELECT COUNT(*),
+            SUM(CASE WHEN verdict = 'verified' THEN 1 ELSE 0 END)
+            FROM claims c
+            JOIN articles a ON c.article_id = a.id
+            WHERE a.source_name = %s
+            AND c.verdict IS NOT NULL
+            AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL);
+        """, (source_name,))
+        result = cursor.fetchone()
+        if not result or not result[0] or result[0] == 0:
+            return
+        total = result[0]
+        verified = result[1] or 0
+        rate = verified / total
+        score = "High" if rate >= 0.7 else "Medium" if rate >= 0.4 else "Low"
+        cursor.execute("""
+            INSERT INTO sources (name, reliability_score, last_analysed)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (name) DO UPDATE
+            SET reliability_score = %s, last_analysed = NOW();
+        """, (source_name, score, score))
+    except Exception as e:
+        print(f"    Score update error: {str(e)}")
+
+def run_verdict_engine(limit=10):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.id, c.claim_text, c.speaker, c.claim_type,
+               a.title, a.source_name, c.priority_score
+        FROM claims c
+        JOIN articles a ON c.article_id = a.id
+        WHERE c.verdict IS NULL
+        AND c.priority_score >= 40
+        ORDER BY c.priority_score DESC
+        LIMIT %s;
+    """, (limit,))
+    claims = cursor.fetchall()
+    if not claims:
+        print("No high priority unverified claims found.")
+        return
+    print(f"Found {len(claims)} claims to analyse")
+    verdicts_assigned = 0
+    for i, (claim_id, claim_text, speaker, claim_type,
+            article_title, source_name,
+            priority_score) in enumerate(claims):
+        print(f"[{i+1}/{len(claims)}] Priority: {priority_score}/100")
+        print(f"  {claim_text[:70]}...")
+        print(f"  Source: {source_name}")
+        result = analyse_claim(
+            claim_text, speaker, claim_type,
+            article_title, source_name, cursor
+        )
+        if result:
+            verdict = result.get('verdict', 'not_verifiable')
+            confidence = min(result.get('confidence_score', 1), 3)
+            summary = result.get('verdict_summary', '')
+            analysis = result.get('full_analysis', '')
+            sources = result.get('sources_used', '')
+            cursor.execute("""
+                UPDATE claims
+                SET verdict = %s,
+                    confidence_score = %s,
+                    verdict_summary = %s,
+                    full_analysis = %s,
+                    sources_used = %s,
+                    last_checked = NOW()
+                WHERE id = %s;
+            """, (verdict, confidence, summary,
+                  analysis, sources, claim_id))
+            update_source_profile(cursor, source_name, verdict)
+            calculate_reliability_score(cursor, source_name)
+            conn.commit()
+            verdicts_assigned += 1
+            print(f"  v {verdict.upper()} (confidence: {confidence}/3)")
+            print(f"  {summary}\n")
+        else:
+            print(f"  x Skipping\n")
+    cursor.close()
+    conn.close()
+    print(f"Verdicts assigned: {verdicts_assigned}")
+
+
+if __name__ == "__main__":
+    run_verdict_engine(limit=10)
