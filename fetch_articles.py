@@ -164,6 +164,20 @@ FEEDS = [
     "https://news.google.com/rss/search?q=site:tricycle.org&hl=en-US&gl=US&ceid=US:en",
     # Religion journalism
     "https://news.google.com/rss/search?q=site:religiondispatches.org&hl=en-US&gl=US&ceid=US:en",
+    # Entertainment / Celebrity
+    "https://news.google.com/rss/search?q=site:tmz.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:people.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:ew.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:variety.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:hollywoodreporter.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:deadline.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:eonline.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:usmagazine.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:pagesix.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:vulture.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:pitchfork.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:rollingstone.com&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=site:billboard.com&hl=en-US&gl=US&ceid=US:en",
 ]
 
 KEYWORDS = ["bitcoin", "ethereum", "crypto",
