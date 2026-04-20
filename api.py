@@ -18,7 +18,6 @@ def get_db():
     name = os.environ.get('DB_NAME') or 'railway'
     user = os.environ.get('DB_USER') or 'postgres'
     password = os.environ.get('DB_PASSWORD') or 'ymBrWvBvPDNRHDkojqPwhPvzLZTRRacw'
-    print(f"DEBUG: connecting to {host}:{port}")
     return psycopg2.connect(
         dbname=name,
         user=user,
@@ -79,12 +78,7 @@ def get_source():
         return jsonify({'error': str(e)}), 500
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({
-        'status': 'ok',
-        'version': '2.0',
-        'db_host': os.environ.get('DB_HOST', 'NOT SET'),
-        'db_port': os.environ.get('DB_PORT', 'NOT SET')
-    })
+    return jsonify({'status': 'ok', 'version': '1.0'})
 
 @app.route('/api/stats', methods=['GET'])
 def stats():
