@@ -4,7 +4,8 @@ import anthropic
 from dotenv import load_dotenv
 from datetime import datetime
 # Load API keys
-load_dotenv()
+if os.path.exists(".env"):
+    load_dotenv(override=False)
 anthropic_key = os.getenv('ANTHROPIC_API_KEY')
 
 # Connect to Anthropic

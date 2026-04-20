@@ -4,7 +4,8 @@ import psycopg2
 from dotenv import load_dotenv
 from datetime import datetime
 
-load_dotenv()
+if os.path.exists(".env"):
+    load_dotenv(override=False)
 
 def get_connection():
     return psycopg2.connect(

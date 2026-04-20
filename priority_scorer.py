@@ -3,7 +3,8 @@ import re
 import psycopg2
 from dotenv import load_dotenv
 
-load_dotenv()
+if os.path.exists(".env"):
+    load_dotenv(override=False)
 
 HIGH_PRIORITY_KEYWORDS = [
     'million', 'billion', 'trillion', '%', 'percent',

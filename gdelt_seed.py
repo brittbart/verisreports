@@ -2,7 +2,8 @@ import os, json, requests, time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
+if os.path.exists(".env"):
+    load_dotenv(override=False)
 
 OUTLETS = [
     "foxnews.com",

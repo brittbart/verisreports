@@ -4,7 +4,8 @@ import psycopg2
 import anthropic
 from dotenv import load_dotenv
 
-load_dotenv()
+if os.path.exists(".env"):
+    load_dotenv(override=False)
 client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
 def get_connection():

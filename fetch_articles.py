@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 socket.setdefaulttimeout(10)
-load_dotenv()
+if os.path.exists(".env"):
+    load_dotenv(override=False)
 newsapi = NewsApiClient(api_key=os.getenv("NEWSAPI_KEY"))
 FEEDS = [
     # Conservative US
