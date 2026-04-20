@@ -13,15 +13,15 @@ app = Flask(__name__)
 CORS(app)
 
 def get_db():
-    host = os.getenv('DB_HOST')
-    port = os.getenv('DB_PORT', '5432')
-    print(f"DEBUG: connecting to {host}:{port}")
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        return psycopg2.connect(database_url)
     return psycopg2.connect(
-        dbname=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        host=host,
-        port=port
+        dbname=os.environ.get('DB_NAME', 'railway'),
+        user=os.environ.get('DB_USER', 'postgres'),
+        password=os.environ.get('DB_PASSWORD'),
+        host=os.environ.get('DB_HOST'),
+        port=os.environ.get('DB_PORT', '5432')
     )
 @app.route('/api/source', methods=['GET'])
 def get_source():
