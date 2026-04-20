@@ -87,8 +87,11 @@ SOURCE: {source_name}
 VERIFICATION STANDARDS — read carefully before assigning a verdict:
 
 
-INDEPENDENCE RULE — CRITICAL:
+INDEPENDENCE RULE:
 Two sources are only independent if they obtained the information through different means. Multiple outlets repeating the same wire report = ONE source, not multiple. To call something verified you must find sources that independently confirmed the fact through different channels.
+
+CONSENSUS EXCEPTION:
+If 5 or more outlets are consistently reporting the same claim without contradiction, assign verified at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
 
 VERDICT DEFINITIONS — apply strictly:
 
