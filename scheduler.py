@@ -4,15 +4,15 @@ import time
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
-
-load_dotenv()
+import os
+if os.path.exists('.env'):
+    load_dotenv(override=False)
 
 # Set up logging so you can see what's happening
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('veris_pipeline.log'),
         logging.StreamHandler(sys.stdout)
     ]
 )
