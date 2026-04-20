@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 
-load_dotenv()
+load_dotenv(override=False)
 app = Flask(__name__)
 CORS(app)
 
