@@ -6,3 +6,7 @@ __pycache__/
 *.log
 claims_*.json
 articles_*.json
+*.json
+*.save
+Database
+Web
