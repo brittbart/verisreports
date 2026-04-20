@@ -4,8 +4,11 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import os
 
-load_dotenv(override=False)
+if os.path.exists('.env'):
+    load_dotenv(override=False)
+
 app = Flask(__name__)
 CORS(app)
 
