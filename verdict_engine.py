@@ -50,6 +50,19 @@ def check_database_first(cursor, claim_text):
             SELECT verdict, confidence_score, verdict_summary
             FROM claims
             WHERE verdict IS NOT NULL
+            AND similarity(claim_text, %s) > 0.85
+            AND last_checked > NOW() - INTERVAL '24 hours'
+            ORDER BY confidence_score DESC
+            LIMIT 1
+        ''', (claim_text,))
+        result = cursor.fetchone()
+        if result:
+            print(f"  -> Cache hit (24hr window)")
+            return result
+        cursor.execute('''
+            SELECT verdict, confidence_score, verdict_summary
+            FROM claims
+            WHERE verdict IS NOT NULL
             AND similarity(claim_text, %s) > 0.6
             ORDER BY confidence_score DESC
             LIMIT 1
