@@ -1,4 +1,17 @@
 import os, json, socket, feedparser, re
+try:
+    from langdetect import detect
+    LANGDETECT = True
+except:
+    LANGDETECT = False
+
+def is_english(text):
+    if not LANGDETECT or not text or len(text) < 20:
+        return True
+    try:
+        return detect(text) == "en"
+    except:
+        return True
 from newsapi import NewsApiClient
 from dotenv import load_dotenv
 from datetime import datetime
@@ -285,7 +298,7 @@ def fetch_rss():
                     "source": {"name": name},
                     "fetch_source": "rss"
                 }
-                if a["title"] and a["url"]:
+                if a["title"] and a["url"] and is_english(a["title"] + " " + a["description"]):
                     articles.append(a)
             print(f"  ok {name}")
         except Exception as e:
