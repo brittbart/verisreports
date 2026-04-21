@@ -232,7 +232,7 @@ def run_verdict_engine(limit=10):
         FROM claims c
         JOIN articles a ON c.article_id = a.id
         WHERE c.verdict IS NULL
-        AND c.priority_score >= 40
+        AND c.priority_score >= 30
         ORDER BY c.priority_score DESC
         LIMIT %s;
     """, (limit,))
