@@ -25,7 +25,7 @@ def get_source():
     domain = request.args.get('domain', '')
     if not domain:
         return jsonify({'error': 'domain required'}), 400
-    core = domain.replace('www.', '').split('.')[0]
+    core = domain.replace('www.', '')
     try:
         conn = get_db()
         cur = conn.cursor()
