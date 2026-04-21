@@ -1,4 +1,4 @@
-import os, json, socket, feedparser
+import os, json, socket, feedparser, re
 from newsapi import NewsApiClient
 from dotenv import load_dotenv
 from datetime import datetime
@@ -188,7 +188,8 @@ def fetch_rss():
     for url in FEEDS:
         try:
             feed = feedparser.parse(url)
-            name = feed.feed.get("title", url)
+            match = re.search(r'site:([^&]+)', url)
+            name = match.group(1) if match else feed.feed.get("title", url)
             for e in feed.entries[:10]:
                 a = {
                     "title": e.get("title", ""),
