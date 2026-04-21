@@ -130,7 +130,7 @@ def get_report():
             slug = parsed.path.replace('-', ' ').replace('/', ' ').strip()
             keywords = [w for w in slug.split() if len(w) > 4][:6]
             if keywords and domain:
-                search_terms = ' & '.join(keywords)
+                search_terms = ' | '.join(keywords)
                 cur.execute("""
                     SELECT a.id, a.title, a.source_name, a.url,
                            a.claims_verified, a.verified_at
