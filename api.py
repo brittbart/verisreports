@@ -13,17 +13,12 @@ app = Flask(__name__)
 CORS(app)
 
 def get_db():
-    host = os.environ.get('DB_HOST') or 'shinkansen.proxy.rlwy.net'
-    port = os.environ.get('DB_PORT') or '35370'
-    name = os.environ.get('DB_NAME') or 'railway'
-    user = os.environ.get('DB_USER') or 'postgres'
-    password = os.environ.get('DB_PASSWORD') or 'ymBrWvBvPDNRHDkojqPwhPvzLZTRRacw'
     return psycopg2.connect(
-        dbname=name,
-        user=user,
-        password=password,
-        host=host,
-        port=port
+        dbname=os.environ.get('DB_NAME', 'railway'),
+        user=os.environ.get('DB_USER', 'postgres'),
+        password=os.environ.get('DB_PASSWORD'),
+        host=os.environ.get('DB_HOST', 'shinkansen.proxy.rlwy.net'),
+        port=os.environ.get('DB_PORT', '35370')
     )
 @app.route('/api/source', methods=['GET'])
 def get_source():
@@ -45,7 +40,7 @@ def get_source():
             WHERE a.source_name ILIKE %s
             AND c.verdict IS NOT NULL
             AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
-AND (a.published_at IS NULL OR a.published_at < NOW() - INTERVAL '24 hours')
+AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
         ''', (f'%{core}%',))
         row = cur.fetchone()
         conn.close()
