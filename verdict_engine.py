@@ -180,8 +180,14 @@ def update_source_profile(cursor, source_name, verdict):
         pass
 
 
-def calculate_reliability_score(cursor, source_name):
+def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
     try:
+        cursor.execute("""
+            SELECT reliability_score FROM sources WHERE name = %s;
+        """, (source_name,))
+        existing = cursor.fetchone()
+        old_score = existing[0] if existing else None
+
         cursor.execute("""
             SELECT COUNT(*),
             SUM(CASE WHEN verdict = 'verified' THEN 1 ELSE 0 END)
@@ -190,7 +196,7 @@ def calculate_reliability_score(cursor, source_name):
             WHERE a.source_name = %s
             AND c.verdict IS NOT NULL
             AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
-AND (a.published_at IS NULL OR a.published_at < NOW() - INTERVAL '24 hours')
+            AND (a.published_at IS NULL OR a.published_at < NOW() - INTERVAL '6 hours');
         """, (source_name,))
         result = cursor.fetchone()
         if not result or not result[0] or result[0] == 0:
@@ -198,13 +204,22 @@ AND (a.published_at IS NULL OR a.published_at < NOW() - INTERVAL '24 hours')
         total = result[0]
         verified = result[1] or 0
         rate = verified / total
-        score = "High" if rate >= 0.7 else "Medium" if rate >= 0.4 else "Low"
+        new_score = "High" if rate >= 0.7 else "Medium" if rate >= 0.4 else "Low"
+
         cursor.execute("""
             INSERT INTO sources (name, reliability_score, last_analysed)
             VALUES (%s, %s, NOW())
             ON CONFLICT (name) DO UPDATE
             SET reliability_score = %s, last_analysed = NOW();
-        """, (source_name, score, score))
+        """, (source_name, new_score, new_score))
+
+        if old_score != new_score:
+            cursor.execute("""
+                INSERT INTO score_history
+                (source_name, old_score, new_score, new_verified, new_total, trigger_claim_id)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (source_name, old_score, new_score, verified, total, trigger_claim_id))
+
     except Exception as e:
         print(f"    Score update error: {str(e)}")
 
