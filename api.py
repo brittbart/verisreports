@@ -119,9 +119,27 @@ def get_report():
                    a.claims_verified, a.verified_at
             FROM articles a
             WHERE a.url = %s
-            OR similarity(a.url, %s) > 0.9
             LIMIT 1
-        """, (url, url))
+        """, (url,))
+        article = cur.fetchone()
+
+        if not article:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            domain = parsed.netloc.replace('www.', '')
+            slug = parsed.path.replace('-', ' ').replace('/', ' ').strip()
+            keywords = [w for w in slug.split() if len(w) > 4][:6]
+            if keywords and domain:
+                search_terms = ' & '.join(keywords)
+                cur.execute("""
+                    SELECT a.id, a.title, a.source_name, a.url,
+                           a.claims_verified, a.verified_at
+                    FROM articles a
+                    WHERE a.source_name ILIKE %s
+                    AND to_tsvector('english', a.title) @@ to_tsquery('english', %s)
+                    ORDER BY a.fetched_at DESC
+                    LIMIT 1
+                """, (f'%{domain}%', search_terms))
         article = cur.fetchone()
 
         if not article:
