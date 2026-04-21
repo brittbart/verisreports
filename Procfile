@@ -1,2 +1,2 @@
-web: DB_HOST=shinkansen.proxy.rlwy.net DB_PORT=35370 DB_NAME=railway DB_USER=postgres DB_PASSWORD=ymBrWvBvPDNRHDkojqPwhPvzLZTRRacw python api.py
-worker: DB_HOST=shinkansen.proxy.rlwy.net DB_PORT=35370 DB_NAME=railway DB_USER=postgres DB_PASSWORD=ymBrWvBvPDNRHDkojqPwhPvzLZTRRacw python scheduler.py
+web: python api.py
+worker: python scheduler.py
