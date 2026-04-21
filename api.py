@@ -45,6 +45,7 @@ def get_source():
             WHERE a.source_name ILIKE %s
             AND c.verdict IS NOT NULL
             AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
+AND (a.published_at IS NULL OR a.published_at < NOW() - INTERVAL '24 hours')
         ''', (f'%{core}%',))
         row = cur.fetchone()
         conn.close()

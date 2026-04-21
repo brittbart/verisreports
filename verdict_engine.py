@@ -189,7 +189,8 @@ def calculate_reliability_score(cursor, source_name):
             JOIN articles a ON c.article_id = a.id
             WHERE a.source_name = %s
             AND c.verdict IS NOT NULL
-            AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL);
+            AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
+AND (a.published_at IS NULL OR a.published_at < NOW() - INTERVAL '24 hours')
         """, (source_name,))
         result = cursor.fetchone()
         if not result or not result[0] or result[0] == 0:
