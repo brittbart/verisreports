@@ -11,6 +11,30 @@ anthropic_key = os.getenv('ANTHROPIC_API_KEY')
 # Connect to Anthropic
 client = anthropic.Anthropic(api_key=anthropic_key)
 
+
+def deduplicate_claims(claims, threshold=0.6):
+    kept = []
+    for claim in claims:
+        claim_text = claim.get("claim_text", "")
+        is_duplicate = False
+        for i, existing in enumerate(kept):
+            existing_text = existing.get("claim_text", "")
+            a_words = set(claim_text.lower().split())
+            b_words = set(existing_text.lower().split())
+            if not a_words or not b_words:
+                continue
+            intersection = a_words & b_words
+            union = a_words | b_words
+            score = len(intersection) / len(union)
+            if score >= threshold:
+                is_duplicate = True
+                if len(claim_text) > len(existing_text):
+                    kept[i] = claim
+                break
+        if not is_duplicate:
+            kept.append(claim)
+    return kept
+
 def extract_claims_from_article(article):
     """Send an article to Claude and extract its top checkable claims."""
     
@@ -93,7 +117,8 @@ Return only the JSON, no other text."""
             
         json_str = response_text[start:end]
         claims_data = json.loads(json_str)
-        return claims_data.get('claims', [])
+        raw_claims = claims_data.get('claims', [])
+        return deduplicate_claims(raw_claims)
         
     except Exception as e:
         print(f"    Error extracting claims: {str(e)}")

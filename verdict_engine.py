@@ -8,6 +8,33 @@ if os.path.exists(".env"):
     load_dotenv(override=False)
 client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
+
+OPINION_SIGNALS = [
+    "price prediction",
+    "price target",
+    "resistance level",
+    "support level",
+    "could re-accelerate",
+    "most likely to be taken",
+    "mock draft",
+    "breakout from its",
+    "stiff overhead resistance",
+    "macro downtrend",
+    "signaling a potential",
+    "cardano price",
+    "bitcoin price prediction",
+    "200% target",
+    "toxic empathy",
+    "biblical truth against",
+]
+
+def pre_filter_claim(claim_text):
+    text = claim_text.lower()
+    for signal in OPINION_SIGNALS:
+        if signal in text:
+            return "opinion"
+    return "send_to_api"
+
 def get_connection():
     return psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
@@ -75,6 +102,9 @@ def analyse_claim(claim_text, speaker, claim_type,
                 "sources_used": "Veris source consensus"
             }
 
+    if pre_filter_claim(claim_text) == "opinion":
+        print(f"  -> Pre-filter: opinion")
+        return {"verdict":"opinion","confidence_score":1,"verdict_summary":"Prediction or editorial opinion.","full_analysis":"Pre-classified by local filter.","sources_used":"Local filter"}
     print(f"  -> Web search verification...")
     prompt = f"""You are the Veris fact-checking engine. Your job is to verify claims with rigorous, defensible standards. Use web search to find primary sources.
 
