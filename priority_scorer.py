@@ -8,13 +8,11 @@ if os.path.exists(".env"):
 
 HIGH_PRIORITY_KEYWORDS = [
     'million', 'billion', 'trillion', '%', 'percent',
-    'sec', 'fbi', 'doj', 'congress', 'senate', 'federal',
-    'bitcoin', 'ethereum', 'binance', 'coinbase',
-    'arrested', 'charged', 'filed', 'announced', 'confirmed',
-    'launched', 'banned', 'approved', 'rejected', 'hacked',
-    'exploited', 'drained', 'stolen', 'lost',
-    'first', 'largest', 'biggest', 'record', 'never',
-    'always', 'all', 'every', 'proven', 'confirmed'
+    'arrested', 'charged', 'killed', 'died', 'confirmed',
+    'announced', 'approved', 'rejected', 'banned', 'signed',
+    'first', 'largest', 'record', 'never', 'always',
+    'ceasefire', 'treaty', 'sanctions', 'invasion', 'attack',
+    'election', 'vote', 'resign', 'impeach', 'convicted'
 ]
 
 HIGH_PRIORITY_TYPES = ['statistical', 'legal', 'scientific']
