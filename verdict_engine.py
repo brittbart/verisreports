@@ -284,3 +284,247 @@ def run_verdict_engine(limit=10):
 
 if __name__ == "__main__":
     run_verdict_engine(limit=10)
+
+def run_batch_verdict_engine(limit=500):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.id, c.claim_text, c.speaker, c.claim_type,
+               a.title, a.source_name, c.priority_score
+        FROM claims c
+        JOIN articles a ON c.article_id = a.id
+        WHERE c.verdict IS NULL
+        AND c.priority_score >= 30
+        ORDER BY c.priority_score DESC
+        LIMIT %s;
+    """, (limit,))
+    claims = cursor.fetchall()
+    if not claims:
+        print("No claims to process.")
+        cursor.close()
+        conn.close()
+        return
+    print(f"Preparing batch of {len(claims)} claims...")
+    requests = []
+    claim_ids = []
+    for claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score in claims:
+        if cursor:
+            db_result = check_database_first(cursor, claim_text)
+            if db_result:
+                verdict, confidence, summary = db_result
+                cursor.execute("""
+                    UPDATE claims SET verdict=%s, confidence_score=%s,
+                    verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                    last_checked=NOW() WHERE id=%s
+                """, (verdict, confidence, summary,
+                      "Matched verified claim in Veris database.",
+                      "Veris internal database", claim_id))
+                update_source_profile(cursor, source_name, verdict)
+                calculate_reliability_score(cursor, source_name, claim_id)
+                conn.commit()
+                print(f"  -> Database match: {verdict} (claim {claim_id})")
+                continue
+            consensus = check_source_consensus(cursor, claim_text)
+            if consensus and consensus[1] >= 3:
+                verdict, count = consensus
+                cursor.execute("""
+                    UPDATE claims SET verdict=%s, confidence_score=%s,
+                    verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                    last_checked=NOW() WHERE id=%s
+                """, (verdict, 2, f"Consensus from {count} sources.",
+                      f"{count} sources agree on this verdict.",
+                      "Veris source consensus", claim_id))
+                update_source_profile(cursor, source_name, verdict)
+                calculate_reliability_score(cursor, source_name, claim_id)
+                conn.commit()
+                print(f"  -> Consensus: {verdict} (claim {claim_id})")
+                continue
+        prompt = build_prompt(claim_text, speaker, claim_type, article_title, source_name)
+        requests.append({
+            "custom_id": str(claim_id),
+            "params": {
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1000,
+                "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+                "messages": [{"role": "user", "content": prompt}]
+            }
+        })
+        claim_ids.append(claim_id)
+    cursor.close()
+    conn.close()
+    if not requests:
+        print("All claims resolved via database/consensus — no batch needed.")
+        return
+    print(f"Submitting batch of {len(requests)} claims to Anthropic...")
+    batch = client.beta.messages.batches.create(requests=requests)
+    print(f"Batch submitted. ID: {batch.id}")
+    print(f"Save this ID — run process_batch_results('{batch.id}') when complete.")
+    with open('pending_batch.txt', 'w') as f:
+        f.write(batch.id)
+    return batch.id
+def build_prompt(claim_text, speaker, claim_type, article_title, source_name):
+    return f"""You are the Veris fact-checking engine. Verify this claim using web search.
+
+CLAIM: {claim_text}
+SPEAKER: {speaker}
+TYPE: {claim_type}
+ARTICLE: {article_title}
+SOURCE: {source_name}
+
+INDEPENDENCE RULE: Two sources are only independent if they obtained information through different means. Multiple outlets repeating the same wire = ONE source.
+
+CONSENSUS EXCEPTION: If 5+ outlets consistently report the same claim without contradiction, assign verified at confidence 2/3.
+
+VERDICT DEFINITIONS:
+- verified: TWO genuinely independent sources confirm
+- plausible: Consistent but only one credible source
+- disputed: ANY credible source contradicts
+- overstated: Core fact real but exaggerated
+- not_supported: Evidence contradicts the claim
+- not_verifiable: Cannot confirm - sources unavailable
+- opinion: Value judgement or prediction
+
+CONFIDENCE: 3=two+ independent sources, 2=one credible source, 1=plausible/disputed
+
+Return ONLY this JSON:
+{{
+  "verdict": "verdict here",
+  "confidence_score": 1,
+  "verdict_summary": "one sentence explanation",
+  "full_analysis": "2-3 sentences of reasoning",
+  "sources_used": "named sources and whether each independently confirmed"
+}}"""
+
+
+def run_batch_verdict_engine(limit=500):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT c.id, c.claim_text, c.speaker, c.claim_type,
+               a.title, a.source_name, c.priority_score
+        FROM claims c
+        JOIN articles a ON c.article_id = a.id
+        WHERE c.verdict IS NULL
+        AND c.priority_score >= 30
+        ORDER BY c.priority_score DESC
+        LIMIT %s;
+    """, (limit,))
+    claims = cursor.fetchall()
+    if not claims:
+        print("No claims to process.")
+        cursor.close()
+        conn.close()
+        return
+    print(f"Preparing batch of {len(claims)} claims...")
+    requests = []
+    for claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score in claims:
+        db_result = check_database_first(cursor, claim_text)
+        if db_result:
+            verdict, confidence, summary = db_result
+            cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
+                verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                last_checked=NOW() WHERE id=%s""",
+                (verdict, confidence, summary, "Matched in Veris database.",
+                "Veris internal database", claim_id))
+            update_source_profile(cursor, source_name, verdict)
+            calculate_reliability_score(cursor, source_name, claim_id)
+            conn.commit()
+            print(f"  -> Database match: {verdict} (claim {claim_id})")
+            continue
+        consensus = check_source_consensus(cursor, claim_text)
+        if consensus and consensus[1] >= 3:
+            verdict, count = consensus
+            cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
+                verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                last_checked=NOW() WHERE id=%s""",
+                (verdict, 2, f"Consensus from {count} sources.",
+                f"{count} sources agree.", "Veris source consensus", claim_id))
+            update_source_profile(cursor, source_name, verdict)
+            calculate_reliability_score(cursor, source_name, claim_id)
+            conn.commit()
+            print(f"  -> Consensus: {verdict} (claim {claim_id})")
+            continue
+        prompt = build_prompt(claim_text, speaker, claim_type, article_title, source_name)
+        requests.append({
+            "custom_id": str(claim_id),
+            "params": {
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1000,
+                "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+                "messages": [{"role": "user", "content": prompt}]
+            }
+        })
+    cursor.close()
+    conn.close()
+    if not requests:
+        print("All claims resolved via database/consensus.")
+        return
+    print(f"Submitting batch of {len(requests)} claims...")
+    batch = client.beta.messages.batches.create(requests=requests)
+    print(f"Batch ID: {batch.id}")
+    with open("pending_batch.txt", "w") as f:
+        f.write(batch.id)
+    print("Batch ID saved to pending_batch.txt")
+    print("Results ready in up to 24 hours. Run process_batch_results() to collect.")
+    return batch.id
+
+
+def process_batch_results(batch_id=None):
+    if not batch_id:
+        try:
+            batch_id = open("pending_batch.txt").read().strip()
+        except:
+            print("No batch ID found.")
+            return
+    print(f"Checking batch {batch_id}...")
+    batch = client.beta.messages.batches.retrieve(batch_id)
+    print(f"Status: {batch.processing_status}")
+    if batch.processing_status != "ended":
+        print(f"Not ready yet. Counts: {batch.request_counts}")
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    saved = 0
+    for result in client.beta.messages.batches.results(batch_id):
+        claim_id = int(result.custom_id)
+        if result.result.type == "succeeded":
+            response_text = ""
+            for block in result.result.message.content:
+                if hasattr(block, "text"):
+                    response_text += block.text
+            response_text = response_text.strip()
+            start = response_text.find("{")
+            end = response_text.rfind("}") + 1
+            if start == -1 or end == 0:
+                continue
+            try:
+                data = json.loads(response_text[start:end])
+                verdict = data.get("verdict", "not_verifiable")
+                confidence = min(data.get("confidence_score", 1), 3)
+                summary = data.get("verdict_summary", "")
+                analysis = data.get("full_analysis", "")
+                sources = data.get("sources_used", "")
+                cursor.execute("""SELECT a.source_name FROM claims c
+                    JOIN articles a ON c.article_id = a.id WHERE c.id = %s""",
+                    (claim_id,))
+                row = cursor.fetchone()
+                source_name = row[0] if row else "unknown"
+                cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
+                    verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                    last_checked=NOW() WHERE id=%s""",
+                    (verdict, confidence, summary, analysis, sources, claim_id))
+                update_source_profile(cursor, source_name, verdict)
+                calculate_reliability_score(cursor, source_name, claim_id)
+                conn.commit()
+                saved += 1
+                print(f"  Saved claim {claim_id}: {verdict} ({confidence}/3)")
+            except Exception as e:
+                print(f"  Error claim {claim_id}: {str(e)}")
+        else:
+            print(f"  Claim {claim_id} failed: {result.result.type}")
+    cursor.close()
+    conn.close()
+    print(f"Done. {saved} verdicts saved.")
+    import os
+    if os.path.exists("pending_batch.txt"):
+        os.remove("pending_batch.txt")
