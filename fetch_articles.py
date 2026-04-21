@@ -280,7 +280,7 @@ def fetch_rss():
                     "title": e.get("title", ""),
                     "description": e.get("summary", ""),
                     "content": e.get("summary", ""),
-                    "url": e.get("link", ""),
+                    "url": (lambda u: __import__("requests").get(u, allow_redirects=True, timeout=5).url if "news.google.com" in u else u)(e.get("link", "")) if e.get("link","") else "",
                     "publishedAt": e.get("published", ""),
                     "source": {"name": name},
                     "fetch_source": "rss"
