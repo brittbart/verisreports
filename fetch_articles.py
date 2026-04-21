@@ -80,12 +80,7 @@ FEEDS = [
     "https://news.google.com/rss/search?q=site:dailymaverick.co.za&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:allafrica.com&hl=en-US&gl=US&ceid=US:en",
     # Crypto
-    "https://decrypt.co/feed",
-    "https://blockworks.co/feed",
-    "https://bitcoinmagazine.com/.rss/full/",
     "https://coindesk.com/arc/outboundfeeds/rss",
-    "https://cointelegraph.com/rss",
-    "https://theblock.co/rss",
     # US Local — Northeast
     "https://news.google.com/rss/search?q=site:bostonglobe.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:bostonherald.com&hl=en-US&gl=US&ceid=US:en",
