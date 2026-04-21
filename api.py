@@ -97,6 +97,121 @@ def stats():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/report', methods=['GET'])
+def get_report():
+    """
+    Accept a full article URL and return a complete Verum Signal report.
+    If the article has been pre-verified, returns instantly.
+    If not, triggers real-time verification.
+    """
+    url = request.args.get('url', '').strip()
+    if not url:
+        return jsonify({'error': 'url required'}), 400
+
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        # Step 1: Check if article is already in database
+        cur.execute("""
+            SELECT a.id, a.title, a.source_name, a.url,
+                   a.claims_verified, a.verified_at
+            FROM articles a
+            WHERE a.url = %s
+            OR similarity(a.url, %s) > 0.9
+            LIMIT 1
+        """, (url, url))
+        article = cur.fetchone()
+
+        if not article:
+            conn.close()
+            return jsonify({
+                'status': 'not_found',
+                'url': url,
+                'message': 'Article not in database yet. Try again in a few hours or use real-time verification.'
+            })
+
+        art_id, title, source_name, art_url, claims_verified, verified_at = article
+
+        # Step 2: Get all claims for this article
+        cur.execute("""
+            SELECT id, claim_text, speaker, claim_type, claim_origin,
+                   verdict, confidence_score, verdict_summary,
+                   full_analysis, sources_used
+            FROM claims
+            WHERE article_id = %s
+            ORDER BY priority_score DESC
+        """, (art_id,))
+        claims = cur.fetchall()
+        conn.close()
+
+        if not claims:
+            return jsonify({
+                'status': 'no_claims',
+                'url': url,
+                'title': title,
+                'source': source_name
+            })
+
+        # Step 3: Build report
+        verified_count = sum(1 for c in claims if c[5] == 'verified')
+        overstated_count = sum(1 for c in claims if c[5] == 'overstated')
+        disputed_count = sum(1 for c in claims if c[5] == 'disputed')
+        not_supported_count = sum(1 for c in claims if c[5] == 'not_supported')
+        opinion_count = sum(1 for c in claims if c[5] == 'opinion')
+        unverified_count = sum(1 for c in claims if c[5] is None)
+
+        total_scored = len(claims) - unverified_count
+        score = round((verified_count / total_scored * 100) if total_scored > 0 else 0)
+
+        if score >= 70:
+            rating = 'High'
+        elif score >= 45:
+            rating = 'Medium'
+        else:
+            rating = 'Low'
+
+        claims_data = []
+        for cid, claim_text, speaker, claim_type, claim_origin, verdict, confidence, summary, analysis, sources in claims:
+            claims_data.append({
+                'id': cid,
+                'claim_text': claim_text,
+                'speaker': speaker,
+                'claim_type': claim_type,
+                'claim_origin': claim_origin,
+                'verdict': verdict,
+                'confidence_score': confidence,
+                'verdict_summary': summary,
+                'full_analysis': analysis,
+                'sources_used': sources
+            })
+
+        return jsonify({
+            'status': 'found',
+            'pre_verified': claims_verified or False,
+            'verified_at': verified_at.isoformat() if verified_at else None,
+            'url': art_url,
+            'title': title,
+            'source': source_name,
+            'rating': rating,
+            'score': score,
+            'stats': {
+                'verified': verified_count,
+                'overstated': overstated_count,
+                'disputed': disputed_count,
+                'not_supported': not_supported_count,
+                'opinion': opinion_count,
+                'unverified': unverified_count,
+                'total': len(claims)
+            },
+            'claims': claims_data,
+            'as_of': datetime.now().strftime('%B %d, %Y')
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)# Railway deployment Mon Apr 20 15:45:41 MDT 2026

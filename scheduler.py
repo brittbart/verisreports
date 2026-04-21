@@ -156,6 +156,19 @@ def run_verdicts():
         return False    
     
 
+
+def run_pre_verify():
+    """Pre-verify claims for top outlet articles."""
+    log.info("Pre-verifying top outlet articles...")
+    try:
+        import pre_verify
+        count = pre_verify.pre_verify_articles(limit=30)
+        log.info(f"Pre-verification complete: {count} claims verified")
+        return True
+    except Exception as e:
+        log.error(f"Pre-verification failed: {str(e)}")
+        return False
+
 def run_full_pipeline():
     """Run the complete Veris pipeline."""
     start = datetime.now()
@@ -169,6 +182,7 @@ def run_full_pipeline():
     ("GDELT seed", run_gdelt),
     ("Extract claims", run_extract),
     ("Load to database", run_load),
+    ("Pre-verify top outlets", run_pre_verify),
     ("Score priorities", run_priority),
     ("Assign verdicts", run_verdicts),]
     
