@@ -333,8 +333,7 @@ FEEDS = [
     "https://hongkongfp.com/feed/",
 ]
 
-KEYWORDS = ["bitcoin", "ethereum", "crypto",
-    "Trump", "Congress", "inflation", "economy"]
+KEYWORDS = ["Trump", "Congress", "inflation", "economy"]
 
 
 def _fetch_feed(url):
