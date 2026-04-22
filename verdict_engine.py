@@ -273,7 +273,7 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
                 INSERT INTO score_history
                 (source_name, old_score, new_score, new_verified, new_total, trigger_claim_id)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (source_name, old_score, new_score, verified, total, trigger_claim_id))
+            """, (source_name, old_score, new_score, round(weighted), scoreable, trigger_claim_id))
 
     except Exception as e:
         print(f"    Score update error: {str(e)}")
