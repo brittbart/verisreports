@@ -249,6 +249,46 @@ def get_report():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route("/api/dispute", methods=["POST"])
+def submit_dispute():
+    data = request.get_json(silent=True) or {}
+    domain = data.get("domain","").strip().lower().replace("www.","")
+    claim_id = data.get("claim_id")
+    contact_email = data.get("contact_email","").strip()
+    dispute_text = data.get("dispute_text","").strip()
+    outlet_response = data.get("outlet_response","").strip()
+    if not domain: return jsonify({"error":"domain required"}),400
+    if not dispute_text and not outlet_response: return jsonify({"error":"dispute_text or outlet_response required"}),400
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        if claim_id:
+            cur.execute("SELECT id FROM claims WHERE id = %s",(claim_id,))
+            if not cur.fetchone():
+                conn.close()
+                return jsonify({"error":"claim_id not found"}),404
+        cur.execute("INSERT INTO outlet_disputes (domain,claim_id,contact_email,dispute_text,outlet_response,status) VALUES (%s,%s,%s,%s,%s,'pending') RETURNING id,submitted_at",(domain,claim_id,contact_email or None,dispute_text or None,outlet_response or None))
+        dispute_id,submitted_at = cur.fetchone()
+        conn.commit()
+        conn.close()
+        return jsonify({"status":"received","dispute_id":dispute_id,"domain":domain,"submitted_at":submitted_at.isoformat(),"message":"Your dispute has been logged and will appear publicly on the Verum Signal leaderboard. All disputes are reviewed within 14 days. If a verdict is found incorrect it will be re-verified and updated."})
+    except Exception as e:
+        return jsonify({"error":str(e)}),500
+
+@app.route("/api/disputes", methods=["GET"])
+def get_disputes():
+    domain = request.args.get("domain","").strip().lower().replace("www.","")
+    if not domain: return jsonify({"error":"domain required"}),400
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id,domain,claim_id,dispute_text,outlet_response,status,submitted_at,resolution FROM outlet_disputes WHERE domain=%s ORDER BY submitted_at DESC",(domain,))
+        rows = cur.fetchall()
+        conn.close()
+        return jsonify({"domain":domain,"total":len(rows),"disputes":[{"id":r[0],"domain":r[1],"claim_id":r[2],"dispute_text":r[3],"outlet_response":r[4],"status":r[5],"submitted_at":r[6].isoformat() if r[6] else None,"resolution":r[7]} for r in rows]})
+    except Exception as e:
+        return jsonify({"error":str(e)}),500
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)# Railway deployment Mon Apr 20 15:45:41 MDT 2026
