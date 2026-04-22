@@ -111,7 +111,7 @@ def analyse_claim(claim_text, speaker, claim_type,
             return {
                 "verdict": verdict,
                 "confidence_score": 2,
-                "verdict_summary": f"Consensus from {count} sources.",
+                "verdict_summary": f"Corroborated across {count} sources.",
                 "full_analysis": f"{count} sources agree on this verdict.",
                 "sources_used": "Veris source consensus"
             }
@@ -257,8 +257,8 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
             return
         weighted = float(result[0] or 0)
         scoreable = result[1]
-        normalised = (weighted / scoreable + 1) / 2
-        numeric_score = round(normalised * 100)
+        normalised = (weighted / scoreable + 1.5) / 2.5
+        numeric_score = round(min(max(normalised * 100, 0), 100))
         new_score = "High" if numeric_score >= 70 else "Medium" if numeric_score >= 40 else "Low"
 
         cursor.execute("""
