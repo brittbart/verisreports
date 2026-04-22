@@ -1,4 +1,5 @@
 import os, json, socket, feedparser, re
+socket.setdefaulttimeout(10)
 try:
     from langdetect import detect
     LANGDETECT = True
@@ -62,7 +63,7 @@ FEEDS = [
     "https://feeds.npr.org/1001/rss.xml",
     "https://feeds.npr.org/1014/rss.xml",
     "https://thehill.com/rss/syndicator/19109",
-    "https://www.axios.com/feeds/feed.rss",
+# DISABLED (timeout/403):     "https://www.axios.com/feeds/feed.rss",
     "https://feeds.foxnews.com/foxnews/latest",
     "https://feeds.foxnews.com/foxnews/politics",
     "https://www.aljazeera.com/xml/rss/all.xml",
@@ -71,8 +72,8 @@ FEEDS = [
     "https://www.theguardian.com/us-news/rss",
     "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml",
-    "https://feeds.washingtonpost.com/rss/politics",
-    "https://feeds.washingtonpost.com/rss/business",
+# DISABLED (timeout/403):     "https://feeds.washingtonpost.com/rss/politics",
+# DISABLED (timeout/403):     "https://feeds.washingtonpost.com/rss/business",
     "https://news.google.com/rss/search?q=site:bbc.co.uk&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:dawn.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:theguardian.com&hl=en-US&gl=US&ceid=US:en",
@@ -93,7 +94,7 @@ FEEDS = [
     "https://news.google.com/rss/search?q=site:dailymaverick.co.za&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:allafrica.com&hl=en-US&gl=US&ceid=US:en",
     # Crypto
-    "https://coindesk.com/arc/outboundfeeds/rss",
+# DISABLED (timeout/403):     "https://coindesk.com/arc/outboundfeeds/rss",
     # US Local — Northeast
     "https://news.google.com/rss/search?q=site:bostonglobe.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:bostonherald.com&hl=en-US&gl=US&ceid=US:en",
@@ -276,6 +277,60 @@ FEEDS = [
     "https://news.google.com/rss/search?q=site:pitchfork.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:rollingstone.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:billboard.com&hl=en-US&gl=US&ceid=US:en",
+    # === ADDITIONS Apr 21 2026 ===
+    # Government primary sources (highest verdict weight — verify claims against these)
+    "https://www.whitehouse.gov/briefing-room/feed/",
+    "https://www.whitehouse.gov/news/feed/",
+    "https://www.state.gov/rss-feed/press-releases/feed/",
+    "https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=945&max=10",
+    "https://www.justice.gov/feeds/justice-news.xml",
+    "https://tools.cdc.gov/api/v2/resources/media/132608.rss",
+    "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+    "https://www.epa.gov/newsreleases/search/rss",
+    "https://www.dhs.gov/news-releases/releases.xml",
+    "https://www.gao.gov/rss/reports.xml",
+    "https://www.congress.gov/rss/most-viewed-bills.xml",
+    "https://www.federalregister.gov/articles.rss",
+    "https://www.supremecourt.gov/rss/cases.aspx",
+    # Official data releases
+    "https://www.federalreserve.gov/feeds/press_all.xml",
+    "https://www.bls.gov/feed/news_release.rss",
+    "https://www.sec.gov/news/pressreleases.rss",
+    "https://home.treasury.gov/news/press-releases/feed",
+    "https://www.census.gov/newsroom/press-releases.xml",
+    "https://www.bea.gov/news/rss.xml",
+    # Election infrastructure
+    "https://www.fec.gov/updates/feed/",
+    "https://www.opensecrets.org/news/feed/",
+    "https://ballotpedia.org/Special:RecentChanges?feed=rss",
+    "https://www.c-span.org/rss/?feed=podcast",
+    # Wire services not already covered (direct, not via Google News)
+    "https://www.afp.com/en/rss.xml",
+    "https://feeds.bloomberg.com/news.rss",
+    "https://feeds.bloomberg.com/politics/news.rss",
+    "https://english.kyodonews.net/rss/news.xml",
+    # Public broadcasters not already covered
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://feeds.npr.org/1014/rss.xml",
+    "https://www.pbs.org/newshour/feeds/rss/headlines",
+    "https://www.cbc.ca/webfeed/rss/rss-topstories",
+    "https://www.abc.net.au/news/feed/45910/rss.xml",
+    "https://www.rnz.co.nz/rss/national.xml",
+    # Investigative nonprofits not already covered
+    "https://www.themarshallproject.org/rss/recent.rss",
+    "https://insideclimatenews.org/feed/",
+    "https://themarkup.org/feeds/rss.xml",
+    "https://grist.org/feed/",
+    "https://www.icij.org/feed/",
+    "https://revealnews.org/feed/",
+    # Digital-native not already covered
+    "https://www.semafor.com/feed",
+    "https://www.thefp.com/feed",
+    # International perspectives not already covered
+    "https://www.africanews.com/feed/rss",
+    "https://buenosairesherald.com/feed",
+    "https://mexiconewsdaily.com/feed/",
+    "https://hongkongfp.com/feed/",
 ]
 
 KEYWORDS = ["bitcoin", "ethereum", "crypto",
@@ -287,7 +342,13 @@ def fetch_rss():
         try:
             feed = feedparser.parse(url)
             match = re.search(r'site:([^&]+)', url)
-            name = match.group(1) if match else feed.feed.get("title", url)
+            if match:
+                name = match.group(1)
+            else:
+                # Direct RSS URL — derive clean domain from hostname
+                from urllib.parse import urlparse
+                host = urlparse(url).hostname or url
+                name = host.replace("www.", "").replace("feeds.", "").replace("rss.", "")
             for e in feed.entries[:10]:
                 a = {
                     "title": e.get("title", ""),
