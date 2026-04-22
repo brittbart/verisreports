@@ -31,7 +31,7 @@ def verify(claim, title, source):
             tools=[{"type":"web_search_20250305","name":"web_search"}],
             messages=[{"role":"user","content":PROMPT.format(claim=claim,source=source,title=title)}])
         text = "".join(b.text for b in msg.content if hasattr(b,"text")).strip()
-        start = text.rfind("{")
+        start = text.find("{")
         end = text.rfind("}") + 1
         if start == -1 or end == 0:
             print("no JSON found"); return None

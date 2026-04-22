@@ -30,11 +30,11 @@ def second_pass(claim_text, speaker, claim_type, title, source):
               '{"verdict":"x","confidence_score":2,"verdict_summary":"one sentence","sources_used":"named sources"}')
     try:
         msg = client.messages.create(
-            model="claude-sonnet-4-6", max_tokens=800,
+            model="claude-sonnet-4-6", max_tokens=1500,
             tools=[{"type":"web_search_20250305","name":"web_search"}],
             messages=[{"role":"user","content":prompt}])
         text = "".join(b.text for b in msg.content if hasattr(b,"text")).strip()
-        start = text.rfind("{")
+        start = text.find("{")
         end = text.rfind("}") + 1
         if start == -1 or end == 0:
             return None
