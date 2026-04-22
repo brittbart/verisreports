@@ -291,6 +291,19 @@ def get_disputes():
         return jsonify({"domain":domain,"total":len(rows),"disputes":[{"id":r[0],"domain":r[1],"claim_id":r[2],"dispute_text":r[3],"outlet_response":r[4],"status":r[5],"submitted_at":r[6].isoformat() if r[6] else None,"resolution":r[7]} for r in rows]})
     except Exception as e:
         return jsonify({"error":str(e)}),500
+
+@app.route('/api/debug-env')
+def debug_env():
+    import os
+    return {
+        'DB_HOST': os.environ.get('DB_HOST', 'NOT SET'),
+        'DB_PORT': os.environ.get('DB_PORT', 'NOT SET'),
+        'DB_NAME': os.environ.get('DB_NAME', 'NOT SET'),
+        'DB_USER': os.environ.get('DB_USER', 'NOT SET'),
+        'DB_PASSWORD_SET': bool(os.environ.get('DB_PASSWORD')),
+        'DATABASE_URL_SET': bool(os.environ.get('DATABASE_URL')),
+        'DATABASE_URL_PREFIX': os.environ.get('DATABASE_URL', '')[:20] if os.environ.get('DATABASE_URL') else 'NOT SET',
+    }
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)# Railway deployment Mon Apr 20 15:45:41 MDT 2026
