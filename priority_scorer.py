@@ -51,12 +51,7 @@ def calculate_priority(claim_text, claim_type, source_name):
     if '$' in claim_text or 'usd' in claim_lower:
         score += 10
 
-    words = claim_text.split()
-    capitalised = sum(
-        1 for w in words[1:]
-        if w and w[0].isupper() and len(w) > 2
-    )
-    score += min(capitalised * 3, 10)
+    # Capitalisation bias removed — proper nouns should not outscore statistical claims
 
     return min(score, 100)
 

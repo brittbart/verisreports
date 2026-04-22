@@ -14,18 +14,19 @@ OPINION_SIGNALS = [
     "price target",
     "resistance level",
     "support level",
-    "could re-accelerate",
-    "most likely to be taken",
-    "mock draft",
     "breakout from its",
     "stiff overhead resistance",
     "macro downtrend",
     "signaling a potential",
-    "cardano price",
-    "bitcoin price prediction",
-    "200% target",
-    "toxic empathy",
-    "biblical truth against",
+    "could re-accelerate",
+    "mock draft",
+    "is expected to",
+    "is predicted to",
+    "is projected to",
+    "will likely",
+    "should be",
+    "must be",
+    "deserves to",
 ]
 
 def pre_filter_claim(claim_text):
@@ -104,7 +105,7 @@ def analyse_claim(claim_text, speaker, claim_type,
             }
 
         consensus = check_source_consensus(cursor, claim_text)
-        if consensus and consensus[1] >= 3:
+        if consensus and consensus[1] >= 5:
             verdict, count = consensus
             print(f"  -> Consensus: {verdict} ({count} sources)")
             return {
@@ -202,13 +203,15 @@ Return ONLY this JSON:
         return None
     
 def update_source_profile(cursor, source_name, verdict):
+    if verdict == 'opinion':
+        return
     field_map = {
-        'verified': 'verified_count',
-        'plausible': 'verified_count',
-        'disputed': 'disputed_count',
-        'overstated': 'overstated_count',
-        'not_verifiable': 'not_verifiable_count',
-        'opinion': 'not_verifiable_count'
+        'verified':      'verified_count',
+        'plausible':     'plausible_count',
+        'disputed':      'disputed_count',
+        'not_supported': 'disputed_count',
+        'overstated':    'overstated_count',
+        'not_verifiable':'not_verifiable_count',
     }
     field = field_map.get(verdict, 'not_verifiable_count')
     try:
@@ -232,22 +235,31 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
         old_score = existing[0] if existing else None
 
         cursor.execute("""
-            SELECT COUNT(*),
-            SUM(CASE WHEN verdict = 'verified' THEN 1 ELSE 0 END)
+            SELECT
+                SUM(CASE WHEN verdict = 'verified'   THEN 1.0
+                         WHEN verdict = 'plausible'  THEN 0.5
+                         WHEN verdict = 'overstated' THEN -0.5
+                         WHEN verdict IN ('disputed','not_supported') THEN -1.0
+                         ELSE 0 END) as weighted,
+                COUNT(*) FILTER (
+                    WHERE verdict NOT IN ('opinion','not_verifiable')
+                ) as scoreable
             FROM claims c
             JOIN articles a ON c.article_id = a.id
             WHERE a.source_name = %s
             AND c.verdict IS NOT NULL
             AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
-            AND (a.published_at IS NULL OR a.published_at < NOW() - INTERVAL '6 hours');
+            AND a.published_at IS NOT NULL
+            AND a.published_at < NOW() - INTERVAL '6 hours';
         """, (source_name,))
         result = cursor.fetchone()
-        if not result or not result[0] or result[0] == 0:
+        if not result or not result[1] or result[1] == 0:
             return
-        total = result[0]
-        verified = result[1] or 0
-        rate = verified / total
-        new_score = "High" if rate >= 0.7 else "Medium" if rate >= 0.4 else "Low"
+        weighted = float(result[0] or 0)
+        scoreable = result[1]
+        normalised = (weighted / scoreable + 1) / 2
+        numeric_score = round(normalised * 100)
+        new_score = "High" if numeric_score >= 70 else "Medium" if numeric_score >= 40 else "Low"
 
         cursor.execute("""
             INSERT INTO sources (name, reliability_score, last_analysed)
@@ -368,7 +380,7 @@ def run_batch_verdict_engine(limit=500):
                 print(f"  -> Database match: {verdict} (claim {claim_id})")
                 continue
             consensus = check_source_consensus(cursor, claim_text)
-            if consensus and consensus[1] >= 3:
+            if consensus and consensus[1] >= 5:
                 verdict, count = consensus
                 cursor.execute("""
                     UPDATE claims SET verdict=%s, confidence_score=%s,
@@ -475,7 +487,7 @@ def run_batch_verdict_engine(limit=500):
             print(f"  -> Database match: {verdict} (claim {claim_id})")
             continue
         consensus = check_source_consensus(cursor, claim_text)
-        if consensus and consensus[1] >= 3:
+        if consensus and consensus[1] >= 5:
             verdict, count = consensus
             cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
                 verdict_summary=%s, full_analysis=%s, sources_used=%s,
