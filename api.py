@@ -173,19 +173,37 @@ def get_report():
             })
 
         # Step 3: Build report
-        verified_count = sum(1 for c in claims if c[5] == 'verified')
-        overstated_count = sum(1 for c in claims if c[5] == 'overstated')
-        disputed_count = sum(1 for c in claims if c[5] == 'disputed')
-        not_supported_count = sum(1 for c in claims if c[5] == 'not_supported')
-        opinion_count = sum(1 for c in claims if c[5] == 'opinion')
-        unverified_count = sum(1 for c in claims if c[5] is None)
+        verified_count     = sum(1 for c in claims if c[5] == 'verified')
+        plausible_count    = sum(1 for c in claims if c[5] == 'plausible')
+        overstated_count   = sum(1 for c in claims if c[5] == 'overstated')
+        disputed_count     = sum(1 for c in claims if c[5] == 'disputed')
+        not_supported_count= sum(1 for c in claims if c[5] == 'not_supported')
+        opinion_count      = sum(1 for c in claims if c[5] == 'opinion')
+        unverified_count   = sum(1 for c in claims if c[5] is None)
 
-        total_scored = len(claims) - unverified_count
-        score = round((verified_count / total_scored * 100) if total_scored > 0 else 0)
+        # Weighted scoring — opinion, not_verifiable, and unverified excluded.
+        # Consistent with source reliability scoring formula.
+        WEIGHTS = {
+            'verified':      1.0,
+            'plausible':     0.5,
+            'overstated':   -0.5,
+            'disputed':     -1.0,
+            'not_supported':-1.5,
+        }
+        weighted_sum = sum(
+            WEIGHTS[c[5]] for c in claims
+            if c[5] in WEIGHTS
+        )
+        scoreable = sum(1 for c in claims if c[5] in WEIGHTS)
+        if scoreable > 0:
+            normalised = (weighted_sum / scoreable + 1.5) / 3.0
+            score = round(min(max(normalised * 100, 0), 100))
+        else:
+            score = 0
 
         if score >= 70:
             rating = 'High'
-        elif score >= 45:
+        elif score >= 40:
             rating = 'Medium'
         else:
             rating = 'Low'
@@ -216,6 +234,7 @@ def get_report():
             'score': score,
             'stats': {
                 'verified': verified_count,
+                'plausible': plausible_count,
                 'overstated': overstated_count,
                 'disputed': disputed_count,
                 'not_supported': not_supported_count,
