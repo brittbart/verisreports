@@ -45,7 +45,7 @@ def load_articles(articles_file, claims_file):
     
     for i, article in enumerate(articles):
         title = article.get('title', 'No title')
-        source_name = article.get('source', {}).get('name', 'Unknown')
+        raw_source = article.get('source', {}).get('name', 'Unknown')
         url = article.get('url', '')
         if 'news.google.com' in url:
             try:
@@ -55,6 +55,11 @@ def load_articles(articles_file, claims_file):
                 url = resp.url
             except Exception:
                 pass
+        # Normalise source name to clean domain after redirect resolution
+        from urllib.parse import urlparse as _up
+        _h = _up(url).hostname or ''
+        _h = _h.replace('www.','').replace('feeds.','').replace('rss.','')
+        source_name = _h if _h else raw_source
         published = article.get('publishedAt')
         description = article.get('description', '')
         content = article.get('content', '')
