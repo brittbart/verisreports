@@ -336,36 +336,60 @@ FEEDS = [
 KEYWORDS = ["bitcoin", "ethereum", "crypto",
     "Trump", "Congress", "inflation", "economy"]
 
+
+def _fetch_feed(url):
+    import requests as _req
+    try:
+        _r = _req.get(url, timeout=(8, 12),
+                      headers={'User-Agent': 'Mozilla/5.0'},
+                      stream=True)
+        raw = b''
+        for chunk in _r.iter_content(chunk_size=16384):
+            raw += chunk
+            if len(raw) > 2_000_000: break
+        return url, feedparser.parse(raw)
+    except Exception as e:
+        print(f'  skip {url[:60]} ({e})')
+        return url, None
+
+
 def fetch_rss():
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     articles = []
+    results = {}
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(_fetch_feed, url): url for url in FEEDS}
+        for future in as_completed(futures, timeout=90):
+            url, feed = future.result()
+            results[url] = feed
     for url in FEEDS:
+        feed = results.get(url)
+        if not feed:
+            continue
         try:
-            feed = feedparser.parse(url)
             match = re.search(r'site:([^&]+)', url)
             if match:
                 name = match.group(1)
             else:
-                # Direct RSS URL — derive clean domain from hostname
                 from urllib.parse import urlparse
                 host = urlparse(url).hostname or url
-                name = host.replace("www.", "").replace("feeds.", "").replace("rss.", "")
+                name = host.replace('www.', '').replace('feeds.', '').replace('rss.', '')
             for e in feed.entries[:10]:
                 a = {
-                    "title": e.get("title", ""),
-                    "description": e.get("summary", ""),
-                    "content": e.get("summary", ""),
-                    "url": (lambda u: __import__("requests").get(u, allow_redirects=True, timeout=5).url if "news.google.com" in u else u)(e.get("link", "")) if e.get("link","") else "",
-                    "publishedAt": e.get("published", ""),
-                    "source": {"name": name},
-                    "fetch_source": "rss"
+                    'title': e.get('title', ''),
+                    'description': e.get('summary', ''),
+                    'content': e.get('summary', ''),
+                    'url': e.get('link', ''),
+                    'publishedAt': e.get('published', ''),
+                    'source': {'name': name},
+                    'fetch_source': 'rss'
                 }
-                if a["title"] and a["url"] and is_english(a["title"] + " " + a["description"]):
+                if a['title'] and a['url'] and is_english(a['title'] + ' ' + a['description']):
                     articles.append(a)
-            print(f"  ok {name}")
+            print(f'  ok {name}')
         except Exception as e:
-            print(f"  skip: {str(e)[:40]}")
+            print(f'  skip: {str(e)[:40]}')
     return articles
-
 def fetch_newsapi():
     articles = []
     for kw in KEYWORDS:
