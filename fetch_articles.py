@@ -141,7 +141,7 @@ FEEDS = [
     "https://news.google.com/rss/search?q=site:cbsnews.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:abcnews.go.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:nbcnews.com&hl=en-US&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=site:msnbc.com&hl=en-US&gl=US&ceid=US:en",
+    "https://www.msnbc.com/rss",
     "https://news.google.com/rss/search?q=site:cnn.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:usatoday.com&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=site:newsweek.com&hl=en-US&gl=US&ceid=US:en",
