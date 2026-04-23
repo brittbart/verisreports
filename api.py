@@ -191,6 +191,7 @@ def get_report():
             'overstated':   -0.5,
             'disputed':     -1.0,
             'not_supported':-1.5,
+            'corroborated':  0.5,
         }
         weighted_sum = sum(
             WEIGHTS[c[5]] for c in claims
