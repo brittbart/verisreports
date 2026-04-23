@@ -293,17 +293,6 @@ def get_disputes():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-@app.route('/api/debug-env')
-def debug_env():
-    import os
-    return {
-        'DB_HOST': os.environ.get('DB_HOST', 'NOT SET'),
-        'DB_PORT': os.environ.get('DB_PORT', 'NOT SET'),
-        'DB_NAME': os.environ.get('DB_NAME', 'NOT SET'),
-        'DB_USER': os.environ.get('DB_USER', 'NOT SET'),
-        'DB_PASSWORD_SET': bool(os.environ.get('DB_PASSWORD')),
-        'DATABASE_URL_SET': bool(os.environ.get('DATABASE_URL')),
-        'DATABASE_URL_PREFIX': os.environ.get('DATABASE_URL', '')[:20] if os.environ.get('DATABASE_URL') else 'NOT SET',
     }
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
