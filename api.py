@@ -359,9 +359,6 @@ def homepage():
 </html>""", 200, {'Content-Type': 'text/html'}
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-
 @app.route('/report', methods=['GET'])
 def report_page():
     url = request.args.get('url', '').strip()
@@ -416,4 +413,8 @@ def report_page():
     except Exception as e:
         data = {'status':'error','message':str(e)}
     status = data.get('status', 'error')
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
 
