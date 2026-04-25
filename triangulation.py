@@ -6,10 +6,10 @@ import anthropic
 client = anthropic.Anthropic()
 
 ADJACENT = {
-    "verified": ["plausible"],
-    "plausible": ["verified", "disputed", "overstated"],
+    "supported": ["plausible"],
+    "plausible": ["supported", "disputed", "overstated"],
     "disputed": ["plausible", "not_supported"],
-    "overstated": ["plausible", "verified"],
+    "overstated": ["plausible", "supported"],
     "not_supported": ["disputed"],
 }
 
@@ -24,7 +24,7 @@ def second_pass(claim_text, speaker, claim_type, title, source):
               "SPEAKER: " + (speaker or "Unknown") + "\nTYPE: " + (claim_type or "factual") + "\n"
               "CLAIM: " + claim_text + "\n\n"
               "Apply the independence rule: sources only independent if obtained info through different means.\n"
-              "Verdicts: verified/plausible/disputed/overstated/not_supported/not_verifiable/opinion\n"
+              "Verdicts: supported/plausible/disputed/overstated/not_supported/not_verifiable/opinion\n"
               "Confidence: 1=weak 2=one good source 3=two independent sources\n"
               "End with ONLY this JSON on the final line:\n"
               '{"verdict":"x","confidence_score":2,"verdict_summary":"one sentence","sources_used":"named sources"}')
