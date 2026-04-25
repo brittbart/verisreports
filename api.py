@@ -275,7 +275,7 @@ def submit_dispute():
         dispute_id,submitted_at = cur.fetchone()
         conn.commit()
         conn.close()
-        return jsonify({"status":"received","dispute_id":dispute_id,"domain":domain,"submitted_at":submitted_at.isoformat(),"message":"Your dispute has been logged and will appear publicly on the Verum Signal leaderboard. All disputes are reviewed within 14 days. If a verdict is found incorrect it will be re-verified and updated."})
+        return jsonify({"status":"received","dispute_id":dispute_id,"domain":domain,"submitted_at":submitted_at.isoformat(),"message":"Your dispute has been logged and will appear publicly on the Verum Signal leaderboard. All disputes are reviewed within 10 business days. If a verdict is found incorrect it will be re-verified and updated."})
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
