@@ -100,7 +100,7 @@ def analyse_claim(claim_text, speaker, claim_type,
                 "verdict": verdict,
                 "confidence_score": confidence,
                 "verdict_summary": summary,
-                "full_analysis": "Matched verified claim in Veris database.",
+                "full_analysis": "Matched supported claim in Veris database.",
                 "sources_used": "Veris internal database"
             }
 
@@ -135,11 +135,11 @@ INDEPENDENCE RULE:
 Two sources are only independent if they obtained the information through different means. Multiple outlets repeating the same wire report = ONE source, not multiple. To call something verified you must find sources that independently confirmed the fact through different channels.
 
 CONSENSUS EXCEPTION:
-If 5 or more outlets are consistently reporting the same claim without contradiction, assign verified at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
+If 5 or more outlets are consistently reporting the same claim without contradiction, assign supported at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
 
 VERDICT DEFINITIONS — apply strictly:
 
-- verified: Confirmed by at least TWO genuinely independent sources from Tier 1 or above, each having obtained the information through different means. If you cannot find this, do NOT use verified.
+- supported: Confirmed by at least TWO genuinely independent sources from Tier 1 or above, each having obtained the information through different means. If you cannot find this, do NOT use supported.
 
 - plausible: Consistent with available evidence but only confirmed by one credible source, or by multiple sources all citing the same original report. Use this when the claim seems likely true but true independence cannot be established.
 
@@ -206,7 +206,7 @@ def update_source_profile(cursor, source_name, verdict):
     if verdict == 'opinion':
         return
     field_map = {
-        'verified':      'verified_count',
+        'supported':     'supported_count',
         'plausible':     'plausible_count',
         'disputed':      'disputed_count',
         'not_supported': 'disputed_count',
@@ -236,7 +236,7 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
 
         cursor.execute("""
             SELECT
-                SUM(CASE WHEN verdict = 'verified'   THEN 1.0
+                SUM(CASE WHEN verdict = 'supported'   THEN 1.0
                          WHEN verdict = 'plausible'  THEN 0.5
                          WHEN verdict = 'overstated' THEN -0.5
                          WHEN verdict IN ('disputed','not_supported') THEN -1.0
@@ -351,10 +351,10 @@ SOURCE: {source_name}
 
 INDEPENDENCE RULE: Two sources are only independent if they obtained information through different means. Multiple outlets repeating the same wire = ONE source.
 
-CONSENSUS EXCEPTION: If 5+ outlets consistently report the same claim without contradiction, assign verified at confidence 2/3.
+CONSENSUS EXCEPTION: If 5+ outlets consistently report the same claim without contradiction, assign supported at confidence 2/3.
 
 VERDICT DEFINITIONS:
-- verified: TWO genuinely independent sources confirm
+- supported: TWO genuinely independent sources confirm
 - plausible: Consistent but only one credible source
 - disputed: ANY credible source contradicts
 - overstated: Core fact real but exaggerated

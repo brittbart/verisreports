@@ -33,7 +33,7 @@ def get_source():
         cur = conn.cursor()
         cur.execute('''
             SELECT COUNT(*),
-            SUM(CASE WHEN verdict = 'verified' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN verdict = 'supported' THEN 1 ELSE 0 END),
             SUM(CASE WHEN verdict = 'disputed' THEN 1 ELSE 0 END),
             SUM(CASE WHEN verdict = 'false' THEN 1 ELSE 0 END),
             SUM(CASE WHEN verdict = 'overstated' THEN 1 ELSE 0 END)
@@ -49,11 +49,11 @@ AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
         if not row or row[0] == 0:
             return jsonify({'domain': domain, 'status': 'not_found'})
         total = row[0]
-        verified = row[1] or 0
+        supported = row[1] or 0
         disputed = row[2] or 0
         false_count = row[3] or 0
         overstated = row[4] or 0
-        score = round((verified / total) * 100) if total > 0 else 0
+        score = round((supported / total) * 100) if total > 0 else 0
         if score >= 70:
             rating = 'High'
         elif score >= 40:
@@ -66,7 +66,7 @@ AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
             'rating': rating,
             'score': score,
             'total_claims': total,
-            'verified': verified,
+            'supported': supported,
             'disputed': disputed,
             'false': false_count,
             'overstated': overstated,
@@ -175,7 +175,7 @@ def get_report():
             })
 
         # Step 3: Build report
-        verified_count     = sum(1 for c in claims if c[5] == 'verified')
+        supported_count    = sum(1 for c in claims if c[5] == 'supported')
         plausible_count    = sum(1 for c in claims if c[5] == 'plausible')
         overstated_count   = sum(1 for c in claims if c[5] == 'overstated')
         disputed_count     = sum(1 for c in claims if c[5] == 'disputed')
@@ -186,7 +186,7 @@ def get_report():
         # Weighted scoring — opinion, not_verifiable, and unverified excluded.
         # Consistent with source reliability scoring formula.
         WEIGHTS = {
-            'verified':      1.0,
+            'supported':     1.0,
             'plausible':     0.5,
             'overstated':   -0.5,
             'disputed':     -1.0,
@@ -236,7 +236,7 @@ def get_report():
             'rating': rating,
             'score': score,
             'stats': {
-                'verified': verified_count,
+                'supported': supported_count,
                 'plausible': plausible_count,
                 'overstated': overstated_count,
                 'disputed': disputed_count,
