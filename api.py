@@ -446,6 +446,8 @@ def report_page():
 
     from urllib.parse import urlparse
     from datetime import datetime as dt
+    if not url.startswith('http://') and not url.startswith('https://'):
+        return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Verum Signal</title><style>body{{background:#080810;color:#f0f0f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}}.w{{text-align:center;padding:48px}}.logo{{color:#a855f7;font-size:22px;margin-bottom:24px}}a{{color:#a855f7}}</style></head><body><div class="w"><div class="logo">Verum Signal</div><h2>Invalid URL</h2><p style="color:rgba(240,240,248,.55);margin:16px 0 24px">Please paste a valid article URL starting with https://</p><a href="/">&#8592; Back to search</a></div></body></html>""", 400, {{'Content-Type': 'text/html'}}
     try:
         conn = get_db()
         cur = conn.cursor()
