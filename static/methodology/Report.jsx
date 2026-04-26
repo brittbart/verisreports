@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 
 const data = window.REPORT_DATA;
 

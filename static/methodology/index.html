@@ -68,13 +68,13 @@ function TweaksHost() {
       <TweakSection title="Appearance">
         <TweakRadio label="Mode" value={tweaks.mode} onChange={(v) => setTweaks({ mode: v })}
           options={[{value:'dark', label:'Dark'}, {value:'light', label:'Light'}]} />
-        <TweakRadio label="Display font" value={tweaks.display} onChange={(v) У¢> setTweaks({ display: v })}
+        <TweakRadio label="Display font" value={tweaks.display} onChange={(v) => setTweaks({ display: v })}
           options={[{value:'default', label:'Default'}, {value:'sans', label:'Sans'}, {value:'serif', label:'Serif'}]} />
-        <TweakRadio label="Density" value={tweaks.density} onChange={(v) У¢> setTweaks({ density: v })}
+        <TweakRadio label="Density" value={tweaks.density} onChange={(v) => setTweaks({ density: v })}
           options={[{value:'comfortable', label:'Comfortable'}, {value:'compact', label:'Compact'}]} />
       </TweakSection>
       <TweakSection title="Accent">
-        <TweakSelect label="Accent" value={tweaks.accent} onChange={(v) У¢> setTweaks({ accent: v })}
+        <TweakSelect label="Accent" value={tweaks.accent} onChange={(v) => setTweaks({ accent: v })}
           options={[
             {value:'default', label:'Fuchsia (default)'},
             {value:'violet', label:'Violet'},
