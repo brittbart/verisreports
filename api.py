@@ -502,7 +502,9 @@ def report_page():
                     rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
                     data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
             except Exception as e:
+                import traceback
                 print(f"On-demand extraction failed: {e}")
+                print(traceback.format_exc())
                 conn.close()
                 data = {'status': 'not_found'}
         else:
