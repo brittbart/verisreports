@@ -451,14 +451,7 @@ def report_page():
         cur = conn.cursor()
         cur.execute("SELECT a.id, a.title, a.source_name, a.url, a.claims_verified, a.verified_at FROM articles a WHERE a.url = %s LIMIT 1", (url,))
         article = cur.fetchone()
-        if not article:
-            parsed = urlparse(url)
-            domain = parsed.netloc.replace('www.', '')
-            slug = parsed.path.replace('-', ' ').replace('/', ' ').strip()
-            keywords = [w for w in slug.split() if len(w) > 4][:6]
-            if keywords and domain:
-                cur.execute("SELECT a.id, a.title, a.source_name, a.url, a.claims_verified, a.verified_at FROM articles a WHERE a.source_name ILIKE %s AND to_tsvector('english', a.title) @@ to_tsquery('english', %s) ORDER BY a.fetched_at DESC LIMIT 1", (f'%{domain}%', ' | '.join(keywords)))
-                article = cur.fetchone()
+        # Skip fuzzy match — go straight to on-demand extraction if exact URL not found
         if not article:
             # On-demand extraction for URLs not in DB
             try:
