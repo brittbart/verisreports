@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, redirect
+from flask import Flask, jsonify, request, redirect, send_from_directory
 from flask_cors import CORS
 import psycopg2
 import os
@@ -292,6 +292,15 @@ def get_disputes():
         return jsonify({"domain":domain,"total":len(rows),"disputes":[{"id":r[0],"domain":r[1],"claim_id":r[2],"dispute_text":r[3],"outlet_response":r[4],"status":r[5],"submitted_at":r[6].isoformat() if r[6] else None,"resolution":r[7]} for r in rows]})
     except Exception as e:
         return jsonify({"error":str(e)}),500
+
+
+@app.route('/methodology', methods=['GET'])
+def methodology_page():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
+
+@app.route('/methodology/archive/v1.5', methods=['GET'])
+def methodology_v15():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
 
 @app.route('/', methods=['GET'])
 def homepage():
