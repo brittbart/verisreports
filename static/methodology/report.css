@@ -72,3 +72,22 @@ body { font-family: var(--vs-font-sans); -webkit-font-smoothing: antialiased; }
 .vs-formula-label { color: var(--fg-dim); min-width: 140px; }
 .vs-formula-note { font-size: 12px; color: var(--fg-dim); margin-top: 12px; }
 @media (max-width: 768px) { .vs-root { grid-template-columns: 1fr; } .vs-sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); } .vs-main { height: auto; } }
+
+.vs-theme--a {
+  --fg: #f0f0f5;
+  --fg-mute: #8888aa;
+  --fg-mute-strong: #c0c0d8;
+  --fg-dim: #555570;
+  --bg: #0a0a12;
+  --bg-elev: #12121e;
+  --bg-hover: #1a1a2a;
+  --bg-sidebar: #0d0d18;
+  --border: #1e1e30;
+  --accent: #e879f9;
+  --ok: #34d399;
+  --ok-bg: rgba(52,211,153,0.12);
+  --ok-border: rgba(52,211,153,0.3);
+  --bad: #f87171;
+  --bad-bg: rgba(248,113,113,0.12);
+  --bad-border: rgba(248,113,113,0.3);
+}
