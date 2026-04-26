@@ -752,6 +752,11 @@ def report_page():
     all_sources_html = ''.join('<span class="vs-src vs-src-i">' + d + '</span>' for d in sorted(clean_domains))
 
 
+    # --- Defaults for generated content ---
+    watch_for = []
+    article_summary = ''
+    overall_signal = ''
+
     # --- Article tag ---
     article_tag = data.get('tag', '')
     TAG_CONFIG = {'breaking':('⚡','BREAKING','vs-tag-breaking'),'major':('🔴','MAJOR STORY','vs-tag-major'),'developing':('🔄','DEVELOPING','vs-tag-developing'),'exclusive':('★','EXCLUSIVE','vs-tag-exclusive')}
