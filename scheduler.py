@@ -144,16 +144,7 @@ def run_verdicts():
         log.error(f"Verdict engine failed: {str(e)}")
         return False
     
-def run_verdicts():
-    log.info("Starting verdict engine...")
-    try:
-        from verdict_engine import run_verdict_engine
-        run_verdict_engine(limit=5)
-        log.info("Verdict engine complete")
-        return True
-    except Exception as e:
-        log.error(f"Verdict engine failed: {str(e)}")
-        return False    
+    
     
 
 
