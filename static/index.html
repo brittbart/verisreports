@@ -200,7 +200,7 @@
   function handleAnalyze() {
     const v = document.getElementById('url-input').value.trim();
     if (!v) return;
-    const btn = document.querySelector('.url-wrap button');
+    const btn = document.getElementById('url-input').nextElementSibling;
     btn.textContent = 'Analyzing…';
     btn.disabled = true;
     window.location.href = '/report?url=' + encodeURIComponent(v);
