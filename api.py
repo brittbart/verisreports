@@ -607,42 +607,12 @@ def report_page():
     disputed_n = stats.get('disputed', 0)
     not_supported_n = stats.get('not_supported', 0)
     total_n = stats.get('total', 0)
-    # Generate Claude-powered report sections
-    import anthropic as _anth
-    _client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-    _claims_parts = []
-    for _i, _c in enumerate(claims):
-        _claims_parts.append('Claim ' + str(_i+1) + ': "' + _c.get('claim_text','') + '" — Verdict: ' + (_c.get('verdict','') or '').upper() + ' — Reasoning: ' + (_c.get('verdict_summary','') or ''))
-    _claims_text = chr(10).join(_claims_parts) #
-
-    _prompt = f"""You are the editorial intelligence layer for Verum Signal, an independent claim analysis platform. Be direct, specific, engaging. Never hedge. Never use false balance. Call it as the evidence shows.
-
-ARTICLE: {title}
-SOURCE: {source}
-OUTLET SCORE: {score}/100 ({rating})
-CLAIMS: {total_n} total | {supported_n} supported | {overstated_n} overstated | {disputed_n} disputed | {not_supported_n} not supported
-
-VERIFIED CLAIMS:
-{_claims_text}
-
-Return ONLY valid JSON:
-{{
-  "article_summary": "2-3 sentence plain-language summary of what this article is about and why it matters. Write for a curious intelligent reader.",
-  "overall_signal": "3-4 sentences. Lead with what the evidence actually shows — be specific about which claims held up and which did not. Name the verdict types. If something is wrong say so clearly. Make it feel like a smart friend who read the article and checked the facts. Engaging direct zero hedging.",
-  "watch_for": ["specific follow-up question or signal to watch for in future coverage", "another specific thing to watch for", "a third signal or question"]
-}}"""
-    try:
-        _msg = _client.messages.create(model="claude-sonnet-4-6", max_tokens=800, messages=[{"role":"user","content":_prompt}])
-        _text = _msg.content[0].text.strip()
-        _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
-        article_summary = _result.get('article_summary', '')
-        overall_signal = _result.get('overall_signal', '')
-        watch_for = _result.get('watch_for', [])
-    except Exception as _e:
-        print(f"Content generation failed: {_e}")
-        article_summary = ''
-        overall_signal = f"This article scores {score}/100 ({rating}). Of {total_n} claims assessed, {supported_n} were supported. {overstated_n + disputed_n + not_supported_n} showed overstatement or dispute."
-        watch_for = [] 
+    if rating == 'High':
+        overall_signal = f"This article scores in the High tier. The factual claims assessed were well-sourced and confirmed by independent reporting. Verdicts reflect the evidence available at time of analysis."
+    elif rating == 'Medium':
+        overall_signal = f"This article scores in the Medium tier. Of {total_n} claims assessed, {supported_n} were supported by independent sources. {overstated_n + disputed_n + not_supported_n} claim(s) showed evidence of overstatement or factual dispute."
+    else:
+        overall_signal = f"This article scores in the Low tier. Multiple claims showed signs of overstatement or direct contradiction by independent sources. Readers should consult additional sources before drawing conclusions." 
 
     VERDICT_COLOR = {
         'supported':    ('#4ade80', 'rgba(74,222,128,0.12)',  'rgba(74,222,128,0.3)'),
@@ -781,177 +751,71 @@ Return ONLY valid JSON:
             clean_domains.add(d)
     all_sources_html = ''.join('<span class="vs-src vs-src-i">' + d + '</span>' for d in sorted(clean_domains))
 
-    html = ("""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Verum Signal — """ + source + """</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0a12;color:#f0f0f5;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.55;min-height:100vh}
-.vs{background:#0a0a12;color:#f0f0f5;font-family:'DM Sans',sans-serif;border-radius:12px;overflow:hidden;font-size:13px;line-height:1.55;max-width:900px;margin:2rem auto;border:0.5px solid rgba(168,85,247,0.2);}
-.vs-topbar{display:flex;justify-content:space-between;align-items:center;padding:11px 20px;border-bottom:0.5px solid rgba(168,85,247,0.2);background:rgba(10,10,18,0.97);}
-.vs-brand{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:0.18em;font-weight:600;}
-.vs-brand em{color:#e879f9;font-style:italic;font-weight:400;}
-.vs-outlet-badge{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.4);}
-.vs-outlet-badge b{color:#a855f7;}
-.vs-header{padding:24px 24px 16px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
-.vs-source-line{font-family:monospace;font-size:9px;letter-spacing:0.14em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:8px;}
-.vs-headline-row{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;}
-.vs-title{font-family:'DM Serif Display',serif;font-size:20px;line-height:1.25;color:#fff;max-width:500px;}
-.vs-score-block{text-align:right;flex-shrink:0;}
-.vs-score-num{font-family:'DM Serif Display',serif;font-size:52px;line-height:1;color:#fff;}
-.vs-score-unit{font-size:12px;color:rgba(255,255,255,0.28);font-family:monospace;}
-.vs-meta-row{display:flex;flex-wrap:wrap;gap:5px;padding:10px 24px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
-.vs-chip{font-family:monospace;font-size:9px;letter-spacing:0.06em;color:rgba(255,255,255,0.32);}
-.vs-chip-sep{color:rgba(255,255,255,0.12);}
-.vs-callout{margin:14px 24px;padding:11px 14px;background:rgba(168,85,247,0.06);border:0.5px solid rgba(168,85,247,0.18);border-left:3px solid #a855f7;border-radius:4px;}
-.vs-callout-label{font-family:monospace;font-size:8px;letter-spacing:0.18em;color:rgba(168,85,247,0.65);margin-bottom:4px;}
-.vs-callout-body{font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5;}
-.vs-callout-body a{color:rgba(168,85,247,0.7);text-decoration:underline;}
-.vs-dist-wrap{padding:0 24px 10px;}
-.vs-dist-bar{display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;margin-bottom:7px;}
-.vs-dist-seg{border-radius:2px;}
-.vs-dist-legend{display:flex;gap:12px;flex-wrap:wrap;}
-.vs-leg{font-family:monospace;font-size:9px;color:rgba(255,255,255,0.38);display:flex;align-items:center;gap:4px;}
-.vs-leg-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
-.vs-claims{border-top:0.5px solid rgba(255,255,255,0.06);}
-.vs-claim{display:flex;align-items:flex-start;padding:12px 24px;border-bottom:0.5px solid rgba(255,255,255,0.05);}
-.vs-claim-bar{width:3px;border-radius:2px;min-height:44px;flex-shrink:0;margin-right:12px;align-self:stretch;}
-.vs-claim-body{flex:1;}
-.vs-claim-quote{font-size:12px;color:rgba(255,255,255,0.82);line-height:1.45;margin-bottom:4px;}
-.vs-claim-reason{font-family:monospace;font-size:9px;color:rgba(255,255,255,0.3);line-height:1.5;margin-bottom:5px;}
-.vs-claim-sources{display:flex;gap:4px;flex-wrap:wrap;}
-.vs-src{font-family:monospace;font-size:8px;padding:2px 6px;border-radius:3px;}
-.vs-src-p{background:rgba(52,211,153,0.1);color:#34d399;border:0.5px solid rgba(52,211,153,0.2);}
-.vs-src-i{background:rgba(96,165,250,0.1);color:#60a5fa;border:0.5px solid rgba(96,165,250,0.2);}
-.vs-src-w{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.3);border:0.5px solid rgba(255,255,255,0.1);}
-.vs-src-c{background:rgba(248,113,113,0.1);color:#f87171;border:0.5px solid rgba(248,113,113,0.2);}
-.vs-pill{flex-shrink:0;font-family:monospace;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:0.06em;align-self:flex-start;margin-top:2px;margin-left:10px;white-space:nowrap;}
-.p-sup{background:rgba(74,222,128,0.12);color:#4ade80;border:0.5px solid rgba(74,222,128,0.22);}
-.p-pla{background:rgba(251,191,36,0.1);color:#fbbf24;border:0.5px solid rgba(251,191,36,0.18);}
-.p-cor{background:rgba(52,211,153,0.1);color:#34d399;border:0.5px solid rgba(52,211,153,0.18);}
-.p-ove{background:rgba(251,191,36,0.1);color:#fbbf24;border:0.5px solid rgba(251,191,36,0.18);}
-.p-dis{background:rgba(248,113,113,0.12);color:#f87171;border:0.5px solid rgba(248,113,113,0.22);}
-.p-nsu{background:rgba(239,68,68,0.12);color:#ef4444;border:0.5px solid rgba(239,68,68,0.22);}
-.p-opi{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.32);border:0.5px solid rgba(255,255,255,0.08);}
-.p-nve{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.32);border:0.5px solid rgba(255,255,255,0.08);}
-.vs-section{padding:16px 24px;border-top:0.5px solid rgba(255,255,255,0.06);}
-.vs-section-label{font-family:monospace;font-size:8px;letter-spacing:0.18em;color:rgba(255,255,255,0.25);text-transform:uppercase;margin-bottom:12px;}
-.vs-qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.vs-qa-card{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px 12px;}
-.vs-qa-q{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:4px;line-height:1.35;}
-.vs-qa-a{font-size:10px;color:rgba(255,255,255,0.38);line-height:1.5;}
-.vs-sources-wrap{display:flex;gap:5px;flex-wrap:wrap;}
-.vs-compare-btns{display:flex;gap:8px;flex-wrap:wrap;}
-.vs-compare-btn{font-family:monospace;font-size:10px;padding:6px 12px;border-radius:4px;border:0.5px solid rgba(168,85,247,0.25);background:rgba(168,85,247,0.06);color:rgba(168,85,247,0.7);cursor:pointer;letter-spacing:0.04em;text-decoration:none;display:inline-block;}
-.vs-compare-btn:hover{background:rgba(168,85,247,0.12);}
-.vs-summary{margin:0 24px 16px;padding:14px 16px;background:rgba(168,85,247,0.05);border:0.5px solid rgba(168,85,247,0.15);border-radius:6px;}
-.vs-summary-label{font-family:monospace;font-size:8px;letter-spacing:0.18em;color:rgba(168,85,247,0.5);margin-bottom:7px;}
-.vs-summary-body{font-family:'DM Serif Display',serif;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.65;font-style:italic;}
-.vs-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:0.5px solid rgba(255,255,255,0.06);}
-.vs-stat{padding:12px 16px;border-right:0.5px solid rgba(255,255,255,0.06);}
-.vs-stat:last-child{border-right:none;}
-.vs-stat-label{font-family:monospace;font-size:8px;letter-spacing:0.12em;color:rgba(255,255,255,0.25);margin-bottom:4px;}
-.vs-stat-value{font-family:'DM Serif Display',serif;font-size:18px;color:#fff;}
-.vs-stat-value span{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.3);}
-.vs-footer{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;border-top:0.5px solid rgba(168,85,247,0.15);flex-wrap:wrap;gap:6px;}
-.vs-footer-l{font-family:monospace;font-size:9px;color:rgba(168,85,247,0.55);}
-.vs-footer-l a{color:rgba(168,85,247,0.7);text-decoration:underline;}
-.vs-footer-c{font-family:monospace;font-size:9px;color:rgba(255,255,255,0.25);}
-.vs-footer-r{font-family:monospace;font-size:9px;color:rgba(168,85,247,0.45);cursor:pointer;}
-@media(max-width:600px){.vs{margin:0;border-radius:0;}.vs-headline-row{flex-direction:column;}.vs-qa-grid{grid-template-columns:1fr;}.vs-stats{grid-template-columns:repeat(2,1fr);}}
-</style>
-</head>
-<body>
-<div class="vs">
-  <div class="vs-topbar">
-    <div class="vs-brand">
-      <svg width="22" height="16" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#e879f9" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
-      VERUM <em>SIGNAL</em>
-    </div>
-    <div class="vs-outlet-badge">""" + source + """ &nbsp;&middot;&nbsp; <b>""" + str(score) + """/100</b> """ + rating + """</div>
-  </div>
 
-  <div class="vs-header">
-    <div class="vs-source-line">""" + source + """ &nbsp;&middot;&nbsp; """ + as_of + """</div>
-    <div class="vs-headline-row">
-      <div class="vs-title">""" + title + """</div>
-      <div class="vs-score-block">
-        <div class="vs-score-num">""" + str(score) + """</div>
-        <div class="vs-score-unit">/100</div>
-      </div>
-    </div>
-  </div>
+    # --- Article tag ---
+    article_tag = data.get('tag', '')
+    TAG_CONFIG = {'breaking':('⚡','BREAKING','vs-tag-breaking'),'major':('🔴','MAJOR STORY','vs-tag-major'),'developing':('🔄','DEVELOPING','vs-tag-developing'),'exclusive':('★','EXCLUSIVE','vs-tag-exclusive')}
+    if article_tag and article_tag.lower() in TAG_CONFIG:
+        _icon,_lbl,_cls = TAG_CONFIG[article_tag.lower()]
+        tag_html = '<div class="vs-tag ' + _cls + '">' + _icon + ' ' + _lbl + '</div>'
+    else:
+        tag_html = ''
 
-  <div class="vs-meta-row">
-    <span class="vs-chip">""" + as_of + """</span><span class="vs-chip-sep"> &middot; </span>
-    <span class="vs-chip">""" + str(stats.get('total',0)) + """ claims assessed</span><span class="vs-chip-sep"> &middot; </span>
-    <span class="vs-chip">Pipeline &middot; v1.5</span><span class="vs-chip-sep"> &middot; </span>
-    <span class="vs-chip">Outlet score &middot; """ + str(score) + """/100 """ + rating + """</span>
-  </div>
+    # --- Score ring ---
+    _circ = round(2 * 3.14159 * 36, 1)
+    _offset = round(_circ * (1 - score / 100), 1)
+    score_ring_html = ('<svg class="vs-score-ring" viewBox="0 0 90 90">'
+        '<circle cx="45" cy="45" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>'
+        '<circle cx="45" cy="45" r="36" fill="none" stroke="' + score_color + '" stroke-width="5" '
+        'stroke-dasharray="' + str(_circ) + '" stroke-dashoffset="' + str(_offset) + '" '
+        'stroke-linecap="round" transform="rotate(-90 45 45)"/>'
+        '<text x="45" y="48" text-anchor="middle" font-family="DM Serif Display,serif" font-size="22" fill="' + score_color + '">' + str(score) + '</text>'
+        '<text x="45" y="62" text-anchor="middle" font-family="monospace" font-size="7" fill="rgba(255,255,255,0.3)">/100</text>'
+        '</svg>')
 
-  <div class="vs-callout">
-    <div class="vs-callout-label">METHODOLOGY APPLIED</div>
-    <div class="vs-callout-body">""" + methodology_callout + """ <a href="/methodology">Methodology v1.5</a>.</div>
-  </div>
+    # --- Red flag ---
+    _nflag = stats.get('disputed',0) + stats.get('not_supported',0)
+    redflag_html = ('<div class="vs-redflag"><div class="vs-redflag-icon">⚠️</div>'
+        '<div class="vs-redflag-text"><strong>Heads up:</strong> This article contains '
+        + str(_nflag) + ' claim(s) directly contradicted by available evidence. '
+        'Review the disputed verdicts carefully before sharing.</div></div>') if _nflag > 0 else ''
 
-  <div class="vs-dist-wrap">
-    <div class="vs-dist-bar">""" + dist_bar_html + """</div>
-    <div class="vs-dist-legend">""" + dist_legend_html + """</div>
-  </div>
+    # --- Story context ---
+    _ctx_title = title[:80] + '...' if len(title) > 80 else title
+    story_context = 'This article covers "' + _ctx_title + '". Here is what the evidence shows across ' + str(stats.get('total',0)) + ' extracted claims.'
 
-  <div class="vs-claims">""" + claims_html + """</div>
+    # --- Distribution blocks ---
+    _VCOLS = [('supported','#4ade80'),('plausible','#60a5fa'),('corroborated','#34d399'),('overstated','#fb923c'),('disputed','#f87171'),('not_supported','#ef4444'),('opinion','rgba(255,255,255,0.12)'),('not_verifiable','rgba(255,255,255,0.08)')]
+    dist_blocks_html = ''
+    dist_legend_html = ''
+    for _v,_col in _VCOLS:
+        _cnt = stats.get(_v,0)
+        if _cnt:
+            dist_blocks_html += ('<div class="vs-dist-block" style="background:' + _col + ';"></div>') * _cnt
+            dist_legend_html += '<span class="vs-leg"><span class="vs-leg-dot" style="background:' + _col + '"></span>' + str(_cnt) + ' ' + _v.replace('_',' ').title() + '</span>'
 
-  <div class="vs-section">
-    <div class="vs-section-label">Things to hold in mind</div>
-    <div class="vs-qa-grid">
-      <div class="vs-qa-card"><div class="vs-qa-q">Why might this outlet score differently on other articles?</div><div class="vs-qa-a">Scores reflect the specific claims in this article, not a blanket rating. An outlet can score high on one story and lower on another.</div></div>
-      <div class="vs-qa-card"><div class="vs-qa-q">What does Corroborated mean vs Supported?</div><div class="vs-qa-a">Supported means two independent sources confirmed the claim. Corroborated means 5+ outlets reported it consistently — no external verification was needed.</div></div>
-      <div class="vs-qa-card"><div class="vs-qa-q">Why is the Opinion claim excluded from scoring?</div><div class="vs-qa-a">Opinion content is not a factual signal. Outlets are not penalized for editorial framing — only for factual inaccuracies in their own reporting.</div></div>
-      <div class="vs-qa-card"><div class="vs-qa-q">Can a verdict change after it’s assigned?</div><div class="vs-qa-a">Yes. Verdicts are reviewed when new evidence emerges or when a dispute is submitted. Submit a correction below if you believe a verdict is wrong.</div></div>
-    </div>
-  </div>
+    # --- Watch for ---
+    watch_for_html = ''
+    if watch_for:
+        watch_for_html = '<div class="vs-watchfor-label" style="margin-top:16px;">WHAT TO WATCH FOR</div><div class="vs-watchfor-list">'
+        for w in watch_for:
+            watch_for_html += '<div class="vs-watchfor-item"><span class="vs-watchfor-icon">→</span><span>' + w + '</span></div>'
+        watch_for_html += '</div>'
 
-  <div class="vs-section">
-    <div class="vs-section-label">Sources consulted</div>
-    <div class="vs-sources-wrap">""" + all_sources_html + """</div>
-  </div>
+    # --- Article summary html ---
+    summary_html = ('<div class="vs-summary-text">' + article_summary + '</div>') if article_summary else ''
 
-  <div class="vs-section">
-    <div class="vs-section-label">Compare perspectives</div>
-    <div class="vs-compare-btns">""" + compare_html + """</div>
-  </div>
-
-  <div class="vs-summary">
-    <div class="vs-summary-label">OVERALL SIGNAL</div>
-    <div class="vs-summary-body">""" + overall_signal + """</div>
-  </div>
-
-  <div class="vs-stats">
-    <div class="vs-stat"><div class="vs-stat-label">CLAIMS ASSESSED</div><div class="vs-stat-value">""" + str(stats.get('total',0)) + """</div></div>
-    <div class="vs-stat"><div class="vs-stat-label">SCOREABLE</div><div class="vs-stat-value">""" + str(sc) + """</div></div>
-    <div class="vs-stat"><div class="vs-stat-label">OUTLET SCORE</div><div class="vs-stat-value">""" + str(score) + """<span>/100</span></div></div>
-    <div class="vs-stat"><div class="vs-stat-label">TIER</div><div class="vs-stat-value" style="font-size:16px;">""" + rating + """</div></div>
-  </div>
-
-  <div class="vs-footer">
-    <div class="vs-footer-l">Generated under <a href="/methodology">Methodology v1.5</a></div>
-    <div class="vs-footer-c">""" + source + """ &nbsp;&middot;&nbsp; outlet score: """ + str(score) + """/100 """ + rating + """</div>
-    <div class="vs-footer-r"><a href="/api/dispute" style="color:rgba(168,85,247,0.45);text-decoration:none;">Submit a correction ↗</a></div>
-  </div>
-
-</div>
-</body>
-</div>
-</body>
-</div>
-</body>
-</html>""")
+    from flask import render_template
+    html = render_template('report.html',
+        source=source, score=score, rating=rating, as_of=as_of,
+        url=url, title=title, tag_html=tag_html, summary_html=summary_html,
+        score_ring_html=score_ring_html, score_color=score_color,
+        methodology_callout=methodology_callout, redflag_html=redflag_html,
+        story_context=story_context, dist_blocks_html=dist_blocks_html,
+        dist_legend_html=dist_legend_html, claims_html=claims_html,
+        overall_signal=overall_signal, watch_for_html=watch_for_html,
+        all_sources_html=all_sources_html, compare_html=compare_html,
+        stats=stats, sc=sc, total=stats.get('total',0))
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
