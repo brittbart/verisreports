@@ -710,7 +710,15 @@ def report_page():
         for word in src.replace(',',' ').split():
             if '.' in word and len(word) > 3:
                 all_domains.add(word.strip('().-').lower())
-    all_sources_html = ''.join(f'<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">{d}</span>' for d in sorted(all_domains) if len(d)>3)
+    # Filter to real domains only (must have valid TLD)
+    import re
+    valid_tlds = {'com','org','gov','edu','net','io','co','uk','de','fr'}
+    clean_domains = set()
+    for d in all_domains:
+        parts = d.split('.')
+        if len(parts) >= 2 and parts[-1] in valid_tlds and len(parts[0]) > 1:
+            clean_domains.add(d)
+    all_sources_html = ''.join(f'<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">{d}</span>' for d in sorted(clean_domains))
 
     # Build overall signal narrative
     supported_n = stats.get("supported",0)
