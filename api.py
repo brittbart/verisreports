@@ -859,7 +859,8 @@ def report_page():
     html = html.replace('{{compare_html | safe}}', str(compare_html))
     html = html.replace('{{total}}', str(stats.get('total',0)))
     html = html.replace('{{sc}}', str(sc))
-    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    from flask import Response
+    return Response(html, mimetype='text/html')
 
 
 if __name__ == '__main__':
