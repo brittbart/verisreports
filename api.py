@@ -314,6 +314,22 @@ def leaderboard():
 @app.route('/pricing.html', methods=['GET'])
 def pricing():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'pricing.html')
+
+@app.route('/styles.css', methods=['GET'])
+def styles():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'styles.css')
+
+@app.route('/how-it-works', methods=['GET'])
+def how_it_works_clean():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'how-it-works.html')
+
+@app.route('/leaderboard', methods=['GET'])
+def leaderboard_clean():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'leaderboard.html')
+
+@app.route('/pricing', methods=['GET'])
+def pricing_clean():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'pricing.html')
 @app.route('/', methods=['GET'])
 def homepage():
     return """<!DOCTYPE html>
