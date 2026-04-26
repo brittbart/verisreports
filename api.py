@@ -312,11 +312,11 @@ def methodology_css():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'report.css')
 @app.route('/methodology', methods=['GET'])
 def methodology_page():
-    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'index.html')
 
 @app.route('/methodology/archive/v1.5', methods=['GET'])
 def methodology_v15():
-    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'index.html')
 
 
 @app.route('/how-it-works.html', methods=['GET'])
