@@ -815,7 +815,14 @@ body{{background:var(--bg);color:var(--text);font-family:var(--font-sans);line-h
 <div class="layout">
 <main class="main-col">
   <div class="top-bar">
-    <div class="logo-mark"><div class="logo-dot"></div>VERUM<em style="font-style:italic;color:#c084fc;margin-left:3px">SIGNAL</em></div>
+    <div class="logo-mark">
+      <svg width="185" height="28" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </div>
     <span class="tagline">We provide the signals. You decide.</span>
   </div>
 
