@@ -84,7 +84,7 @@ def run_extract():
             log.warning(f"No articles file found: {input_file}")
             return False
             
-        extract_claims.process_articles(input_file)
+        extract_claims.process_articles(input_file, limit=50)
         log.info("Claim extraction complete")
         return True
     except Exception as e:
