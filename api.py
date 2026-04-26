@@ -600,6 +600,19 @@ def report_page():
     rating  = data.get('rating', 'Medium')
     as_of   = data.get('as_of', '')
     methodology_callout = data.get('methodology_callout', 'Each factual claim passes through a three-step pipeline: cache check, internal consensus check, then web search.')
+    url = data.get('url', '')
+    sc = sum(1 for c in claims if c.get('verdict') in ('supported','plausible','corroborated','overstated','disputed','not_supported'))
+    supported_n = stats.get('supported', 0)
+    overstated_n = stats.get('overstated', 0)
+    disputed_n = stats.get('disputed', 0)
+    not_supported_n = stats.get('not_supported', 0)
+    total_n = stats.get('total', 0)
+    if rating == 'High':
+        overall_signal = f"This article scores in the High tier. The factual claims assessed were well-sourced and confirmed by independent reporting. Verdicts reflect the evidence available at time of analysis."
+    elif rating == 'Medium':
+        overall_signal = f"This article scores in the Medium tier. Of {total_n} claims assessed, {supported_n} were supported by independent sources. {overstated_n + disputed_n + not_supported_n} claim(s) showed evidence of overstatement or factual dispute."
+    else:
+        overall_signal = f"This article scores in the Low tier. Multiple claims showed signs of overstatement or direct contradiction by independent sources. Readers should consult additional sources before drawing conclusions." 
 
     VERDICT_COLOR = {
         'supported':    ('#4ade80', 'rgba(74,222,128,0.12)',  'rgba(74,222,128,0.3)'),
