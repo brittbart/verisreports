@@ -835,7 +835,7 @@ def report_page():
     # --- Article summary html ---
     summary_html = ('<div class="vs-summary-text">' + article_summary + '</div>') if article_summary else ''
 
-    from flask import render_template
+    from flask import render_template, make_response
     html = render_template('report.html',
         source=source, score=score, rating=rating, as_of=as_of,
         url=url, title=title, tag_html=tag_html, summary_html=summary_html,
@@ -846,7 +846,9 @@ def report_page():
         overall_signal=overall_signal, watch_for_html=watch_for_html,
         all_sources_html=all_sources_html, compare_html=compare_html,
         stats=stats, sc=sc, total=stats.get('total',0))
-    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    resp = make_response(html)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return resp
 
 
 if __name__ == '__main__':
