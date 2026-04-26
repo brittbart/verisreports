@@ -779,7 +779,9 @@ def report_page():
         overall_signal = _result.get('overall_signal', '')
         watch_for = _result.get('watch_for', [])
     except Exception as _e:
+        import traceback
         print(f'Content generation failed: {_e}')
+        print(traceback.format_exc())
         overall_signal = 'This article scores ' + str(score) + '/100 (' + rating + '). Of ' + str(total_n) + ' claims assessed, ' + str(supported_n) + ' were supported. ' + str(overstated_n + disputed_n + not_supported_n) + ' showed overstatement or dispute.'
 
     # --- Article tag ---
