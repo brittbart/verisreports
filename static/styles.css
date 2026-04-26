@@ -442,3 +442,5 @@ nav.nav.scrolled {
 .url-wrap { position: relative; z-index: 10; pointer-events: auto !important; }
 .url-wrap input { pointer-events: auto !important; z-index: 11; position: relative; }
 .url-wrap button { pointer-events: auto !important; z-index: 11; position: relative; }
+/* Fix input blocking on Windows */
+.url-wrap { animation: none !important; opacity: 1 !important; transform: none !important; }
