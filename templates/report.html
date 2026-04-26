@@ -128,13 +128,13 @@ a{color:inherit;text-decoration:none}
   </div>
   <div class="vs-header">
     <div class="vs-source-line">{{source}} &nbsp;&middot;&nbsp; {{as_of}}</div>
-    {{tag_html}}
+    {{tag_html | safe}}
     <div class="vs-headline-row">
       <div>
         <div class="vs-title"><a href="{{url}}" target="_blank">{{title}}</a></div>
-        {{summary_html}}
+        {{summary_html | safe}}
       </div>
-      <div class="vs-score-block">{{score_ring_html}}</div>
+      <div class="vs-score-block">{{score_ring_html | safe}}</div>
     </div>
   </div>
   <div class="vs-meta-row">
@@ -145,20 +145,20 @@ a{color:inherit;text-decoration:none}
   </div>
   <div class="vs-callout">
     <div class="vs-callout-label">METHODOLOGY APPLIED</div>
-    <div class="vs-callout-body">{{methodology_callout}} <a href="/methodology">Methodology v1.5</a>.</div>
+    <div class="vs-callout-body">{{methodology_callout | safe}} <a href="/methodology">Methodology v1.5</a>.</div>
   </div>
-  {{redflag_html}}
-  <div class="vs-context">{{story_context}}</div>
+  {{redflag_html | safe}}
+  <div class="vs-context">{{story_context | safe}}</div>
   <div class="vs-dist-wrap">
     <div class="vs-dist-label">VERDICT DISTRIBUTION</div>
-    <div class="vs-dist-blocks">{{dist_blocks_html}}</div>
-    <div class="vs-dist-legend">{{dist_legend_html}}</div>
+    <div class="vs-dist-blocks">{{dist_blocks_html | safe}}</div>
+    <div class="vs-dist-legend">{{dist_legend_html | safe}}</div>
   </div>
-  <div class="vs-claims">{{claims_html}}</div>
+  <div class="vs-claims">{{claims_html | safe}}</div>
   <div class="vs-signal">
     <div class="vs-signal-label">OVERALL SIGNAL</div>
-    <div class="vs-signal-body">{{overall_signal}}</div>
-    {{watch_for_html}}
+    <div class="vs-signal-body">{{overall_signal | safe}}</div>
+    {{watch_for_html | safe}}
   </div>
   <div class="vs-section">
     <div class="vs-section-label">Things to hold in mind</div>
@@ -173,11 +173,11 @@ a{color:inherit;text-decoration:none}
   </div>
   <div class="vs-section">
     <div class="vs-section-label">Sources consulted</div>
-    <div class="vs-sources-wrap">{{all_sources_html}}</div>
+    <div class="vs-sources-wrap">{{all_sources_html | safe}}</div>
   </div>
   <div class="vs-section">
     <div class="vs-section-label">Compare perspectives</div>
-    <div class="vs-compare-btns">{{compare_html}}</div>
+    <div class="vs-compare-btns">{{compare_html | safe}}</div>
   </div>
   <div class="vs-stats">
     <div class="vs-stat"><div class="vs-stat-label">CLAIMS ASSESSED</div><div class="vs-stat-value">{{total}}</div></div>
