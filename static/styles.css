@@ -438,3 +438,7 @@ nav.nav.scrolled {
   z-index: 1;
   pointer-events: none;
 }
+/* Force input interactivity */
+.url-wrap { position: relative; z-index: 10; pointer-events: auto !important; }
+.url-wrap input { pointer-events: auto !important; z-index: 11; position: relative; }
+.url-wrap button { pointer-events: auto !important; z-index: 11; position: relative; }
