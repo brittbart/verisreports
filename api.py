@@ -682,6 +682,9 @@ def report_page():
       <span class="attr-tag">{attr_label}</span>
       {f'<span class="break-tag">{breaking_pill}</span>' if breaking else ''}
     </div>
+    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+      {"".join(f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">{d.strip()}</span>' for d in sources.replace(","," ").split() if "." in d and len(d)>3)[:5]}
+    </div>
     <div class="detail-label" style="margin-top:8px;">Weight: {wt}</div>
   </div>
 </div>"""
@@ -699,6 +702,28 @@ def report_page():
             pct = round(cnt / total_sc * 100)
             col = VERDICT_COLOR.get(v, ('#aaa','',''))[0]
             verdict_bar_segs += f'<div style="height:100%;width:{pct}%;background:{col};"></div>'
+
+    # Build all sources list
+    all_domains = set()
+    for c in claims:
+        src = c.get('sources_used','') or ''
+        for word in src.replace(',',' ').split():
+            if '.' in word and len(word) > 3:
+                all_domains.add(word.strip('().-').lower())
+    all_sources_html = ''.join(f'<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">{d}</span>' for d in sorted(all_domains) if len(d)>3)
+
+    # Build overall signal narrative
+    supported_n = stats.get("supported",0)
+    overstated_n = stats.get("overstated",0)
+    disputed_n = stats.get("disputed",0)
+    not_supported_n = stats.get("not_supported",0)
+    total_n = stats.get("total",0)
+    if rating == "High":
+        overall_signal = f"This article scores in the High tier. The factual claims assessed were well-sourced and confirmed by independent reporting. Verdicts reflect the evidence available at time of analysis."
+    elif rating == "Medium":
+        overall_signal = f"This article scores in the Medium tier. Of {total_n} claims assessed, {supported_n} were supported by independent sources. {overstated_n + disputed_n + not_supported_n} claim(s) showed evidence of overstatement or factual dispute. Verdicts reflect the evidence available at time of analysis."
+    else:
+        overall_signal = f"This article scores in the Low tier. Multiple claims showed signs of overstatement or direct contradiction by independent sources. Readers should consult additional sources before drawing conclusions. Verdicts reflect the evidence available at time of analysis."
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -834,6 +859,40 @@ body{{background:var(--bg);color:var(--text);font-family:var(--font-sans);line-h
       <div class="stat-cell"><div class="stat-label">Supported</div><div class="stat-value" style="color:#4ade80">{stats.get('supported',0)}</div><div class="stat-sub">of {stats.get('total',0)}</div></div>
       <div class="stat-cell"><div class="stat-label">Contested</div><div class="stat-value" style="color:#f87171">{stats.get('disputed',0) + stats.get('not_supported',0)}</div><div class="stat-sub">disputed + not supported</div></div>
       <div class="stat-cell"><div class="stat-label">Outlet score</div><div class="stat-value" style="color:{score_color}">{score}</div><div class="stat-sub">{rating}</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">Things to hold in mind</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Why might this outlet score differently on other articles?</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Scores reflect the specific claims in this article, not a blanket rating. An outlet can score high on one story and lower on another.</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">What does Corroborated mean vs Supported?</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Supported means two independent sources confirmed the claim. Corroborated means 5+ outlets reported consistently — no external verification was needed.</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Why is the Opinion claim excluded from scoring?</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Opinion content is not a factual signal. Outlets are not penalized for editorial framing — only for factual inaccuracies in their own reporting.</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Can a verdict change after it's assigned?</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Yes. Verdicts are reviewed when new evidence emerges or when a dispute is submitted. Submit a correction below if you believe a verdict is wrong.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">Sources consulted</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">{all_sources_html}</div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">Overall signal</div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:24px;">
+      <div style="font-family:var(--font-serif);font-size:1rem;line-height:1.75;color:var(--muted);font-style:italic;">{overall_signal}</div>
     </div>
   </section>
 
