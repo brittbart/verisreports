@@ -511,7 +511,42 @@ def report_page():
             rows = cur.fetchall()
             conn.close()
             if not rows:
-                data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
+                # Trigger on-demand extraction for articles in DB but not yet extracted
+                try:
+                    import requests as _req
+                    from bs4 import BeautifulSoup
+                    from extract_claims import extract_claims_from_article
+                    from verdict_engine import analyse_claim
+                    _r = _req.get(art_url, timeout=(8,15), headers={'User-Agent': 'Mozilla/5.0'})
+                    soup = BeautifulSoup(_r.text, 'html.parser')
+                    body_text = ' '.join(p.get_text() for p in soup.find_all('p'))[:8000]
+                    article_dict = {'title': title_db, 'description': body_text[:500], 'content': body_text, 'source': {'name': source_name}, 'url': art_url, 'publishedAt': ''}
+                    claims = extract_claims_from_article(article_dict)
+                    if not claims:
+                        data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
+                    else:
+                        conn2 = get_db()
+                        cur2 = conn2.cursor()
+                        verified_claims = []
+                        for c in claims:
+                            result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_db, source_name, cursor=cur2)
+                            cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                                (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
+                            cid = cur2.fetchone()[0]
+                            verified_claims.append((cid, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used')))
+                        cur2.execute("UPDATE articles SET claims_verified=TRUE WHERE id=%s", (art_id,))
+                        conn2.commit()
+                        conn2.close()
+                        rows = verified_claims
+                        W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
+                        sc = sum(1 for c in rows if c[5] in W)
+                        ws = sum(W[c[5]] for c in rows if c[5] in W)
+                        score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
+                        rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
+                        data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                except Exception as e:
+                    print(f"On-demand extraction (no_claims path) failed: {e}")
+                    data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
             else:
                 W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
                 sc = sum(1 for c in rows if c[5] in W)
