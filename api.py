@@ -740,7 +740,9 @@ def report_page():
         parts = d.split('.')
         if len(parts) >= 2 and parts[-1] in valid_tlds and len(parts[0]) > 1:
             clean_domains.add(d)
-    all_sources_html = ''.join('<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(    html = ("""<!DOCTYPE html>
+    all_sources_html = ''.join('<span class="vs-src vs-src-i">' + d + '</span>' for d in sorted(clean_domains))
+
+    html = ("""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -906,35 +908,11 @@ body{background:#0a0a12;color:#f0f0f5;font-family:'DM Sans',sans-serif;font-size
 
 </div>
 </body>
-</html>""")
-
-    ar(--dim)"></div><span class="legend-name">Opinion</span></div><span class="legend-wt">excluded</span></div>
-    </div>
-  </div>
-  <div class="vn">Verdicts from two genuinely independent sources satisfy the independence rule. Wire service reprints and accurately reported quotes from named speakers are excluded from outlet scoring.</div>
-  <div style="font-size:11px;color:var(--dim);line-height:1.5;text-align:center">Methodology v1.5 &nbsp;&middot;&nbsp; Automated &nbsp;&middot;&nbsp; Auditable<br><span style="color:var(--violet);opacity:.7">verumsignal.com/methodology</span></div>
-</aside>
 </div>
-
-<script>
-function toggleAll(btn) {{
-  const rows = document.querySelectorAll('.claim-row');
-  const anyOpen = [...rows].some(r => r.classList.contains('open'));
-  rows.forEach(r => anyOpen ? r.classList.remove('open') : r.classList.add('open'));
-  btn.textContent = anyOpen ? 'Expand all' : 'Collapse all';
-}}
-function copyUrl() {{
-  navigator.clipboard.writeText(window.location.href).then(() => {{
-    const btn = document.querySelector('.share-btn');
-    btn.textContent = 'Copied \u2713';
-    btn.style.color = '#4ade80';
-    setTimeout(() => {{ btn.textContent = 'Share report \u2197'; btn.style.color = ''; }}, 2000);
-  }});
-}}
-</script>
 </body>
-</html>"""
-
+</div>
+</body>
+</html>""")
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
