@@ -835,20 +835,31 @@ def report_page():
     # --- Article summary html ---
     summary_html = ('<div class="vs-summary-text">' + article_summary + '</div>') if article_summary else ''
 
-    from flask import render_template, make_response
-    html = render_template('report.html',
-        source=source, score=score, rating=rating, as_of=as_of,
-        url=url, title=title, tag_html=tag_html, summary_html=summary_html,
-        score_ring_html=score_ring_html, score_color=score_color,
-        methodology_callout=methodology_callout, redflag_html=redflag_html,
-        story_context=story_context, dist_blocks_html=dist_blocks_html,
-        dist_legend_html=dist_legend_html, claims_html=claims_html,
-        overall_signal=overall_signal, watch_for_html=watch_for_html,
-        all_sources_html=all_sources_html, compare_html=compare_html,
-        stats=stats, sc=sc, total=stats.get('total',0))
-    resp = make_response(html)
-    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    return resp
+    with open(os.path.join(os.path.dirname(__file__), 'templates', 'report.html'), 'r') as _tf:
+        html = _tf.read()
+    html = html.replace('{{source}}', str(source))
+    html = html.replace('{{score}}', str(score))
+    html = html.replace('{{rating}}', str(rating))
+    html = html.replace('{{as_of}}', str(as_of))
+    html = html.replace('{{url}}', str(url))
+    html = html.replace('{{title}}', str(title))
+    html = html.replace('{{tag_html | safe}}', str(tag_html))
+    html = html.replace('{{summary_html | safe}}', str(summary_html))
+    html = html.replace('{{score_ring_html | safe}}', str(score_ring_html))
+    html = html.replace('{{score_color}}', str(score_color))
+    html = html.replace('{{methodology_callout | safe}}', str(methodology_callout))
+    html = html.replace('{{redflag_html | safe}}', str(redflag_html))
+    html = html.replace('{{story_context | safe}}', str(story_context))
+    html = html.replace('{{dist_blocks_html | safe}}', str(dist_blocks_html))
+    html = html.replace('{{dist_legend_html | safe}}', str(dist_legend_html))
+    html = html.replace('{{claims_html | safe}}', str(claims_html))
+    html = html.replace('{{overall_signal | safe}}', str(overall_signal))
+    html = html.replace('{{watch_for_html | safe}}', str(watch_for_html))
+    html = html.replace('{{all_sources_html | safe}}', str(all_sources_html))
+    html = html.replace('{{compare_html | safe}}', str(compare_html))
+    html = html.replace('{{total}}', str(stats.get('total',0)))
+    html = html.replace('{{sc}}', str(sc))
+    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
 if __name__ == '__main__':
