@@ -302,6 +302,18 @@ def methodology_page():
 def methodology_v15():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
 
+
+@app.route('/how-it-works.html', methods=['GET'])
+def how_it_works():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'how-it-works.html')
+
+@app.route('/leaderboard.html', methods=['GET'])
+def leaderboard():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'leaderboard.html')
+
+@app.route('/pricing.html', methods=['GET'])
+def pricing():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'pricing.html')
 @app.route('/', methods=['GET'])
 def homepage():
     return """<!DOCTYPE html>

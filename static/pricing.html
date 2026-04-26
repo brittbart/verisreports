@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pricing — Verum Signal</title>
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="%230A0A0F"/><path d="M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32" fill="none" stroke="%23a855f7" stroke-width="3" stroke-linecap="round"/><circle cx="58" cy="32" r="4" fill="%23ec4899"/></svg>' />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=2">
+<style>
+  .page-hero {
+    position: relative;
+    padding: 180px 0 80px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .page-hero-content { position: relative; z-index: 2; max-width: 800px; margin: 0 auto; }
+  .page-hero h1 { margin-bottom: 24px; }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .pricing-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+  }
+  .pricing-card.featured {
+    border-color: var(--violet);
+    background: linear-gradient(180deg, rgba(168,85,247,0.08) 0%, var(--surface) 100%);
+  }
+
+  .plan-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 20px;
+  }
+  .plan-label.is-pro { color: var(--violet-light); }
+
+  .price {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1.0;
+    letter-spacing: -2px;
+    margin-bottom: 4px;
+  }
+  .price-sub {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-bottom: 28px;
+  }
+
+  .plan-desc {
+    font-size: 14px;
+    color: var(--text-2);
+    line-height: 1.65;
+    font-weight: 300;
+    margin-bottom: 28px;
+  }
+
+  .plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .plan-features li {
+    font-size: 13px;
+    color: var(--text-2);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-weight: 300;
+  }
+  .plan-features li::before {
+    content: '\2013';
+    color: var(--violet-light);
+    flex-shrink: 0;
+  }
+
+  .plan-cta {
+    margin-top: auto;
+    padding: 12px 0;
+    border-top: 0.5px solid var(--border);
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+
+  .btn-primary {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: var(--violet);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+
+  .btn-secondary {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: var(--text-2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: border-color 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--violet); }
+
+  .enterprise-wrap {
+    max-width: 640px;
+    margin: 64px auto 0;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 48px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 32px;
+  }
+  .enterprise-wrap h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  .enterprise-wrap p {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  @media (max-width: 800px) {
+    .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+    .enterprise-wrap { grid-template-columns: 1fr; text-align: center; }
+    .page-hero { padding: 140px 0 60px; }
+  }
+</style>
+</head>
+<body data-page="pricing">
+
+<section class="page-hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow" style="top: 55%;"></div>
+  <div class="container page-hero-content">
+    <div class="eyebrow fu" style="justify-content:center; max-width:340px; margin:0 auto 28px;">Plans</div>
+    <h1 class="display h-page fu2">Simple pricing.</h1>
+    <p class="sub fu3">Free for individual readers. Pro for power users. API access for teams.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:40px">
+  <div class="container">
+    <div class="pricing-grid">
+
+      <!-- Free -->
+      <div class="pricing-card">
+        <div class="plan-label">Free</div>
+        <div class="price">$0</div>
+        <div class="price-sub">forever</div>
+        <p class="plan-desc">For curious readers who want to think clearly about the news.</p>
+        <ul class="plan-features">
+          <li>Unlimited report views</li>
+          <li>Chrome extension</li>
+          <li>Outlet reliability scores</li>
+          <li>Public leaderboard</li>
+        </ul>
+        <div class="plan-cta">
+          <button class="btn-secondary">Get the extension</button>
+          No account required
+        </div>
+      </div>
+
+      <!-- Pro -->
+      <div class="pricing-card featured">
+        <div class="plan-label is-pro">Ғ Pro</div>
+        <div class="price">$9</div>
+        <div class="price-sub">per month</div>
+        <p class="plan-desc">For readers who want deeper insight and outlet history.</p>
+        <ul class="plan-features">
+          <li>Everything in Free</li>
+          <li>Unlimited reports</li>
+          <li>Outlet history &amp; trends</li>
+          <li>Early access to new features</li>
+          <li>Email digest</li>
+        </ul>
+        <div class="plan-cta">
+          <button class="btn-primary">Start free trial</button>
+          14 days free, no card required
+        </div>
+      </div>
+
+      <!-- API -->
+      <div class="pricing-card">
+        <div class="plan-label">API</div>
+        <div class="price">$49</div>
+        <div class="price-sub">per month</div>
+        <p class="plan-desc">For teams and developers building on top of Verum Signal data.</p>
+        <ul class="plan-features">
+          <li>Everything in Pro</li>
+          <li>5,000 API calls/per month</li>
+          <li>Bulk outlet scores</li>
+          <li>Webhook support</li>
+          <li>Priority support</li>
+        </ul>
+        <div class="plan-cta">
+          <button class="btn-secondary">Get API access</button>
+          Contact for team plans
+        </div>
+      </div>
+
+    </div>
+
+    <div class="enterprise-wrap">
+      <div>
+        <h3>Enterprise</h3>
+        <p>For newsrooms, media monitoring agencies, and research teams who need custom volume, dedicated support, and a service agreement.</p>
+      </div>
+      <button class="btn-secondary" style="white-space:nowrap;width:auto;padding:12px 24px">Contact us</button>
+    </div>
+
+  </div>
+</section>
+
+<script src="chrome.js?v=1777162767838"></script>
+
+<!-- Site footer -->
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand">
+      <svg width="32" height="22" viewBox="0 0 54 0" fill="none">
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      </svg>
+      <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
+    </div>
+    <div class="site-footer-tagline">We provide the signals. You decide.</div>
+    <nav class="site-footer-nav">
+      <a href="/methodology">Methodology</a>
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/leaderboard.html">Leaderboard</a>
+      <a href="/pricing.html">Pricing</a>
+    </nav>
+    <div class="site-footer-meta">Methodology v1.5 · Automated · Auditable</div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Leaderboard — Verum Signal</title>
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="%230A0A0F"/><path d="M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32" fill="none" stroke="%23a855f7" stroke-width="3" stroke-linecap="round"/><circle cx="58" cy="32" r="4" fill="%23ec4899"/></svg>' />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=2">
+<style>
+  .page-hero {
+    position: relative;
+    padding: 180px 0 60px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .page-hero-content { position: relative; z-index: 2; max-width: 800px; margin: 0 auto; }
+  .page-hero h1 { margin-bottom: 24px; }
+
+  .leaderboard-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* Filter pills */
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .filter-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 100px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .filter-pill:hover { border-color: var(--violet); color: var(--text); }
+  .filter-pill.active {
+    background: var(--violet);
+    border-color: var(--violet);
+    color: #fff;
+  }
+
+  /* Table */
+  .lb-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .lb-table thead tr {
+    border-bottom: 0.5px solid var(--border);
+  }
+  .lb-table th {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    padding: 0px 12px 16px;
+    text-align: left;
+  }
+  .lb-table th&nbsp;:first-child { padding-left: 0; }
+
+  .lb-row {
+    border-bottom: 0.5px solid var(--border);
+    transition: background .15s;
+  }
+  .lb-row:hover { background: var(--surface); }
+  .lb-row td {
+    padding: 18px 12px;
+    vertical-align: middle;
+  }
+  .lb-row td:first-child { padding-left: 0; }
+
+  .lb-rank {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--text-3);
+    width: 40px;
+  }
+  .lb-outlet {
+    font-weight: 500;
+    font-size: 15px;
+  }
+  .lb-outlet-meta {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 3px;
+  }
+  .lb-score {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: -1px;
+    width: 90px;
+  }
+  .lb-score.high { color: #4ADE80; }
+  .lb-score.med { color: #FBBF24; }
+  .lb-score.low { color: #F87171; }
+
+  .lb-bar-wrap {
+    width: 200px;
+  }
+  .lb-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .lb-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.35, 0, 0.25, 1);
+  }
+
+  .lb-tier {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .lb-note {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 32px;
+    line-height: 1.6;
+    border-top: 0.5px solid var(--border);
+    padding-top: 24px;
+  }
+
+  @media (max-width: 700px) {
+    .lb-bar-wrap { display: none; }
+    .lb-table th:nth-child(4) { display: none; }
+    .lb-row td:nth-child(4) { display: none; }
+    .page-hero { padding: 140px 0 40px; }
+  }
+</style>
+</head>
+<body data-page="leaderboard">
+
+<section class="page-hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow" style="top: 55%;"></div>
+  <div class="container page-hero-content">
+    <div class="eyebrow fu" style="justify-content:center; max-width:340px; margin:0 auto 28px;">Reliability scores</div>
+    <h1 class="display h-page fu2">Outlet leaderboard.</h1>
+    <p class="sub fu3" style="max-width: 540px; margin: 0 auto;">Ranked by verification accuracy. Same methodology applied to every outlet. Scores update as new verdicts are added.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:40px">
+  <div class="container">
+    <div class="leaderboard-wrap">
+
+      <div class="filter-row">
+        <button class="filter-pill active" data-filter="all">All outlets</button>
+        <button class="filter-pill" data-filter="high">High 70+</button>
+        <button class="filter-pill" data-filter="med">Medium 40-69</button>
+        <button class="filter-pill" data-filter="low'>Low 0<40</button>
+      </div>
+
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Outlet</th>
+            <th>Score</th>
+            <th></th>
+            <th>Tier</th>
+          </tr>
+        </thead>
+        <tbody id="lb-body">
+        </tbody>
+      </table>
+
+      <div class="lb-note">
+        <strong>About these scores:</strong> Scores are based on automated verification of factual claims using the <a href="/methodology" style="color:var(--violet);text-decoration:none">Verum Signal methodology v1.5</a>. Outlets with fewer than 20 scoreable verdicts are excluded from the leaderboard. Scores are not an endorsement of any outlet's editorial position.
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="chrome.js?v=1777162767838"></script>
+
+<!-- Site footer -->
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand">
+      <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      </svg>
+      <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
+    </div>
+    <div class="site-footer-tagline">We provide the signals. You decide.</div>
+    <nav class="site-footer-nav">
+      <a href="/methodology">Methodology</a>
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/leaderboard.html">Leaderboard</a>
+      <a href="/pricing.html">Pricing</a>
+    </nav>
+    <div class="site-footer-meta">Methodology v1.5 · Automated · Auditable</div>
+  </div>
+</footer>
+
+</body>
+<script>
+  const outlets = [
+    { name: 'The Guardian', domain: 'theguardian.com', score: 72, tier: 'Stabilizing', verdicts: 40 },
+    { name: 'Fox News', domain: 'foxnews.com', score: 61, tier: 'Stabilizing', verdicts: 74 },
+    { name: 'NPR', domain: 'npr.org', score: 68, tier: 'Limited Data', verdicts: 18 },
+    { name: 'Daily Wire', domain: 'dailywire.com', score: 55, tier: 'Limited Data', verdicts: 7 },
+    { name: 'New York Times', domain: 'nytimes.com', score: 69, tier: 'Limited Data', verdicts: 12 },
+    { name: 'NY Post', domain: 'nypost.com', score: 58, tier: 'Limited Data', verdicts: 11 },
+    { name: 'Politico', domain: 'politico.com', score: 66, tier: 'Limited Data', verdicts: 14 },
+    { name: 'Newsmax', domain: 'newsmax.com', score: 52, tier: 'Limited Data', verdicts: 16 },
+    { name: 'Breitbart', domain: 'breitbart.com', score: 48, tier: 'Limited Data', verdicts: 12 },
+  ];
+
+  function tierStyle(t) {
+    if (t === 'Published') return 'background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.2)';
+    if (t === 'Stabilizing') return 'background:rgba(96,165,250,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.2)';
+    if (t === 'Limited Data') return 'background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.2)';
+    return 'color:var(--text-3)';
+  }
+
+  function scoreClass(s) { return s >= 70 ? 'high' : s >= 40 ? 'med' : 'low'; }
+  function barColor(s) {&�eturn s >= 70 ? '#4ADE80' : s >= 40 ? '#FBBF24' : '#F87171'; }
+
+  let currentFilter = 'all';
+
+  function render(filter) {
+    const body = document.getElementById('lb-body');
+    const sorted = [...outlets].sort((a,b) => b.score - a.score);
+    const filtered = sorted.filter(o => {
+      if (filter === 'high') return o.score >= 70;
+      if (filter === 'med') return o.score >= 40 && o.score < 70;
+      if (filter === 'low') return o.score < 40;
+      return true;
+    });
+    body.innerHTML = filtered.map((o, i) => `
+      <tr class="lb-row">
+        <td class="lb-rank">${i+1}</td>
+        <td>
+          <div class="lb-outlet">${o.name}</div>
+          <div class="lb-outlet-meta">${o.domain} · ${o.verdicts} verdicts</div>
+        </td>
+        <td class="lb-score ${scoreClass(o.score)}">${o.score}</td>
+        <td class="lb-bar-wrap">
+          <div class="lb-bar-track">
+            <div class="lb-bar" style="width:${o.score}%;background:${barColor(o.score)}"></div>
+          </div>
+        </td>
+        <td><span class="lb-tier" style="${tierStyle(o.tier)}">${o.tier}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.filter-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+    });
+  });
+
+  render('all');
+</script>
+
+</html>
