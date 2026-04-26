@@ -666,43 +666,38 @@ def report_page():
 
     def claim_row(c):
         v = c.get('verdict') or 'not_verifiable'
-        col = VERDICT_COLOR.get(v, ('#aaa','rgba(170,170,170,0.1)','rgba(170,170,170,0.3)'))
-        lbl = VERDICT_LABEL.get(v, v)
-        wt  = VERDICT_WEIGHT.get(v, '')
+        VBAR = {'supported':'#4ade80','plausible':'#fbbf24','corroborated':'#34d399','overstated':'#fbbf24','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)'}
+        VPILL = {'supported':'p-sup','plausible':'p-pla','corroborated':'p-cor','overstated':'p-ove','disputed':'p-dis','not_supported':'p-nsu','opinion':'p-opi','not_verifiable':'p-nve'}
+        VLBL = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE'}
+        bar_col = VBAR.get(v, 'rgba(255,255,255,0.1)')
+        pill_cls = VPILL.get(v, 'p-opi')
+        lbl = VLBL.get(v, v.upper())
         text = c.get('claim_text', '')
         summary = c.get('verdict_summary', '') or ''
         sources = c.get('sources_used', '') or ''
-        pipeline = c.get('claim_type', 'web search') or 'web search'
-        cid = c.get('id', '')
-        attr = c.get('claim_origin', 'outlet_claim') or 'outlet_claim'
-        attr_label = 'Original reporting \u2014 counts toward outlet score' if attr == 'outlet_claim' else 'Wire reprint \u2014 excluded from outlet score'
-        breaking = c.get('breaking', False)
-        breaking_pill = ('\u26a1 Breaking \u2014 excluded from outlet score until gate passes' if breaking else '')
-
-        return f"""
-<div class="claim-row" onclick="this.classList.toggle('open')">
-  <div class="claim-header">
-    <span class="verdict-badge" style="background:{col[1]};border-color:{col[2]};color:{col[0]};">{lbl}</span>
-    <span class="claim-text">{text}</span>
-    <span class="pipeline-tag">{pipeline}</span>
-    <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
-  </div>
-  <div class="claim-body">
-    <div class="claim-grid">
-      <div><div class="detail-label">Verdict reasoning</div><div class="detail-val">{summary}</div></div>
-      <div><div class="detail-label">Sources consulted</div><div class="detail-val">{sources}</div></div>
-    </div>
-    <div style="margin-top:8px;">
-      <span class="attr-tag">{attr_label}</span>
-      {f'<span class="break-tag">{breaking_pill}</span>' if breaking else ''}
-    </div>
-    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
-      {"".join(f'<span style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">{d.strip()}</span>' for d in sources.replace(","," ").split() if "." in d and len(d)>3)[:5]}
-    </div>
-    <div class="detail-label" style="margin-top:8px;">Weight: {wt}</div>
-  </div>
-</div>"""
-
+        claim_type = c.get('claim_type', 'factual') or 'factual'
+        valid_tlds3 = {'com','org','gov','edu','net','io','co','uk','de','fr'}
+        src_domains = []
+        for word in sources.replace(',',' ').split():
+            w = word.strip('().-').lower()
+            parts = w.split('.')
+            if len(parts) >= 2 and parts[-1] in valid_tlds3 and len(parts[0]) > 1:
+                src_domains.append(w)
+        contradicts = v in ('disputed','not_supported')
+        src_pills = ''
+        for d in src_domains[:5]:
+            cls = 'vs-src-c' if contradicts else 'vs-src-p'
+            src_pills += '<span class="vs-src ' + cls + '">' + d + '</span>'
+        return ('<div class="vs-claim">'
+            '<div class="vs-claim-bar" style="background:' + bar_col + ';"></div>'
+            '<div class="vs-claim-body">'
+            '<div class="vs-claim-quote">' + text + '</div>'
+            '<div class="vs-claim-reason">' + summary + '</div>'
+            '<div class="vs-claim-sources">' + src_pills + '</div>'
+            '<div style="font-family:monospace;font-size:8px;color:rgba(255,255,255,0.2);margin-top:4px;">' + claim_type + '</div>'
+            '</div>'
+            '<div class="vs-pill ' + pill_cls + '">' + lbl + '</div>'
+            '</div>')
     claims_html = ''.join(claim_row(c) for c in claims)
 
     score_bar_pct = score
