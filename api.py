@@ -334,6 +334,10 @@ def pricing_clean():
 @app.route('/index.html', methods=['GET'])
 def index_html():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'index.html')
+
+@app.route('/chrome.js', methods=['GET'])
+def chrome_js():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'chrome.js')
 @app.route('/', methods=['GET'])
 def homepage():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'index.html')
