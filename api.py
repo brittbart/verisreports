@@ -330,8 +330,14 @@ def leaderboard_clean():
 @app.route('/pricing', methods=['GET'])
 def pricing_clean():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'pricing.html')
+
+@app.route('/index.html', methods=['GET'])
+def index_html():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'index.html')
 @app.route('/', methods=['GET'])
 def homepage():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'index.html')
+def homepage_old():
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
