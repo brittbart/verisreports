@@ -460,8 +460,47 @@ def report_page():
                 cur.execute("SELECT a.id, a.title, a.source_name, a.url, a.claims_verified, a.verified_at FROM articles a WHERE a.source_name ILIKE %s AND to_tsvector('english', a.title) @@ to_tsquery('english', %s) ORDER BY a.fetched_at DESC LIMIT 1", (f'%{domain}%', ' | '.join(keywords)))
                 article = cur.fetchone()
         if not article:
-            conn.close()
-            data = {'status': 'not_found'}
+            # On-demand extraction for URLs not in DB
+            try:
+                import requests as _req
+                from extract_claims import extract_claims_from_article
+                from verdict_engine import analyse_claim
+                from urllib.parse import urlparse
+                _r = _req.get(url, timeout=(8,15), headers={'User-Agent': 'Mozilla/5.0'})
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(_r.text, 'html.parser')
+                title_tag = soup.find('title')
+                title_text = title_tag.text.strip() if title_tag else url
+                paragraphs = soup.find_all('p')
+                body_text = ' '.join(p.get_text() for p in paragraphs)[:8000]
+                domain = urlparse(url).netloc.replace('www.','')
+                article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': domain}, 'url': url, 'publishedAt': ''}
+                claims = extract_claims_from_article(article_dict)
+                if not claims:
+                    conn.close()
+                    data = {'status': 'no_claims', 'title': title_text, 'source': domain}
+                else:
+                    conn2 = get_db()
+                    cur2 = conn2.cursor()
+                    cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) RETURNING id", (title_text, domain, url))
+                    art_id = cur2.fetchone()[0]
+                    verified_claims = []
+                    for c in claims:
+                        result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_text, domain, cursor=cur2)
+                        cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                            (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
+                        cid = cur2.fetchone()[0]
+                        verified_claims.append((cid, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used')))
+                    conn2.commit()
+                    conn2.close()
+                    conn.close()
+                    rows = verified_claims
+                    article = (art_id, title_text, domain, url, True, None)
+                    art_id, title_db, source_name, art_url, cv, vat = article
+            except Exception as e:
+                print(f"On-demand extraction failed: {e}")
+                conn.close()
+                data = {'status': 'not_found'}
         else:
             art_id, title_db, source_name, art_url, cv, vat = article
             cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used FROM claims WHERE article_id = %s ORDER BY priority_score DESC", (art_id,))
