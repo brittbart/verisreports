@@ -81,7 +81,7 @@ window.VS_DATA = {
     },
     {
       id: "verdicts", num: "06", title: "Verdict Types", kind: "verdicts",
-      body: ["Seven possible verdicts are assigned. Each verdict carries a weight that feeds the outlet's reliability score."],
+      body: ["Eight possible verdicts are assigned. Six contribute to the outlet's reliability score; two (opinion and not_verifiable) are excluded from scoring. Each scoreable verdict carries a weight that feeds the outlet reliability formula."],
       verdicts: [
         { key: "supported",      weight: "+1.0",   tone: "pos",     meaning: "Confirmed by two genuinely independent sources" },
         { key: "plausible",      weight: "+0.5",   tone: "pos",     meaning: "Consistent with evidence, but only one credible source found" },
