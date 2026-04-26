@@ -607,12 +607,42 @@ def report_page():
     disputed_n = stats.get('disputed', 0)
     not_supported_n = stats.get('not_supported', 0)
     total_n = stats.get('total', 0)
-    if rating == 'High':
-        overall_signal = f"This article scores in the High tier. The factual claims assessed were well-sourced and confirmed by independent reporting. Verdicts reflect the evidence available at time of analysis."
-    elif rating == 'Medium':
-        overall_signal = f"This article scores in the Medium tier. Of {total_n} claims assessed, {supported_n} were supported by independent sources. {overstated_n + disputed_n + not_supported_n} claim(s) showed evidence of overstatement or factual dispute."
-    else:
-        overall_signal = f"This article scores in the Low tier. Multiple claims showed signs of overstatement or direct contradiction by independent sources. Readers should consult additional sources before drawing conclusions." 
+    # Generate Claude-powered report sections
+    import anthropic as _anth
+    _client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    _claims_parts = []
+    for _i, _c in enumerate(claims):
+        _claims_parts.append('Claim ' + str(_i+1) + ': "' + _c.get('claim_text','') + '" — Verdict: ' + (_c.get('verdict','') or '').upper() + ' — Reasoning: ' + (_c.get('verdict_summary','') or ''))
+    _claims_text = chr(10).join(_claims_parts) #
+
+    _prompt = f"""You are the editorial intelligence layer for Verum Signal, an independent claim analysis platform. Be direct, specific, engaging. Never hedge. Never use false balance. Call it as the evidence shows.
+
+ARTICLE: {title}
+SOURCE: {source}
+OUTLET SCORE: {score}/100 ({rating})
+CLAIMS: {total_n} total | {supported_n} supported | {overstated_n} overstated | {disputed_n} disputed | {not_supported_n} not supported
+
+VERIFIED CLAIMS:
+{_claims_text}
+
+Return ONLY valid JSON:
+{{
+  "article_summary": "2-3 sentence plain-language summary of what this article is about and why it matters. Write for a curious intelligent reader.",
+  "overall_signal": "3-4 sentences. Lead with what the evidence actually shows — be specific about which claims held up and which did not. Name the verdict types. If something is wrong say so clearly. Make it feel like a smart friend who read the article and checked the facts. Engaging direct zero hedging.",
+  "watch_for": ["specific follow-up question or signal to watch for in future coverage", "another specific thing to watch for", "a third signal or question"]
+}}"""
+    try:
+        _msg = _client.messages.create(model="claude-sonnet-4-6", max_tokens=800, messages=[{"role":"user","content":_prompt}])
+        _text = _msg.content[0].text.strip()
+        _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
+        article_summary = _result.get('article_summary', '')
+        overall_signal = _result.get('overall_signal', '')
+        watch_for = _result.get('watch_for', [])
+    except Exception as _e:
+        print(f"Content generation failed: {_e}")
+        article_summary = ''
+        overall_signal = f"This article scores {score}/100 ({rating}). Of {total_n} claims assessed, {supported_n} were supported. {overstated_n + disputed_n + not_supported_n} showed overstatement or dispute."
+        watch_for = [] 
 
     VERDICT_COLOR = {
         'supported':    ('#4ade80', 'rgba(74,222,128,0.12)',  'rgba(74,222,128,0.3)'),
