@@ -38,27 +38,5 @@
   const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 20);  window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  // Footer
-  const footer = document.createElement('footer');
-  footer.className = 'site-footer';
-  footer.innerHTML = `
-    <div class="site-footer-inner">
-      <div class="site-footer-brand">
-        <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
-          <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-          <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
-        </svg>
-        <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
-      </div>
-      <div class="site-footer-tagline">We provide the signals. You decide.</div>
-      <nav class="site-footer-nav">
-        <a href="methodology.html">Methodology</a>
-        <a href="how-it-works.html">How it works</a>
-        <a href="leaderboard.html">Leaderboard</a>
-        <a href="pricing.html">Pricing</a>
-      </nav>
-      <div class="site-footer-meta">Methodology v1.5 · Automated · Auditable · © 2026 Verum Signal</div>
-    </div>
-  `;
-  document.body.appendChild(footer);
+
 })();
