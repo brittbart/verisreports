@@ -703,6 +703,28 @@ def report_page():
             col = VERDICT_COLOR.get(v, ('#aaa','',''))[0]
             verdict_bar_segs += f'<div style="height:100%;width:{pct}%;background:{col};"></div>'
 
+    # Build distribution bar and legend
+    VCOLORS = {'supported':'#4ade80','plausible':'#fbbf24','corroborated':'#34d399','overstated':'#fbbf24','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)'}
+    total_sc2 = stats.get('total',1) or 1
+    dist_bar_html = ''
+    dist_legend_html = ''
+    for v, col in VCOLORS.items():
+        cnt = stats.get(v,0)
+        if cnt:
+            pct = round(cnt/total_sc2*100)
+            dist_bar_html += f'<div class="vs-dist-seg" style="flex:{cnt};background:{col};"></div>'
+            lbl = v.replace('_',' ').title()
+            dist_legend_html += f'<span class="vs-leg"><span class="vs-leg-dot" style="background:{col}"></span>{cnt} {lbl}</span>'
+
+    # Build compare perspectives
+    COMPARE_OUTLETS = ['Fox News','NPR','Guardian','Politico','CNN','BBC']
+    compare_html = ''
+    for outlet in COMPARE_OUTLETS:
+        if outlet.lower().replace(' ','') not in source.lower().replace(' ',''):
+            search_url = 'https://www.google.com/search?q=' + title.replace(' ','+')[:60] + '+' + outlet.replace(' ','+')
+            compare_html += f'<a href="{search_url}" target="_blank" class="vs-compare-btn">{outlet} ↗</a>'
+
+    # Build all sources list
     # Build all sources list
     all_domains = set()
     for c in claims:
@@ -718,232 +740,175 @@ def report_page():
         parts = d.split('.')
         if len(parts) >= 2 and parts[-1] in valid_tlds and len(parts[0]) > 1:
             clean_domains.add(d)
-    all_sources_html = ''.join('<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">'  + d + '</span>' for d in sorted(clean_domains))
-
-    # Build overall signal narrative
-    supported_n = stats.get("supported",0)
-    overstated_n = stats.get("overstated",0)
-    disputed_n = stats.get("disputed",0)
-    not_supported_n = stats.get("not_supported",0)
-    total_n = stats.get("total",0)
-    if rating == "High":
-        overall_signal = f"This article scores in the High tier. The factual claims assessed were well-sourced and confirmed by independent reporting. Verdicts reflect the evidence available at time of analysis."
-    elif rating == "Medium":
-        overall_signal = f"This article scores in the Medium tier. Of {total_n} claims assessed, {supported_n} were supported by independent sources. {overstated_n + disputed_n + not_supported_n} claim(s) showed evidence of overstatement or factual dispute. Verdicts reflect the evidence available at time of analysis."
-    else:
-        overall_signal = f"This article scores in the Low tier. Multiple claims showed signs of overstatement or direct contradiction by independent sources. Readers should consult additional sources before drawing conclusions. Verdicts reflect the evidence available at time of analysis."
-
-    html = f"""<!DOCTYPE html>
+    all_sources_html = ''.join('<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(    html = ("""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Verum Signal \u2014 {source}</title>
+<title>Verum Signal — """ + source + """</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
-:root{{--bg:#080810;--bg2:#0e0e1a;--bg3:#13131f;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0f0f8;--muted:rgba(240,240,248,0.72);--dim:rgba(240,240,248,0.45);--violet:#a855f7;--violet-dim:rgba(168,85,247,0.15);--violet-border:rgba(168,85,247,0.3);--sidebar-w:280px;--font-serif:'DM Serif Display',Georgia,serif;--font-sans:'DM Sans',system-ui,sans-serif}}
-html{{font-size:16px;scroll-behavior:smooth}}
-body{{background:var(--bg);color:var(--text);font-family:var(--font-sans);line-height:1.6;min-height:100vh}}
-.layout{{display:grid;grid-template-columns:1fr var(--sidebar-w);max-width:1200px;margin:0 auto;min-height:100vh;border:1px solid var(--violet-border);border-radius:12px;overflow:hidden;margin-top:1.5rem;margin-bottom:3rem;box-shadow:0 0 0 1px rgba(168,85,247,0.08),0 24px 80px rgba(0,0,0,0.6)}}
-.main-col{{grid-column:1;border-right:1px solid var(--border);padding-bottom:5rem}}
-.sidebar{{grid-column:2;position:sticky;top:0;height:100vh;overflow-y:auto;padding:2rem 1.5rem;display:flex;flex-direction:column;gap:1.5rem}}
-.top-bar{{padding:12px 2.5rem;border-bottom:1px solid rgba(168,85,247,0.15);display:flex;align-items:center;gap:12px}}
-.logo-mark{{display:flex;align-items:center;gap:8px;font-family:var(--font-serif);font-size:15px;color:var(--text)}}
-.logo-dot{{width:8px;height:8px;border-radius:50%;background:#e879f9}}
-.tagline{{font-size:11px;color:var(--dim);font-style:italic;margin-left:4px}}
-.article-header{{padding:2rem 2.5rem 0}}
-.tag-row{{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem}}
-.tag{{font-size:11px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:100px;border:1px solid var(--border2);color:var(--muted)}}
-.tag.outlet{{border-color:var(--violet-border);color:var(--violet);background:var(--violet-dim)}}
-.article-title{{font-family:var(--font-serif);font-size:1.8rem;line-height:1.2;color:var(--text);margin-bottom:0.75rem;max-width:680px}}
-.meta-row{{display:flex;align-items:center;gap:1rem;font-size:12px;color:var(--dim);padding-bottom:2rem;border-bottom:1px solid var(--border);flex-wrap:wrap}}
-.section{{padding:2rem 2.5rem;border-bottom:1px solid var(--border)}}
-.section-label{{font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);margin-bottom:0.75rem}}
-.section-label-row{{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem}}
-.expand-all{{font-size:11px;color:rgba(168,85,247,0.7);background:none;border:none;cursor:pointer;font-family:var(--font-sans)}}
-.callout{{border-left:3px solid;padding:1rem 1.25rem;border-radius:0 8px 8px 0;background:var(--bg2)}}
-.callout.violet{{border-color:var(--violet)}}
-.callout p{{font-size:0.9rem;color:var(--muted);line-height:1.65}}
-.pills-grid{{display:flex;flex-wrap:wrap;gap:8px}}
-.claim-row{{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px;transition:border-color .15s}}
-.claim-row:hover{{border-color:var(--border2)}}
-.claim-header{{display:flex;flex-direction:column;padding:1rem 1.25rem;cursor:pointer;background:var(--bg2);gap:0.5rem}}
-.claim-header-top{{display:flex;align-items:center;justify-content:space-between}}
-.verdict-badge{{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;border-radius:100px;border:1px solid;white-space:nowrap}}
-.pipeline-tag{{font-size:10px;color:var(--dim);white-space:nowrap}}
-.claim-text{{font-size:0.9rem;color:var(--text);line-height:1.5}}
-.chevron{{width:16px;height:16px;color:var(--dim);transition:transform .2s;flex-shrink:0}}
-.claim-row.open .chevron{{transform:rotate(180deg)}}
-.claim-body{{display:none;padding:1rem 1.25rem 1.25rem;background:var(--bg3);border-top:1px solid var(--border)}}
-.claim-row.open .claim-body{{display:block}}
-.claim-grid{{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.75rem}}
-.detail-label{{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-bottom:.35rem}}
-.detail-val{{font-size:.85rem;color:var(--muted);line-height:1.6}}
-.attr-tag{{font-size:10px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;padding:3px 10px;border-radius:100px;border:1px solid var(--border2);color:var(--dim)}}
-.break-tag{{font-size:10px;color:#eab308;border:1px solid rgba(234,179,8,0.3);background:rgba(234,179,8,0.08);padding:3px 10px;border-radius:100px;margin-left:6px}}
-.summary-text{{font-family:var(--font-serif);font-size:1.05rem;line-height:1.75;color:var(--muted);font-style:italic;max-width:640px}}
-.stat-row{{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden}}
-.stat-cell{{background:var(--bg2);padding:1.25rem;text-align:center}}
-.stat-label{{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-bottom:.5rem}}
-.stat-value{{font-family:var(--font-serif);font-size:1.5rem;color:var(--text)}}
-.stat-sub{{font-size:11px;color:var(--dim);margin-top:2px}}
-.footer-badge{{margin:2rem 2.5rem 0;padding:1.25rem 1.5rem;background:var(--bg2);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:space-between}}
-.footer-logo{{display:flex;align-items:center;gap:.5rem;font-family:var(--font-serif);font-size:1rem;color:var(--text)}}
-.footer-logo-dot{{width:8px;height:8px;border-radius:50%;background:#e879f9}}
-.share-btn{{font-size:11px;color:var(--dim);cursor:pointer;padding:5px 12px;border:1px solid var(--border);border-radius:100px;background:none;font-family:var(--font-sans);transition:border-color .15s}}
-.verdict-panel{{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}}
-.vp-header{{padding:1rem 1.25rem .75rem;border-bottom:1px solid var(--border)}}
-.vp-label{{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-bottom:.35rem}}
-.vp-nums{{font-family:var(--font-serif);font-size:1rem;color:var(--muted);margin-bottom:.5rem}}
-.vbar{{height:4px;border-radius:2px;overflow:hidden;background:var(--border);display:flex;margin-top:.75rem}}
-.score-box{{padding:1rem 1.25rem}}
-.score-label{{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-bottom:.35rem}}
-.score-val{{font-family:var(--font-serif);font-size:2rem}}
-.score-bar{{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:.75rem}}
-.legend-item{{display:flex;align-items:center;justify-content:space-between;padding:.5rem 1.25rem;font-size:12px;border-bottom:1px solid var(--border)}}
-.legend-left{{display:flex;align-items:center;gap:8px}}
-.legend-dot{{width:8px;height:8px;border-radius:50%;flex-shrink:0}}
-.legend-name{{color:var(--muted)}}
-.legend-wt{{color:var(--dim);font-size:11px}}
-.vn{{font-size:11px;color:var(--dim);line-height:1.5;padding:.75rem 1rem;background:var(--bg2);border:1px solid var(--border);border-radius:8px}}
-@media(max-width:768px){{.layout{{grid-template-columns:1fr;border-radius:0;margin:0}}.main-col{{border-right:none;border-bottom:1px solid var(--border)}}.sidebar{{position:static;height:auto}}.claim-grid{{grid-template-columns:1fr}}.stat-row{{grid-template-columns:repeat(2,1fr)}}}}
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a12;color:#f0f0f5;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.55;min-height:100vh}
+.vs{background:#0a0a12;color:#f0f0f5;font-family:'DM Sans',sans-serif;border-radius:12px;overflow:hidden;font-size:13px;line-height:1.55;max-width:900px;margin:2rem auto;border:0.5px solid rgba(168,85,247,0.2);}
+.vs-topbar{display:flex;justify-content:space-between;align-items:center;padding:11px 20px;border-bottom:0.5px solid rgba(168,85,247,0.2);background:rgba(10,10,18,0.97);}
+.vs-brand{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:0.18em;font-weight:600;}
+.vs-brand em{color:#e879f9;font-style:italic;font-weight:400;}
+.vs-outlet-badge{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.4);}
+.vs-outlet-badge b{color:#a855f7;}
+.vs-header{padding:24px 24px 16px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
+.vs-source-line{font-family:monospace;font-size:9px;letter-spacing:0.14em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:8px;}
+.vs-headline-row{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;}
+.vs-title{font-family:'DM Serif Display',serif;font-size:20px;line-height:1.25;color:#fff;max-width:500px;}
+.vs-score-block{text-align:right;flex-shrink:0;}
+.vs-score-num{font-family:'DM Serif Display',serif;font-size:52px;line-height:1;color:#fff;}
+.vs-score-unit{font-size:12px;color:rgba(255,255,255,0.28);font-family:monospace;}
+.vs-meta-row{display:flex;flex-wrap:wrap;gap:5px;padding:10px 24px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
+.vs-chip{font-family:monospace;font-size:9px;letter-spacing:0.06em;color:rgba(255,255,255,0.32);}
+.vs-chip-sep{color:rgba(255,255,255,0.12);}
+.vs-callout{margin:14px 24px;padding:11px 14px;background:rgba(168,85,247,0.06);border:0.5px solid rgba(168,85,247,0.18);border-left:3px solid #a855f7;border-radius:4px;}
+.vs-callout-label{font-family:monospace;font-size:8px;letter-spacing:0.18em;color:rgba(168,85,247,0.65);margin-bottom:4px;}
+.vs-callout-body{font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5;}
+.vs-callout-body a{color:rgba(168,85,247,0.7);text-decoration:underline;}
+.vs-dist-wrap{padding:0 24px 10px;}
+.vs-dist-bar{display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;margin-bottom:7px;}
+.vs-dist-seg{border-radius:2px;}
+.vs-dist-legend{display:flex;gap:12px;flex-wrap:wrap;}
+.vs-leg{font-family:monospace;font-size:9px;color:rgba(255,255,255,0.38);display:flex;align-items:center;gap:4px;}
+.vs-leg-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.vs-claims{border-top:0.5px solid rgba(255,255,255,0.06);}
+.vs-claim{display:flex;align-items:flex-start;padding:12px 24px;border-bottom:0.5px solid rgba(255,255,255,0.05);}
+.vs-claim-bar{width:3px;border-radius:2px;min-height:44px;flex-shrink:0;margin-right:12px;align-self:stretch;}
+.vs-claim-body{flex:1;}
+.vs-claim-quote{font-size:12px;color:rgba(255,255,255,0.82);line-height:1.45;margin-bottom:4px;}
+.vs-claim-reason{font-family:monospace;font-size:9px;color:rgba(255,255,255,0.3);line-height:1.5;margin-bottom:5px;}
+.vs-claim-sources{display:flex;gap:4px;flex-wrap:wrap;}
+.vs-src{font-family:monospace;font-size:8px;padding:2px 6px;border-radius:3px;}
+.vs-src-p{background:rgba(52,211,153,0.1);color:#34d399;border:0.5px solid rgba(52,211,153,0.2);}
+.vs-src-i{background:rgba(96,165,250,0.1);color:#60a5fa;border:0.5px solid rgba(96,165,250,0.2);}
+.vs-src-w{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.3);border:0.5px solid rgba(255,255,255,0.1);}
+.vs-src-c{background:rgba(248,113,113,0.1);color:#f87171;border:0.5px solid rgba(248,113,113,0.2);}
+.vs-pill{flex-shrink:0;font-family:monospace;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:0.06em;align-self:flex-start;margin-top:2px;margin-left:10px;white-space:nowrap;}
+.p-sup{background:rgba(74,222,128,0.12);color:#4ade80;border:0.5px solid rgba(74,222,128,0.22);}
+.p-pla{background:rgba(251,191,36,0.1);color:#fbbf24;border:0.5px solid rgba(251,191,36,0.18);}
+.p-cor{background:rgba(52,211,153,0.1);color:#34d399;border:0.5px solid rgba(52,211,153,0.18);}
+.p-ove{background:rgba(251,191,36,0.1);color:#fbbf24;border:0.5px solid rgba(251,191,36,0.18);}
+.p-dis{background:rgba(248,113,113,0.12);color:#f87171;border:0.5px solid rgba(248,113,113,0.22);}
+.p-nsu{background:rgba(239,68,68,0.12);color:#ef4444;border:0.5px solid rgba(239,68,68,0.22);}
+.p-opi{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.32);border:0.5px solid rgba(255,255,255,0.08);}
+.p-nve{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.32);border:0.5px solid rgba(255,255,255,0.08);}
+.vs-section{padding:16px 24px;border-top:0.5px solid rgba(255,255,255,0.06);}
+.vs-section-label{font-family:monospace;font-size:8px;letter-spacing:0.18em;color:rgba(255,255,255,0.25);text-transform:uppercase;margin-bottom:12px;}
+.vs-qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.vs-qa-card{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px 12px;}
+.vs-qa-q{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:4px;line-height:1.35;}
+.vs-qa-a{font-size:10px;color:rgba(255,255,255,0.38);line-height:1.5;}
+.vs-sources-wrap{display:flex;gap:5px;flex-wrap:wrap;}
+.vs-compare-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.vs-compare-btn{font-family:monospace;font-size:10px;padding:6px 12px;border-radius:4px;border:0.5px solid rgba(168,85,247,0.25);background:rgba(168,85,247,0.06);color:rgba(168,85,247,0.7);cursor:pointer;letter-spacing:0.04em;text-decoration:none;display:inline-block;}
+.vs-compare-btn:hover{background:rgba(168,85,247,0.12);}
+.vs-summary{margin:0 24px 16px;padding:14px 16px;background:rgba(168,85,247,0.05);border:0.5px solid rgba(168,85,247,0.15);border-radius:6px;}
+.vs-summary-label{font-family:monospace;font-size:8px;letter-spacing:0.18em;color:rgba(168,85,247,0.5);margin-bottom:7px;}
+.vs-summary-body{font-family:'DM Serif Display',serif;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.65;font-style:italic;}
+.vs-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:0.5px solid rgba(255,255,255,0.06);}
+.vs-stat{padding:12px 16px;border-right:0.5px solid rgba(255,255,255,0.06);}
+.vs-stat:last-child{border-right:none;}
+.vs-stat-label{font-family:monospace;font-size:8px;letter-spacing:0.12em;color:rgba(255,255,255,0.25);margin-bottom:4px;}
+.vs-stat-value{font-family:'DM Serif Display',serif;font-size:18px;color:#fff;}
+.vs-stat-value span{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.3);}
+.vs-footer{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;border-top:0.5px solid rgba(168,85,247,0.15);flex-wrap:wrap;gap:6px;}
+.vs-footer-l{font-family:monospace;font-size:9px;color:rgba(168,85,247,0.55);}
+.vs-footer-l a{color:rgba(168,85,247,0.7);text-decoration:underline;}
+.vs-footer-c{font-family:monospace;font-size:9px;color:rgba(255,255,255,0.25);}
+.vs-footer-r{font-family:monospace;font-size:9px;color:rgba(168,85,247,0.45);cursor:pointer;}
+@media(max-width:600px){.vs{margin:0;border-radius:0;}.vs-headline-row{flex-direction:column;}.vs-qa-grid{grid-template-columns:1fr;}.vs-stats{grid-template-columns:repeat(2,1fr);}}
 </style>
 </head>
 <body>
-<div class="layout">
-<main class="main-col">
-  <div class="top-bar">
-    <div class="logo-mark">
-      <svg width="185" height="28" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
-        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
-        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
-      </svg>
+<div class="vs">
+  <div class="vs-topbar">
+    <div class="vs-brand">
+      <svg width="22" height="16" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#e879f9" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
+      VERUM <em>SIGNAL</em>
     </div>
-    <span class="tagline">We provide the signals. You decide.</span>
+    <div class="vs-outlet-badge">""" + source + """ &nbsp;&middot;&nbsp; <b>""" + str(score) + """/100</b> """ + rating + """</div>
   </div>
 
-  <header class="article-header">
-    <div class="tag-row">
-      <span class="tag outlet">{source}</span>
-      <span class="tag">News</span>
-    </div>
-    <h1 class="article-title">{title}</h1>
-    <div class="meta-row">
-      <span>{as_of}</span>
-      <span>&middot;</span>
-      <span>{stats.get('total',0)} claims analysed</span>
-      <span>&middot;</span>
-      <span>Methodology v1.5</span>
-      <span>&middot;</span>
-      <a href="{url}" target="_blank" style="color:rgba(168,85,247,0.7);text-decoration:none;">Source \u2197</a>
-    </div>
-  </header>
-
-  <section class="section">
-    <div class="section-label">Methodology applied</div>
-    <div class="callout violet">
-      <p>Each factual claim passes through a three-step pipeline: cache check (free), internal consensus check (free), then web search. Claims attributed to wire services or accurately quoting named speakers are excluded from the outlet\u2019s reliability score. Breaking news claims published within 6 hours are excluded until the gate passes. Methodology v1.5.</p>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">Claim summary</div>
-    <div class="pills-grid">{total_pill}{pills_html}</div>
-  </section>
-
-  <section class="section">
-    <div class="section-label-row">
-      <span class="section-label" style="margin-bottom:0">Claim analysis</span>
-      <button class="expand-all" onclick="toggleAll(this)">Expand all</button>
-    </div>
-    <div id="claims-list">{claims_html}</div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">Factual core</div>
-    <p class="summary-text">This report shows {stats.get('total',0)} claims extracted from the article, assessed against independent sources using the Verum Signal methodology. Verdicts reflect the evidence available at time of analysis.</p>
-  </section>
-
-  <section class="section">
-    <div class="stat-row">
-      <div class="stat-cell"><div class="stat-label">Claims</div><div class="stat-value">{stats.get('total',0)}</div><div class="stat-sub">analysed</div></div>
-      <div class="stat-cell"><div class="stat-label">Supported</div><div class="stat-value" style="color:#4ade80">{stats.get('supported',0)}</div><div class="stat-sub">of {stats.get('total',0)}</div></div>
-      <div class="stat-cell"><div class="stat-label">Contested</div><div class="stat-value" style="color:#f87171">{stats.get('disputed',0) + stats.get('not_supported',0)}</div><div class="stat-sub">disputed + not supported</div></div>
-      <div class="stat-cell"><div class="stat-label">Outlet score</div><div class="stat-value" style="color:{score_color}">{score}</div><div class="stat-sub">{rating}</div></div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">Things to hold in mind</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Why might this outlet score differently on other articles?</div>
-        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Scores reflect the specific claims in this article, not a blanket rating. An outlet can score high on one story and lower on another.</div>
-      </div>
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">What does Corroborated mean vs Supported?</div>
-        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Supported means two independent sources confirmed the claim. Corroborated means 5+ outlets reported consistently — no external verification was needed.</div>
-      </div>
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Why is the Opinion claim excluded from scoring?</div>
-        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Opinion content is not a factual signal. Outlets are not penalized for editorial framing — only for factual inaccuracies in their own reporting.</div>
-      </div>
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Can a verdict change after it's assigned?</div>
-        <div style="font-size:12px;color:var(--dim);line-height:1.6;">Yes. Verdicts are reviewed when new evidence emerges or when a dispute is submitted. Submit a correction below if you believe a verdict is wrong.</div>
+  <div class="vs-header">
+    <div class="vs-source-line">""" + source + """ &nbsp;&middot;&nbsp; """ + as_of + """</div>
+    <div class="vs-headline-row">
+      <div class="vs-title">""" + title + """</div>
+      <div class="vs-score-block">
+        <div class="vs-score-num">""" + str(score) + """</div>
+        <div class="vs-score-unit">/100</div>
       </div>
     </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">Sources consulted</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">{all_sources_html}</div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">Overall signal</div>
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:24px;">
-      <div style="font-family:var(--font-serif);font-size:1rem;line-height:1.75;color:var(--muted);font-style:italic;">{overall_signal}</div>
-    </div>
-  </section>
-
-  <div class="footer-badge">
-    <div>
-      <div class="footer-logo"><div class="footer-logo-dot"></div>Verum Signal</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:4px">We provide the signals. You decide.</div>
-      <div style="font-size:11px;color:var(--dim);margin-top:2px">Methodology v1.5 &nbsp;&middot;&nbsp; Automated &nbsp;&middot;&nbsp; Auditable</div>
-    </div>
-    <button class="share-btn" onclick="copyUrl()">Share report \u2197</button>
   </div>
-</main>
 
-<aside class="sidebar">
-  <div class="verdict-panel">
-    <div class="vp-header">
-      <div class="vp-label">Article verdict distribution</div>
-      <div class="vp-nums">{stats.get('supported',0)} supported &middot; {stats.get('disputed',0) + stats.get('not_supported',0)} contested</div>
-      <div class="vbar">{verdict_bar_segs}</div>
+  <div class="vs-meta-row">
+    <span class="vs-chip">""" + as_of + """</span><span class="vs-chip-sep"> &middot; </span>
+    <span class="vs-chip">""" + str(stats.get('total',0)) + """ claims assessed</span><span class="vs-chip-sep"> &middot; </span>
+    <span class="vs-chip">Pipeline &middot; v1.5</span><span class="vs-chip-sep"> &middot; </span>
+    <span class="vs-chip">Outlet score &middot; """ + str(score) + """/100 """ + rating + """</span>
+  </div>
+
+  <div class="vs-callout">
+    <div class="vs-callout-label">METHODOLOGY APPLIED</div>
+    <div class="vs-callout-body">""" + methodology_callout + """ <a href="/methodology">Methodology v1.5</a>.</div>
+  </div>
+
+  <div class="vs-dist-wrap">
+    <div class="vs-dist-bar">""" + dist_bar_html + """</div>
+    <div class="vs-dist-legend">""" + dist_legend_html + """</div>
+  </div>
+
+  <div class="vs-claims">""" + claims_html + """</div>
+
+  <div class="vs-section">
+    <div class="vs-section-label">Things to hold in mind</div>
+    <div class="vs-qa-grid">
+      <div class="vs-qa-card"><div class="vs-qa-q">Why might this outlet score differently on other articles?</div><div class="vs-qa-a">Scores reflect the specific claims in this article, not a blanket rating. An outlet can score high on one story and lower on another.</div></div>
+      <div class="vs-qa-card"><div class="vs-qa-q">What does Corroborated mean vs Supported?</div><div class="vs-qa-a">Supported means two independent sources confirmed the claim. Corroborated means 5+ outlets reported it consistently — no external verification was needed.</div></div>
+      <div class="vs-qa-card"><div class="vs-qa-q">Why is the Opinion claim excluded from scoring?</div><div class="vs-qa-a">Opinion content is not a factual signal. Outlets are not penalized for editorial framing — only for factual inaccuracies in their own reporting.</div></div>
+      <div class="vs-qa-card"><div class="vs-qa-q">Can a verdict change after it’s assigned?</div><div class="vs-qa-a">Yes. Verdicts are reviewed when new evidence emerges or when a dispute is submitted. Submit a correction below if you believe a verdict is wrong.</div></div>
     </div>
-    <div class="score-box">
-      <div class="score-label">Outlet reliability score</div>
-      <div class="score-val" style="color:{score_color}">{score}</div>
-      <div style="font-size:11px;color:{score_color};opacity:.7">{rating} reliability</div>
-      <div class="score-bar"><div style="width:{score_bar_pct}%;height:100%;background:{score_color};border-radius:2px"></div></div>
-      <div style="font-size:11px;color:var(--dim);margin-top:.4rem">Based on {stats.get('total',0)} scored claims</div>
-    </div>
-    <div style="border-top:1px solid var(--border)">
-      <div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:#4ade80"></div><span class="legend-name">Supported</span></div><span class="legend-wt">+1.0</span></div>
-      <div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:#fbbf24"></div><span class="legend-name">Plausible</span></div><span class="legend-wt">+0.5</span></div>
-      <div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:#60a5fa"></div><span class="legend-name">Corroborated</span></div><span class="legend-wt">+0.5</span></div>
-      <div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:#fb923c"></div><span class="legend-name">Overstated</span></div><span class="legend-wt">\u22120.5</span></div>
-      <div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:#f43f5e"></div><span class="legend-name">Disputed</span></div><span class="legend-wt">\u22121.0</span></div>
-      <div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:#f87171"></div><span class="legend-name">Not supported</span></div><span class="legend-wt">\u22121.5</span></div>
-      <div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:var(--dim)"></div><span class="legend-name">Not verifiable</span></div><span class="legend-wt">excluded</span></div>
-      <div class="legend-item" style="border-bottom:none"><div class="legend-left"><div class="legend-dot" style="background:var(--dim)"></div><span class="legend-name">Opinion</span></div><span class="legend-wt">excluded</span></div>
+  </div>
+
+  <div class="vs-section">
+    <div class="vs-section-label">Sources consulted</div>
+    <div class="vs-sources-wrap">""" + all_sources_html + """</div>
+  </div>
+
+  <div class="vs-section">
+    <div class="vs-section-label">Compare perspectives</div>
+    <div class="vs-compare-btns">""" + compare_html + """</div>
+  </div>
+
+  <div class="vs-summary">
+    <div class="vs-summary-label">OVERALL SIGNAL</div>
+    <div class="vs-summary-body">""" + overall_signal + """</div>
+  </div>
+
+  <div class="vs-stats">
+    <div class="vs-stat"><div class="vs-stat-label">CLAIMS ASSESSED</div><div class="vs-stat-value">""" + str(stats.get('total',0)) + """</div></div>
+    <div class="vs-stat"><div class="vs-stat-label">SCOREABLE</div><div class="vs-stat-value">""" + str(sc) + """</div></div>
+    <div class="vs-stat"><div class="vs-stat-label">OUTLET SCORE</div><div class="vs-stat-value">""" + str(score) + """<span>/100</span></div></div>
+    <div class="vs-stat"><div class="vs-stat-label">TIER</div><div class="vs-stat-value" style="font-size:16px;">""" + rating + """</div></div>
+  </div>
+
+  <div class="vs-footer">
+    <div class="vs-footer-l">Generated under <a href="/methodology">Methodology v1.5</a></div>
+    <div class="vs-footer-c">""" + source + """ &nbsp;&middot;&nbsp; outlet score: """ + str(score) + """/100 """ + rating + """</div>
+    <div class="vs-footer-r"><a href="/api/dispute" style="color:rgba(168,85,247,0.45);text-decoration:none;">Submit a correction ↗</a></div>
+  </div>
+
+</div>
+</body>
+</html>""")
+
+    ar(--dim)"></div><span class="legend-name">Opinion</span></div><span class="legend-wt">excluded</span></div>
     </div>
   </div>
   <div class="vn">Verdicts from two genuinely independent sources satisfy the independence rule. Wire service reprints and accurately reported quotes from named speakers are excluded from outlet scoring.</div>
