@@ -176,7 +176,7 @@ function DisputesSection() {
         <p className="vs-card-body">{data.disputes.body}</p>
         <div className="vs-callout" style={{marginTop: '1rem'}}>
           <div className="vs-callout-title">What to include</div>
-          <p className="vs-callout-body">{string data.disputes.include}</p>
+          <p className="vs-callout-body">{data.disputes.include}</p>
         </div>
         <p style={{marginTop: '1rem', fontSize: '13px', color: 'var(--text-dim)'}}>
           Submit via the correction form on any report page, or at {'h\u2026'}
