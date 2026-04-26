@@ -1,17 +1,8 @@
-
-const data = window.REPORT_DATA;
-
-function SectionHeader({ label, title, subtitle }) {
-  return (
-    <div className="vs-section-head">
-      <div className="vs-label">{label}</div>
-      <h2 className="vs-h2">{title}</h2>
-      {subtitle && <p className="vs-lead">{subtitle}</p>}
-    </div>
-  );
-}
+const { useState, useEffect } = React;
 
 function HeroSection() {
+  const data = window.REPORT_DATA || window.VS_DATA;
+  const meta = data?.meta || {};
   return (
     <header className="vs-hero">
       <div className="vs-hero-inner">
@@ -20,14 +11,14 @@ function HeroSection() {
             <path d="M3 20 Q 11 4 18 20 T 33 20" stroke="var(--accent)" strokeWidth="3.2" fill="none" strokeLinecap="round"/>
             <circle cx="37" cy="18" r="4.2" fill="var(--accent)"/>
           </svg>
-          <span className="vs-hero-wordmark">VERUM {'\u00a0'} <em>SIGNAL</em></span>
+          <span className="vs-hero-wordmark">VERUM <em>SIGNAL</em></span>
         </div>
-        <h1 className="vs-hero-title">{data.meta.title}</h1>
-        <p className="vs-hero-sub">{data.meta.subtitle}</p>
+        <h1 className="vs-hero-title">{meta.title || "Article Analysis Methodology"}</h1>
+        <p className="vs-hero-sub">{meta.subtitle || "How Verum Signal Evaluates a Single Article"}</p>
         <div className="vs-hero-meta">
-          <span>Version <strong>{data.meta.version}</strong></span>
-          <span>Status <strong>{data.meta.status}</strong></span>
-          <span>Last updated <strong>{data.meta.lastUpdated}</strong></span>
+          <span>Version <strong>{meta.version || "v1.5"}</strong></span>
+          <span>Status <strong>{meta.status || "Locked"}</strong></span>
+          <span>{(meta.lastUpdated || meta.date) && `Updated ${meta.lastUpdated || meta.date}`}</span>
         </div>
       </div>
     </header>
@@ -35,9 +26,14 @@ function HeroSection() {
 }
 
 function PrinciplesSection() {
+  const data = window.REPORT_DATA;
+  if (!data?.principles?.items?.length) return null;
   return (
     <section className="vs-section">
-      <SectionHeader label="01" title={data.principles.title} />
+      <div className="vs-section-head">
+        <div className="vs-label">01</div>
+        <h2 className="vs-h2">{data.principles.title}</h2>
+      </div>
       <div className="vs-card-stack">
         {data.principles.items.map((item) => (
           <div key={item.id} className="vs-card">
@@ -50,13 +46,19 @@ function PrinciplesSection() {
   );
 }
 
-function VerdictsSection() {
+function VerdictSection() {
+  const data = window.REPORT_DATA;
+  if (!data?.verdicts?.items?.length) return null;
   return (
     <section className="vs-section">
-      <SectionHeader label="02" title={data.verdicts.title} subtitle={data.verdicts.subtitle} />
+      <div className="vs-section-head">
+        <div className="vs-label">02</div>
+        <h2 className="vs-h2">{data.verdicts.title}</h2>
+        {data.verdicts.subtitle && <p className="vs-lead">{data.verdicts.subtitle}</p>}
+      </div>
       <div className="vs-verdict-grid">
         {data.verdicts.items.map((item) => (
-          <div key={item.id} className={item.excluded ? 'vs-verdict-card vs-verdict-card--excluded' : 'vs-verdict-card'}>
+          <div key={item.id || item.label} className={item.excluded ? 'vs-verdict-card vs-verdict-card--excluded' : 'vs-verdict-card'}>
             {item.excluded && <div className="vs-excluded-cap">Excluded from scoring</div>}
             <div className="vs-verdict-row">
               <span className="vs-verdict-dot" style={{backgroundColor: item.color}} />
@@ -73,12 +75,17 @@ function VerdictsSection() {
 }
 
 function FormulaSection() {
+  const data = window.REPORT_DATA;
+  if (!data?.formula) return null;
   return (
     <section className="vs-section">
-      <SectionHeader label="03" title={data.formula.title} />
+      <div className="vs-section-head">
+        <div className="vs-label">03</div>
+        <h2 className="vs-h2">{data.formula.title}</h2>
+      </div>
       <div className="vs-formula-block">
         {data.formula.steps.map((step) => (
-          <div key={step.id} className={step.highlight ? 'vs-formula-line vs-formula-line--highlight' : 'vs-formula-line'}>
+          <div key={step.id || step.label} className={step.highlight ? 'vs-formula-line vs-formula-line--highlight' : 'vs-formula-line'}>
             <span className="vs-formula-label">{step.label}</span>
             <span className="vs-formula-expr">{step.expr}</span>
           </div>
@@ -100,9 +107,15 @@ function FormulaSection() {
 }
 
 function TiersSection() {
+  const data = window.REPORT_DATA;
+  if (!data?.tiers?.items?.length) return null;
   return (
     <section className="vs-section">
-      <SectionHeader label="04" title={data.tiers.title} subtitle={data.tiers.subtitle} />
+      <div className="vs-section-head">
+        <div className="vs-label">04</div>
+        <h2 className="vs-h2">{data.tiers.title}</h2>
+        {data.tiers.subtitle && <p className="vs-lead">{data.tiers.subtitle}</p>}
+      </div>
       <div className="vs-tier-grid">
         {data.tiers.items.map((item) => (
           <div key={item.id} className="vs-tier-card">
@@ -117,16 +130,21 @@ function TiersSection() {
 }
 
 function PipelineSection() {
+  const data = window.REPORT_DATA;
+  if (!data?.pipeline?.steps?.length) return null;
   return (
     <section className="vs-section">
-      <SectionHeader label="05" title={data.pipeline.title} />
-      <div className="vs-pipeline">
+      <div className="vs-section-head">
+        <div className="vs-label">05</div>
+        <h2 className="vs-h2">{data.pipeline.title}</h2>
+      </div>
+      <div className="vs-pipeline-wrap">
         {data.pipeline.steps.map((step, i) => (
           <div key={step.id} className="vs-pipeline-step">
             <div className="vs-pipeline-num">{String(i + 1).padStart(2, '0')}</div>
-            <div className="vs-pipeline-body">
+            <div>
               <h4 className="vs-pipeline-title">{step.title}</h4>
-              <p className="vs-pipeline-desc">{step.body}</p>
+              <p className="vs-pipeline-desc">{step.body || step.desc}</p>
             </div>
           </div>
         ))}
@@ -135,51 +153,26 @@ function PipelineSection() {
   );
 }
 
-function AttributionSection() {
-  return (
-    <section className="vs-section">
-      <SectionHeader label="06" title={data.attribution.title} />
-      <div className="vs-card-stack">
-        {data.attribution.items.map((item) => (
-          <div key={item.id} className="vs-card">
-            <h3 className="vs-card-title">{item.title}</h3>
-            <p className="vs-card-body">{item.body}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function LimitationsSection() {
-  return (
-    <section className="vs-section">
-      <SectionHeader label="07" title={data.limitations.title} />
-      <div className="vs-card-stack">
-        {data.limitations.items.map((item) => (
-          <div key={item.id} className="vs-card">
-            <h3 className="vs-card-title">{item.title}</h3>
-            <p className="vs-card-body">{item.body}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function DisputesSection() {
+  const data = window.REPORT_DATA;
+  if (!data?.disputes) return null;
   return (
     <section className="vs-section">
-      <SectionHeader label="08" title={data.disputes.title} />
+      <div className="vs-section-head">
+        <div className="vs-label">06</div>
+        <h2 className="vs-h2">{data.disputes.title}</h2>
+      </div>
       <div className="vs-card">
         <p className="vs-card-body">{data.disputes.body}</p>
-        <div className="vs-callout" style={{marginTop: '1rem'}}>
-          <div className="vs-callout-title">What to include</div>
-          <p className="vs-callout-body">{data.disputes.include}</p>
-        </div>
-        <p style={{marginTop: '1rem', fontSize: '13px', color: 'var(--text-dim)'}}>
-          Submit via the correction form on any report page, or at {'h\u2026'}
-          <a href={data.disputes.url} style={{color: 'var(--accent)'}}>verumsignal.com/disputes</a>.
+        {data.disputes.include && (
+          <div className="vs-callout" style={{marginTop: '1rem'}}>
+            <div className="vs-callout-title">What to include</div>
+            <p className="vs-callout-body">{data.disputes.include}</p>
+          </div>
+        )}
+        <p style={{marginTop: '1rem', fontSize: '13px', color: 'var(--fg-dim)'}}>
+          Submit via the correction form on any report page, or at{' '}
+          <a href={data.disputes.url || '/disputes'} style={{color: 'var(--accent)'}}>verumsignal.com/disputes</a>.
         </p>
       </div>
     </section>
@@ -189,17 +182,13 @@ function DisputesSection() {
 function Report() {
   return (
     <main className="vs-main">
-      <div className="vs-wrap">
-        <HeroSection />
-        <PrinciplesSection />
-        <VerdictsSection />
-        <FormulaSection />
-        <TiersSection />
-        <PipelineSection />
-        <AttributionSection />
-        <LimitationsSection />
-        <DisputesSection />
-      </div>
+      <HeroSection />
+      <PrinciplesSection />
+      <VerdictSection />
+      <FormulaSection />
+      <TiersSection />
+      <PipelineSection />
+      <DisputesSection />
     </main>
   );
 }
