@@ -599,6 +599,7 @@ def report_page():
     score   = data.get('score', 0)
     rating  = data.get('rating', 'Medium')
     as_of   = data.get('as_of', '')
+    methodology_callout = data.get('methodology_callout', 'Each factual claim passes through a three-step pipeline: cache check, internal consensus check, then web search.')
 
     VERDICT_COLOR = {
         'supported':    ('#4ade80', 'rgba(74,222,128,0.12)',  'rgba(74,222,128,0.3)'),
