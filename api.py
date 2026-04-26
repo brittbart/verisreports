@@ -718,7 +718,7 @@ def report_page():
         parts = d.split('.')
         if len(parts) >= 2 and parts[-1] in valid_tlds and len(parts[0]) > 1:
             clean_domains.add(d)
-    all_sources_html = ''.join(f'<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">{d}</span>' for d in sorted(clean_domains))
+    all_sources_html = ''.join('<span style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(168,85,247,0.3);color:rgba(168,85,247,0.8);background:rgba(168,85,247,0.06)">'  + d + '</span>' for d in sorted(clean_domains))
 
     # Build overall signal narrative
     supported_n = stats.get("supported",0)
