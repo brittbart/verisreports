@@ -396,7 +396,24 @@ def report_page():
                 ws = sum(W[c[5]] for c in rows if c[5] in W)
                 score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
                 rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
-                data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                scoreable_labels = {'supported':'supported by independent sources','plausible':'consistent with one credible source','corroborated':'corroborated by 5+ outlets','overstated':'overstated relative to evidence','disputed':'disputed by a credible source','not_supported':'actively contradicted by evidence'}
+                parts = []
+                for vk, lbl in scoreable_labels.items():
+                    cnt = sum(1 for c in rows if c[5] == vk)
+                    if cnt:
+                        parts.append(f"{cnt} {'was' if cnt == 1 else 'were'} {lbl}")
+                wire_count = sum(1 for c in rows if c[4] == 'wire_reprint')
+                quote_count = sum(1 for c in rows if c[4] == 'accurate_quote')
+                excl = []
+                if wire_count: excl.append(f"{wire_count} wire reprint{'s' if wire_count>1 else ''} excluded from outlet score")
+                if quote_count: excl.append(f"{quote_count} accurately reported quote{'s' if quote_count>1 else ''} excluded from outlet score")
+                callout_text = f"This article contained {sc} scoreable factual claim{'s' if sc!=1 else ''} after extraction. "
+                if parts:
+                    callout_text += (', '.join(parts[:-1]) + f", and {parts[-1]}. ") if len(parts)>1 else (parts[0] + ". ")
+                if excl:
+                    callout_text += ' '.join(excl) + ". "
+                callout_text += "The independence rule and wire-service exclusion were applied where relevant."
+                data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':callout_text,'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
     except Exception as e:
         data = {'status':'error','message':str(e)}
 
