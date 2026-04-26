@@ -354,6 +354,22 @@ def index_html():
 @app.route('/chrome.js', methods=['GET'])
 def chrome_js():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'chrome.js')
+
+@app.route('/report.css', methods=['GET'])
+def methodology_report_css():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'report.css')
+
+@app.route('/data.js', methods=['GET'])
+def methodology_data_js():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'data.js')
+
+@app.route('/Report.jsx', methods=['GET'])
+def methodology_report_jsx():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'Report.jsx')
+
+@app.route('/tweaks-panel.jsx', methods=['GET'])
+def methodology_tweaks_jsx():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'tweaks-panel.jsx')
 @app.route('/', methods=['GET'])
 def homepage():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'index.html')
