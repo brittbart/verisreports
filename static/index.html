@@ -227,5 +227,19 @@
     <div class="site-footer-meta">Methodology v1.5 · Automated · Auditable</div>
   </div>
 </footer>
+
+<script>
+// How-it-works step animation
+(function() {
+  const steps = document.querySelectorAll('.step');
+  if (!steps.length) return;
+  let current = 0;
+  function activate(i) {
+    steps.forEach((s, j) => s.classList.toggle('is-active', j === i));
+  }
+  activate(0);
+  setInterval(() => { current = (current + 1) % steps.length; activate(current); }, 1800);
+})();
+</script>
 </body>
 </html>
