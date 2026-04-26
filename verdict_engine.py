@@ -177,13 +177,14 @@ Return ONLY this JSON:
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1000,
+            max_tokens=600,
             tools=[
                 {
                     "type": "web_search_20250305",
                     "name": "web_search"
                 }
             ],
+            system=[{"type": "text", "text": "You are the Veris fact-checking engine. Return only valid JSON.", "cache_control": {"type": "ephemeral"}}],
             messages=[
                 {"role": "user", "content": prompt}
             ]
@@ -427,7 +428,7 @@ def run_batch_verdict_engine(limit=500):
             "custom_id": str(claim_id),
             "params": {
                 "model": "claude-sonnet-4-6",
-                "max_tokens": 1000,
+                "max_tokens": 600,
                 "tools": [{"type": "web_search_20250305", "name": "web_search"}],
                 "messages": [{"role": "user", "content": prompt}]
             }

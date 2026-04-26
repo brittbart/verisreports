@@ -130,18 +130,24 @@ def run_priority():
         return False
 
 def run_verdicts():
-    """Run verdict engine on high priority claims."""
-    log.info(f"Running verdict engine "
-             f"({VERDICTS_PER_RUN} claims)...")
+    """Submit batch of claims for verification (50% cost saving)."""
+    log.info(f"Submitting batch verdict job ({VERDICTS_PER_RUN} claims)...")
     try:
-        import verdict_engine
-        verdict_engine.run_verdict_engine(
-            limit=VERDICTS_PER_RUN
-        )
-        log.info("Verdict engine complete")
+        from verdict_engine import run_batch_verdict_engine, process_batch_results
+        # First process any pending batch results
+        import os
+        if os.path.exists("pending_batch.txt"):
+            log.info("Processing pending batch results...")
+            process_batch_results()
+        # Submit new batch
+        batch_id = run_batch_verdict_engine(limit=VERDICTS_PER_RUN)
+        if batch_id:
+            log.info(f"Batch submitted: {batch_id}")
+        else:
+            log.info("No claims to batch or all resolved via cache/consensus")
         return True
     except Exception as e:
-        log.error(f"Verdict engine failed: {str(e)}")
+        log.error(f"Verdict batch failed: {str(e)}")
         return False
     
     
