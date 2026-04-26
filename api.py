@@ -294,6 +294,22 @@ def get_disputes():
         return jsonify({"error":str(e)}),500
 
 
+
+@app.route('/methodology/data.js', methods=['GET'])
+def methodology_data():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'data.js')
+
+@app.route('/methodology/Report.jsx', methods=['GET'])
+def methodology_report():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'Report.jsx')
+
+@app.route('/methodology/tweaks-panel.jsx', methods=['GET'])
+def methodology_tweaks():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'tweaks-panel.jsx')
+
+@app.route('/methodology/report.css', methods=['GET'])
+def methodology_css():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'report.css')
 @app.route('/methodology', methods=['GET'])
 def methodology_page():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
