@@ -757,6 +757,31 @@ def report_page():
     article_summary = ''
     overall_signal = ''
 
+    # --- Claude-generated content ---
+    try:
+        import anthropic as _anth
+        _client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+        _claims_parts = []
+        for _i, _c in enumerate(claims):
+            _claims_parts.append('Claim ' + str(_i+1) + ': "' + (_c.get('claim_text','') or '') + '" - Verdict: ' + ((_c.get('verdict','') or '')).upper() + ' - Reasoning: ' + (_c.get('verdict_summary','') or ''))
+        _claims_text = chr(10).join(_claims_parts)
+        _prompt = ('You are the editorial intelligence layer for Verum Signal. Be direct, specific, engaging. Never hedge. Never use false balance. Call it as the evidence shows.' + chr(10) +
+            'ARTICLE: ' + title + chr(10) +
+            'SOURCE: ' + source + chr(10) +
+            'OUTLET SCORE: ' + str(score) + '/100 (' + rating + ')' + chr(10) +
+            'CLAIMS: ' + str(total_n) + ' total | ' + str(supported_n) + ' supported | ' + str(overstated_n) + ' overstated | ' + str(disputed_n) + ' disputed | ' + str(not_supported_n) + ' not supported' + chr(10) +
+            'VERIFIED CLAIMS:' + chr(10) + _claims_text + chr(10) +
+            'Return ONLY valid JSON: {"article_summary": "2-3 sentence plain-language summary of what this article is about and why it matters.", "overall_signal": "3-4 sentences. Lead with what the evidence actually shows. Be specific about which claims held up and which did not. Make it feel like a smart friend who checked the facts. Engaging, direct, zero hedging.", "watch_for": ["specific follow-up question to watch for", "another signal to watch for", "a third question"]}')
+        _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
+        _text = _msg.content[0].text.strip()
+        _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
+        article_summary = _result.get('article_summary', '')
+        overall_signal = _result.get('overall_signal', '')
+        watch_for = _result.get('watch_for', [])
+    except Exception as _e:
+        print(f'Content generation failed: {_e}')
+        overall_signal = 'This article scores ' + str(score) + '/100 (' + rating + '). Of ' + str(total_n) + ' claims assessed, ' + str(supported_n) + ' were supported. ' + str(overstated_n + disputed_n + not_supported_n) + ' showed overstatement or dispute.'
+
     # --- Article tag ---
     article_tag = data.get('tag', '')
     TAG_CONFIG = {'breaking':('⚡','BREAKING','vs-tag-breaking'),'major':('🔴','MAJOR STORY','vs-tag-major'),'developing':('🔄','DEVELOPING','vs-tag-developing'),'exclusive':('★','EXCLUSIVE','vs-tag-exclusive')}
