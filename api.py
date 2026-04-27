@@ -912,7 +912,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         for d in range(3):
             cls = 'vs-conf-on' if d < confidence else 'vs-conf-off'
             conf_dots += '<span class="vs-conf-dot ' + cls + '"></span>'
-        conf_html = '<div class="vs-conf">' + conf_dots + '</div>'
+        conf_label = {1: "Confidence: 1/3 — one source found", 2: "Confidence: 2/3 — two sources found", 3: "Confidence: 3/3 — verified by multiple independent sources"}.get(confidence, "")
+        conf_html = '<div class="vs-conf" title="' + conf_label + '">' + conf_dots + '</div>'
         # Wire tag
         wire_html = '<span class="vs-wire">WIRE REPRINT &mdash; excluded from score</span>' if is_wire else ''
         # Source pills
@@ -1027,18 +1028,24 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         for _i, _c in enumerate(claims):
             _claims_parts.append('Claim ' + str(_i+1) + ': "' + (_c.get('claim_text','') or '') + '" - Verdict: ' + ((_c.get('verdict','') or '')).upper() + ' - Reasoning: ' + (_c.get('verdict_summary','') or ''))
         _claims_text = chr(10).join(_claims_parts)
-        _prompt = ('You are the editorial intelligence layer for Verum Signal, an independent claim analysis platform. Your job is to produce three powerful, reader-focused sections. Be direct, specific, and engaging. Never hedge. Never use false balance. Call it exactly as the evidence shows. Write for a curious, intelligent reader who wants to think critically.' + chr(10) +
+        _prompt = ('You are the editorial analysis layer for Verum Signal, an independent claim analysis platform governed by Methodology v1.5.' + chr(10) +
+            'Your job is to produce three sections: article_summary, overall_signal, and watch_for.' + chr(10) +
+            'CRITICAL RULES — follow exactly:' + chr(10) +
+            '- DESCRIBE what the evidence shows. Do NOT speculate about the outlet motive, intent, or editorial agenda.' + chr(10) +
+            '- Do NOT use words like: fumble, slip, conveniently, softens, blurs, narrows in connection with the outlet.' + chr(10) +
+            '- Do NOT make political characterizations of subjects (e.g. conservative ally, progressive movement).' + chr(10) +
+            '- Do NOT assert what the outlet has structural incentive to do.' + chr(10) +
+            '- When describing why a claim was overstated/disputed: stick to the specific evidence discrepancy only.' + chr(10) +
+            '- article_summary: describe WHAT events the article reports on. No why-this-matters framing. No threatening/suppression/pressure characterizations unless direct quotes. 1-2 sentences for short articles, 2-3 for longer.' + chr(10) +
+            '- overall_signal: describe what verdicts were assigned and why specifically. Reference methodology mechanics (weights applied, sources consulted). Note the factual core of overstated claims. DO NOT editorialize about the outlet.' + chr(10) +
+            '- watch_for: 3 specific actionable follow-up items naming real people, documents, or institutions. What evidence would confirm or contradict these claims?' + chr(10) +
             'ARTICLE: ' + title + chr(10) +
             'SOURCE: ' + source + chr(10) +
             'OUTLET SCORE: ' + str(score) + '/100 (' + rating + ')' + chr(10) +
             'CLAIMS: ' + str(total_n) + ' total | ' + str(supported_n) + ' supported | ' + str(overstated_n) + ' overstated | ' + str(disputed_n) + ' disputed | ' + str(not_supported_n) + ' not supported' + chr(10) +
             'VERIFIED CLAIMS:' + chr(10) + _claims_text + chr(10) +
-            'Return ONLY valid JSON:' + chr(10) +
-            '{' + chr(10) +
-            '"article_summary": "2-3 sentences. What is this article about, why does it matter right now, and who should care about it. Plain language, no jargon.",' + chr(10) +
-            '"overall_signal": "4-5 sentences covering: (1) A direct summary of what this article claims and why it is significant or relevant to readers right now. (2) What the evidence actually showed — be specific about which claims held up, which were overstated or wrong, and why that matters. (3) What this tells us about how this outlet is covering this story. Be direct, analytical, zero hedging. This should feel like a trusted analyst giving you the real picture.",' + chr(10) +
-            '"watch_for": ["A specific, actionable follow-up question readers should ask about this story as it develops — name specific people, institutions, or data points to watch", "A second specific signal — what would confirm or contradict the claims made in this article, and where would readers find that information", "A third angle — what context or perspective is missing from this article that readers should actively seek out"]' + chr(10) +
-            '}')
+            'Return ONLY valid JSON: {"article_summary": "...", "overall_signal": "...", "watch_for": ["...", "...", "..."]}'
+        )
         _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
         _text = _msg.content[0].text.strip()
         _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
