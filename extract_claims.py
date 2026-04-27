@@ -131,28 +131,15 @@ def process_articles(input_file, limit=50):
         articles = json.load(f)
     if limit:
         articles = articles[:limit]
-    
-    print(f"Loading articles from {input_file}...")
-    
-    with open(input_file, 'r') as f:
-        articles = json.load(f)
-    
-    print(f"Processing {len(articles)} articles...\n")
-    
+    print(f"Processing {len(articles)} articles (limit={limit})...")
     results = []
-    
     for i, article in enumerate(articles):
         title = article.get('title', 'No title')
         source = article.get('source', {}).get('name', 'Unknown')
-        
         print(f"[{i+1}/{len(articles)}] {source}: {title[:60]}...")
-        
         claims = extract_claims_from_article(article)
-        
         if claims:
             print(f"    Found {len(claims)} claims")
-            
-            # Store article with its extracted claims
             result = {
                 "article_id": i + 1,
                 "title": title,
@@ -164,37 +151,11 @@ def process_articles(input_file, limit=50):
             results.append(result)
         else:
             print(f"    No claims extracted")
-    
-    # Save results
     today = datetime.now().strftime('%Y-%m-%d')
     output_file = f"claims_{today}.json"
-    
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=2)
-    
     print(f"\n✓ Processed {len(results)} articles")
     print(f"✓ Saved to {output_file}")
-    
-    # Show preview
-    print("\n--- Preview of first 2 articles ---")
-    for result in results[:2]:
-        print(f"\nArticle: {result['title'][:70]}")
-        print(f"Source: {result['source']}")
-        print(f"Claims found: {len(result['claims'])}")
-        for j, claim in enumerate(result['claims']):
-            print(f"  Claim {j+1}: {claim['claim_text'][:80]}...")
-            print(f"  Speaker: {claim['speaker']}")
-            print(f"  Type: {claim['claim_type']}")
-    
     return results
-
-if __name__ == "__main__":
-    # Find today's articles file
-    today = datetime.now().strftime('%Y-%m-%d')
-    input_file = f"articles_{today}.json"
-    
-    if not os.path.exists(input_file):
-        print(f"No articles file found for today ({input_file})")
-        print("Run fetch_articles.py first")
-    else:
-        process_articles(input_file)
+)
