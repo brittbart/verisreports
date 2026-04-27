@@ -574,23 +574,82 @@ def report_page():
     status = data.get('status', 'error')
 
     # ── Not found ──
-    if status in ('not_found', 'no_claims', 'error'):
-        msg = {
-            'not_found': 'This article isn\u2019t in our database yet. Our scheduler runs every 3 hours \u2014 try again soon, or paste a URL from a tracked outlet.',
-            'no_claims': 'We found this article but couldn\u2019t extract scoreable factual claims from it.',
-            'error': data.get('message', 'Something went wrong. Please try again.')
-        }.get(status, 'Unknown error.')
-        return f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+    if status in ('not_found', 'no_claims', 'error', 'paywall', 'scrape_failed'):
+        STATUS_INFO = {
+            'not_found': {
+                'icon': '\u231b',
+                'heading': 'Not yet analysed',
+                'msg': "This article hasn\u2019t been processed by our pipeline yet.",
+                'detail': 'Our scheduler ingests 40+ outlets every 3 hours. If this outlet is tracked, the article will appear automatically. You can also try submitting a different URL from the same story.',
+            },
+            'no_claims': {
+                'icon': '\u26a0\ufe0f',
+                'heading': 'No scoreable claims found',
+                'msg': 'We retrieved this article but could not extract verifiable factual claims from it.',
+                'detail': 'This happens when an article is primarily opinion, uses JavaScript rendering our scraper cannot access, or is behind a paywall. Try a different article from a text-heavy news report, or choose one of our tracked outlets: Fox News, CNN, BBC, NPR, The Guardian, or Politico.',
+            },
+            'paywall': {
+                'icon': '\U0001f512',
+                'heading': 'Paywall detected',
+                'msg': 'This article appears to be behind a paywall or login wall.',
+                'detail': 'Verum Signal can only analyse publicly accessible articles. Try a free article from this outlet, or choose a different source.',
+            },
+            'scrape_failed': {
+                'icon': '\U0001f6ab',
+                'heading': 'Article could not be retrieved',
+                'msg': 'We were unable to access this article.',
+                'detail': 'Some outlets block automated access. Try one of our tracked outlets: Fox News, CNN, BBC, NPR, The Guardian, Politico, or The Hill.',
+            },
+            'error': {
+                'icon': '\u26a0\ufe0f',
+                'heading': 'Something went wrong',
+                'msg': data.get('message', 'An unexpected error occurred.'),
+                'detail': 'Please try again. If the problem persists, the article may be temporarily unavailable.',
+            }
+        }
+        info = STATUS_INFO.get(status, STATUS_INFO['error'])
+        url_display = url[:80] + ('...' if len(url) > 80 else '')
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Verum Signal \u2014 Report</title>
-<style>*{{box-sizing:border-box;margin:0;padding:0}}body{{background:#080810;color:#f0f0f8;font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}}.wrap{{max-width:520px;padding:48px 32px;text-align:center}}.logo{{font-family:Georgia,serif;font-size:22px;color:#a855f7;margin-bottom:32px}}h2{{font-size:20px;margin-bottom:16px}}p{{font-size:15px;color:rgba(240,240,248,.55);line-height:1.65;margin-bottom:28px}}a{{color:#a855f7;text-decoration:none}}</style>
-</head><body><div class="wrap">
-<div class="logo">Verum Signal</div>
-<h2>Report unavailable</h2>
-<p>{msg}</p>
-<a href="/">\u2190 Back to search</a>
-</div></body></html>""", 404 if status == 'not_found' else 200, {'Content-Type': 'text/html'}
-
+<title>Verum Signal &mdash; Report Unavailable</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}}
+.wrap{{max-width:540px;width:100%}}
+.topbar{{display:flex;align-items:center;gap:8px;margin-bottom:48px}}
+.brand{{font-size:11px;letter-spacing:0.2em;font-weight:700;color:#fff}}
+.brand em{{color:#e879f9;font-style:italic;font-weight:400}}
+.card{{background:rgba(255,255,255,0.03);border:0.5px solid rgba(168,85,247,0.2);border-radius:12px;padding:36px;text-align:center}}
+.icon{{font-size:36px;margin-bottom:20px}}
+.heading{{font-size:22px;font-weight:600;color:#fff;margin-bottom:12px}}
+.msg{{font-size:15px;color:rgba(232,232,240,0.7);line-height:1.65;margin-bottom:16px}}
+.detail{{font-size:13px;color:rgba(232,232,240,0.5);line-height:1.65;margin-bottom:28px;padding:12px 16px;background:rgba(168,85,247,0.05);border:0.5px solid rgba(168,85,247,0.15);border-radius:6px;text-align:left}}
+.btn{{display:inline-block;padding:10px 24px;background:rgba(168,85,247,0.1);border:0.5px solid rgba(168,85,247,0.3);border-radius:6px;color:#a855f7;font-size:13px;font-family:monospace;letter-spacing:0.04em;text-decoration:none}}
+.btn:hover{{background:rgba(168,85,247,0.2)}}
+.url-disp{{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.18);margin-top:20px;word-break:break-all}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <svg width="22" height="16" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#e879f9" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
+    <div class="brand">VERUM <em>SIGNAL</em></div>
+  </div>
+  <div class="card">
+    <div class="icon">{{info['icon']}}</div>
+    <div class="heading">{{info['heading']}}</div>
+    <div class="msg">{{info['msg']}}</div>
+    <div class="detail">{{info['detail']}}</div>
+    <a href="/" class="btn">&#8592; Try a different article</a>
+    <div class="url-disp">{{url_display}}</div>
+  </div>
+</div>
+</body>
+</html>""", 404 if status == 'not_found' else 200, {{'Content-Type': 'text/html'}}
     # ── Build verdict pills ──
     stats   = data.get('stats', {})
     claims  = data.get('claims', [])
