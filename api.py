@@ -649,7 +649,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
   </div>
 </div>
 </body>
-</html>""", 404 if status == 'not_found' else 200, {{'Content-Type': 'text/html'}}
+</html>""", 404 if status == 'not_found' else 200, {'Content-Type': 'text/html'}
     # ── Build verdict pills ──
     stats   = data.get('stats', {})
     claims  = data.get('claims', [])
