@@ -30,7 +30,14 @@ function TOC({ sections, activeId, onJump }) {
         ))}
       </ol>
       <div className="vs-toc__footer">
-        <div className="vs-toc__brand">VERUM SIGNAL</div>
+        <div className="vs-toc__brand">
+          <svg width="110" height="16" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+            <text x="32" y="19" fontFamily="Trebuchet MS,sans-serif" fontSize="13" fontWeight="700" fill="#ffffff" letterSpacing="1.5">VERUM</text>
+            <text x="88" y="19" fontFamily="Trebuchet MS,sans-serif" fontSize="13" fontWeight="400" fontStyle="italic" fill="#c084fc" letterSpacing="1.5" transform="skewX(-6)">SIGNAL</text>
+          </svg>
+        </div>
         <div className="vs-toc__meta">Methodology \u00b7 v1.5</div>
         <div className="vs-toc__meta">April 25, 2026</div>
       </div>
