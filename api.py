@@ -10,6 +10,7 @@ if os.path.exists('.env'):
     load_dotenv(override=False)
 
 app = Flask(__name__)
+app.config['THREADED'] = True
 CORS(app)
 
 def get_db():
@@ -1130,4 +1131,4 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
