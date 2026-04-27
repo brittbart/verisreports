@@ -884,6 +884,7 @@ def report_page():
     html = html.replace('{{score}}', str(score))
     html = html.replace('{{article_age}}', str(article_age))
     html = html.replace('{{claims_header}}', str(claims_header))
+    html = html.replace('{{article_age}}', '')
     html = html.replace('{{rating}}', str(rating))
     html = html.replace('{{as_of}}', str(as_of))
     html = html.replace('{{url}}', str(url))
