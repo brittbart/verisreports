@@ -124,7 +124,9 @@ Return only the JSON, no other text."""
         print(f"    Error extracting claims: {str(e)}")
         return []
 
-def process_articles(input_file):
+def process_articles(input_file, limit=50):
+    if limit:
+        articles = articles[:limit]
     """Process all articles in a JSON file and extract claims."""
     
     print(f"Loading articles from {input_file}...")
