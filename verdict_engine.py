@@ -278,6 +278,14 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
 
     except Exception as e:
         print(f"    Score update error: {str(e)}")
+        try:
+            cursor.connection.rollback()
+        except:
+            pass
+        try:
+            cursor.connection.rollback()
+        except:
+            pass
 
 def run_verdict_engine(limit=10):
     conn = get_connection()
