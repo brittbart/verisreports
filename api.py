@@ -882,7 +882,7 @@ def report_page():
         html = _tf.read()
     html = html.replace('{{source}}', str(source))
     html = html.replace('{{score}}', str(score))
-    html = html.replace('{{article_age}}', str(article_age))
+    html = html.replace('{{article_age}}', '')
     html = html.replace('{{claims_header}}', str(claims_header))
     html = html.replace('{{article_age}}', '')
     html = html.replace('{{rating}}', str(rating))
