@@ -821,7 +821,7 @@ def report_page():
         overall_signal = 'This article scores ' + str(score) + '/100 (' + rating + '). Of ' + str(total_n) + ' claims assessed, ' + str(supported_n) + ' were supported. ' + str(overstated_n + disputed_n + not_supported_n) + ' showed overstatement or dispute.'
 
     # --- Article tag ---
-    article_tag = data.get('tag', '')
+    article_tag = request.args.get('tag', '') or data.get('tag', '')
     TAG_CONFIG = {'breaking':('⚡','BREAKING','vs-tag-breaking'),'major':('🔴','MAJOR STORY','vs-tag-major'),'developing':('🔄','DEVELOPING','vs-tag-developing'),'exclusive':('★','EXCLUSIVE','vs-tag-exclusive')}
     if article_tag and article_tag.lower() in TAG_CONFIG:
         _icon,_lbl,_cls = TAG_CONFIG[article_tag.lower()]
