@@ -570,7 +570,7 @@ setTimeout(checkStatus, 3000);
 </script>
 </body>
 </html>"""
-                return loading_html, 200, {{'Content-Type': 'text/html'}}
+                return loading_html, 200, {'Content-Type': 'text/html'}
             # On-demand extraction for URLs not in DB
             try:
                 import requests as _req
