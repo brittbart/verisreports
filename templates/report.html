@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#080810;color:#e8e8f0;font-family:"DM Sans",sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+body{background:#080810;color:#e8e8f0;font-family:"DM Sans",sans-serif;font-size:15px;line-height:1.6;min-height:100vh}
 a{color:inherit;text-decoration:none}
 .vs{background:#080810;max-width:860px;margin:1.5rem auto 3rem;border:0.5px solid rgba(168,85,247,0.2);border-radius:14px;overflow:hidden}
 .vs-topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:0.5px solid rgba(168,85,247,0.2);background:rgba(8,8,16,0.98)}
@@ -90,7 +90,7 @@ a{color:inherit;text-decoration:none}
 .vs-signal{margin:16px 24px;padding:18px 20px;background:linear-gradient(135deg,rgba(168,85,247,0.08),rgba(236,72,153,0.04));border:0.5px solid rgba(168,85,247,0.2);border-radius:10px}
 .vs-signal-label{font-family:monospace;font-size:8px;letter-spacing:0.2em;color:rgba(168,85,247,0.6);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .vs-signal-label::after{content:"";flex:1;height:0.5px;background:rgba(168,85,247,0.2)}
-.vs-signal-body{font-family:"DM Serif Display",serif;font-size:15px;color:rgba(232,232,240,0.85);line-height:1.75;font-style:italic;margin-bottom:14px}
+.vs-signal-body{font-family:"DM Sans",sans-serif;font-size:15px;color:rgba(232,232,240,0.85);line-height:1.75;font-style:normal;font-weight:400;margin-bottom:14px}
 .vs-watchfor-label{font-family:monospace;font-size:8px;letter-spacing:0.16em;color:rgba(255,255,255,0.28);text-transform:uppercase;margin-bottom:8px}
 .vs-watchfor-list{display:flex;flex-direction:column;gap:8px}
 .vs-watchfor-item{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:rgba(232,232,240,0.6);line-height:1.55;padding:8px 12px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:6px}
@@ -99,7 +99,7 @@ a{color:inherit;text-decoration:none}
 .vs-section-label{font-family:monospace;font-size:8px;letter-spacing:0.2em;color:rgba(255,255,255,0.22);text-transform:uppercase;margin-bottom:12px}
 .vs-sources-wrap{display:flex;gap:6px;flex-wrap:wrap}
 .vs-compare-btns{display:flex;gap:8px;flex-wrap:wrap}
-.vs-compare-btn{font-family:monospace;font-size:10px;padding:6px 14px;border-radius:4px;border:0.5px solid rgba(168,85,247,0.25);background:rgba(168,85,247,0.06);color:rgba(168,85,247,0.7);letter-spacing:0.04em;display:inline-block}
+.vs-compare-btn{font-family:monospace;font-size:12px;padding:10px 20px;border-radius:4px;border:0.5px solid rgba(168,85,247,0.25);background:rgba(168,85,247,0.06);color:rgba(168,85,247,0.7);letter-spacing:0.04em;display:inline-block}
 .vs-compare-btn:hover{background:rgba(168,85,247,0.12)}
 .vs-legend{padding:14px 24px;border-top:0.5px solid rgba(255,255,255,0.06);display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .vs-legend-item{display:flex;align-items:center;gap:6px;font-size:11px}
@@ -173,13 +173,13 @@ a{color:inherit;text-decoration:none}
   </div>
 
   <div class="vs-section">
-    <div class="vs-section-label">Sources consulted</div>
-    <div class="vs-sources-wrap">{{all_sources_html}}</div>
+    <div class="vs-section-label">Compare perspectives</div>
+    <div class="vs-compare-btns">{{compare_html}}</div>
   </div>
 
   <div class="vs-section">
-    <div class="vs-section-label">Compare perspectives</div>
-    <div class="vs-compare-btns">{{compare_html}}</div>
+    <div class="vs-section-label">Sources consulted</div>
+    <div class="vs-sources-wrap">{{all_sources_html}}</div>
   </div>
 
   <div class="vs-legend">
