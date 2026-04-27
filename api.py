@@ -1023,7 +1023,26 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         parts = d.split('.')
         if len(parts) >= 2 and parts[-1] in valid_tlds and len(parts[0]) > 1:
             clean_domains.add(d)
-    all_sources_html = ''.join('<span class="vs-src vs-src-i">' + d + '</span>' for d in sorted(clean_domains))
+    # Exclude the publishing outlet from sources consulted (independence rule)
+    _pub_root = source.replace('www.','').lower().split('/')[0]
+    clean_domains = {d for d in clean_domains if not d.replace('www.','').endswith(_pub_root) and _pub_root not in d.replace('www.','')}
+    # Type-code sources
+    _GOV_TLD = {'gov'}
+    _INDEPENDENT = {'reuters.com','apnews.com','ap.org','npr.org','bbc.com','bbc.co.uk','nytimes.com','washingtonpost.com','theguardian.com','wikipedia.org','britannica.com','brookings.edu','rand.org','cfr.org','pbs.org','cbsnews.com','nbcnews.com','abcnews.go.com','politico.com','thehill.com','axios.com','bloomberg.com','wsj.com','economist.com','ft.com','federalnewsnetwork.com','militarytimes.com'}
+    _WIRE = {'reuters.com','apnews.com','ap.org','bloomberg.com','afp.com'}
+    def _src_class(d):
+        d = d.replace('www.','').lower()
+        if d.split('.')[-1] in _GOV_TLD or 'house.gov' in d or 'senate.gov' in d or 'congress.gov' in d:
+            return 'vs-src-p'  # primary/green
+        if d in _WIRE:
+            return 'vs-src-w'  # wire/gray
+        if d in _INDEPENDENT:
+            return 'vs-src-i'  # independent/blue
+        return 'vs-src-c'  # interested/amber
+    if clean_domains:
+        all_sources_html = ''.join('<span class="vs-src ' + _src_class(d) + '">' + d + '</span>' for d in sorted(clean_domains))
+    else:
+        all_sources_html = '<span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.3);">No independent sources found — see Methodology v1.5 Section 5 (independence rule)</span>'
 
 
     # --- Defaults for generated content ---
@@ -1050,6 +1069,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '- article_summary: describe WHAT events the article reports on. No why-this-matters framing. No threatening/suppression/pressure characterizations unless direct quotes. 1-2 sentences for short articles, 2-3 for longer.' + chr(10) +
             '- overall_signal: describe what verdicts were assigned and why specifically. Reference methodology mechanics (weights applied, sources consulted). Note the factual core of overstated claims. DO NOT editorialize about the outlet.' + chr(10) +
             '- watch_for: 3 specific actionable follow-up items naming real people, documents, or institutions. What evidence would confirm or contradict these claims?' + chr(10) +
+            '- claim brief (verdict_summary): MUST NOT restate the claim itself. Lead with verdict outcome and number/type of sources. Max 1-2 sentences. If your brief contains more than 8 consecutive words from the original claim, rewrite to focus on the verification evidence pattern.' + chr(10) +
             'ARTICLE: ' + title + chr(10) +
             'SOURCE: ' + source + chr(10) +
             'OUTLET SCORE: ' + str(score) + '/100 (' + rating + ')' + chr(10) +
@@ -1060,9 +1080,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
         _text = _msg.content[0].text.strip()
         _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
-        article_summary = _result.get('article_summary', '')
-        overall_signal = _result.get('overall_signal', '')
-        watch_for = _result.get('watch_for', [])
+        article_summary = smartquotes(_result.get('article_summary', ''))
+        overall_signal = smartquotes(_result.get('overall_signal', ''))
+        watch_for = [smartquotes(w) for w in _result.get('watch_for', [])]
     except Exception as _e:
         import traceback
         print(f'Content generation failed: {_e}')
