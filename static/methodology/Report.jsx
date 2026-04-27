@@ -31,7 +31,7 @@ function TOC({ sections, activeId, onJump }) {
       </ol>
       <div className="vs-toc__footer">
         <div className="vs-toc__brand">
-          <svg width="110" height="16" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg">
+          <svg width="220" height="32" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg">
             <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
             <text x="32" y="19" fontFamily="Trebuchet MS,sans-serif" fontSize="13" fontWeight="700" fill="#ffffff" letterSpacing="1.5">VERUM</text>
