@@ -461,14 +461,54 @@ def report_page():
                 from extract_claims import extract_claims_from_article
                 from verdict_engine import analyse_claim
                 from urllib.parse import urlparse
-                _r = _req.get(url, timeout=(8,15), headers={'User-Agent': 'Mozilla/5.0'})
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(_r.text, 'html.parser')
-                title_tag = soup.find('title')
-                title_text = title_tag.text.strip() if title_tag else url
-                paragraphs = soup.find_all('p')
-                body_text = ' '.join(p.get_text() for p in paragraphs)[:8000]
+                import anthropic as _anth
                 domain = urlparse(url).netloc.replace('www.','')
+                title_text = ''
+                body_text = ''
+
+                # Try direct scraping first
+                try:
+                    _r = _req.get(url, timeout=(8,15), headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(_r.text, 'html.parser')
+                    title_tag = soup.find('title')
+                    title_text = title_tag.text.strip() if title_tag else ''
+                    paragraphs = soup.find_all('p')
+                    body_text = ' '.join(p.get_text() for p in paragraphs)[:8000]
+                except Exception as _scrape_err:
+                    print(f"Direct scrape failed: {_scrape_err}")
+
+                # If scraping got less than 200 chars, fall back to web search
+                if len(body_text) < 200:
+                    print(f"Scrape returned thin content ({len(body_text)} chars) — trying web search fallback")
+                    try:
+                        _anth_client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+                        _search_msg = _anth_client.messages.create(
+                            model='claude-sonnet-4-6',
+                            max_tokens=2000,
+                            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                            messages=[{'role': 'user', 'content': f'Find and summarize the full content of this article: {url}. Return the article title and as much of the article text as possible including all factual claims, statistics, and quotes.'}]
+                        )
+                        _search_text = ''
+                        for _block in _search_msg.content:
+                            if hasattr(_block, 'text'):
+                                _search_text += _block.text
+                        if _search_text and len(_search_text) > 200:
+                            body_text = _search_text[:8000]
+                            if not title_text:
+                                title_text = url.split('/')[-1].replace('-', ' ').title()
+                            print(f"Web search fallback got {len(body_text)} chars")
+                        else:
+                            conn.close()
+                            data = {'status': 'scrape_failed'}
+                    except Exception as _ws_err:
+                        print(f"Web search fallback failed: {_ws_err}")
+                        conn.close()
+                        data = {'status': 'scrape_failed'}
+
+                if not title_text:
+                    title_text = domain
+
                 article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': domain}, 'url': url, 'publishedAt': ''}
                 claims = extract_claims_from_article(article_dict)
                 if not claims:
@@ -636,8 +676,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 <body>
 <div class="wrap">
   <div class="topbar">
-    <svg width="22" height="16" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#e879f9" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
-    <div class="brand">VERUM <em>SIGNAL</em></div>
+    <svg width="44" height="32" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#e879f9" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
+    <div class="brand" style="font-size:16px;letter-spacing:0.2em;">VERUM <em>SIGNAL</em></div>
   </div>
   <div class="card">
     <div class="icon">{info['icon']}</div>
