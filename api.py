@@ -890,7 +890,18 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
                   f'<span style="width:6px;height:6px;border-radius:50%;background:rgba(240,240,248,0.4);flex-shrink:0"></span>'
                   f'{stats.get("total",0)} total</span>')
 
+    def smartquotes(text):
+        if not text:
+            return text
+        import re
+        text = re.sub(r'"(?=\w)', '\u201c', text)
+        text = re.sub(r'"', '\u201d', text)
+        text = re.sub(r"'(?=\w)", '\u2018', text)
+        text = re.sub(r"'", '\u2019', text)
+        return text
+
     def claim_row(c, idx):
+
         v = c.get('verdict') or 'not_verifiable'
         VBAR = {'supported':'#4ade80','plausible':'#60a5fa','corroborated':'#34d399','overstated':'#fb923c','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)'}
         VPILL = {'supported':'p-sup','plausible':'p-pla','corroborated':'p-cor','overstated':'p-ove','disputed':'p-dis','not_supported':'p-nsu','opinion':'p-opi','not_verifiable':'p-nve'}
@@ -899,7 +910,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         bar_col = VBAR.get(v, 'rgba(255,255,255,0.1)')
         pill_cls = VPILL.get(v, 'p-opi')
         lbl = VLBL.get(v, v.upper())
-        text = c.get('claim_text', '')
+        text = smartquotes(c.get('claim_text', ''))
         summary = c.get('verdict_summary', '') or ''
         full = c.get('full_analysis', '') or ''
         sources = c.get('sources_used', '') or ''
