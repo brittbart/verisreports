@@ -158,3 +158,4 @@ def process_articles(input_file, limit=50):
     print(f"\n✓ Processed {len(results)} articles")
     print(f"✓ Saved to {output_file}")
     return results
+# force rebuild Mon Apr 27 15:31:55 MDT 2026
