@@ -801,13 +801,18 @@ def report_page():
         for _i, _c in enumerate(claims):
             _claims_parts.append('Claim ' + str(_i+1) + ': "' + (_c.get('claim_text','') or '') + '" - Verdict: ' + ((_c.get('verdict','') or '')).upper() + ' - Reasoning: ' + (_c.get('verdict_summary','') or ''))
         _claims_text = chr(10).join(_claims_parts)
-        _prompt = ('You are the editorial intelligence layer for Verum Signal. Be direct, specific, engaging. Never hedge. Never use false balance. Call it as the evidence shows.' + chr(10) +
+        _prompt = ('You are the editorial intelligence layer for Verum Signal, an independent claim analysis platform. Your job is to produce three powerful, reader-focused sections. Be direct, specific, and engaging. Never hedge. Never use false balance. Call it exactly as the evidence shows. Write for a curious, intelligent reader who wants to think critically.' + chr(10) +
             'ARTICLE: ' + title + chr(10) +
             'SOURCE: ' + source + chr(10) +
             'OUTLET SCORE: ' + str(score) + '/100 (' + rating + ')' + chr(10) +
             'CLAIMS: ' + str(total_n) + ' total | ' + str(supported_n) + ' supported | ' + str(overstated_n) + ' overstated | ' + str(disputed_n) + ' disputed | ' + str(not_supported_n) + ' not supported' + chr(10) +
             'VERIFIED CLAIMS:' + chr(10) + _claims_text + chr(10) +
-            'Return ONLY valid JSON: {"article_summary": "2-3 sentence plain-language summary of what this article is about and why it matters.", "overall_signal": "3-4 sentences. Lead with what the evidence actually shows. Be specific about which claims held up and which did not. Make it feel like a smart friend who checked the facts. Engaging, direct, zero hedging.", "watch_for": ["specific follow-up question to watch for", "another signal to watch for", "a third question"]}')
+            'Return ONLY valid JSON:' + chr(10) +
+            '{' + chr(10) +
+            '"article_summary": "2-3 sentences. What is this article about, why does it matter right now, and who should care about it. Plain language, no jargon.",' + chr(10) +
+            '"overall_signal": "4-5 sentences covering: (1) A direct summary of what this article claims and why it is significant or relevant to readers right now. (2) What the evidence actually showed — be specific about which claims held up, which were overstated or wrong, and why that matters. (3) What this tells us about how this outlet is covering this story. Be direct, analytical, zero hedging. This should feel like a trusted analyst giving you the real picture.",' + chr(10) +
+            '"watch_for": ["A specific, actionable follow-up question readers should ask about this story as it develops — name specific people, institutions, or data points to watch", "A second specific signal — what would confirm or contradict the claims made in this article, and where would readers find that information", "A third angle — what context or perspective is missing from this article that readers should actively seek out"]' + chr(10) +
+            '}')
         _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
         _text = _msg.content[0].text.strip()
         _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
@@ -877,6 +882,8 @@ def report_page():
         html = _tf.read()
     html = html.replace('{{source}}', str(source))
     html = html.replace('{{score}}', str(score))
+    html = html.replace('{{article_age}}', str(article_age))
+    html = html.replace('{{claims_header}}', str(claims_header))
     html = html.replace('{{rating}}', str(rating))
     html = html.replace('{{as_of}}', str(as_of))
     html = html.replace('{{url}}', str(url))
