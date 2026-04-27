@@ -506,36 +506,39 @@ def report_page():
                         conn.close()
                         data = {'status': 'scrape_failed'}
 
-                if not title_text:
-                    title_text = domain
-
-                article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': domain}, 'url': url, 'publishedAt': ''}
-                claims = extract_claims_from_article(article_dict)
-                if not claims:
+                if not body_text:
                     conn.close()
-                    data = {'status': 'no_claims', 'title': title_text, 'source': domain}
+                    data = {'status': 'scrape_failed'}
                 else:
-                    conn2 = get_db()
-                    cur2 = conn2.cursor()
-                    cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) RETURNING id", (title_text, domain, url))
-                    art_id = cur2.fetchone()[0]
-                    verified_claims = []
-                    for c in claims:
-                        result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_text, domain, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
-                        cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-                            (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
-                        cid = cur2.fetchone()[0]
-                        verified_claims.append((cid, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used')))
-                    conn2.commit()
-                    conn2.close()
-                    conn.close()
-                    rows = verified_claims
-                    W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
-                    sc = sum(1 for c in rows if c[5] in W and c[4] == 'outlet_claim')
-                    ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
-                    score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
-                    rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
-                    data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                    if not title_text:
+                        title_text = domain
+                    article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': domain}, 'url': url, 'publishedAt': ''}
+                    claims = extract_claims_from_article(article_dict)
+                    if not claims:
+                        conn.close()
+                        data = {'status': 'no_claims', 'title': title_text, 'source': domain}
+                    else:
+                        conn2 = get_db()
+                        cur2 = conn2.cursor()
+                        cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) RETURNING id", (title_text, domain, url))
+                        art_id = cur2.fetchone()[0]
+                        verified_claims = []
+                        for c in claims:
+                            result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_text, domain, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
+                            cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                                (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
+                            cid = cur2.fetchone()[0]
+                            verified_claims.append((cid, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used')))
+                        conn2.commit()
+                        conn2.close()
+                        conn.close()
+                        rows = verified_claims
+                        W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
+                        sc = sum(1 for c in rows if c[5] in W and c[4] == 'outlet_claim')
+                        ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
+                        score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
+                        rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
+                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
             except Exception as e:
                 import traceback
                 print(f"On-demand extraction failed: {e}")
