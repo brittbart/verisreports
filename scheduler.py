@@ -88,7 +88,9 @@ def run_extract():
         log.info("Claim extraction complete")
         return True
     except Exception as e:
+        import traceback
         log.error(f"Extraction failed: {str(e)}")
+        log.error(traceback.format_exc())
         return False
 
 def run_load():
