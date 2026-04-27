@@ -125,9 +125,12 @@ Return only the JSON, no other text."""
         return []
 
 def process_articles(input_file, limit=50):
+    """Process all articles in a JSON file and extract claims."""
+    print(f"Loading articles from {input_file}...")
+    with open(input_file, 'r') as f:
+        articles = json.load(f)
     if limit:
         articles = articles[:limit]
-    """Process all articles in a JSON file and extract claims."""
     
     print(f"Loading articles from {input_file}...")
     
