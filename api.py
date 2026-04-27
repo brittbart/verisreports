@@ -664,18 +664,32 @@ def report_page():
                   f'<span style="width:6px;height:6px;border-radius:50%;background:rgba(240,240,248,0.4);flex-shrink:0"></span>'
                   f'{stats.get("total",0)} total</span>')
 
-    def claim_row(c):
+    def claim_row(c, idx):
         v = c.get('verdict') or 'not_verifiable'
-        VBAR = {'supported':'#4ade80','plausible':'#fbbf24','corroborated':'#34d399','overstated':'#fbbf24','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)'}
+        VBAR = {'supported':'#4ade80','plausible':'#60a5fa','corroborated':'#34d399','overstated':'#fb923c','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)'}
         VPILL = {'supported':'p-sup','plausible':'p-pla','corroborated':'p-cor','overstated':'p-ove','disputed':'p-dis','not_supported':'p-nsu','opinion':'p-opi','not_verifiable':'p-nve'}
         VLBL = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE'}
+        CONF_EXPLAIN = {1:'One source found — claim is plausible but not independently confirmed.', 2:'One strong primary source confirmed this claim.', 3:'Two or more genuinely independent sources confirmed this claim.'}
         bar_col = VBAR.get(v, 'rgba(255,255,255,0.1)')
         pill_cls = VPILL.get(v, 'p-opi')
         lbl = VLBL.get(v, v.upper())
         text = c.get('claim_text', '')
         summary = c.get('verdict_summary', '') or ''
+        full = c.get('full_analysis', '') or ''
         sources = c.get('sources_used', '') or ''
         claim_type = c.get('claim_type', 'factual') or 'factual'
+        confidence = int(c.get('confidence_score', 2) or 2)
+        origin = c.get('claim_origin', 'outlet_claim') or 'outlet_claim'
+        is_wire = origin == 'wire_reprint'
+        # Confidence dots
+        conf_dots = ''
+        for d in range(3):
+            cls = 'vs-conf-on' if d < confidence else 'vs-conf-off'
+            conf_dots += '<span class="vs-conf-dot ' + cls + '"></span>'
+        conf_html = '<div class="vs-conf">' + conf_dots + '</div>'
+        # Wire tag
+        wire_html = '<span class="vs-wire">WIRE REPRINT &mdash; excluded from score</span>' if is_wire else ''
+        # Source pills
         valid_tlds3 = {'com','org','gov','edu','net','io','co','uk','de','fr'}
         src_domains = []
         for word in sources.replace(',',' ').split():
@@ -685,20 +699,42 @@ def report_page():
                 src_domains.append(w)
         contradicts = v in ('disputed','not_supported')
         src_pills = ''
-        for d in src_domains[:5]:
+        for d in src_domains[:6]:
             cls = 'vs-src-c' if contradicts else 'vs-src-p'
             src_pills += '<span class="vs-src ' + cls + '">' + d + '</span>'
-        return ('<div class="vs-claim">'
-            '<div class="vs-claim-bar" style="background:' + bar_col + ';"></div>'
-            '<div class="vs-claim-body">'
-            '<div class="vs-claim-quote">' + text + '</div>'
-            '<div class="vs-claim-reason">' + summary + '</div>'
-            '<div class="vs-claim-sources">' + src_pills + '</div>'
-            '<div style="font-family:monospace;font-size:8px;color:rgba(255,255,255,0.2);margin-top:4px;">' + claim_type + '</div>'
+        src_pills_html = '<div class="vs-src-pills">' + src_pills + '</div>' if src_pills else ''
+        conf_exp = CONF_EXPLAIN.get(confidence, '')
+        detail_body = full if full and len(full) > len(summary) else sources
+        return (
+            '<div class="vs-claim">'
+            '<div class="vs-claim-header">'
+            '<div class="vs-claim-bar" style="background:' + bar_col + ';min-height:48px;"></div>'
+            '<div class="vs-claim-main">'
+            '<div class="vs-claim-top">'
+            '<span class="vs-claim-num">CLAIM ' + str(idx) + '</span>'
+            + wire_html +
             '</div>'
+            '<div class="vs-claim-quote">' + text + '</div>'
+            '<div class="vs-claim-brief">' + summary + '</div>'
+            '</div>'
+            '<div class="vs-claim-right">'
             '<div class="vs-pill ' + pill_cls + '">' + lbl + '</div>'
-            '</div>')
-    claims_html = ''.join(claim_row(c) for c in claims)
+            + conf_html +
+            '</div>'
+            '<span class="vs-toggle">▼</span>'
+            '</div>'
+            '<div class="vs-claim-body">'
+            '<div class="vs-detail-grid">'
+            '<div><div class="vs-detail-label">Full Analysis</div><div class="vs-detail-val">' + (full or summary) + '</div></div>'
+            '<div><div class="vs-detail-label">Sources</div><div class="vs-detail-val">' + sources + '</div></div>'
+            '</div>'
+            '<div class="vs-conf-explain">' + conf_exp + '</div>'
+            + src_pills_html +
+            '</div>'
+            '</div>'
+        )
+
+    claims_html = "".join(claim_row(c, i+1) for i, c in enumerate(claims))
 
     score_bar_pct = score
     rating_color  = score_color
