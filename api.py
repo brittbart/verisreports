@@ -481,7 +481,7 @@ def report_page():
                     art_id = cur2.fetchone()[0]
                     verified_claims = []
                     for c in claims:
-                        result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_text, domain, cursor=cur2)
+                        result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_text, domain, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
                         cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                             (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
                         cid = cur2.fetchone()[0]
@@ -526,7 +526,7 @@ def report_page():
                         cur2 = conn2.cursor()
                         verified_claims = []
                         for c in claims:
-                            result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_db, source_name, cursor=cur2)
+                            result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_db, source_name, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
                             cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                                 (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
                             cid = cur2.fetchone()[0]
