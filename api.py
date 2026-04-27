@@ -1137,6 +1137,23 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{summary_html}}', str(summary_html))
     pass #removed
     html = html.replace('{{score_color}}', str(score_color))
+    # Inclusion tier
+    try:
+        _ic = get_db()
+        _ic_cur = _ic.cursor()
+        _ic_cur.execute("SELECT COUNT(c.id) FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim'", (source,))
+        _verdict_count = _ic_cur.fetchone()[0]
+        _ic.close()
+    except:
+        _verdict_count = 0
+    if _verdict_count >= 100:
+        inclusion_tier, tier_color = 'Published', '#4ade80'
+    elif _verdict_count >= 50:
+        inclusion_tier, tier_color = 'Stabilizing', '#60a5fa'
+    elif _verdict_count >= 20:
+        inclusion_tier, tier_color = 'Limited Data', '#fbbf24'
+    else:
+        inclusion_tier, tier_color = 'Excluded', '#f87171'
     html = html.replace('{{inclusion_tier}}', str(inclusion_tier))
     html = html.replace('{{tier_color}}', str(tier_color))
     html = html.replace('{{verdict_count}}', str(_verdict_count))
