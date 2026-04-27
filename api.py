@@ -640,12 +640,12 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     <div class="brand">VERUM <em>SIGNAL</em></div>
   </div>
   <div class="card">
-    <div class="icon">{{info['icon']}}</div>
-    <div class="heading">{{info['heading']}}</div>
-    <div class="msg">{{info['msg']}}</div>
-    <div class="detail">{{info['detail']}}</div>
+    <div class="icon">{info['icon']}</div>
+    <div class="heading">{info['heading']}</div>
+    <div class="msg">{info['msg']}</div>
+    <div class="detail">{info['detail']}</div>
     <a href="/" class="btn">&#8592; Try a different article</a>
-    <div class="url-disp">{{url_display}}</div>
+    <div class="url-disp">{url_display}</div>
   </div>
 </div>
 </body>
