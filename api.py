@@ -1126,6 +1126,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{summary_html}}', str(summary_html))
     pass #removed
     html = html.replace('{{score_color}}', str(score_color))
+    html = html.replace('{{inclusion_tier}}', str(inclusion_tier))
+    html = html.replace('{{tier_color}}', str(tier_color))
+    html = html.replace('{{verdict_count}}', str(_verdict_count))
     html = html.replace('{{methodology_callout}}', str(methodology_callout))
     html = html.replace('{{redflag_html}}', str(redflag_html))
     pass #removed
