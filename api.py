@@ -882,20 +882,20 @@ def report_page():
         html = _tf.read()
     html = html.replace('{{source}}', str(source))
     html = html.replace('{{score}}', str(score))
-    html = pass #removed
-    html = pass #removed
-    html = pass #removed
+    pass #removed
+    pass #removed
+    pass #removed
     html = html.replace('{{rating}}', str(rating))
     html = html.replace('{{as_of}}', str(as_of))
     html = html.replace('{{url}}', str(url))
     html = html.replace('{{title}}', str(title))
     html = html.replace('{{tag_html}}', str(tag_html))
     html = html.replace('{{summary_html}}', str(summary_html))
-    html = pass #removed
+    pass #removed
     html = html.replace('{{score_color}}', str(score_color))
     html = html.replace('{{methodology_callout}}', str(methodology_callout))
     html = html.replace('{{redflag_html}}', str(redflag_html))
-    html = pass #removed
+    pass #removed
     html = html.replace('{{dist_bar_html}}', str(dist_blocks_html))
     html = html.replace('{{dist_legend_html}}', str(dist_legend_html))
     html = html.replace('{{claims_html}}', str(claims_html))
