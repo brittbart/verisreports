@@ -438,6 +438,27 @@ def homepage_old():
 </html>""", 200, {'Content-Type': 'text/html'}
 
 
+@app.route('/api/report-status', methods=['GET'])
+def report_status():
+    url = request.args.get('url', '').strip()
+    if not url:
+        return jsonify({'status': 'error'})
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT a.id FROM articles a WHERE a.url = %s LIMIT 1", (url,))
+        article = cur.fetchone()
+        if article:
+            cur.execute("SELECT COUNT(*) FROM claims WHERE article_id = %s AND verdict IS NOT NULL", (article[0],))
+            count = cur.fetchone()[0]
+            conn.close()
+            if count > 0:
+                return jsonify({'status': 'ready'})
+        conn.close()
+        return jsonify({'status': 'processing'})
+    except:
+        return jsonify({'status': 'processing'})
+
 @app.route('/report', methods=['GET'])
 def report_page():
     url = request.args.get('url', '').strip()
@@ -455,6 +476,101 @@ def report_page():
         article = cur.fetchone()
         # Skip fuzzy match — go straight to on-demand extraction if exact URL not found
         if not article:
+            # Check if this is a first visit - show loading page and process in background
+            is_async = request.args.get('_async') == '1'
+            if not is_async:
+                # Return loading page immediately, JS will poll for completion
+                loading_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verum Signal &mdash; Analysing...</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}}
+.wrap{{max-width:540px;width:100%;text-align:center}}
+.topbar{{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:48px}}
+.brand{{font-size:11px;letter-spacing:0.2em;font-weight:700;color:#fff}}
+.brand em{{color:#e879f9;font-style:italic;font-weight:400}}
+.card{{background:rgba(255,255,255,0.03);border:0.5px solid rgba(168,85,247,0.2);border-radius:12px;padding:36px}}
+.pulse{{width:48px;height:48px;border-radius:50%;background:rgba(168,85,247,0.2);border:2px solid #a855f7;margin:0 auto 24px;animation:pulse 1.5s ease-in-out infinite}}
+@keyframes pulse{{0%,100%{{transform:scale(1);opacity:1}}50%{{transform:scale(1.15);opacity:0.6}}}}
+.heading{{font-size:20px;font-weight:600;color:#fff;margin-bottom:12px}}
+.msg{{font-size:14px;color:rgba(232,232,240,0.55);line-height:1.65;margin-bottom:24px}}
+.steps{{text-align:left;display:flex;flex-direction:column;gap:8px;margin-bottom:24px}}
+.step{{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(232,232,240,0.4);padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.02)}}
+.step.active{{color:rgba(232,232,240,0.8);background:rgba(168,85,247,0.08);border:0.5px solid rgba(168,85,247,0.2)}}
+.step-dot{{width:6px;height:6px;border-radius:50%;background:rgba(168,85,247,0.3);flex-shrink:0}}
+.step.active .step-dot{{background:#a855f7;box-shadow:0 0 6px #a855f7}}
+.url-disp{{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.18);word-break:break-all;margin-top:8px}}
+.back{{display:inline-block;margin-top:20px;font-family:monospace;font-size:11px;color:rgba(168,85,247,0.5)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <svg width="44" height="32" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#e879f9" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
+    <div class="brand">VERUM <em>SIGNAL</em></div>
+  </div>
+  <div class="card">
+    <div class="pulse"></div>
+    <div class="heading">Analysing this article</div>
+    <div class="msg">This is a fresh article. Our pipeline is retrieving content, extracting claims, and verifying each one against independent sources.</div>
+    <div class="steps">
+      <div class="step active" id="step1"><div class="step-dot"></div>Retrieving article content</div>
+      <div class="step" id="step2"><div class="step-dot"></div>Extracting factual claims</div>
+      <div class="step" id="step3"><div class="step-dot"></div>Verifying claims against sources</div>
+      <div class="step" id="step4"><div class="step-dot"></div>Generating analysis</div>
+    </div>
+    <div class="url-disp">{url[:80]}{'...' if len(url) > 80 else ''}</div>
+    <a href="/" class="back">&#8592; Cancel</a>
+  </div>
+</div>
+<script>
+const steps = ['step1','step2','step3','step4'];
+let current = 0;
+let attempts = 0;
+const maxAttempts = 40;
+const encodedUrl = encodeURIComponent('{url}');
+
+function advanceStep() {{
+  if (current < steps.length - 1) {{
+    document.getElementById(steps[current]).classList.remove('active');
+    current++;
+    document.getElementById(steps[current]).classList.add('active');
+  }}
+}}
+
+function checkStatus() {{
+  attempts++;
+  if (attempts > maxAttempts) {{
+    window.location.href = '/report?url=' + encodedUrl + '&_async=1';
+    return;
+  }}
+  fetch('/api/report-status?url=' + encodedUrl)
+    .then(r => r.json())
+    .then(data => {{
+      if (data.status === 'ready') {{
+        window.location.href = '/report?url=' + encodedUrl + '&_async=1';
+      }} else {{
+        if (attempts === 3) advanceStep();
+        if (attempts === 8) advanceStep();
+        if (attempts === 15) advanceStep();
+        setTimeout(checkStatus, 3000);
+      }}
+    }})
+    .catch(() => setTimeout(checkStatus, 3000));
+}}
+
+// Trigger background processing
+fetch('/report?url=' + encodedUrl + '&_async=1');
+setTimeout(checkStatus, 3000);
+</script>
+</body>
+</html>"""
+                return loading_html, 200, {{'Content-Type': 'text/html'}}
             # On-demand extraction for URLs not in DB
             try:
                 import requests as _req
