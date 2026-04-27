@@ -89,7 +89,7 @@ def check_source_consensus(cursor, claim_text):
         return None
     
 def analyse_claim(claim_text, speaker, claim_type,
-                  article_title, source_name, cursor=None):
+                  article_title, source_name, cursor=None, **kwargs):
 
     if cursor:
         db_result = check_database_first(cursor, claim_text)
