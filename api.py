@@ -491,8 +491,8 @@ def report_page():
                     conn.close()
                     rows = verified_claims
                     W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
-                    sc = sum(1 for c in rows if c[5] in W)
-                    ws = sum(W[c[5]] for c in rows if c[5] in W)
+                    sc = sum(1 for c in rows if c[5] in W and c[4] == 'outlet_claim')
+                    ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
                     score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
                     rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
                     data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
@@ -536,8 +536,8 @@ def report_page():
                         conn2.close()
                         rows = verified_claims
                         W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
-                        sc = sum(1 for c in rows if c[5] in W)
-                        ws = sum(W[c[5]] for c in rows if c[5] in W)
+                        sc = sum(1 for c in rows if c[5] in W and c[4] == 'outlet_claim')
+                        ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
                         score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
                         rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
                         data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
