@@ -613,8 +613,15 @@ setTimeout(checkStatus, 3000);
                         if _search_text and len(_search_text) > 200:
                             body_text = _search_text[:8000]
                             if not title_text:
-                                title_text = url.split('/')[-1].replace('-', ' ').title()
-                            print(f"Web search fallback got {len(body_text)} chars")
+                                # Try to extract title from search response
+                                for line in _search_text.split('\n')[:5]:
+                                    line = line.strip()
+                                    if len(line) > 20 and len(line) < 200 and not line.startswith('http'):
+                                        title_text = line.rstrip('.')
+                                        break
+                                if not title_text:
+                                    title_text = url.split('/')[-2].replace('-', ' ').title()
+                            print(f"Web search fallback got {len(body_text)} chars, title: {title_text[:50]}")
                         else:
                             conn.close()
                             data = {'status': 'scrape_failed'}
