@@ -158,4 +158,3 @@ def process_articles(input_file, limit=50):
     print(f"\n✓ Processed {len(results)} articles")
     print(f"✓ Saved to {output_file}")
     return results
-)
