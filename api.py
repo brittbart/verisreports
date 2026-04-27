@@ -512,8 +512,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 <body>
 <div class="wrap">
   <div class="topbar">
-    <svg width="44" height="32" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#e879f9" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
-    <div class="brand" style="font-size:16px;letter-spacing:0.18em;font-weight:700;">VERUM <em>SIGNAL</em></div>
+    <svg width="44" height="32" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
+    <span style="font-size:15px;letter-spacing:0.2em;font-weight:700;color:#fff;">VERUM</span>&nbsp;<em style="font-size:15px;letter-spacing:0.2em;font-weight:400;color:#e879f9;font-style:italic;">SIGNAL</em>
   </div>
   <div class="card">
     <div class="pulse"></div>
