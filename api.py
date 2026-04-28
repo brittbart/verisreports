@@ -583,6 +583,8 @@ setTimeout(checkStatus, 3000);
                 title_text = ''
                 body_text = ''
 
+                # Bot protection title set
+                BOT_TITLES = {'just a moment', 'just a moment...', 'checking your browser', 'access denied', 'please verify you are a human', 'ddos protection', 'attention required', 'cloudflare'}
                 # Try direct scraping first
                 try:
                     _r = _req.get(url, timeout=(8,15), headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
@@ -641,7 +643,6 @@ setTimeout(checkStatus, 3000);
                         data = {'status': 'scrape_failed'}
 
                 # Detect bot-protection on scrape result only - clear bad title/body
-                BOT_TITLES = {'just a moment', 'just a moment...', 'checking your browser', 'access denied', 'please verify you are a human', 'ddos protection', 'attention required', 'cloudflare'}
                 if title_text and title_text.lower().strip('.').strip() in BOT_TITLES:
                     print(f"Bot protection detected on scrape: '{title_text}' — clearing scraped title/body")
                     title_text = ''
