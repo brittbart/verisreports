@@ -602,15 +602,21 @@ setTimeout(checkStatus, 3000);
                     print(f"Scrape returned thin content ({len(body_text)} chars) — trying web search fallback")
                     try:
                         _anth_client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-                        # Extract slug keywords for better search
                         _url_slug = url.rstrip('/').split('/')[-1]
                         _search_keywords = ' '.join(_url_slug.replace('-', ' ').split()[:8])
-                        _search_query = f'Find the full text of this article: {_search_keywords}. Source: {domain}. URL: {url}. Return the article headline and full text including all factual claims, statistics, and quoted statements.'
+                        _search_query_a = (
+                            f'I need to analyze a news article from {domain}. The original URL is {url} but I cannot access it directly.\n'
+                            f'The article topic appears to be: {_search_keywords}\n\n'
+                            f'Please search for OTHER outlets reporting on this same story (Reuters, AP, NPR, Wikipedia, official sources, etc.) and return:\n'
+                            f'HEADLINE: [the original article headline as best you can determine]\n\n'
+                            f'CONTENT:\n[at least 1500 words of substantive factual content about this story from multiple independent sources]\n\n'
+                            f'Do NOT return {domain} content — it is bot-protected. Do NOT return Cloudflare or "Just a moment" content.'
+                        )
                         _search_msg = _anth_client.messages.create(
                             model='claude-sonnet-4-6',
-                            max_tokens=2000,
+                            max_tokens=2500,
                             tools=[{"type": "web_search_20250305", "name": "web_search"}],
-                            messages=[{'role': 'user', 'content': _search_query}]
+                            messages=[{'role': 'user', 'content': _search_query_a}]
                         )
                         _search_text = ''
                         for _block in _search_msg.content:
@@ -618,19 +624,17 @@ setTimeout(checkStatus, 3000);
                                 _search_text += _block.text
                         if _search_text and len(_search_text) > 200:
                             body_text = _search_text[:8000]
-                            # Extract title from web search - skip bot protection titles
-                            _ws_title = ''
-                            for line in _search_text.split('\n')[:10]:
-                                line = line.strip()
-                                if (len(line) > 20 and len(line) < 200 
-                                    and not line.startswith('http')
-                                    and line.lower().strip('.') not in BOT_TITLES):
-                                    _ws_title = line.rstrip('.')
+                            # Extract title from HEADLINE: marker
+                            for _ws_line in _search_text.split('\n')[:10]:
+                                if _ws_line.startswith('HEADLINE:'):
+                                    _candidate = _ws_line.replace('HEADLINE:', '').strip()
+                                    if _candidate and _candidate.lower().strip('.') not in BOT_TITLES:
+                                        title_text = _candidate
                                     break
-                            if _ws_title and not title_text:
-                                title_text = _ws_title
+                            # Strip CONTENT: marker from body
+                            if 'CONTENT:' in _search_text:
+                                _search_text = _search_text.split('CONTENT:', 1)[1].strip()
                             if not title_text:
-                                # Use URL slug as title fallback
                                 _slug = url.rstrip('/').split('/')[-1]
                                 title_text = ' '.join(_slug.replace('-', ' ').split()[:10]).title()
                             print(f"Web search fallback got {len(body_text)} chars, title: {title_text[:50]}")
