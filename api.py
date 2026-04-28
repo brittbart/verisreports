@@ -513,7 +513,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 <div class="wrap">
   <div class="topbar">
     <svg width="32" height="22" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
-    <span style="font-size:15px;letter-spacing:0.2em;font-weight:700;color:#fff;">VERUM</span>&nbsp;<em style="font-size:15px;letter-spacing:0.2em;font-weight:400;color:#e879f9;font-style:italic;">SIGNAL</em>
+    <span style="font-weight:700;color:#fff;letter-spacing:0.15em;font-size:13px;">VERUM</span> <em style="font-weight:400;color:#c084fc;font-style:italic;letter-spacing:0.15em;font-size:13px;">SIGNAL</em>
   </div>
   <div class="card">
     <div class="pulse"></div>
@@ -630,6 +630,12 @@ setTimeout(checkStatus, 3000);
                         conn.close()
                         data = {'status': 'scrape_failed'}
 
+                # Detect bot-protection holding pages
+                BOT_TITLES = {'just a moment', 'just a moment...', 'checking your browser', 'access denied', 'please verify you are a human', 'ddos protection', 'attention required', 'cloudflare'}
+                if title_text and title_text.lower().strip('.').strip() in BOT_TITLES:
+                    print(f"Bot protection detected: '{title_text}' — refusing to publish partial report")
+                    body_text = ''
+
                 if not body_text:
                     conn.close()
                     data = {'status': 'scrape_failed'}
@@ -662,7 +668,7 @@ setTimeout(checkStatus, 3000);
                         ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
                         score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
                         rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
-                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
             except Exception as e:
                 import traceback
                 print(f"On-demand extraction failed: {e}")
@@ -707,7 +713,7 @@ setTimeout(checkStatus, 3000);
                         ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
                         score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
                         rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
-                        data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {sc} scoreable factual claims after extraction.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                        data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
                 except Exception as e:
                     print(f"On-demand extraction (no_claims path) failed: {e}")
                     data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
@@ -728,7 +734,7 @@ setTimeout(checkStatus, 3000);
                 excl = []
                 if wire_count: excl.append(f"{wire_count} wire reprint{'s' if wire_count>1 else ''} excluded from outlet score")
                 if quote_count: excl.append(f"{quote_count} accurately reported quote{'s' if quote_count>1 else ''} excluded from outlet score")
-                callout_text = f"This article contained {sc} scoreable factual claim{'s' if sc!=1 else ''} after extraction. "
+                callout_text = f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged. The independence rule and wire-service exclusion were applied where relevant."
                 if parts:
                     callout_text += (', '.join(parts[:-1]) + f", and {parts[-1]}. ") if len(parts)>1 else (parts[0] + ". ")
                 if excl:
@@ -804,7 +810,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 <div class="wrap">
   <div class="topbar">
     <svg width="32" height="22" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
-    <span style="font-size:15px;letter-spacing:0.2em;font-weight:700;color:#fff;">VERUM</span>&nbsp;<em style="font-size:15px;letter-spacing:0.2em;font-weight:400;color:#e879f9;font-style:italic;">SIGNAL</em>
+    <span style="font-weight:700;color:#fff;letter-spacing:0.15em;font-size:13px;">VERUM</span> <em style="font-weight:400;color:#c084fc;font-style:italic;letter-spacing:0.15em;font-size:13px;">SIGNAL</em>
   </div>
   <div class="card">
     <div class="icon">{info['icon']}</div>
@@ -1177,6 +1183,31 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{inclusion_tier}}', str(inclusion_tier))
     html = html.replace('{{tier_color}}', str(tier_color))
     html = html.replace('{{verdict_count}}', str(_verdict_count))
+    # Excluded tier display logic
+    is_excluded = _verdict_count < 20
+    if is_excluded:
+        outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <span style="color:rgba(255,255,255,0.45)">Insufficient data (' + str(_verdict_count) + ' verdicts)</span>'
+        score_block_html = ('<div class="vs-score-block"><div class="vs-score-num" style="color:rgba(232,232,240,0.35);font-size:36px;">Insufficient</div><div class="vs-score-unit">data</div><div style="font-family:monospace;font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px;">' + str(_verdict_count) + ' verdicts &middot; min. 20 required</div></div>')
+        excluded_inset_html = ('<div class="vs-excluded-inset"><div class="vs-excluded-inset-label">WHY NO OUTLET SCORE</div><div class="vs-excluded-inset-text">Verum Signal does not publish outlet scores until an outlet has accumulated at least 20 verified claim verdicts. ' + source + ' currently has ' + str(_verdict_count) + ' verdict' + ('s' if _verdict_count != 1 else '') + ', which is not enough for a reliable score. The per-claim analysis below is reliable — what’s not yet reliable is an aggregate outlet rating.</div></div>')
+        outlet_score_stat = '—'
+        tier_label = 'STATUS'
+        tier_stat = 'Insufficient data'
+        footer_score_text = 'outlet score not yet available'
+    else:
+        outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <b>' + str(score) + '/100</b> ' + rating + ' &nbsp;&middot;&nbsp; <span style="color:' + tier_color + '">' + inclusion_tier + '</span>'
+        score_block_html = ('<div class="vs-score-num" style="color:' + score_color + '">' + str(score) + '</div><div class="vs-score-unit">/100</div><div class="vs-score-tier" style="color:' + score_color + '">' + rating + '</div><div class="vs-inclusion-tier" style="color:' + tier_color + '">' + inclusion_tier + ' &middot; ' + str(_verdict_count) + ' verdicts</div>')
+        excluded_inset_html = ''
+        outlet_score_stat = str(score) + '<span>/100</span>'
+        tier_label = 'TIER'
+        tier_stat = rating
+        footer_score_text = 'outlet score: ' + str(score) + '/100 ' + rating
+    html = html.replace('{{outlet_badge_html}}', outlet_badge_html)
+    html = html.replace('{{score_block_html}}', score_block_html)
+    html = html.replace('{{excluded_inset_html}}', excluded_inset_html)
+    html = html.replace('{{outlet_score_stat}}', outlet_score_stat)
+    html = html.replace('{{tier_label}}', tier_label)
+    html = html.replace('{{tier_stat}}', tier_stat)
+    html = html.replace('{{footer_score_text}}', footer_score_text)
     html = html.replace('{{methodology_callout}}', str(methodology_callout))
     html = html.replace('{{redflag_html}}', str(redflag_html))
     pass #removed
