@@ -685,7 +685,7 @@ setTimeout(checkStatus, 3000);
                     article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': domain}, 'url': url, 'publishedAt': ''}
                     claims = extract_claims_from_article(article_dict)
                     if not claims:
-                        data = {'status': 'no_claims', 'title': title_text, 'source': domain}
+                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':None,'rating':'Unscored','extraction_method':extraction_method,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':'This article was retrieved but no verifiable factual claims could be extracted. It may be primarily opinion, commentary, or survey-based content. No outlet score can be assigned.','no_scoreable_claims':True,'stats':{'supported':0,'plausible':0,'corroborated':0,'overstated':0,'disputed':0,'not_supported':0,'opinion':0,'total':0},'claims':[]}
                     else:
                         conn2 = get_db()
                         cur2 = conn2.cursor()
@@ -1243,6 +1243,12 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         tier_label = 'TIER'
         tier_stat = rating
         footer_score_text = 'outlet score: ' + str(score) + '/100 ' + rating
+    no_scoreable_claims = data.get('no_scoreable_claims', False)
+    if no_scoreable_claims:
+        opinion_inset_html = ('<div class="vs-opinion-inset"><div class="vs-opinion-inset-label">NOT SCORED — OPINION / UNVERIFIABLE CONTENT</div><div class="vs-opinion-inset-text">This article was retrieved successfully but did not contain verifiable factual claims that can be assessed against independent sources. It may be primarily opinion, commentary, polling data, or analysis. The Verum Signal methodology only scores articles with attributable factual claims — this article is classified as unscored. No verdict is implied about its accuracy or quality.</div></div>')
+    else:
+        opinion_inset_html = ''
+    html = html.replace('{{opinion_inset_html}}', opinion_inset_html)
     html = html.replace('{{outlet_badge_html}}', outlet_badge_html)
     html = html.replace('{{score_block_html}}', score_block_html)
     html = html.replace('{{excluded_inset_html}}', excluded_inset_html)
