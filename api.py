@@ -386,15 +386,58 @@ def _is_bot_protection(title):
     if not title: return False
     return title.lower().strip().rstrip('.').strip() in _BOT_TITLES
 
+import re as _re_slug
+
+def _clean_url_slug(url):
+    """Last-resort title fallback. Walks back through URL path segments
+    looking for one with readable content (not just a GUID or numeric ID).
+    """
+    try:
+        from urllib.parse import urlparse as _up
+        path = _up(url).path
+        segments = [s for s in path.rstrip('/').split('/') if s]
+        if not segments:
+            return ''
+        for raw_segment in reversed(segments):
+            seg = raw_segment.split('?')[0].split('#')[0]
+            seg = seg.replace('-', ' ').replace('_', ' ')
+            seg = _re_slug.sub(
+                r'[0-9a-f]{8}[\s-]?[0-9a-f]{4}[\s-]?[0-9a-f]{4}[\s-]?[0-9a-f]{4}[\s-]?[0-9a-f]{12}',
+                '', seg, flags=_re_slug.IGNORECASE
+            )
+            words = seg.split()
+            while words and words[0].isdigit():
+                words.pop(0)
+            words = [w for w in words if not (len(w) >= 8 and all(c in '0123456789abcdefABCDEF' for c in w))]
+            words = [w for w in words if not (w.isdigit() and len(w) <= 4)]
+            if len(words) >= 2:
+                return ' '.join(words[:12]).title().strip()
+        return ''
+    except Exception:
+        return ''
+
 def _try_direct_scrape(url):
     try:
         import requests as _rq; from bs4 import BeautifulSoup
         r = _rq.get(url, timeout=(8,15), headers={'User-Agent': _USER_AGENT})
         if r.status_code != 200: print(f"[direct] HTTP {r.status_code}"); return None
         soup = BeautifulSoup(r.text, 'html.parser')
+        # Title fallback chain: <title> -> og:title -> twitter:title -> first <h1>
         title_tag = soup.find('title')
         title = title_tag.text.strip() if title_tag else ''
         if _is_bot_protection(title): print(f"[direct] Bot protection: '{title}'"); return None
+        if not title:
+            og = soup.find('meta', property='og:title')
+            if og and og.get('content'):
+                title = og['content'].strip()
+        if not title:
+            tw = soup.find('meta', attrs={'name': 'twitter:title'})
+            if tw and tw.get('content'):
+                title = tw['content'].strip()
+        if not title:
+            h1 = soup.find('h1')
+            if h1:
+                title = h1.get_text().strip()
         body = ' '.join(p.get_text() for p in soup.find_all('p'))[:8000]
         if len(body) < 500: print(f"[direct] Too thin ({len(body)} chars)"); return None
         return {'title': title, 'body': body, 'method': 'direct'}
@@ -418,9 +461,16 @@ def _try_jina_reader(url):
         body = body[:8000]
         if _is_bot_protection(title): print(f"[jina] Bot protection: '{title}'"); return None
         if len(body) < 500: print(f"[jina] Body too thin ({len(body)} chars)"); return None
+        # Title fallback chain: Jina Title: -> first markdown heading -> cleaned URL slug
         if not title:
-            slug = url.rstrip('/').split('/')[-1]
-            title = ' '.join(slug.replace('-',' ').split()[:10]).title()
+            for line in body.split('\n')[:50]:
+                stripped = line.strip()
+                if stripped.startswith('# '):
+                    title = stripped[2:].strip(); break
+                if stripped.startswith('## '):
+                    title = stripped[3:].strip(); break
+        if not title:
+            title = _clean_url_slug(url)
         return {'title': title, 'body': body, 'method': 'jina'}
     except Exception as e: print(f"[jina] Failed: {e}"); return None
 
@@ -448,8 +498,7 @@ def _try_web_search(url, anthropic_client):
         if _is_bot_protection(title): title = ''
         if len(body) < 500: return None
         if not title:
-            slug = url.rstrip('/').split('/')[-1]
-            title = ' '.join(slug.replace('-',' ').split()[:10]).title()
+            title = _clean_url_slug(url)
         return {'title': title, 'body': body, 'method': 'web_search'}
     except Exception as e: print(f"[web_search] Failed: {e}"); return None
 
