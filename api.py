@@ -873,7 +873,17 @@ setTimeout(checkStatus, 3000);
                 excl = []
                 if wire_count: excl.append(f"{wire_count} wire reprint{'s' if wire_count>1 else ''} excluded from outlet score")
                 if quote_count: excl.append(f"{quote_count} accurately reported quote{'s' if quote_count>1 else ''} excluded from outlet score")
-                callout_text = f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged. "
+                n_supported = sum(1 for c in rows if c[5] == 'supported')
+                n_corroborated = sum(1 for c in rows if c[5] == 'corroborated')
+                n_plausible = sum(1 for c in rows if c[5] == 'plausible')
+                n_flagged = sum(1 for c in rows if c[5] in ('overstated', 'disputed', 'not_supported'))
+                bucket_parts = []
+                if n_supported: bucket_parts.append(f"{n_supported} supported")
+                if n_corroborated: bucket_parts.append(f"{n_corroborated} corroborated")
+                if n_plausible: bucket_parts.append(f"{n_plausible} plausible")
+                if n_flagged: bucket_parts.append(f"{n_flagged} flagged")
+                bucket_summary = ", ".join(bucket_parts) + ". " if bucket_parts else ""
+                callout_text = f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {bucket_summary}"
                 if parts:
                     callout_text += (', '.join(parts[:-1]) + f", and {parts[-1]}. ") if len(parts)>1 else (parts[0] + ". ")
                 if excl:
