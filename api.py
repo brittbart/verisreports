@@ -1261,31 +1261,31 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{verdict_count}}', str(_verdict_count))
     # Excluded tier display logic
     is_excluded = _verdict_count < 20
+
+    # ── TOP-OF-PAGE: always article score (nav chip + sidebar big number) ──
+    # Per design: top of page shows the ARTICLE's score only. Outlet score
+    # lives in the bottom stats row.
+    _article_display_score = str(article_score) if article_score is not None else 'Unscored'
+    outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <b>' + _article_display_score + ('/100</b> ' + article_rating if article_score is not None else '</b>')
+    if article_score is not None:
+        score_block_html = ('<div class="vs-score-num" style="color:' + article_score_color + '">' + str(article_score) + '</div><div class="vs-score-unit">/100</div><div class="vs-score-tier" style="color:' + article_score_color + '">' + article_rating + '</div>')
+    else:
+        score_block_html = ('<div class="vs-score-num" style="color:rgba(232,232,240,0.35);font-size:32px;">Unscored</div><div class="vs-score-unit">no scoreable claims</div>')
+
+    # No mid-page outlet inset — outlet status communicated via bottom stats row only
+    excluded_inset_html = ''
+
+    # ── BOTTOM STATS: outlet score (or 'Insufficient data' if Excluded) ──
     if is_excluded:
-        outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <span style="color:rgba(255,255,255,0.45)">Insufficient data (' + str(_verdict_count) + ' verdicts)</span>'
-        score_block_html = ('<div class="vs-score-block"><div class="vs-score-num" style="color:rgba(232,232,240,0.35);font-size:36px;">Insufficient</div><div class="vs-score-unit">data</div><div style="font-family:monospace;font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px;">' + str(_verdict_count) + ' verdicts &middot; min. 20 required</div></div>')
-        excluded_inset_html = ('<div class="vs-excluded-inset"><div class="vs-excluded-inset-label">WHY NO OUTLET SCORE</div><div class="vs-excluded-inset-text">Verum Signal does not publish outlet scores until an outlet has accumulated at least 20 verified claim verdicts. ' + source + ' currently has ' + str(_verdict_count) + ' verdict' + ('s' if _verdict_count != 1 else '') + ', which is not enough for a reliable score. The per-claim analysis below is reliable — what’s not yet reliable is an aggregate outlet rating.</div></div>')
         outlet_score_stat = '—'
         tier_label = 'STATUS'
         tier_stat = 'Insufficient data'
         footer_score_text = 'outlet score not yet available'
     else:
-        # Outlet score color (independent of article score color)
-        if outlet_score is None:
-            _outlet_color = 'rgba(255,255,255,0.45)'
-        elif outlet_score >= 70:
-            _outlet_color = '#4ade80'
-        elif outlet_score >= 40:
-            _outlet_color = '#fbbf24'
-        else:
-            _outlet_color = '#f87171'
-        outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <b>' + str(outlet_score) + '/100</b> ' + outlet_rating + ' &nbsp;&middot;&nbsp; <span style="color:' + tier_color + '">' + inclusion_tier + '</span>'
-        score_block_html = ('<div class="vs-score-num" style="color:' + _outlet_color + '">' + str(outlet_score) + '</div><div class="vs-score-unit">/100</div><div class="vs-score-tier" style="color:' + _outlet_color + '">' + outlet_rating + '</div><div class="vs-inclusion-tier" style="color:' + tier_color + '">' + inclusion_tier + ' &middot; ' + str(_verdict_count) + ' verdicts</div>')
-        excluded_inset_html = ''
-        outlet_score_stat = str(outlet_score) + '<span>/100</span>'
+        outlet_score_stat = str(outlet_score) + '<span>/100</span>' if outlet_score is not None else '—'
         tier_label = 'TIER'
         tier_stat = outlet_rating
-        footer_score_text = 'outlet score: ' + str(outlet_score) + '/100 ' + outlet_rating
+        footer_score_text = ('outlet score: ' + str(outlet_score) + '/100 ' + outlet_rating) if outlet_score is not None else 'outlet score not yet available'
     no_scoreable_claims = data.get('no_scoreable_claims', False)
     if no_scoreable_claims:
         opinion_inset_html = ('<div class="vs-opinion-inset"><div class="vs-opinion-inset-label">NOT SCORED — OPINION / UNVERIFIABLE CONTENT</div><div class="vs-opinion-inset-text">This article was retrieved successfully but did not contain verifiable factual claims that can be assessed against independent sources. It may be primarily opinion, commentary, polling data, or analysis. The Verum Signal methodology only scores articles with attributable factual claims — this article is classified as unscored. No verdict is implied about its accuracy or quality.</div></div>')
