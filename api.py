@@ -600,11 +600,15 @@ setTimeout(checkStatus, 3000);
                     print(f"Scrape returned thin content ({len(body_text)} chars) — trying web search fallback")
                     try:
                         _anth_client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+                        # Extract slug keywords for better search
+                        _url_slug = url.rstrip('/').split('/')[-1]
+                        _search_keywords = ' '.join(_url_slug.replace('-', ' ').split()[:8])
+                        _search_query = f'Find the full text of this article: {_search_keywords}. Source: {domain}. URL: {url}. Return the article headline and full text including all factual claims, statistics, and quoted statements.'
                         _search_msg = _anth_client.messages.create(
                             model='claude-sonnet-4-6',
                             max_tokens=2000,
                             tools=[{"type": "web_search_20250305", "name": "web_search"}],
-                            messages=[{'role': 'user', 'content': f'Find and summarize the full content of this article: {url}. Return the article title and as much of the article text as possible including all factual claims, statistics, and quotes.'}]
+                            messages=[{'role': 'user', 'content': _search_query}]
                         )
                         _search_text = ''
                         for _block in _search_msg.content:
@@ -612,15 +616,21 @@ setTimeout(checkStatus, 3000);
                                 _search_text += _block.text
                         if _search_text and len(_search_text) > 200:
                             body_text = _search_text[:8000]
+                            # Extract title from web search - skip bot protection titles
+                            _ws_title = ''
+                            for line in _search_text.split('\n')[:10]:
+                                line = line.strip()
+                                if (len(line) > 20 and len(line) < 200 
+                                    and not line.startswith('http')
+                                    and line.lower().strip('.') not in BOT_TITLES):
+                                    _ws_title = line.rstrip('.')
+                                    break
+                            if _ws_title and not title_text:
+                                title_text = _ws_title
                             if not title_text:
-                                # Try to extract title from search response
-                                for line in _search_text.split('\n')[:5]:
-                                    line = line.strip()
-                                    if len(line) > 20 and len(line) < 200 and not line.startswith('http'):
-                                        title_text = line.rstrip('.')
-                                        break
-                                if not title_text:
-                                    title_text = url.split('/')[-2].replace('-', ' ').title()
+                                # Use URL slug as title fallback
+                                _slug = url.rstrip('/').split('/')[-1]
+                                title_text = ' '.join(_slug.replace('-', ' ').split()[:10]).title()
                             print(f"Web search fallback got {len(body_text)} chars, title: {title_text[:50]}")
                         else:
                             conn.close()
