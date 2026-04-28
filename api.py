@@ -694,6 +694,9 @@ setTimeout(checkStatus, 3000);
                         verified_claims = []
                         for c in claims:
                             result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_text, domain, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
+                            if result is None:
+                                print(f"[verify] analyse_claim returned None for claim: {c.get('claim_text','')[:80]}... — skipping")
+                                continue
                             cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                                 (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
                             cid = cur2.fetchone()[0]
@@ -742,6 +745,9 @@ setTimeout(checkStatus, 3000);
                         verified_claims = []
                         for c in claims:
                             result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_db, source_name, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
+                            if result is None:
+                                print(f"[verify] analyse_claim returned None for claim: {c.get('claim_text','')[:80]}... — skipping")
+                                continue
                             cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                                 (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
                             cid = cur2.fetchone()[0]
@@ -1205,15 +1211,43 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{summary_html}}', str(summary_html))
     pass #removed
     html = html.replace('{{score_color}}', str(score_color))
+    # ─────────────────────────────────────────────
+    # ARTICLE SCORE vs OUTLET SCORE
+    # The variables score / rating from data dict are the ARTICLE's score
+    # (computed from this article's own claims). We alias them as article_score
+    # so the renderer can clearly distinguish from outlet aggregate score below.
+    # ─────────────────────────────────────────────
+    article_score = score if score is not None else None
+    article_rating = rating if rating else 'Unscored'
+    if article_score is None:
+        article_score_color = 'rgba(255,255,255,0.3)'
+    elif article_score >= 70:
+        article_score_color = '#4ade80'
+    elif article_score >= 40:
+        article_score_color = '#fbbf24'
+    else:
+        article_score_color = '#f87171'
     # Inclusion tier
     try:
         _ic = get_db()
         _ic_cur = _ic.cursor()
-        _ic_cur.execute("SELECT COUNT(c.id) FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim'", (source,))
-        _verdict_count = _ic_cur.fetchone()[0]
+        _ic_cur.execute("SELECT verdict FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim'", (source,))
+        _outlet_verdicts = [r[0] for r in _ic_cur.fetchall()]
+        _verdict_count = len(_outlet_verdicts)
         _ic.close()
+        _W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
+        _scoreable_outlet = [v for v in _outlet_verdicts if v in _W]
+        if _scoreable_outlet:
+            _ws = sum(_W[v] for v in _scoreable_outlet)
+            outlet_score = round(min(max((_ws/len(_scoreable_outlet)+1.5)/2.5*100,0),100))
+            outlet_rating = 'High' if outlet_score>=70 else ('Medium' if outlet_score>=40 else 'Low')
+        else:
+            outlet_score = None
+            outlet_rating = 'Unscored'
     except:
         _verdict_count = 0
+        outlet_score = None
+        outlet_rating = 'Unscored' 
     if _verdict_count >= 100:
         inclusion_tier, tier_color = 'Published', '#4ade80'
     elif _verdict_count >= 50:
@@ -1236,13 +1270,22 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         tier_stat = 'Insufficient data'
         footer_score_text = 'outlet score not yet available'
     else:
-        outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <b>' + str(score) + '/100</b> ' + rating + ' &nbsp;&middot;&nbsp; <span style="color:' + tier_color + '">' + inclusion_tier + '</span>'
-        score_block_html = ('<div class="vs-score-num" style="color:' + score_color + '">' + str(score) + '</div><div class="vs-score-unit">/100</div><div class="vs-score-tier" style="color:' + score_color + '">' + rating + '</div><div class="vs-inclusion-tier" style="color:' + tier_color + '">' + inclusion_tier + ' &middot; ' + str(_verdict_count) + ' verdicts</div>')
+        # Outlet score color (independent of article score color)
+        if outlet_score is None:
+            _outlet_color = 'rgba(255,255,255,0.45)'
+        elif outlet_score >= 70:
+            _outlet_color = '#4ade80'
+        elif outlet_score >= 40:
+            _outlet_color = '#fbbf24'
+        else:
+            _outlet_color = '#f87171'
+        outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <b>' + str(outlet_score) + '/100</b> ' + outlet_rating + ' &nbsp;&middot;&nbsp; <span style="color:' + tier_color + '">' + inclusion_tier + '</span>'
+        score_block_html = ('<div class="vs-score-num" style="color:' + _outlet_color + '">' + str(outlet_score) + '</div><div class="vs-score-unit">/100</div><div class="vs-score-tier" style="color:' + _outlet_color + '">' + outlet_rating + '</div><div class="vs-inclusion-tier" style="color:' + tier_color + '">' + inclusion_tier + ' &middot; ' + str(_verdict_count) + ' verdicts</div>')
         excluded_inset_html = ''
-        outlet_score_stat = str(score) + '<span>/100</span>'
+        outlet_score_stat = str(outlet_score) + '<span>/100</span>'
         tier_label = 'TIER'
-        tier_stat = rating
-        footer_score_text = 'outlet score: ' + str(score) + '/100 ' + rating
+        tier_stat = outlet_rating
+        footer_score_text = 'outlet score: ' + str(outlet_score) + '/100 ' + outlet_rating
     no_scoreable_claims = data.get('no_scoreable_claims', False)
     if no_scoreable_claims:
         opinion_inset_html = ('<div class="vs-opinion-inset"><div class="vs-opinion-inset-label">NOT SCORED — OPINION / UNVERIFIABLE CONTENT</div><div class="vs-opinion-inset-text">This article was retrieved successfully but did not contain verifiable factual claims that can be assessed against independent sources. It may be primarily opinion, commentary, polling data, or analysis. The Verum Signal methodology only scores articles with attributable factual claims — this article is classified as unscored. No verdict is implied about its accuracy or quality.</div></div>')
