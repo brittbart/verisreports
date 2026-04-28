@@ -388,6 +388,31 @@ def _is_bot_protection(title):
 
 import re as _re_slug
 
+
+def _is_paywall(title, body):
+    """Detect paywall preview content. Returns True if the retrieved content
+    appears to be a paywall lede + CTA wall rather than the full article.
+    Uses high-signal body-text markers only — phrases that don't appear in
+    legitimate article bodies. Title is currently unused but kept for
+    parity with _is_bot_protection signature.
+    """
+    if not body:
+        return False
+    body_lower = body.lower()
+    paywall_markers = [
+        'subscribe to read',
+        'subscribe to continue',
+        'sign in to continue reading',
+        'for subscribers only',
+        'create a free account to continue',
+        'become a subscriber',
+        'already a subscriber',
+        'unlimited access',
+        'this article is for subscribers',
+    ]
+    return any(marker in body_lower for marker in paywall_markers)
+
+
 def _clean_url_slug(url):
     """Last-resort title fallback. Walks back through URL path segments
     looking for one with readable content (not just a GUID or numeric ID).
@@ -440,6 +465,7 @@ def _try_direct_scrape(url):
                 title = h1.get_text().strip()
         body = ' '.join(p.get_text() for p in soup.find_all('p'))[:8000]
         if len(body) < 500: print(f"[direct] Too thin ({len(body)} chars)"); return None
+        if _is_paywall(title, body): print(f"[direct] Paywall detected"); return None
         return {'title': title, 'body': body, 'method': 'direct'}
     except Exception as e: print(f"[direct] Failed: {e}"); return None
 
@@ -461,6 +487,7 @@ def _try_jina_reader(url):
         body = body[:8000]
         if _is_bot_protection(title): print(f"[jina] Bot protection: '{title}'"); return None
         if len(body) < 500: print(f"[jina] Body too thin ({len(body)} chars)"); return None
+        if _is_paywall(title, body): print(f"[jina] Paywall detected"); return None
         # Title fallback chain: Jina Title: -> first markdown heading -> cleaned URL slug
         if not title:
             for line in body.split('\n')[:50]:
@@ -497,6 +524,7 @@ def _try_web_search(url, anthropic_client):
         body = body[:8000]
         if _is_bot_protection(title): title = ''
         if len(body) < 500: return None
+        if _is_paywall(title, body): print(f"[web_search] Paywall detected"); return None
         if not title:
             title = _clean_url_slug(url)
         return {'title': title, 'body': body, 'method': 'web_search'}
@@ -510,6 +538,18 @@ def fetch_article_content(url, anthropic_client=None):
     if anthropic_client:
         result = _try_web_search(url, anthropic_client)
         if result: print(f"[fetch] web_search: {len(result['body'])} chars"); return result
+    try:
+        import requests as _rq
+        from bs4 import BeautifulSoup
+        r = _rq.get(url, timeout=(8,15), headers={'User-Agent': _USER_AGENT})
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
+            probe_body = ' '.join(p.get_text() for p in soup.find_all('p'))[:8000]
+            if _is_paywall('', probe_body):
+                print(f"[fetch] Paywall confirmed for {url}")
+                return {'status': 'paywall'}
+    except Exception as e:
+        print(f"[fetch] Paywall probe failed: {e}")
     print(f"[fetch] All methods failed for {url}"); return None
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -727,6 +767,8 @@ setTimeout(checkStatus, 3000);
                 fetch_result = fetch_article_content(url, _anth_client)
                 if fetch_result is None:
                     data = {'status': 'scrape_failed', 'url': url, 'domain': domain}
+                elif fetch_result.get('status') == 'paywall':
+                    data = {'status': 'paywall', 'url': url, 'source': domain}
                 else:
                     title_text = fetch_result['title']
                     body_text = fetch_result['body']
