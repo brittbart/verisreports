@@ -371,6 +371,100 @@ def methodology_report_jsx():
 @app.route('/tweaks-panel.jsx', methods=['GET'])
 def methodology_tweaks_jsx():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'tweaks-panel.jsx')
+
+# ── fetch_article_content (Opus architecture brief, April 28 2026) ────────────
+
+_BOT_TITLES = {
+    'just a moment', 'just a moment...', 'checking your browser',
+    'access denied', 'please verify you are a human', 'ddos protection',
+    'attention required', 'cloudflare', 'one moment...', 'verifying you are human',
+}
+_USER_AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+               'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36')
+
+def _is_bot_protection(title):
+    if not title: return False
+    return title.lower().strip().rstrip('.').strip() in _BOT_TITLES
+
+def _try_direct_scrape(url):
+    try:
+        import requests as _rq; from bs4 import BeautifulSoup
+        r = _rq.get(url, timeout=(8,15), headers={'User-Agent': _USER_AGENT})
+        if r.status_code != 200: print(f"[direct] HTTP {r.status_code}"); return None
+        soup = BeautifulSoup(r.text, 'html.parser')
+        title_tag = soup.find('title')
+        title = title_tag.text.strip() if title_tag else ''
+        if _is_bot_protection(title): print(f"[direct] Bot protection: '{title}'"); return None
+        body = ' '.join(p.get_text() for p in soup.find_all('p'))[:8000]
+        if len(body) < 500: print(f"[direct] Too thin ({len(body)} chars)"); return None
+        return {'title': title, 'body': body, 'method': 'direct'}
+    except Exception as e: print(f"[direct] Failed: {e}"); return None
+
+def _try_jina_reader(url):
+    try:
+        import requests as _rq
+        headers = {'Accept': 'text/plain', 'X-Return-Format': 'markdown'}
+        jk = os.getenv('JINA_API_KEY')
+        if jk: headers['Authorization'] = f'Bearer {jk}'
+        r = _rq.get(f'https://r.jina.ai/{url}', headers=headers, timeout=(10,25))
+        if r.status_code != 200: print(f"[jina] HTTP {r.status_code}"); return None
+        text = r.text
+        if len(text) < 500: print(f"[jina] Too thin ({len(text)} chars)"); return None
+        title = ''
+        for line in text.split('\n')[:30]:
+            if line.strip().startswith('Title:'):
+                title = line.strip()[len('Title:'):].strip(); break
+        body = text.split('Markdown Content:', 1)[1].strip() if 'Markdown Content:' in text else '\n'.join(text.split('\n')[5:]).strip()
+        body = body[:8000]
+        if _is_bot_protection(title): print(f"[jina] Bot protection: '{title}'"); return None
+        if len(body) < 500: print(f"[jina] Body too thin ({len(body)} chars)"); return None
+        if not title:
+            slug = url.rstrip('/').split('/')[-1]
+            title = ' '.join(slug.replace('-',' ').split()[:10]).title()
+        return {'title': title, 'body': body, 'method': 'jina'}
+    except Exception as e: print(f"[jina] Failed: {e}"); return None
+
+def _try_web_search(url, anthropic_client):
+    try:
+        from urllib.parse import urlparse as _up
+        domain = _up(url).netloc.replace('www.','')
+        slug = url.rstrip('/').split('/')[-1]
+        keywords = ' '.join(slug.replace('-',' ').split()[:8])
+        query = (f"I need to analyze a news article from {domain}. URL: {url}\n"
+                 f"Topic: {keywords}\n\nSearch OTHER outlets (Reuters, AP, NPR, BBC, etc.) and return:\n"
+                 f"HEADLINE: [headline]\n\nCONTENT:\n[1500+ words of factual content]\n\n"
+                 f"Do NOT return {domain} content — bot-protected.")
+        msg = anthropic_client.messages.create(
+            model='claude-sonnet-4-6', max_tokens=2500,
+            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            messages=[{'role': 'user', 'content': query}])
+        text = ''.join(b.text for b in msg.content if hasattr(b, 'text'))
+        if not text or len(text) < 500: print(f"[web_search] Too thin"); return None
+        title = ''
+        for line in text.split('\n')[:10]:
+            if line.startswith('HEADLINE:'): title = line[9:].strip(); break
+        body = text.split('CONTENT:', 1)[1].strip() if 'CONTENT:' in text else text
+        body = body[:8000]
+        if _is_bot_protection(title): title = ''
+        if len(body) < 500: return None
+        if not title:
+            slug = url.rstrip('/').split('/')[-1]
+            title = ' '.join(slug.replace('-',' ').split()[:10]).title()
+        return {'title': title, 'body': body, 'method': 'web_search'}
+    except Exception as e: print(f"[web_search] Failed: {e}"); return None
+
+def fetch_article_content(url, anthropic_client=None):
+    result = _try_direct_scrape(url)
+    if result: print(f"[fetch] direct: {len(result['body'])} chars"); return result
+    result = _try_jina_reader(url)
+    if result: print(f"[fetch] jina: {len(result['body'])} chars"); return result
+    if anthropic_client:
+        result = _try_web_search(url, anthropic_client)
+        if result: print(f"[fetch] web_search: {len(result['body'])} chars"); return result
+    print(f"[fetch] All methods failed for {url}"); return None
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 @app.route('/', methods=['GET'])
 def homepage():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'index.html')
