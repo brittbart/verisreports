@@ -685,7 +685,7 @@ setTimeout(checkStatus, 3000);
                     article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': domain}, 'url': url, 'publishedAt': ''}
                     claims = extract_claims_from_article(article_dict)
                     if not claims:
-                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':None,'rating':'Unscored','extraction_method':extraction_method,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':'This article was retrieved but no verifiable factual claims could be extracted. It may be primarily opinion, commentary, or survey-based content. No outlet score can be assigned.','no_scoreable_claims':True,'stats':{'supported':0,'plausible':0,'corroborated':0,'overstated':0,'disputed':0,'not_supported':0,'opinion':0,'total':0},'claims':[]}
+                        data = {'status': 'no_claims', 'title': title_text, 'source': domain, 'url': url, 'extraction_method': extraction_method}
                     else:
                         conn2 = get_db()
                         cur2 = conn2.cursor()
