@@ -630,10 +630,11 @@ setTimeout(checkStatus, 3000);
                         conn.close()
                         data = {'status': 'scrape_failed'}
 
-                # Detect bot-protection holding pages
+                # Detect bot-protection on scrape result only - clear bad title/body
                 BOT_TITLES = {'just a moment', 'just a moment...', 'checking your browser', 'access denied', 'please verify you are a human', 'ddos protection', 'attention required', 'cloudflare'}
                 if title_text and title_text.lower().strip('.').strip() in BOT_TITLES:
-                    print(f"Bot protection detected: '{title_text}' — refusing to publish partial report")
+                    print(f"Bot protection detected on scrape: '{title_text}' — clearing scraped title/body")
+                    title_text = ''
                     body_text = ''
 
                 if not body_text:
