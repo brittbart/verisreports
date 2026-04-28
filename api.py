@@ -572,96 +572,25 @@ setTimeout(checkStatus, 3000);
 </body>
 </html>"""
                 return loading_html, 200, {'Content-Type': 'text/html'}
-            # On-demand extraction for URLs not in DB
+            # On-demand extraction — clean rewrite per Opus architecture brief
+            import anthropic as _anth
+            from extract_claims import extract_claims_from_article
+            from verdict_engine import analyse_claim
+            from urllib.parse import urlparse
+            domain = urlparse(url).netloc.replace('www.','')
+            _anth_client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+            data = None
             try:
-                import requests as _req
-                from extract_claims import extract_claims_from_article
-                from verdict_engine import analyse_claim
-                from urllib.parse import urlparse
-                import anthropic as _anth
-                domain = urlparse(url).netloc.replace('www.','')
-                title_text = ''
-                body_text = ''
-
-                # Bot protection title set
-                BOT_TITLES = {'just a moment', 'just a moment...', 'checking your browser', 'access denied', 'please verify you are a human', 'ddos protection', 'attention required', 'cloudflare'}
-                # Try direct scraping first
-                try:
-                    _r = _req.get(url, timeout=(8,15), headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
-                    from bs4 import BeautifulSoup
-                    soup = BeautifulSoup(_r.text, 'html.parser')
-                    title_tag = soup.find('title')
-                    title_text = title_tag.text.strip() if title_tag else ''
-                    paragraphs = soup.find_all('p')
-                    body_text = ' '.join(p.get_text() for p in paragraphs)[:8000]
-                except Exception as _scrape_err:
-                    print(f"Direct scrape failed: {_scrape_err}")
-
-                # If scraping got less than 200 chars, fall back to web search
-                if len(body_text) < 200:
-                    print(f"Scrape returned thin content ({len(body_text)} chars) — trying web search fallback")
-                    try:
-                        _anth_client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-                        _url_slug = url.rstrip('/').split('/')[-1]
-                        _search_keywords = ' '.join(_url_slug.replace('-', ' ').split()[:8])
-                        _search_query_a = (
-                            f'I need to analyze a news article from {domain}. The original URL is {url} but I cannot access it directly.\n'
-                            f'The article topic appears to be: {_search_keywords}\n\n'
-                            f'Please search for OTHER outlets reporting on this same story (Reuters, AP, NPR, Wikipedia, official sources, etc.) and return:\n'
-                            f'HEADLINE: [the original article headline as best you can determine]\n\n'
-                            f'CONTENT:\n[at least 1500 words of substantive factual content about this story from multiple independent sources]\n\n'
-                            f'Do NOT return {domain} content — it is bot-protected. Do NOT return Cloudflare or "Just a moment" content.'
-                        )
-                        _search_msg = _anth_client.messages.create(
-                            model='claude-sonnet-4-6',
-                            max_tokens=2500,
-                            tools=[{"type": "web_search_20250305", "name": "web_search"}],
-                            messages=[{'role': 'user', 'content': _search_query_a}]
-                        )
-                        _search_text = ''
-                        for _block in _search_msg.content:
-                            if hasattr(_block, 'text'):
-                                _search_text += _block.text
-                        if _search_text and len(_search_text) > 200:
-                            body_text = _search_text[:8000]
-                            # Extract title from HEADLINE: marker
-                            for _ws_line in _search_text.split('\n')[:10]:
-                                if _ws_line.startswith('HEADLINE:'):
-                                    _candidate = _ws_line.replace('HEADLINE:', '').strip()
-                                    if _candidate and _candidate.lower().strip('.') not in BOT_TITLES:
-                                        title_text = _candidate
-                                    break
-                            # Strip CONTENT: marker from body
-                            if 'CONTENT:' in _search_text:
-                                _search_text = _search_text.split('CONTENT:', 1)[1].strip()
-                            if not title_text:
-                                _slug = url.rstrip('/').split('/')[-1]
-                                title_text = ' '.join(_slug.replace('-', ' ').split()[:10]).title()
-                            print(f"Web search fallback got {len(body_text)} chars, title: {title_text[:50]}")
-                        else:
-                            conn.close()
-                            data = {'status': 'scrape_failed'}
-                    except Exception as _ws_err:
-                        print(f"Web search fallback failed: {_ws_err}")
-                        conn.close()
-                        data = {'status': 'scrape_failed'}
-
-                # Detect bot-protection on scrape result only - clear bad title/body
-                if title_text and title_text.lower().strip('.').strip() in BOT_TITLES:
-                    print(f"Bot protection detected on scrape: '{title_text}' — clearing scraped title/body")
-                    title_text = ''
-                    body_text = ''
-
-                if not body_text:
-                    conn.close()
-                    data = {'status': 'scrape_failed'}
+                fetch_result = fetch_article_content(url, _anth_client)
+                if fetch_result is None:
+                    data = {'status': 'scrape_failed', 'url': url, 'domain': domain}
                 else:
-                    if not title_text:
-                        title_text = domain
+                    title_text = fetch_result['title']
+                    body_text = fetch_result['body']
+                    extraction_method = fetch_result['method']
                     article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': domain}, 'url': url, 'publishedAt': ''}
                     claims = extract_claims_from_article(article_dict)
                     if not claims:
-                        conn.close()
                         data = {'status': 'no_claims', 'title': title_text, 'source': domain}
                     else:
                         conn2 = get_db()
@@ -677,20 +606,23 @@ setTimeout(checkStatus, 3000);
                             verified_claims.append((cid, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used')))
                         conn2.commit()
                         conn2.close()
-                        conn.close()
                         rows = verified_claims
                         W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
                         sc = sum(1 for c in rows if c[5] in W and c[4] == 'outlet_claim')
                         ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
-                        score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
-                        rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
-                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                        score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else None
+                        rating = ('High' if score>=70 else ('Medium' if score>=40 else 'Low')) if score is not None else 'Unscored'
+                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'extraction_method':extraction_method,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
             except Exception as e:
                 import traceback
-                print(f"On-demand extraction failed: {e}")
+                print(f"[report_page] Unexpected error: {e}")
                 print(traceback.format_exc())
-                conn.close()
-                data = {'status': 'not_found'}
+                data = {'status': 'error', 'message': str(e), 'url': url}
+            finally:
+                try:
+                    conn.close()
+                except:
+                    pass
         else:
             art_id, title_db, source_name, art_url, cv, vat = article
             cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used FROM claims WHERE article_id = %s ORDER BY priority_score DESC", (art_id,))
