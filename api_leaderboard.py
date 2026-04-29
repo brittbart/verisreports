@@ -39,8 +39,8 @@ SELECT
     END) FILTER (
         WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
     )                                                    AS weighted_sum,
-    MIN(c.created_at) AS first_verdict_at,
-    MAX(c.created_at) AS last_verdict_at
+    MIN(c.first_seen) AS first_verdict_at,
+    MAX(c.first_seen) AS last_verdict_at
 FROM articles a
 JOIN claims   c ON c.article_id = a.id
 WHERE c.verdict IS NOT NULL
