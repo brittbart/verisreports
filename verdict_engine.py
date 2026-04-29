@@ -207,7 +207,7 @@ def update_source_profile(cursor, source_name, verdict):
     if verdict == 'opinion':
         return
     field_map = {
-        'supported':     'supported_count',
+        'supported':     'verified_count',
         'plausible':     'plausible_count',
         'disputed':      'disputed_count',
         'not_supported': 'disputed_count',
