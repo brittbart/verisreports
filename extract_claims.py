@@ -126,9 +126,14 @@ Return only the JSON, no other text."""
 
 def process_articles(input_file, limit=50):
     """Process all articles in a JSON file and extract claims."""
+    import random
     print(f"Loading articles from {input_file}...")
     with open(input_file, 'r') as f:
         articles = json.load(f)
+    # Shuffle so the limit doesn't always hit the same outlets first.
+    # Feed order in feeds.py groups outlets, which would otherwise bias
+    # which outlets get verified each cycle.
+    random.shuffle(articles)
     if limit:
         articles = articles[:limit]
     print(f"Processing {len(articles)} articles (limit={limit})...")

@@ -47,7 +47,8 @@ def query_gdelt(domain, days_back=30, max_records=100):
             print(f"  skip {domain}: {r.status_code}")
             return []
     except Exception as e:
-        pass
+        print(f"  fail {domain}: {type(e).__name__}: {str(e)[:80]}")
+        return []
 
 def convert_article(article, domain):
     return {
