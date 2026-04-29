@@ -15,7 +15,7 @@ INCLUSION_THRESHOLD = 20
 LEADERBOARD_SQL = """
 SELECT
     a.source_name AS domain,
-    COALESCE(s.display_name, a.source_name) AS name,
+    a.source_name AS name,
     COUNT(*) FILTER (WHERE c.verdict = 'supported')      AS supported_count,
     COUNT(*) FILTER (WHERE c.verdict = 'plausible')      AS plausible_count,
     COUNT(*) FILTER (WHERE c.verdict = 'corroborated')   AS corroborated_count,
@@ -43,10 +43,9 @@ SELECT
     MAX(c.created_at) AS last_verdict_at
 FROM articles a
 JOIN claims   c ON c.article_id = a.id
-LEFT JOIN sources s ON s.domain = a.source_name
 WHERE c.verdict IS NOT NULL
   AND c.claim_origin = 'outlet_claim'
-GROUP BY a.source_name, s.display_name
+GROUP BY a.source_name
 HAVING COUNT(*) >= %s
 ORDER BY a.source_name;
 """
