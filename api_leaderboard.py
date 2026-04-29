@@ -66,7 +66,7 @@ SELECT COUNT(*) FROM (
 def compute_score(weighted_sum, scoreable_count):
     if scoreable_count is None or scoreable_count == 0:
         return None
-    avg = weighted_sum / scoreable_count
+    avg = float(weighted_sum) / float(scoreable_count)
     normalised = (avg + 1.5) / 2.5
     return round(min(max(normalised * 100, 0), 100))
 
