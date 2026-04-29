@@ -1219,7 +1219,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             cls = 'vs-conf-on' if d < confidence else 'vs-conf-off'
             conf_dots += '<span class="vs-conf-dot ' + cls + '"></span>'
         conf_label = {1: "Confidence: 1/3 — one source found", 2: "Confidence: 2/3 — two sources found", 3: "Confidence: 3/3 — verified by multiple independent sources"}.get(confidence, "")
-        conf_html = '<div class="vs-conf" title="' + conf_label + '">' + conf_dots + '</div>'
+        conf_num_html = '<span class="vs-conf-num">' + str(confidence) + '/3</span>'
+        conf_html = '<div class="vs-conf" title="' + conf_label + '">' + conf_num_html + conf_dots + '</div>'
         # Wire tag
         wire_html = '<span class="vs-wire">WIRE REPRINT &mdash; excluded from score</span>' if is_wire else ''
         # Source pills
@@ -1234,7 +1235,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         src_pills = ''
         for d in src_domains[:6]:
             cls = 'vs-src-c' if contradicts else 'vs-src-p'
-            src_pills += '<span class="vs-src ' + cls + '">' + d + '</span>'
+            src_pills += '<a href="https://' + d + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + cls + '">' + d + '</a>'
         src_pills_html = '<div class="vs-src-pills">' + src_pills + '</div>' if src_pills else ''
         conf_exp = CONF_EXPLAIN.get(confidence, '')
         detail_body = full if full and len(full) > len(summary) else sources
@@ -1254,7 +1255,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '<div class="vs-pill ' + pill_cls + '">' + lbl + '</div>'
             + conf_html +
             '</div>'
-            '<span class="vs-toggle">▼</span>'
+            '<span class="vs-toggle">Show details ▾</span>'
             '</div>'
             '<div class="vs-claim-body">'
             '<div class="vs-detail-grid">'
@@ -1388,7 +1389,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             return 'vs-src-i'  # independent/blue
         return 'vs-src-c'  # interested/amber
     if clean_domains:
-        all_sources_html = ''.join('<span class="vs-src ' + _src_class(d) + '">' + d + '</span>' for d in sorted(clean_domains))
+        all_sources_html = ''.join('<a href="https://' + d + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + _src_class(d) + '">' + d + '</a>' for d in sorted(clean_domains))
     else:
         all_sources_html = '<span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.3);">No independent sources found — see Methodology v1.5 Section 5 (independence rule)</span>'
 
@@ -1553,6 +1554,21 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{inclusion_tier}}', str(inclusion_tier))
     html = html.replace('{{tier_color}}', str(tier_color))
     html = html.replace('{{verdict_count}}', str(_verdict_count))
+
+    # Build outlet history line for top of report
+    if _verdict_count >= 20 and outlet_score is not None:
+        outlet_history_line = (
+            source + ' outlet history: '
+            '<b>' + str(outlet_score) + '/100 ' + outlet_rating + '</b> '
+            '(' + str(_verdict_count) + ' verdicts collected)'
+        )
+    else:
+        outlet_history_line = (
+            source + ' outlet history: '
+            '<b>insufficient data</b> '
+            '(' + str(_verdict_count) + '/20 verdicts collected, see <a href=\"/methodology\" target=\"_blank\">Methodology v1.5</a>)'
+        )
+    html = html.replace('{{outlet_history_line}}', outlet_history_line)
     # Excluded tier display logic
     is_excluded = _verdict_count < 20
 
@@ -1572,12 +1588,12 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     # ── BOTTOM STATS: outlet score (or 'Insufficient data' if Excluded) ──
     if is_excluded:
         outlet_score_stat = '—'
-        tier_label = 'STATUS'
+        tier_label = 'OUTLET STATUS'
         tier_stat = 'Insufficient data'
         footer_score_text = 'outlet score not yet available'
     else:
         outlet_score_stat = str(outlet_score) + '<span>/100</span>' if outlet_score is not None else '—'
-        tier_label = 'TIER'
+        tier_label = 'OUTLET TIER'
         tier_stat = outlet_rating
         footer_score_text = ('outlet score: ' + str(outlet_score) + '/100 ' + outlet_rating) if outlet_score is not None else 'outlet score not yet available'
     no_scoreable_claims = data.get('no_scoreable_claims', False)
