@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ domain }} — Verum Signal</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .outlet-not-published { padding: 160px 0 80px; }
+    .outlet-not-published h1 {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: 48px;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .outlet-not-published .domain-label {
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      color: var(--text-3);
+      letter-spacing: 0.04em;
+      margin-bottom: 40px;
+    }
+    .not-published-message {
+      max-width: 640px;
+      padding: 36px 40px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 16px;
+    }
+    .not-published-message p {
+      font-size: 14px;
+      color: var(--text-2);
+      line-height: 1.65;
+      font-weight: 300;
+      margin-bottom: 16px;
+    }
+    .not-published-message strong { color: var(--text); font-weight: 500; }
+    .not-published-message a { color: var(--violet); text-decoration: none; }
+    .not-published-message a:hover { text-decoration: underline; }
+    .progress-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: rgba(168,85,247,0.08);
+      border: 1px solid rgba(168,85,247,0.2);
+      border-radius: 100px;
+      font-size: 13px;
+      color: var(--violet-light);
+      margin: 8px 0 20px;
+    }
+    .progress-pill .count {
+      font-family: ui-monospace, monospace;
+      font-weight: 500;
+    }
+    @media (max-width: 700px) {
+      .outlet-not-published { padding: 120px 0 40px; }
+      .outlet-not-published h1 { font-size: 34px; }
+      .not-published-message { padding: 28px; }
+    }
+  </style>
+</head>
+<body data-page="outlet-not-published">
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/index.html" class="nav-logo">
+        <svg width="280" height="40" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
+          <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+          <circle cx="25" cy="14" r="2.5" fill="#ec4899"></circle>
+          <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+          <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+        </svg>
+      </a>
+      <div class="nav-links">
+        <a href="/index.html">Home</a>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="/leaderboard.html">Leaderboard</a>
+        <a href="/index.html#analyze" class="nav-cta">Analyze</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="outlet-not-published">
+    <div class="container">
+      <h1>{{ domain }}</h1>
+      <div class="domain-label">Outlet not yet published</div>
+
+      <div class="not-published-message">
+        <p>
+          This outlet does not yet have a published reliability score.
+          Verum Signal publishes scores only after an outlet has accumulated
+          at least {{ threshold }} verified claim verdicts.
+        </p>
+
+        <div class="progress-pill">
+          <span class="count">{{ verdict_count }} verdicts so far</span>
+          {% if verdict_count > 0 and needed > 0 %}
+            <span>· {{ needed }} more needed to enter the Limited Data tier</span>
+          {% elif verdict_count == 0 %}
+            <span>· no verdicts collected yet</span>
+          {% endif %}
+        </div>
+
+        <p>
+          <a href="/leaderboard.html">View outlets currently on the leaderboard →</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-brand">
+        <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
+          <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"></path>
+          <circle cx="37" cy="18" r="4.2" fill="#ec4899"></circle>
+        </svg>
+        <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
+      </div>
+      <div class="site-footer-tagline">We provide the signals. You decide.</div>
+      <nav class="site-footer-nav">
+        <a href="/methodology">Methodology</a>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/leaderboard.html">Leaderboard</a>
+        <a href="/pricing.html">Pricing</a>
+      </nav>
+      <div class="site-footer-meta">Methodology {{ methodology_version }} · Automated · Auditable</div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ outlet.name }} — Verum Signal</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .outlet-stub { padding: 160px 0 60px; }
+    .outlet-header { margin-bottom: 40px; }
+    .outlet-header h1 {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: 56px;
+      letter-spacing: -1.5px;
+      line-height: 1.05;
+      margin-bottom: 8px;
+    }
+    .outlet-domain {
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 14px;
+      color: var(--text-3);
+      letter-spacing: 0.04em;
+    }
+    .outlet-score-block {
+      display: flex;
+      align-items: baseline;
+      gap: 20px;
+      padding: 32px 0;
+      border-top: 0.5px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+    .score-large {
+      font-family: var(--font-display);
+      font-size: 96px;
+      line-height: 0.85;
+      letter-spacing: -3px;
+      font-weight: 400;
+    }
+    .score-large.high { color: #4ade80; }
+    .score-large.medium { color: #fbbf24; }
+    .score-large.low { color: #f87171; }
+    .score-of {
+      font-size: 32px;
+      color: var(--text-3);
+      font-family: var(--font-display);
+    }
+    .score-band {
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+    .score-band--high { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .score-band--medium { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+    .score-band--low { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.25); }
+    .score-meta { font-size: 13px; color: var(--text-3); margin-left: auto; }
+    .outlet-breakdown { margin-bottom: 56px; }
+    .outlet-breakdown h3 {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+      margin-bottom: 20px;
+    }
+    .lb-breakdown-bar {
+      display: flex;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 18px;
+      background: rgba(255,255,255,0.05);
+    }
+    .seg-supported     { background: #4ade80; }
+    .seg-plausible     { background: #60a5fa; }
+    .seg-corroborated  { background: #34d399; }
+    .seg-overstated    { background: #fbbf24; }
+    .seg-disputed      { background: #f87171; }
+    .seg-not-supported { background: #ef4444; }
+    .lb-breakdown-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--text-2);
+      font-family: ui-monospace, monospace;
+    }
+    .bd-item { display: inline-flex; align-items: center; gap: 7px; }
+    .bd-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .bd-supported     .bd-dot { background: #4ade80; }
+    .bd-plausible     .bd-dot { background: #60a5fa; }
+    .bd-corroborated  .bd-dot { background: #34d399; }
+    .bd-overstated    .bd-dot { background: #fbbf24; }
+    .bd-disputed      .bd-dot { background: #f87171; }
+    .bd-not-supported .bd-dot { background: #ef4444; }
+    .outlet-coming-soon {
+      padding: 40px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 32px;
+    }
+    .outlet-coming-soon h3 {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+      color: var(--violet-light);
+    }
+    .outlet-coming-soon p {
+      font-size: 14px;
+      color: var(--text-2);
+      line-height: 1.65;
+      font-weight: 300;
+      margin-bottom: 16px;
+    }
+    .outlet-coming-soon ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .outlet-coming-soon li {
+      font-size: 13px;
+      color: var(--text-2);
+      display: flex;
+      gap: 10px;
+      font-weight: 300;
+    }
+    .outlet-coming-soon li::before { content: '\2013'; color: var(--violet-light); }
+    .outlet-coming-soon a { color: var(--violet); text-decoration: none; }
+    .outlet-coming-soon a:hover { text-decoration: underline; }
+    .outlet-footer {
+      font-size: 12px;
+      color: var(--text-3);
+      padding-top: 24px;
+      border-top: 0.5px solid var(--border);
+    }
+    .outlet-footer a { color: var(--violet); text-decoration: none; }
+    .outlet-footer a:hover { text-decoration: underline; }
+    @media (max-width: 700px) {
+      .outlet-stub { padding: 120px 0 40px; }
+      .outlet-header h1 { font-size: 40px; }
+      .score-large { font-size: 72px; }
+      .score-meta { margin-left: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body data-page="outlet">
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/index.html" class="nav-logo">
+        <svg width="280" height="40" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
+          <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+          <circle cx="25" cy="14" r="2.5" fill="#ec4899"></circle>
+          <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+          <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+        </svg>
+      </a>
+      <div class="nav-links">
+        <a href="/index.html">Home</a>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="/leaderboard.html">Leaderboard</a>
+        <a href="/index.html#analyze" class="nav-cta">Analyze</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="outlet-stub">
+    <div class="container">
+
+      <div class="outlet-header">
+        <h1>{{ outlet.name }}</h1>
+        <div class="outlet-domain">{{ outlet.domain }}</div>
+      </div>
+
+      <div class="outlet-score-block">
+        <div>
+          <span class="score-large {{ outlet.score_band|lower }}">{{ outlet.score }}</span><span class="score-of">/100</span>
+        </div>
+        <div class="score-band score-band--{{ outlet.score_band|lower }}">{{ outlet.score_band }}</div>
+        <div class="score-meta">
+          {{ outlet.tier }} tier · {{ outlet.verdict_count }} verdicts · {{ outlet.scoreable_count }} scoreable
+        </div>
+      </div>
+
+      <div class="outlet-breakdown">
+        <h3>Verdict distribution</h3>
+        {% set b = outlet.verdict_breakdown %}
+        {% set sc = outlet.scoreable_count %}
+        <div class="lb-breakdown-bar">
+          {% if sc > 0 %}
+            {% if b.supported %}<div class="seg seg-supported"     style="width:{{ (b.supported / sc * 100)|round(2) }}%" title="Supported: {{ b.supported }}"></div>{% endif %}
+            {% if b.plausible %}<div class="seg seg-plausible"     style="width:{{ (b.plausible / sc * 100)|round(2) }}%" title="Plausible: {{ b.plausible }}"></div>{% endif %}
+            {% if b.corroborated %}<div class="seg seg-corroborated"  style="width:{{ (b.corroborated / sc * 100)|round(2) }}%" title="Corroborated: {{ b.corroborated }}"></div>{% endif %}
+            {% if b.overstated %}<div class="seg seg-overstated"    style="width:{{ (b.overstated / sc * 100)|round(2) }}%" title="Overstated: {{ b.overstated }}"></div>{% endif %}
+            {% if b.disputed %}<div class="seg seg-disputed"      style="width:{{ (b.disputed / sc * 100)|round(2) }}%" title="Disputed: {{ b.disputed }}"></div>{% endif %}
+            {% if b.not_supported %}<div class="seg seg-not-supported" style="width:{{ (b.not_supported / sc * 100)|round(2) }}%" title="Not supported: {{ b.not_supported }}"></div>{% endif %}
+          {% endif %}
+        </div>
+        <div class="lb-breakdown-counts">
+          <span class="bd-item bd-supported"><span class="bd-dot"></span>Supported: {{ b.supported }}</span>
+          <span class="bd-item bd-plausible"><span class="bd-dot"></span>Plausible: {{ b.plausible }}</span>
+          <span class="bd-item bd-corroborated"><span class="bd-dot"></span>Corroborated: {{ b.corroborated }}</span>
+          <span class="bd-item bd-overstated"><span class="bd-dot"></span>Overstated: {{ b.overstated }}</span>
+          <span class="bd-item bd-disputed"><span class="bd-dot"></span>Disputed: {{ b.disputed }}</span>
+          <span class="bd-item bd-not-supported"><span class="bd-dot"></span>Not supported: {{ b.not_supported }}</span>
+        </div>
+      </div>
+
+      <div class="outlet-coming-soon">
+        <h3>Detailed outlet view coming soon</h3>
+        <p>A full outlet detail page is in development for public launch. It will include:</p>
+        <ul>
+          <li>Score history over time</li>
+          <li>Recent verdicts list with article links</li>
+          <li>Disputed claims and resolutions</li>
+          <li>Excluded verdict counts (opinion, not verifiable)</li>
+          <li>Methodology version history</li>
+        </ul>
+        <p>For now, the leaderboard page shows the same core data. <a href="/leaderboard.html">Back to leaderboard →</a></p>
+      </div>
+
+      <div class="outlet-footer">
+        Generated under <a href="/methodology">Methodology {{ methodology_version }}</a> ·
+        <a href="mailto:disputes@verumsignal.com">Submit a correction</a>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-brand">
+        <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
+          <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"></path>
+          <circle cx="37" cy="18" r="4.2" fill="#ec4899"></circle>
+        </svg>
+        <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
+      </div>
+      <div class="site-footer-tagline">We provide the signals. You decide.</div>
+      <nav class="site-footer-nav">
+        <a href="/methodology">Methodology</a>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/leaderboard.html">Leaderboard</a>
+        <a href="/pricing.html">Pricing</a>
+      </nav>
+      <div class="site-footer-meta">Methodology {{ methodology_version }} · Automated · Auditable</div>
+    </div>
+  </footer>
+</body>
+</html>

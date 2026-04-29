@@ -23,6 +23,12 @@ def get_db():
             port=os.environ.get('DB_PORT', '35370')
         ))
     )
+
+from api_leaderboard import register_leaderboard_routes
+from outlet_routes import register_outlet_routes
+register_leaderboard_routes(app, get_db)
+register_outlet_routes(app, get_db)
+
 @app.route('/api/source', methods=['GET'])
 def get_source():
     domain = request.args.get('domain', '')

@@ -1,13 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Leaderboard — Verum Signal</title>
-<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="%230A0A0F"/><path d="M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32" fill="none" stroke="%23a855f7" stroke-width="3" stroke-linecap="round"/><circle cx="58" cy="32" r="4" fill="%23ec4899"/></svg>' />
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
 <style>
+  :root {
+    --c-supported: #4ade80;
+    --c-plausible: #60a5fa;
+    --c-corroborated: #34d399;
+    --c-overstated: #fbbf24;
+    --c-disputed: #f87171;
+    --c-not-supported: #ef4444;
+    --c-high: #4ade80;
+    --c-med: #fbbf24;
+    --c-low: #f87171;
+  }
+
+  /* PAGE HERO */
   .page-hero {
     position: relative;
     padding: 180px 0 60px;
@@ -16,29 +29,111 @@
   }
   .page-hero-content { position: relative; z-index: 2; max-width: 800px; margin: 0 auto; }
   .page-hero h1 { margin-bottom: 24px; }
-
-  .leaderboard-wrap {
-    max-width: 900px;
-    margin: 0 auto;
+  .hero-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hero-meta .dot { color: var(--border); }
+  .hero-meta strong { color: var(--text-2); font-weight: 500; }
+  .live-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--c-supported);
+    margin-right: 6px;
+    box-shadow: 0 0 0 0 rgba(74,222,128,0.6);
+    animation: pulse 2s ease-out infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(74,222,128,0); }
+    100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
   }
 
-  /* Filter pills */
-  .filter-row {
+  /* STAT STRIP */
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    margin: 0 auto 40px;
+    max-width: 980px;
+    overflow: hidden;
+  }
+  .stat-cell {
+    padding: 28px 24px;
+    border-right: 0.5px solid var(--border);
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-num {
+    font-family: var(--font-display);
+    font-size: 48px;
+    line-height: 1;
+    letter-spacing: -1.5px;
+    margin-bottom: 8px;
+    font-weight: 400;
+  }
+  .stat-num.is-pub { color: var(--c-supported); }
+  .stat-num.is-stab { color: #60a5fa; }
+  .stat-num.is-lim { color: var(--c-overstated); }
+  .stat-num.is-excl { color: var(--text-3); font-style: italic; }
+  .stat-label {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    line-height: 1.4;
+  }
+
+  .leaderboard-wrap { max-width: 980px; margin: 0 auto; }
+
+  /* CONTROLS */
+  .lb-controls {
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 48px;
+    background: var(--surface);
+  }
+  .lb-control-row {
     display: flex;
-    gap: 8px;
-    margin-bottom: 32px;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
   }
+  .lb-control-row:last-child { margin-bottom: 0; }
+  .lb-control-label {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    min-width: 80px;
+  }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .filter-pill {
     font-size: 12px;
     font-weight: 500;
-    padding: 6px 16px;
+    padding: 7px 16px;
     border-radius: 100px;
-    background: var(--surface);
+    background: rgba(255,255,255,0.03);
     border: 0.5px solid var(--border);
     color: var(--text-2);
     cursor: pointer;
     transition: all .15s;
+    font-family: inherit;
   }
   .filter-pill:hover { border-color: var(--violet); color: var(--text); }
   .filter-pill.active {
@@ -46,106 +141,428 @@
     border-color: var(--violet);
     color: #fff;
   }
+  .lb-sort-wrap {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .lb-sort-select {
+    background: rgba(255,255,255,0.03);
+    border: 0.5px solid var(--border);
+    color: var(--text-2);
+    font-size: 12px;
+    padding: 7px 32px 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.4' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  .lb-sort-select:hover { border-color: var(--border-hover); color: var(--text); }
+  #window-note {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(168,85,247,0.05);
+    border: 0.5px solid rgba(168,85,247,0.15);
+    border-radius: 8px;
+    display: none;
+  }
+  #window-note.visible { display: block; }
+/* TIER SECTIONS */
+  .lb-tier-section { margin-bottom: 56px; }
+  .lb-tier-section:last-child { margin-bottom: 40px; }
+  .lb-tier-header { margin-bottom: 18px; }
+  .lb-tier-rule { height: 2px; margin-bottom: 14px; border-radius: 2px; }
+  .lb-tier-section--published .lb-tier-rule { background: var(--c-supported); }
+  .lb-tier-section--stabilizing .lb-tier-rule { background: #60a5fa; }
+  .lb-tier-section--limited .lb-tier-rule { background: var(--c-overstated); }
+  .lb-tier-title {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    font-family: var(--font-display);
+    font-weight: 400;
+    margin: 0 0 8px;
+  }
+  .lb-tier-section--published .lb-tier-title { font-size: 30px; letter-spacing: -0.8px; }
+  .lb-tier-section--stabilizing .lb-tier-title { font-size: 22px; letter-spacing: -0.5px; }
+  .lb-tier-section--limited .lb-tier-title { font-size: 18px; letter-spacing: -0.3px; opacity: 0.92; }
+  .lb-tier-count {
+    font-size: 11px;
+    color: var(--text-3);
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .lb-tier-description {
+    font-size: 13px;
+    color: var(--text-3);
+    max-width: 620px;
+    line-height: 1.55;
+    font-weight: 300;
+    margin: 0;
+    font-family: var(--font-body);
+  }
+  .lb-tier-section--limited .lb-table-wrap { opacity: 0.92; }
 
-  /* Table */
+  /* TABLE */
+  .lb-table-wrap {
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.012);
+  }
+  .lb-tier-section--published .lb-table-wrap {
+    background: rgba(74,222,128,0.025);
+    border-color: rgba(74,222,128,0.2);
+  }
   .lb-table {
     width: 100%;
     border-collapse: collapse;
   }
-  .lb-table thead tr {
-    border-bottom: 0.5px solid var(--border);
-  }
+  .lb-table thead tr { border-bottom: 0.5px solid var(--border); }
   .lb-table th {
-    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-3);
-    padding: 0px 12px 16px;
+    padding: 14px 14px 14px;
     text-align: left;
   }
-  .lb-table th&nbsp;:first-child { padding-left: 0; }
-
+  .lb-table th:first-child { padding-left: 24px; }
+  .lb-table th:last-child { padding-right: 24px; }
+  .lb-table th.col-bar { width: 130px; }
+  .lb-table th.col-mix { width: 150px; }
+  .lb-table th.col-tier { width: 110px; }
+  .lb-table th.col-score { width: 90px; }
+  .lb-table th.col-expand { width: 40px; }
   .lb-row {
     border-bottom: 0.5px solid var(--border);
-    transition: background .15s;
+    transition: background .12s;
   }
-  .lb-row:hover { background: var(--surface); }
-  .lb-row td {
-    padding: 18px 12px;
-    vertical-align: middle;
-  }
-  .lb-row td:first-child { padding-left: 0; }
-
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row:hover { background: rgba(255,255,255,0.018); }
+  .lb-row.is-expanded { background: rgba(168,85,247,0.04); }
+  .lb-row.is-top1 .lb-rank { color: var(--violet-light); }
+  .lb-row td { padding: 18px 14px; vertical-align: middle; }
+  .lb-row td:first-child { padding-left: 24px; }
+  .lb-row td:last-child { padding-right: 24px; }
   .lb-rank {
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: 22px;
     color: var(--text-3);
-    width: 40px;
   }
-  .lb-outlet {
+  .lb-outlet-link { color: inherit; text-decoration: none; display: block; }
+  .lb-outlet-name {
     font-weight: 500;
     font-size: 15px;
+    transition: color .12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
+  .lb-outlet-arrow {
+    opacity: 0;
+    transition: all .15s;
+    color: var(--violet-light);
+    transform: translateX(-4px);
+  }
+  .lb-outlet-link:hover .lb-outlet-name { color: var(--violet-light); }
+  .lb-outlet-link:hover .lb-outlet-arrow { opacity: 1; transform: translateX(0); }
   .lb-outlet-meta {
     font-size: 12px;
     color: var(--text-3);
-    margin-top: 3px;
+    margin-top: 4px;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.02em;
   }
+  .lb-score-cell { display: flex; flex-direction: column; gap: 3px; }
   .lb-score {
     font-family: var(--font-display);
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 400;
-    letter-spacing: -1px;
-    width: 90px;
+    letter-spacing: -1.2px;
+    line-height: 1;
   }
-  .lb-score.high { color: #4ADE80; }
-  .lb-score.med { color: #FBBF24; }
-  .lb-score.low { color: #F87171; }
-
-  .lb-bar-wrap {
-    width: 200px;
+  .lb-score--high { color: var(--c-high); }
+  .lb-score--med  { color: var(--c-med); }
+  .lb-score--low  { color: var(--c-low); }
+  .lb-score-suffix {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--text-3);
+    margin-left: 1px;
   }
+  .lb-score-band {
+    font-size: 10px;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .lb-bar-wrap { width: 130px; }
   .lb-bar-track {
     height: 4px;
-    background: var(--border);
+    background: rgba(255,255,255,0.06);
     border-radius: 2px;
     overflow: hidden;
   }
-  .lb-bar {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.6s cubic-bezier(0.35, 0, 0.25, 1);
+  .lb-bar { height: 100%; border-radius: 2px; transition: width 0.6s cubic-bezier(0.35,0,0.25,1); }
+  .lb-bar--high { background: var(--c-high); }
+  .lb-bar--med  { background: var(--c-med); }
+  .lb-bar--low  { background: var(--c-low); }
+  .lb-mini-mix {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.05);
+    width: 150px;
   }
-
-  .lb-tier {
-    font-size: 11px;
-    letter-spacing: 0.08em;
+  .lb-mini-mix .seg { transition: opacity .15s; }
+  .lb-mini-mix .seg:hover { opacity: 0.85; }
+  .lb-tier-pill {
+    font-size: 10px;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    font-weight: 500;
-    padding: 3px 8px;
+    padding: 4px 10px;
     border-radius: 4px;
     display: inline-block;
+    white-space: nowrap;
   }
-
-  .lb-note {
+  .lb-tier-pill--published   { background: rgba(74,222,128,0.15);  color: var(--c-supported); border: 1px solid rgba(74,222,128,0.25); }
+  .lb-tier-pill--stabilizing { background: rgba(96,165,250,0.15);  color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+  .lb-tier-pill--limited     { background: rgba(251,191,36,0.10);  color: var(--c-overstated); border: 1px solid rgba(251,191,36,0.20); }
+  .lb-expand-btn {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    color: var(--text-3);
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+  }
+  .lb-expand-btn:hover { border-color: var(--violet); color: var(--violet-light); }
+  .lb-row.is-expanded .lb-expand-btn {
+    background: rgba(168,85,247,0.12);
+    border-color: var(--violet);
+    color: var(--violet-light);
+    transform: rotate(180deg);
+  }
+  .lb-expand-row { background: rgba(255,255,255,0.02); }
+  .lb-expand-row td { padding: 0 !important; }/* BREAKDOWN */
+  .lb-breakdown {
+    padding: 28px 32px 32px;
+    border-top: 0.5px solid var(--border);
+  }
+  .bd-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 36px;
+    margin-bottom: 20px;
+  }
+  .bd-section-label {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 14px;
+  }
+  .bd-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 18px;
+    background: rgba(255,255,255,0.05);
+  }
+  .bd-bar .seg { transition: opacity .15s; }
+  .bd-bar .seg:hover { opacity: 0.85; }
+  .seg-supported     { background: var(--c-supported); }
+  .seg-plausible     { background: var(--c-plausible); }
+  .seg-corroborated  { background: var(--c-corroborated); }
+  .seg-overstated    { background: var(--c-overstated); }
+  .seg-disputed      { background: var(--c-disputed); }
+  .seg-not-supported { background: var(--c-not-supported); }
+  .bd-counts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 24px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .bd-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bd-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .bd-supported     .bd-dot { background: var(--c-supported); }
+  .bd-plausible     .bd-dot { background: var(--c-plausible); }
+  .bd-corroborated  .bd-dot { background: var(--c-corroborated); }
+  .bd-overstated    .bd-dot { background: var(--c-overstated); }
+  .bd-disputed      .bd-dot { background: var(--c-disputed); }
+  .bd-not-supported .bd-dot { background: var(--c-not-supported); }
+  .bd-name { color: var(--text-2); }
+  .bd-num { margin-left: auto; color: var(--text); font-weight: 500; }
+  .bd-formula {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    background: rgba(0,0,0,0.25);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .bd-formula > div {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    color: var(--text-2);
+  }
+  .bd-formula .lbl { color: var(--text-3); }
+  .bd-formula .val { color: var(--text); }
+  .bd-meta {
     font-size: 12px;
     color: var(--text-3);
-    margin-top: 32px;
-    line-height: 1.6;
+    padding-top: 16px;
     border-top: 0.5px solid var(--border);
-    padding-top: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .bd-meta strong { color: var(--text-2); font-weight: 500; }
+  .bd-meta a { color: var(--violet); text-decoration: none; }
+  .bd-meta a:hover { text-decoration: underline; }
+  .bd-meta .dot { color: var(--border); }
+
+  /* EMPTY */
+  .lb-empty-state {
+    padding: 36px 28px;
+    background: rgba(255,255,255,0.012);
+    border: 0.5px dashed var(--border);
+    border-radius: 14px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--text-3);
+    text-align: center;
+    line-height: 1.6;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .lb-empty-state strong { color: var(--text-2); font-weight: 500; }
+
+  /* LOADING / ERROR */
+  .lb-loading {
+    padding: 80px 28px;
+    text-align: center;
+    color: var(--text-3);
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+  .lb-loading--error {
+    color: var(--c-disputed);
+    background: rgba(248,113,113,0.04);
+    border: 0.5px solid rgba(248,113,113,0.18);
+    border-radius: 14px;
+    padding: 40px 28px;
+    max-width: 540px;
+    margin: 0 auto;
   }
 
-  @media (max-width: 700px) {
-    .lb-bar-wrap { display: none; }
-    .lb-table th:nth-child(4) { display: none; }
-    .lb-row td:nth-child(4) { display: none; }
-    .page-hero { padding: 140px 0 40px; }
+  /* FOOTER NOTES */
+  .lb-footer-notes {
+    margin-top: 64px;
+    padding-top: 36px;
+    border-top: 0.5px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 48px;
+    max-width: 980px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .lb-note {
+    font-size: 13px;
+    color: var(--text-3);
+    line-height: 1.6;
+    font-weight: 300;
+    font-family: var(--font-body);
+    margin: 0;
+  }
+  .lb-note.lb-note--span { grid-column: 1 / -1; }
+  .lb-note strong { color: var(--text-2); font-weight: 500; }
+  .lb-note a { color: var(--violet); text-decoration: none; }
+  .lb-note a:hover { text-decoration: underline; }
+  .lb-note code {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.04);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--text-2);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .stat-strip { grid-template-columns: 1fr 1fr; }
+    .stat-cell { border-right: none; border-bottom: 0.5px solid var(--border); }
+    .stat-cell:nth-child(odd) { border-right: 0.5px solid var(--border); }
+    .stat-cell:nth-child(3), .stat-cell:nth-child(4) { border-bottom: none; }
+    .lb-table th.col-mix, .lb-row td.col-mix { display: none; }
+    .bd-grid { grid-template-columns: 1fr; }
+    .lb-footer-notes { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .page-hero { padding: 130px 0 36px; }
+    .lb-table th.col-bar, .lb-row td.col-bar { display: none; }
+    .lb-table th.col-tier, .lb-row td.col-tier { display: none; }
+    .lb-control-row { gap: 12px; }
+    .lb-control-label { min-width: auto; }
+    .lb-sort-wrap { margin-left: 0; width: 100%; }
+    .lb-sort-select { flex: 1; }
+    .lb-row td { padding: 14px 10px; }
+    .lb-row td:first-child { padding-left: 14px; }
+    .lb-row td:last-child { padding-right: 14px; }
+    .lb-table th:first-child { padding-left: 14px; }
+    .lb-table th:last-child { padding-right: 14px; }
+    .lb-breakdown { padding: 20px 16px 24px; }
+    .lb-controls { padding: 16px; }
   }
 </style>
 </head>
-<body data-page="leaderboard">
+<body data-page="leaderboard"><nav class="nav">
+  <div class="nav-inner">
+    <a href="/index.html" class="nav-logo">
+      <svg width="280" height="40" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"></circle>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </a>
+    <div class="nav-links">
+      <a href="/index.html">Home</a>
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/leaderboard.html" class="active">Leaderboard</a>
+      <a href="/index.html#analyze" class="nav-cta">Analyze</a>
+    </div>
+  </div>
+</nav>
 
 <section class="page-hero">
   <div class="hero-grid"></div>
@@ -153,51 +570,112 @@
   <div class="container page-hero-content">
     <div class="eyebrow fu" style="justify-content:center; max-width:340px; margin:0 auto 28px;">Reliability scores</div>
     <h1 class="display h-page fu2">Outlet leaderboard.</h1>
-    <p class="sub fu3" style="max-width: 540px; margin: 0 auto;">Ranked by verification accuracy. Same methodology applied to every outlet. Scores update as new verdicts are added.</p>
-  </div>
-</section>
-
-<section class="section" style="padding-top:40px">
-  <div class="container">
-    <div class="leaderboard-wrap">
-
-      <div class="filter-row">
-        <button class="filter-pill active" data-filter="all">All outlets</button>
-        <button class="filter-pill" data-filter="high">High 70+</button>
-        <button class="filter-pill" data-filter="med">Medium 40-69</button>
-        <button class="filter-pill" data-filter="low">Low &lt;40</button>
-      </div>
-
-      <table class="lb-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Outlet</th>
-            <th>Score</th>
-            <th></th>
-            <th>Tier</th>
-          </tr>
-        </thead>
-        <tbody id="lb-body">
-        </tbody>
-      </table>
-
-      <div class="lb-note">
-        <strong>About these scores:</strong> Scores are based on automated verification of factual claims using the <a href="/methodology" style="color:var(--violet);text-decoration:none">Verum Signal methodology v1.5</a>. Outlets with fewer than 20 scoreable verdicts are excluded from the leaderboard. Scores are not an endorsement of any outlet's editorial position.
-      </div>
+    <p class="sub fu3" style="max-width: 560px; margin: 0 auto;">Ranked by verification accuracy. Same methodology applied.</p>
+    <div class="hero-meta">
+      <span><span class="live-dot"></span><strong id="hero-updated">Updated just now</strong></span>
+      <span class="dot">·</span>
+      <span>Methodology v1.5</span>
+      <span class="dot">·</span>
+      <span><strong id="hero-counts">— outlets scored</strong></span>
     </div>
   </div>
 </section>
 
-<script src="chrome.js?v=1777162767838"></script>
+<section class="section" style="padding-top: 20px;">
+  <div class="container">
 
-<!-- Site footer -->
+    <div class="stat-strip">
+      <div class="stat-cell">
+        <div class="stat-num is-pub" id="stat-pub">0</div>
+        <div class="stat-label">Published · 100+ verdicts</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num is-stab" id="stat-stab">0</div>
+        <div class="stat-label">Stabilizing · 50–99</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num is-lim" id="stat-lim">0</div>
+        <div class="stat-label">Limited Data · 20–49</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num is-excl" id="stat-excl">0</div>
+        <div class="stat-label">Tracked, not yet scored</div>
+      </div>
+    </div>
+
+    <div class="leaderboard-wrap">
+
+      <div class="lb-controls">
+        <div class="lb-control-row">
+          <span class="lb-control-label">Time range</span>
+          <div class="filter-row" id="window-pills">
+            <button class="filter-pill" data-window="30">Last 30 days</button>
+            <button class="filter-pill" data-window="90">Last 90 days</button>
+            <button class="filter-pill active" data-window="all">All time</button>
+          </div>
+        </div>
+        <div class="lb-control-row">
+          <span class="lb-control-label">Filter</span>
+          <div class="filter-row" id="tier-pills">
+            <button class="filter-pill active" data-tier="all">All tiers</button>
+            <button class="filter-pill" data-tier="published">Published only</button>
+            <button class="filter-pill" data-tier="stabilizing">Stabilizing+</button>
+          </div>
+          <div class="lb-sort-wrap">
+            <label class="lb-control-label" for="sort-select">Sort by</label>
+            <select class="lb-sort-select" id="sort-select">
+              <option value="score-desc">Score (high to low)</option>
+              <option value="score-asc">Score (low to high)</option>
+              <option value="verdicts-desc">Verdict count (most data first)</option>
+              <option value="name-asc">Outlet name (A-Z)</option>
+              <option value="updated-desc">Recently updated</option>
+            </select>
+          </div>
+        </div>
+        <div id="window-note">
+          Showing outlets with verdicts in the selected window. Scores are all-time across the outlet's full verdict history.
+        </div>
+      </div>
+
+      <div id="lb-sections">
+        <div class="lb-loading">Loading leaderboard…</div>
+      </div>
+
+      <div class="lb-footer-notes">
+        <p class="lb-note">
+          <strong>About the inclusion tiers:</strong>
+          Verum Signal classifies outlets into tiers based on verdict count to prevent overstating score reliability at low data depths.
+          <a href="/methodology#inclusion">Read the methodology →</a>
+        </p>
+        <p class="lb-note">
+          <strong>Tracked but not yet scored.</strong>
+          <span id="excluded-line">— outlets are tracked but have fewer than 20 verified verdicts.</span>
+          Outlets enter the leaderboard at 20 verdicts (Limited Data tier).
+        </p>
+        <p class="lb-note">
+          <strong>Scores are not endorsements.</strong>
+          Reliability scores reflect factual accuracy of claims as verified against independent sources. They are not endorsements of an outlet's editorial perspective.
+        </p>
+        <p class="lb-note">
+          <strong>Score formula (v1.5).</strong>
+          <code>score = clamp((Σ weight×count / scoreable + 1.5) ÷ 2.5 × 100, 0, 100)</code>.
+          Excludes <em>not_verifiable</em> and <em>opinion</em> verdicts.
+        </p>
+        <p class="lb-note lb-note--span">
+          Generated under Methodology v1.5. <a href="/methodology">View methodology</a> · <a href="mailto:disputes@verumsignal.com">Submit a correction</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <footer class="site-footer">
   <div class="site-footer-inner">
     <div class="site-footer-brand">
       <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
-        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"></path>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"></circle>
       </svg>
       <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
     </div>
@@ -212,67 +690,313 @@
   </div>
 </footer>
 
-</body>
 <script>
-  const outlets = [
-    { name: 'The Guardian', domain: 'theguardian.com', score: 72, tier: 'Stabilizing', verdicts: 40 },
-    { name: 'Fox News', domain: 'foxnews.com', score: 61, tier: 'Stabilizing', verdicts: 74 },
-    { name: 'NPR', domain: 'npr.org', score: 68, tier: 'Limited Data', verdicts: 18 },
-    { name: 'Daily Wire', domain: 'dailywire.com', score: 55, tier: 'Limited Data', verdicts: 7 },
-    { name: 'New York Times', domain: 'nytimes.com', score: 69, tier: 'Limited Data', verdicts: 12 },
-    { name: 'NY Post', domain: 'nypost.com', score: 58, tier: 'Limited Data', verdicts: 11 },
-    { name: 'Politico', domain: 'politico.com', score: 66, tier: 'Limited Data', verdicts: 14 },
-    { name: 'Newsmax', domain: 'newsmax.com', score: 52, tier: 'Limited Data', verdicts: 16 },
-    { name: 'Breitbart', domain: 'breitbart.com', score: 48, tier: 'Limited Data', verdicts: 12 },
-  ];
+const VERDICT_WEIGHTS = {
+  supported: 1.0, plausible: 0.5, corroborated: 0.5,
+  overstated: -0.5, disputed: -1.0, not_supported: -1.5
+};
+const SCOREABLE_TYPES = ['supported','plausible','corroborated','overstated','disputed','not_supported'];
 
-  function tierStyle(t) {
-    if (t === 'Published') return 'background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.2)';
-    if (t === 'Stabilizing') return 'background:rgba(96,165,250,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.2)';
-    if (t === 'Limited Data') return 'background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.2)';
-    return 'color:var(--text-3)';
+function computeScore(b){
+  let weighted = 0, scoreable = 0;
+  for (const t of SCOREABLE_TYPES) { weighted += (b[t]||0) * VERDICT_WEIGHTS[t]; scoreable += (b[t]||0); }
+  if (scoreable === 0) return null;
+  const norm = (weighted/scoreable + 1.5) / 2.5;
+  return Math.round(Math.min(Math.max(norm*100, 0), 100));
+}
+
+let API_RESPONSE = null;
+
+let state = {
+  window: 'all',
+  tier: 'all',
+  sort: 'score-desc',
+  expanded: new Set()
+};
+
+const VERDICT_LABELS = {
+  supported: 'Supported',
+  plausible: 'Plausible',
+  corroborated: 'Corroborated',
+  overstated: 'Overstated',
+  disputed: 'Disputed',
+  not_supported: 'Not supported'
+};
+
+function fmtRelative(iso) {
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const mins = Math.round(diff/60000);
+  if (mins < 1) return 'Updated just now';
+  if (mins < 60) return `Updated ${mins} min ago`;
+  const hrs = Math.round(mins/60);
+  if (hrs < 24) return `Updated ${hrs} hr ago`;
+  const days = Math.round(hrs/24);
+  return `Updated ${days} day${days===1?'':'s'} ago`;
+}
+function fmtRelativeShort(iso) {
+  const days = Math.floor((Date.now() - new Date(iso).getTime())/86400000);
+  if (days < 1) return 'today';
+  if (days === 1) return '1 day ago';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days/30);
+  return `${months} mo ago`;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function getSortComparator(sortKey) {
+  switch (sortKey) {
+    case 'score-desc': return (a,b) => b.score - a.score || b.verdict_count - a.verdict_count;
+    case 'score-asc':  return (a,b) => a.score - b.score || b.verdict_count - a.verdict_count;
+    case 'verdicts-desc': return (a,b) => b.verdict_count - a.verdict_count;
+    case 'name-asc':   return (a,b) => a.name.localeCompare(b.name);
+    case 'updated-desc': return (a,b) => new Date(b.last_verdict_at) - new Date(a.last_verdict_at);
+    default: return (a,b) => b.score - a.score;
   }
+}
 
-  function scoreClass(s) { return s >= 70 ? 'high' : s >= 40 ? 'med' : 'low'; }
-  function barColor(s) {&�eturn s >= 70 ? '#4ADE80' : s >= 40 ? '#FBBF24' : '#F87171'; }
+function applyFilters(outlets) {
+  let v = outlets.slice();
+  if (state.window !== 'all') {
+    const cutoff = Date.now() - parseInt(state.window) * 86400000;
+    v = v.filter(o => new Date(o.last_verdict_at).getTime() > cutoff);
+  }
+  if (state.tier === 'published') v = v.filter(o => o.tier === 'Published');
+  else if (state.tier === 'stabilizing') v = v.filter(o => o.tier === 'Stabilizing' || o.tier === 'Published');
+  v.sort(getSortComparator(state.sort));
+  return v;
+}
 
-  let currentFilter = 'all';
-
-  function render(filter) {
-    const body = document.getElementById('lb-body');
-    const sorted = [...outlets].sort((a,b) => b.score - a.score);
-    const filtered = sorted.filter(o => {
-      if (filter === 'high') return o.score >= 70;
-      if (filter === 'med') return o.score >= 40 && o.score < 70;
-      if (filter === 'low') return o.score < 40;
-      return true;
-    });
-    body.innerHTML = filtered.map((o, i) => `
-      <tr class="lb-row">
-        <td class="lb-rank">${i+1}</td>
-        <td>
-          <div class="lb-outlet">${o.name}</div>
-          <div class="lb-outlet-meta">${o.domain} · ${o.verdicts} verdicts</div>
-        </td>
-        <td class="lb-score ${scoreClass(o.score)}">${o.score}</td>
-        <td class="lb-bar-wrap">
+function renderRow(o, rank) {
+  const sb = o.score >= 70 ? 'high' : o.score >= 40 ? 'med' : 'low';
+  const tierClass = o.tier === 'Published' ? 'published' : o.tier === 'Stabilizing' ? 'stabilizing' : 'limited';
+  const isExp = state.expanded.has(o.domain);
+  const isTop = rank === 1 ? 'is-top1' : '';
+  const mixSegs = SCOREABLE_TYPES.map(t => {
+    const c = o.verdict_breakdown[t] || 0;
+    const w = o.scoreable_count > 0 ? (c / o.scoreable_count * 100) : 0;
+    return w > 0 ? `<div class="seg seg-${t}" style="width:${w}%" title="${VERDICT_LABELS[t]}: ${c}"></div>` : '';
+  }).join('');
+  return `
+    <tr class="lb-row ${isExp ? 'is-expanded' : ''} ${isTop}" data-outlet="${o.domain}">
+      <td class="lb-rank">${rank}</td>
+      <td>
+        <a class="lb-outlet-link" href="/outlet/${o.domain}">
+          <div class="lb-outlet-name">${escapeHtml(o.name)}<span class="lb-outlet-arrow">→</span></div>
+          <div class="lb-outlet-meta">${o.domain} · ${o.verdict_count} verdicts · ${o.scoreable_count} scoreable</div>
+        </a>
+      </td>
+      <td>
+        <div class="lb-score-cell">
+          <div><span class="lb-score lb-score--${sb}">${o.score}</span><span class="lb-score-suffix">/100</span></div>
+          <div class="lb-score-band">${o.score_band}</div>
+        </div>
+      </td>
+      <td class="col-bar">
+        <div class="lb-bar-wrap">
           <div class="lb-bar-track">
-            <div class="lb-bar" style="width:${o.score}%;background:${barColor(o.score)}"></div>
+            <div class="lb-bar lb-bar--${sb}" style="width:${o.score}%"></div>
           </div>
-        </td>
-        <td><span class="lb-tier" style="${tierStyle(o.tier)}">${o.tier}</span></td>
-      </tr>
-    `).join('');
-  }
+        </div>
+      </td>
+      <td class="col-mix">
+        <div class="lb-mini-mix">${mixSegs}</div>
+      </td>
+      <td class="col-tier">
+        <span class="lb-tier-pill lb-tier-pill--${tierClass}">${o.tier}</span>
+      </td>
+      <td>
+        <button class="lb-expand-btn" aria-label="Show verdict breakdown" data-expand="${o.domain}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </td>
+    </tr>
+    <tr class="lb-expand-row" data-expand-row="${o.domain}">
+      <td colspan="7">${isExp ? renderBreakdown(o) : ''}</td>
+    </tr>`;
+}
 
-  document.querySelectorAll('.filter-pill').forEach(p => {
-    p.addEventListener('click', () => {
-      document.querySelectorAll('.filter-pill').forEach(x => x.classList.remove('active'));
-      p.classList.add('active');
+function renderBreakdown(o) {
+  const b = o.verdict_breakdown;
+  const segs = SCOREABLE_TYPES.map(t => {
+    const c = b[t] || 0;
+    const w = o.scoreable_count > 0 ? (c / o.scoreable_count * 100) : 0;
+    return w > 0 ? `<div class="seg seg-${t}" style="width:${w}%" title="${VERDICT_LABELS[t]}: ${c}"></div>` : '';
+  }).join('');
+  const counts = SCOREABLE_TYPES.map(t => {
+    const c = b[t] || 0;
+    return `<div class="bd-item bd-${t}">
+      <span class="bd-dot"></span>
+      <span class="bd-name">${VERDICT_LABELS[t]}</span>
+      <span class="bd-num">${c}</span>
+    </div>`;
+  }).join('');
+  let weighted = 0;
+  for (const t of SCOREABLE_TYPES) weighted += (b[t]||0) * VERDICT_WEIGHTS[t];
+  const norm = (weighted/o.scoreable_count + 1.5) / 2.5;
+  return `
+    <div class="lb-breakdown">
+      <div class="bd-grid">
+        <div>
+          <div class="bd-section-label">Verdict mix · scoreable</div>
+          <div class="bd-bar">${segs}</div>
+          <div class="bd-counts">${counts}</div>
+        </div>
+        <div>
+          <div class="bd-section-label">Score computation · v1.5 §6.1</div>
+          <div class="bd-formula">
+            <div><span class="lbl">weighted_sum</span> <span class="val">${weighted.toFixed(1)}</span></div>
+            <div><span class="lbl">scoreable_count</span> <span class="val">${o.scoreable_count}</span></div>
+            <div><span class="lbl">normalised</span> <span class="val">(${(weighted/o.scoreable_count).toFixed(2)} + 1.5) ÷ 2.5 = ${norm.toFixed(3)}</span></div>
+            <div><span class="lbl">score</span> <span class="val" style="color:var(--violet-light)">${o.score} / 100</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="bd-meta">
+        <span>Score: <strong>${o.score}/100</strong> <span style="color:var(--text-3)">${o.score_band}</span></span>
+        <span class="dot">·</span>
+        <span>Based on ${o.scoreable_count} scoreable verdicts</span>
+        <span class="dot">·</span>
+        <span>Last verdict ${fmtRelativeShort(o.last_verdict_at)}</span>
+        <span class="dot">·</span>
+        <a href="/outlet/${o.domain}">Outlet detail →</a>
+      </div>
+    </div>`;
+}
+
+function renderTierSection(tierId, tierName, description, outlets) {
+  const rows = outlets.length
+    ? `<div class="lb-table-wrap">
+        <table class="lb-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Outlet</th>
+              <th class="col-score">Score</th>
+              <th class="col-bar"></th>
+              <th class="col-mix">Verdict mix</th>
+              <th class="col-tier">Tier</th>
+              <th class="col-expand"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${outlets.map((o, i) => renderRow(o, i+1)).join('')}
+          </tbody>
+        </table>
+      </div>`
+    : `<div class="lb-empty-state">${getEmptyCopy(tierId)}</div>`;
+  return `
+    <section class="lb-tier-section lb-tier-section--${tierId}">
+      <div class="lb-tier-header">
+        <div class="lb-tier-rule"></div>
+        <h2 class="lb-tier-title">
+          <span>${tierName}</span>
+          <span class="lb-tier-count">${outlets.length} outlet${outlets.length===1?'':'s'}</span>
+        </h2>
+        <p class="lb-tier-description">${description}</p>
+      </div>
+      ${rows}
+    </section>`;
+}
+
+function getEmptyCopy(tierId) {
+  if (tierId === 'published') return `<strong>No outlets in the Published tier yet.</strong><br>Verum Signal publishes scores at this confidence level only after 100+ verified verdicts have been accumulated.`;
+  if (tierId === 'stabilizing') return `<strong>No outlets currently in the Stabilizing tier (50–99 verdicts).</strong>`;
+  return `<strong>No outlets currently in the Limited Data tier (20–49 verdicts).</strong>`;
+}
+
+function render() {
+  if (!API_RESPONSE) return;
+  const visible = applyFilters(API_RESPONSE.outlets);
+  const byTier = {
+    Published: visible.filter(o => o.tier === 'Published'),
+    Stabilizing: visible.filter(o => o.tier === 'Stabilizing'),
+    'Limited Data': visible.filter(o => o.tier === 'Limited Data'),
+  };
+  const showPub = state.tier === 'all' || state.tier === 'published' || state.tier === 'stabilizing';
+  const showStab = state.tier === 'all' || state.tier === 'stabilizing';
+  const showLim = state.tier === 'all';
+  const html = [
+    showPub ? renderTierSection('published', 'Published',
+      'Outlets with 100+ verified verdicts. Scores at this tier reflect substantial data depth.',
+      byTier.Published) : '',
+    showStab ? renderTierSection('stabilizing', 'Stabilizing',
+      'Outlets with 50–99 verified verdicts. Scores are converging but data depth is still developing.',
+      byTier.Stabilizing) : '',
+    showLim ? renderTierSection('limited', 'Limited Data',
+      'Outlets with 20–49 verified verdicts. Caveat: small samples; treat scores as preliminary.',
+      byTier['Limited Data']) : ''
+  ].join('');
+  document.getElementById('lb-sections').innerHTML = html;
+  wireExpand();
+}
+
+function wireExpand() {
+  document.querySelectorAll('[data-expand]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.getAttribute('data-expand');
+      if (state.expanded.has(d)) state.expanded.delete(d);
+      else state.expanded.add(d);
+      render();
     });
   });
+}
 
-  render('all');
+function renderHeaderMeta() {
+  document.getElementById('hero-updated').textContent = fmtRelative(API_RESPONSE.generated_at);
+  const t = API_RESPONSE.totals;
+  const scored = t.outlets_in_published + t.outlets_in_stabilizing + t.outlets_in_limited;
+  document.getElementById('hero-counts').textContent = `${scored} outlets scored, ${t.outlets_excluded} not yet on board`;
+  document.getElementById('stat-pub').textContent = t.outlets_in_published;
+  document.getElementById('stat-stab').textContent = t.outlets_in_stabilizing;
+  document.getElementById('stat-lim').textContent = t.outlets_in_limited;
+  document.getElementById('stat-excl').textContent = t.outlets_excluded;
+  document.getElementById('excluded-line').textContent =
+    `${t.outlets_excluded} outlets are tracked but have fewer than 20 verified verdicts.`;
+}
+
+document.querySelectorAll('#window-pills .filter-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('#window-pills .filter-pill').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    state.window = p.dataset.window;
+    document.getElementById('window-note').classList.toggle('visible', state.window !== 'all');
+    render();
+  });
+});
+document.querySelectorAll('#tier-pills .filter-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('#tier-pills .filter-pill').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    state.tier = p.dataset.tier;
+    render();
+  });
+});
+document.getElementById('sort-select').addEventListener('change', e => {
+  state.sort = e.target.value;
+  render();
+});
+
+async function loadLeaderboard() {
+  const sectionsEl = document.getElementById('lb-sections');
+  try {
+    const res = await fetch('/api/leaderboard', {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    });
+    if (!res.ok) throw new Error(`API returned HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.outlets)) throw new Error('Malformed API response');
+    API_RESPONSE = data;
+    renderHeaderMeta();
+    render();
+  } catch (err) {
+    console.error('Leaderboard load failed:', err);
+    sectionsEl.innerHTML = '<div class="lb-loading lb-loading--error">Could not load leaderboard data. Please refresh the page.</div>';
+  }
+}
+
+loadLeaderboard();
 </script>
 
+</body>
 </html>
