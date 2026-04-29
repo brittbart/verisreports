@@ -382,6 +382,18 @@ _BOT_TITLES = {
 _USER_AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
                'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36')
 
+# Source tier sets — used by render block AND background signal lookup
+INDEPENDENT_SOURCES = {
+    'reuters.com', 'apnews.com', 'ap.org', 'npr.org', 'bbc.com', 'bbc.co.uk',
+    'nytimes.com', 'washingtonpost.com', 'theguardian.com', 'wikipedia.org',
+    'britannica.com', 'brookings.edu', 'rand.org', 'cfr.org', 'pbs.org',
+    'cbsnews.com', 'nbcnews.com', 'abcnews.go.com', 'politico.com', 'thehill.com',
+    'axios.com', 'bloomberg.com', 'wsj.com', 'economist.com', 'ft.com',
+    'federalnewsnetwork.com', 'militarytimes.com'
+}
+WIRE_SOURCES = {'reuters.com', 'apnews.com', 'ap.org', 'bloomberg.com', 'afp.com'}
+
+
 def _is_bot_protection(title):
     if not title: return False
     return title.lower().strip().rstrip('.').strip() in _BOT_TITLES
@@ -551,6 +563,134 @@ def fetch_article_content(url, anthropic_client=None):
     except Exception as e:
         print(f"[fetch] Paywall probe failed: {e}")
     print(f"[fetch] All methods failed for {url}"); return None
+
+# ── Background Signal: prior verified claims related to current article ──
+
+def get_background_signal(article_claim_texts, anthropic_client=None):
+    """
+    Return prior verified claims related to the current article's claims.
+
+    DB-first: queries verified claims (supported/corroborated/plausible) using
+    pg_trgm similarity against each of the current article's claim texts.
+    Threshold 0.30. Filters to claims whose sources_used contains at least one
+    independent-tier domain.
+
+    Optional web search fallback (gated by BACKGROUND_SIGNAL_WEB_FALLBACK=1)
+    runs only if DB returns fewer than 3 facts.
+
+    Returns a list of {fact, source, source_url, relevance_tag} dicts, max 3.
+    Returns [] if nothing meets the threshold.
+    """
+    if not article_claim_texts:
+        return []
+
+    claims_for_query = [c for c in article_claim_texts if c and len(c) > 10][:5]
+    if not claims_for_query:
+        return []
+
+    results = []
+
+    # ── DB lookup via pg_trgm ──
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        sim_exprs = ', '.join(['similarity(c.claim_text, %s)'] * len(claims_for_query))
+        sql = (
+            "SELECT c.claim_text, c.verdict_summary, c.sources_used, "
+            f"GREATEST({sim_exprs}) AS sim_score "
+            "FROM claims c "
+            "WHERE c.verdict IN ('supported', 'corroborated', 'plausible') "
+            "  AND c.verdict_summary IS NOT NULL "
+            "  AND c.sources_used IS NOT NULL "
+            f"  AND GREATEST({sim_exprs}) >= 0.30 "
+            "ORDER BY sim_score DESC "
+            "LIMIT 20"
+        )
+        params = list(claims_for_query) + list(claims_for_query)
+        cur.execute(sql, params)
+        candidates = cur.fetchall()
+        conn.close()
+    except Exception as e:
+        print(f"[bg_signal] DB lookup failed: {e}")
+        candidates = []
+
+    for claim_text, summary, sources, sim in candidates:
+        if not sources:
+            continue
+        sources_lower = sources.lower()
+        if not any(domain in sources_lower for domain in INDEPENDENT_SOURCES):
+            continue
+
+        relevance_tag = 'related claim'
+        for atext in claims_for_query:
+            common_words = set(claim_text.lower().split()) & set(atext.lower().split())
+            common_words = {w.strip('.,;:"\'()[]') for w in common_words if len(w) > 4}
+            common_words = {w for w in common_words if w and not w.isdigit()}
+            if common_words:
+                relevance_tag = ', '.join(sorted(common_words)[:3])
+                break
+
+        results.append({
+            'fact': (summary or '')[:300],
+            'source': (sources or '')[:200],
+            'source_url': '',
+            'relevance_tag': relevance_tag,
+            'similarity': round(float(sim), 3)
+        })
+        if len(results) >= 3:
+            break
+
+    print(f"[bg_signal] DB returned {len(results)} fact(s) above threshold 0.30")
+
+    # ── Web search fallback (env-gated) ──
+    if len(results) < 3 and os.getenv('BACKGROUND_SIGNAL_WEB_FALLBACK') == '1' and anthropic_client:
+        needed = 3 - len(results)
+        try:
+            claim_summary = ' / '.join(claims_for_query[:3])[:500]
+            prompt = (
+                f"Find {needed} prior factual claims related to the topics in these article claims:\n"
+                f"{claim_summary}\n\n"
+                "REQUIREMENTS - strict:\n"
+                "(a) Each fact must be verifiable through reputable independent sources only: "
+                "Reuters, AP, NPR, BBC, NYT, Washington Post, Guardian, Lawfare, Brookings, "
+                "government primary sources, peer-reviewed academic sources, or Wikipedia for settled facts.\n"
+                "(b) Each fact must be a discrete factual statement, not analysis or interpretation.\n"
+                "(c) Each fact must be directly relevant to the article's topic, not background filler.\n"
+                f"(d) If you cannot find {needed} facts meeting ALL criteria, return fewer or none. "
+                "Never fill with weaker sources.\n\n"
+                "Return ONLY valid JSON - an array of objects, no prose:\n"
+                '[{"fact": "...", "source": "...", "source_url": "...", "relevance_tag": "..."}]'
+            )
+            msg = anthropic_client.messages.create(
+                model='claude-sonnet-4-6',
+                max_tokens=1000,
+                tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                messages=[{'role': 'user', 'content': prompt}]
+            )
+            text = ''.join(b.text for b in msg.content if hasattr(b, 'text'))
+
+            import json as _json
+            json_start = text.find('[')
+            json_end = text.rfind(']') + 1
+            if json_start >= 0 and json_end > json_start:
+                fallback_facts = _json.loads(text[json_start:json_end])
+                added = 0
+                for f in fallback_facts[:needed]:
+                    if isinstance(f, dict) and f.get('fact'):
+                        results.append({
+                            'fact': str(f.get('fact', ''))[:300],
+                            'source': str(f.get('source', ''))[:200],
+                            'source_url': str(f.get('source_url', ''))[:300],
+                            'relevance_tag': str(f.get('relevance_tag', 'related topic'))[:100],
+                            'similarity': None
+                        })
+                        added += 1
+                print(f"[bg_signal] Web fallback added {added} fact(s) (total now {len(results)})")
+        except Exception as e:
+            print(f"[bg_signal] Web fallback failed: {e}")
+
+    return results[:3]
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1154,6 +1294,61 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             lbl = v.replace('_',' ').title()
             dist_legend_html += f'<span class="vs-leg"><span class="vs-leg-dot" style="background:{col}"></span>{cnt} {lbl}</span>'
 
+    # ── Background Signal: render block ──
+    background_signal_html = ''
+    if len(claims) >= 3:
+        try:
+            article_claim_texts = [c.get('claim_text', '') for c in claims if c.get('claim_text')]
+            import anthropic as _bg_anth
+            _bg_client = _bg_anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+            bg_facts = get_background_signal(article_claim_texts, _bg_client)
+            if len(bg_facts) >= 3:
+                _items = ''
+                for f in bg_facts:
+                    _src_url = (f.get('source_url') or '').strip()
+                    _src_text = (f.get('source') or '').strip()[:80]
+                    if _src_url:
+                        _src_html = (
+                            '<a href="' + _src_url + '" target="_blank" '
+                            'style="color:rgba(168,85,247,0.7);text-decoration:none;">'
+                            + _src_text + '</a>'
+                        )
+                    else:
+                        _src_html = (
+                            '<span style="color:rgba(255,255,255,0.4);">'
+                            + _src_text + '</span>'
+                        )
+                    _items += (
+                        '<div class="vs-bgsig-item" style="padding:14px 16px;'
+                        'background:rgba(255,255,255,0.02);'
+                        'border-left:2px solid rgba(168,85,247,0.4);'
+                        'border-radius:4px;margin-bottom:10px;">'
+                        '<div style="font-size:13px;color:rgba(232,232,240,0.85);'
+                        'line-height:1.55;margin-bottom:8px;">'
+                        '\u2192 ' + (f.get('fact') or '') + '</div>'
+                        '<div style="font-size:10px;font-family:monospace;'
+                        'color:rgba(255,255,255,0.4);">'
+                        'SOURCE: ' + _src_html + ' &nbsp;\u00b7&nbsp; '
+                        'RELEVANCE: ' + (f.get('relevance_tag') or '') + '</div>'
+                        '</div>'
+                    )
+                background_signal_html = (
+                    '<div class="vs-section" style="margin-top:32px;">'
+                    '<div class="vs-section-label" '
+                    'style="font-family:monospace;font-size:11px;'
+                    'letter-spacing:0.15em;color:#c084fc;margin-bottom:6px;">'
+                    'BACKGROUND SIGNAL</div>'
+                    '<div style="font-size:11px;color:rgba(255,255,255,0.4);'
+                    'margin-bottom:14px;font-style:italic;">'
+                    'Related claims, previously verified</div>'
+                    + _items +
+                    '</div>'
+                )
+                print('[bg_signal] Rendered ' + str(len(bg_facts)) + ' fact(s) in report')
+        except Exception as e:
+            print('[bg_signal] Render block failed: ' + str(e))
+            background_signal_html = ''
+
     # Build compare perspectives
     COMPARE_OUTLETS = ['Fox News','NPR','Guardian','Politico','CNN','BBC']
     compare_html = ''
@@ -1183,15 +1378,13 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     clean_domains = {d for d in clean_domains if not d.replace('www.','').endswith(_pub_root) and _pub_root not in d.replace('www.','')}
     # Type-code sources
     _GOV_TLD = {'gov'}
-    _INDEPENDENT = {'reuters.com','apnews.com','ap.org','npr.org','bbc.com','bbc.co.uk','nytimes.com','washingtonpost.com','theguardian.com','wikipedia.org','britannica.com','brookings.edu','rand.org','cfr.org','pbs.org','cbsnews.com','nbcnews.com','abcnews.go.com','politico.com','thehill.com','axios.com','bloomberg.com','wsj.com','economist.com','ft.com','federalnewsnetwork.com','militarytimes.com'}
-    _WIRE = {'reuters.com','apnews.com','ap.org','bloomberg.com','afp.com'}
     def _src_class(d):
         d = d.replace('www.','').lower()
         if d.split('.')[-1] in _GOV_TLD or 'house.gov' in d or 'senate.gov' in d or 'congress.gov' in d:
             return 'vs-src-p'  # primary/green
-        if d in _WIRE:
+        if d in WIRE_SOURCES:
             return 'vs-src-w'  # wire/gray
-        if d in _INDEPENDENT:
+        if d in INDEPENDENT_SOURCES:
             return 'vs-src-i'  # independent/blue
         return 'vs-src-c'  # interested/amber
     if clean_domains:
@@ -1408,6 +1601,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{claims_html}}', str(claims_html))
     html = html.replace('{{overall_signal}}', str(overall_signal))
     html = html.replace('{{watch_for_html}}', str(watch_for_html))
+    html = html.replace('{{background_signal_html}}', background_signal_html)
     html = html.replace('{{all_sources_html}}', str(all_sources_html))
     html = html.replace('{{compare_html}}', str(compare_html))
     html = html.replace('{{total}}', str(stats.get('total',0)))
