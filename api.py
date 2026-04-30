@@ -48,8 +48,8 @@ def get_source():
             JOIN articles a ON c.article_id = a.id
             WHERE a.source_name ILIKE %s
             AND c.verdict IS NOT NULL
-            AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
-AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
+            AND c.claim_origin = 'outlet_claim'
+AND c.claim_origin = 'outlet_claim'
         ''', (f'%{core}%',))
         row = cur.fetchone()
         conn.close()

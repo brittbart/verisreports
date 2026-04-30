@@ -76,6 +76,11 @@ For each claim return:
 5. Whether this is an outlet_claim (the outlet itself is asserting this) or attributed_claim (the outlet is reporting that someone else said this)
 6. If attributed, the exact attribution context e.g. "Trump said", "according to the Pentagon", "Iran's state media reported"
 
+CRITICAL CONSTRAINTS:
+- claim_origin MUST be exactly "outlet_claim" OR exactly "attributed_claim". Never null. Never empty. Never any other value.
+- If the claim has a clear speaker other than the outlet (e.g. "Trump said", "according to the Pentagon"), use "attributed_claim".
+- Otherwise use "outlet_claim".
+
 Article:
 {article_text}
 
@@ -87,7 +92,7 @@ Respond in this exact JSON format:
       "speaker": "who made the claim",
       "claim_type": "type of claim",
       "why_checkworthy": "brief reason",
-      "claim_origin": "outlet_claim or attributed_claim",
+      "claim_origin": "outlet_claim",
       "attribution_context": "if attributed, quote the exact words used to attribute it e.g. 'Trump said' or 'according to the White House' — leave blank if outlet_claim"
     }}
   ]
@@ -118,6 +123,20 @@ Return only the JSON, no other text."""
         json_str = response_text[start:end]
         claims_data = json.loads(json_str)
         raw_claims = claims_data.get('claims', [])
+
+        # Validate and normalize claim_origin — Sonnet sometimes returns null
+        VALID_ORIGINS = {'outlet_claim', 'attributed_claim'}
+        for claim in raw_claims:
+            origin = claim.get('claim_origin')
+            if origin not in VALID_ORIGINS:
+                # Deterministic fallback: if attribution_context is non-empty, it's attributed
+                attribution = (claim.get('attribution_context') or '').strip()
+                if attribution:
+                    claim['claim_origin'] = 'attributed_claim'
+                else:
+                    claim['claim_origin'] = 'outlet_claim'
+                print(f"    [origin-fix] LLM returned {origin!r}, corrected to {claim['claim_origin']!r}")
+
         return deduplicate_claims(raw_claims)
         
     except Exception as e:

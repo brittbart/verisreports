@@ -151,6 +151,8 @@ VERDICT DEFINITIONS — apply strictly:
 
 - not_verifiable: The claim cannot be confirmed or denied because primary sources are unavailable, access is restricted, or the event is too recent. Use sparingly — exhaust search options first.
 
+- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.5 (weaker than supported).
+
 - opinion: A value judgement, prediction, or normative claim that cannot be true or false. Also use for analyst conclusions presented as facts.
 
 CONFIDENCE SCORE — assign based on source quality, not just number of sources:
@@ -165,9 +167,14 @@ SEARCH INSTRUCTIONS:
 4. If you find any contradiction from a credible source, assign disputed
 5. Note the quality of sources in your analysis
 
+CRITICAL CONSTRAINTS:
+- The "verdict" field MUST be EXACTLY one of these 8 lowercase strings, with no variations: supported, plausible, corroborated, overstated, disputed, not_supported, not_verifiable, opinion.
+- Do NOT use "verified", "true", "false", "confirmed", or any other value. Only the 8 listed above.
+- If you cannot determine the verdict, use "not_verifiable".
+
 Return ONLY this JSON:
 {{
-  "verdict": "verdict here",
+  "verdict": "supported",
   "confidence_score": 1,
   "verdict_summary": "one sentence plain-language explanation",
   "full_analysis": "2-3 sentences explaining what you found, what sources you used, and why you assigned this verdict",
@@ -198,7 +205,28 @@ Return ONLY this JSON:
         end = response_text.rfind('}') + 1
         if start == -1 or end == 0:
             return None
-        return json.loads(response_text[start:end])
+        result = json.loads(response_text[start:end])
+
+        # Validate verdict — Sonnet sometimes returns 'verified' or other invalid values
+        VALID_VERDICTS = {'supported', 'plausible', 'corroborated', 'overstated',
+                          'disputed', 'not_supported', 'not_verifiable', 'opinion'}
+        verdict = result.get('verdict', '')
+        if verdict not in VALID_VERDICTS:
+            # Common LLM mistakes mapped to correct values
+            corrections = {
+                'verified': 'supported',
+                'true': 'supported',
+                'confirmed': 'supported',
+                'false': 'not_supported',
+                'misleading': 'overstated',
+                'unverified': 'not_verifiable',
+                'unknown': 'not_verifiable',
+            }
+            corrected = corrections.get(str(verdict).lower().strip(), 'not_verifiable')
+            print(f"    [verdict-fix] LLM returned {verdict!r}, corrected to {corrected!r}")
+            result['verdict'] = corrected
+
+        return result
     except Exception as e:
         print(f"    Error: {str(e)}")
         return None
@@ -249,7 +277,7 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
             JOIN articles a ON c.article_id = a.id
             WHERE a.source_name = %s
             AND c.verdict IS NOT NULL
-            AND (c.claim_origin = 'outlet_claim' OR c.claim_origin IS NULL)
+            AND c.claim_origin = 'outlet_claim'
             AND a.published_at IS NOT NULL
             AND a.published_at < NOW() - INTERVAL '6 hours';
         """, (source_name,))
@@ -373,9 +401,14 @@ VERDICT DEFINITIONS:
 
 CONFIDENCE: 3=two+ independent sources, 2=one credible source, 1=plausible/disputed
 
+CRITICAL CONSTRAINTS:
+- The "verdict" field MUST be EXACTLY one of these 8 lowercase strings, with no variations: supported, plausible, corroborated, overstated, disputed, not_supported, not_verifiable, opinion.
+- Do NOT use "verified", "true", "false", "confirmed", or any other value. Only the 8 listed above.
+- If you cannot determine the verdict, use "not_verifiable".
+
 Return ONLY this JSON:
 {{
-  "verdict": "verdict here",
+  "verdict": "supported",
   "confidence_score": 1,
   "verdict_summary": "one sentence explanation",
   "full_analysis": "2-3 sentences of reasoning",
