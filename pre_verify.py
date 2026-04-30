@@ -29,7 +29,7 @@ def is_top_outlet(source_name):
             return True
     return False
 
-def pre_verify_articles(limit=50):
+def pre_verify_articles(limit=50, depth=None):
     """
     Find recently fetched articles from top outlets that have
     claims extracted but not yet verified. Verify their claims
@@ -96,8 +96,9 @@ def pre_verify_articles(limit=50):
                     cur.execute("""
                         UPDATE claims SET verdict=%s, confidence_score=%s,
                         verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                        verification_depth=COALESCE(%s, verification_depth),
                         last_checked=NOW() WHERE id=%s
-                    """, (verdict, confidence, summary, analysis, sources, claim_id))
+                    """, (verdict, confidence, summary, analysis, sources, depth or 99, claim_id))
                     update_source_profile(cur, source_name, verdict)
                     calculate_reliability_score(cur, source_name, claim_id)
                     conn.commit()

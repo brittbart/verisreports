@@ -315,7 +315,7 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
         except:
             pass
 
-def run_verdict_engine(limit=10):
+def run_verdict_engine(limit=10, depth=None):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -357,10 +357,11 @@ def run_verdict_engine(limit=10):
                     verdict_summary = %s,
                     full_analysis = %s,
                     sources_used = %s,
+                    verification_depth = COALESCE(%s, verification_depth),
                     last_checked = NOW()
                 WHERE id = %s;
             """, (verdict, confidence, summary,
-                  analysis, sources, claim_id))
+                  analysis, sources, depth or 99, claim_id))
             update_source_profile(cursor, source_name, verdict)
             calculate_reliability_score(cursor, source_name)
             conn.commit()
@@ -416,7 +417,7 @@ Return ONLY this JSON:
 }}"""
 
 
-def run_batch_verdict_engine(limit=500):
+def run_batch_verdict_engine(limit=500, depth=None):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -443,9 +444,10 @@ def run_batch_verdict_engine(limit=500):
             verdict, confidence, summary = db_result
             cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
                 verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                verification_depth=COALESCE(%s, verification_depth),
                 last_checked=NOW() WHERE id=%s""",
                 (verdict, confidence, summary, "Matched in Veris database.",
-                "Veris internal database", claim_id))
+                "Veris internal database", depth or 99, claim_id))
             update_source_profile(cursor, source_name, verdict)
             calculate_reliability_score(cursor, source_name, claim_id)
             conn.commit()
@@ -456,9 +458,10 @@ def run_batch_verdict_engine(limit=500):
             verdict, count = consensus
             cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
                 verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                verification_depth=COALESCE(%s, verification_depth),
                 last_checked=NOW() WHERE id=%s""",
                 (verdict, 2, f"Consensus from {count} sources.",
-                f"{count} sources agree.", "Veris source consensus", claim_id))
+                f"{count} sources agree.", "Veris source consensus", depth or 99, claim_id))
             update_source_profile(cursor, source_name, verdict)
             calculate_reliability_score(cursor, source_name, claim_id)
             conn.commit()
@@ -531,8 +534,9 @@ def process_batch_results(batch_id=None):
                 source_name = row[0] if row else "unknown"
                 cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
                     verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                    verification_depth=COALESCE(%s, verification_depth),
                     last_checked=NOW() WHERE id=%s""",
-                    (verdict, confidence, summary, analysis, sources, claim_id))
+                    (verdict, confidence, summary, analysis, sources, 99, claim_id))
                 update_source_profile(cursor, source_name, verdict)
                 calculate_reliability_score(cursor, source_name, claim_id)
                 conn.commit()

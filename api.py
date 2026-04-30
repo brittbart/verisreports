@@ -116,6 +116,70 @@ def get_or_create_short_hash(article_id):
         conn.close()
 
 
+
+# ---------- Phase 4: depth-aware claim verification ----------
+def verify_and_insert_claims(claims, art_id, title, source_name, cursor, depth=None):
+    """Verify the top `depth` claims and insert all claims into the DB.
+    
+    depth=None means verify all claims (paid behavior).
+    depth=2 means verify top 2 (free behavior).
+    
+    Outlet claims are processed first (they're what scoring uses).
+    Remaining claims insert with verdict=NULL, verification_depth=NULL
+    so a later upgrade can verify them.
+    """
+    from verdict_engine import analyse_claim
+    def _sort_key(c):
+        return 0 if c.get('claim_origin', 'outlet_claim') == 'outlet_claim' else 1
+    sorted_claims = sorted(claims, key=_sort_key)
+    verify_count = len(sorted_claims) if depth is None else min(depth, len(sorted_claims))
+    
+    out_rows = []
+    for i, c in enumerate(sorted_claims):
+        claim_text = c.get('claim_text', '')
+        speaker = c.get('speaker', '')
+        claim_type = c.get('claim_type', 'factual')
+        claim_origin = c.get('claim_origin', 'outlet_claim')
+        attribution_context = c.get('attribution_context', '')
+        
+        if i < verify_count:
+            result = analyse_claim(
+                claim_text, speaker, claim_type, title, source_name,
+                cursor=cursor, claim_origin=claim_origin,
+                attribution_context=attribution_context,
+            )
+            if result is None:
+                print(f"[verify] analyse_claim returned None for: {claim_text[:80]}... -- skipping")
+                continue
+            cursor.execute(
+                "INSERT INTO claims (article_id, claim_text, speaker, claim_type, "
+                "claim_origin, verdict, confidence_score, verdict_summary, "
+                "full_analysis, sources_used, priority_score, verification_depth) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                (art_id, claim_text, speaker, claim_type, claim_origin,
+                 result.get('verdict'), result.get('confidence_score'),
+                 result.get('verdict_summary'), result.get('full_analysis'),
+                 result.get('sources_used'), 50, depth or 99),
+            )
+            cid = cursor.fetchone()[0]
+            out_rows.append((cid, claim_text, speaker, claim_type, claim_origin,
+                             result.get('verdict'), result.get('confidence_score'),
+                             result.get('verdict_summary'), result.get('full_analysis'),
+                             result.get('sources_used')))
+        else:
+            cursor.execute(
+                "INSERT INTO claims (article_id, claim_text, speaker, claim_type, "
+                "claim_origin, verdict, confidence_score, verdict_summary, "
+                "full_analysis, sources_used, priority_score, verification_depth) "
+                "VALUES (%s,%s,%s,%s,%s,NULL,NULL,NULL,NULL,NULL,%s,NULL) RETURNING id",
+                (art_id, claim_text, speaker, claim_type, claim_origin, 50),
+            )
+            cid = cursor.fetchone()[0]
+            out_rows.append((cid, claim_text, speaker, claim_type, claim_origin,
+                             None, None, None, None, None))
+    return out_rows
+
+
 @app.route('/api/source', methods=['GET'])
 def get_source():
     domain = request.args.get('domain', '')
@@ -911,6 +975,12 @@ def report_page():
     url = request.args.get('url', '').strip()
     if not url:
         return redirect('/')
+    # Phase 4: depth-aware verification. ?depth=2 (free) or ?depth=99 (paid).
+    # Default = None (full verification, current behavior).
+    try:
+        depth = int(request.args.get('depth')) if request.args.get('depth') else None
+    except (ValueError, TypeError):
+        depth = None
 
     from urllib.parse import urlparse
     from datetime import datetime as dt
@@ -1045,16 +1115,7 @@ setTimeout(checkStatus, 3000);
                         cur2 = conn2.cursor()
                         cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) RETURNING id", (title_text, domain, url))
                         art_id = cur2.fetchone()[0]
-                        verified_claims = []
-                        for c in claims:
-                            result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_text, domain, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
-                            if result is None:
-                                print(f"[verify] analyse_claim returned None for claim: {c.get('claim_text','')[:80]}... — skipping")
-                                continue
-                            cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-                                (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
-                            cid = cur2.fetchone()[0]
-                            verified_claims.append((cid, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used')))
+                        verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
                         conn2.commit()
                         conn2.close()
                         rows = verified_claims
@@ -1097,15 +1158,7 @@ setTimeout(checkStatus, 3000);
                         conn2 = get_db()
                         cur2 = conn2.cursor()
                         verified_claims = []
-                        for c in claims:
-                            result = analyse_claim(c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), title_db, source_name, cursor=cur2, claim_origin=c.get('claim_origin','outlet_claim'), attribution_context=c.get('attribution_context',''))
-                            if result is None:
-                                print(f"[verify] analyse_claim returned None for claim: {c.get('claim_text','')[:80]}... — skipping")
-                                continue
-                            cur2.execute("INSERT INTO claims (article_id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, priority_score) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-                                (art_id, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used'), 50))
-                            cid = cur2.fetchone()[0]
-                            verified_claims.append((cid, c.get('claim_text',''), c.get('speaker',''), c.get('claim_type','factual'), c.get('claim_origin','outlet_claim'), result.get('verdict'), result.get('confidence_score'), result.get('verdict_summary'), result.get('full_analysis'), result.get('sources_used')))
+                        verified_claims = verify_and_insert_claims(claims, art_id, title_db, source_name, cur2, depth=depth)
                         cur2.execute("UPDATE articles SET claims_verified=TRUE WHERE id=%s", (art_id,))
                         conn2.commit()
                         conn2.close()
