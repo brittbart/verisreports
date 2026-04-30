@@ -1,8 +1,11 @@
+
 from flask import Flask, jsonify, request, redirect, send_from_directory
 from flask_cors import CORS
 import psycopg2
 import os
 from dotenv import load_dotenv
+import secrets
+import string
 from datetime import datetime
 import os
 
@@ -28,6 +31,90 @@ from api_leaderboard import register_leaderboard_routes
 from outlet_routes import register_outlet_routes
 register_leaderboard_routes(app, get_db)
 register_outlet_routes(app, get_db)
+# ---------- Short URL helpers (Phase 2) ----------
+
+_HASH_ALPHABET = string.digits + string.ascii_lowercase  # base36
+_HASH_LENGTH = 12
+
+
+def _generate_hash():
+    return ''.join(secrets.choice(_HASH_ALPHABET) for _ in range(_HASH_LENGTH))
+
+
+def get_or_create_short_hash(article_id):
+    """Return the short URL hash for an article, creating one if needed.
+    Uses a collision-safe insert: tries up to 5 random hashes before raising.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # If a hash already exists for this article, return it
+        cur.execute(
+            "SELECT hash FROM report_links WHERE article_id = %s LIMIT 1",
+            (article_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        # Otherwise generate a new one (with collision retry)
+        for _ in range(5):
+            candidate = _generate_hash()
+            try:
+                cur.execute(
+                    "INSERT INTO report_links (hash, article_id) VALUES (%s, %s)",
+                    (candidate, article_id),
+                )
+                conn.commit()
+                return candidate
+            except psycopg2.errors.UniqueViolation:
+                conn.rollback()
+                continue
+        raise RuntimeError("Could not generate unique short hash after 5 attempts")
+    finally:
+        cur.close()
+        conn.close()# ---------- Short URL helpers (Phase 2) ----------
+
+_HASH_ALPHABET = string.digits + string.ascii_lowercase  # base36
+_HASH_LENGTH = 12
+
+
+def _generate_hash():
+    return ''.join(secrets.choice(_HASH_ALPHABET) for _ in range(_HASH_LENGTH))
+
+
+def get_or_create_short_hash(article_id):
+    """Return the short URL hash for an article, creating one if needed.
+    Uses a collision-safe insert: tries up to 5 random hashes before raising.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # If a hash already exists for this article, return it
+        cur.execute(
+            "SELECT hash FROM report_links WHERE article_id = %s LIMIT 1",
+            (article_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        # Otherwise generate a new one (with collision retry)
+        for _ in range(5):
+            candidate = _generate_hash()
+            try:
+                cur.execute(
+                    "INSERT INTO report_links (hash, article_id) VALUES (%s, %s)",
+                    (candidate, article_id),
+                )
+                conn.commit()
+                return candidate
+            except psycopg2.errors.UniqueViolation:
+                conn.rollback()
+                continue
+        raise RuntimeError("Could not generate unique short hash after 5 attempts")
+    finally:
+        cur.close()
+        conn.close()
+
 
 @app.route('/api/source', methods=['GET'])
 def get_source():
@@ -788,8 +875,38 @@ def report_status():
         return jsonify({'status': 'processing'})
     except:
         return jsonify({'status': 'processing'})
+@app.route('/r/<hash_value>', methods=['GET'])
+def short_report(hash_value):
+    """Resolve a short URL hash to an article and render its report."""
+    # Validate format before hitting the DB (cheap defense against scanning)
+    if len(hash_value) != _HASH_LENGTH or not all(c in _HASH_ALPHABET for c in hash_value):
+        return redirect('/')
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT a.url FROM report_links r "
+            "JOIN articles a ON a.id = r.article_id "
+            "WHERE r.hash = %s LIMIT 1",
+            (hash_value,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return redirect('/')
+        article_url = row[0]
+    finally:
+        cur.close()
+        conn.close()
+    # Delegate to existing /report?url=... flow
+    # (preserves async loading, error handling, etc.)
+    from urllib.parse import urlencode
+    return redirect('/report?' + urlencode({'url': article_url}))
+
+
 
 @app.route('/report', methods=['GET'])
+
+
 def report_page():
     url = request.args.get('url', '').strip()
     if not url:
@@ -1497,6 +1614,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     # --- Article summary html ---
     summary_html = ('<div class="vs-summary-text">' + article_summary + '</div>') if article_summary else ''
 
+    short_url_hash = get_or_create_short_hash(art_id)
+    short_url = 'verumsignal.com/r/' + short_url_hash
     with open(os.path.join(os.path.dirname(__file__), 'templates', 'report.html'), 'r') as _tf:
         html = _tf.read()
     html = html.replace('{{source}}', str(source))
@@ -1510,6 +1629,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{title}}', str(title))
     html = html.replace('{{tag_html}}', str(tag_html))
     html = html.replace('{{summary_html}}', str(summary_html))
+    html = html.replace('{{short_url}}', str(short_url))
     pass #removed
     html = html.replace('{{score_color}}', str(score_color))
     # ─────────────────────────────────────────────
