@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verum Signal — Go Pro</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #1a0d2e;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    color: #e7dffb;
+  }
+  .stage { width: 100%; max-width: 460px; }
+  .label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px; letter-spacing: 0.12em; color: #d4537e;
+    text-transform: uppercase; margin-bottom: 8px; padding-left: 4px;
+  }
+  .panel {
+    background: #100820;
+    border: 0.5px solid rgba(180, 150, 230, 0.18);
+    border-radius: 10px;
+    padding: 22px 20px 20px;
+  }
+  .header {
+    display: flex; justify-content: center;
+    padding-bottom: 18px;
+    border-bottom: 0.5px solid rgba(180, 150, 230, 0.12);
+    margin-bottom: 22px;
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; letter-spacing: 0.18em; color: #ffffff; font-weight: 500;
+  }
+  .logo .signal { font-style: italic; color: #b48cff; font-weight: 400; }
+  .center { text-align: center; }
+  .eyebrow {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.14em; color: #9d8cc4;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  h1 {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    font-size: 26px; font-weight: 500; line-height: 1.2;
+    margin: 0 0 10px; color: #f3edff;
+  }
+  h1 .accent { font-style: italic; color: #d4537e; }
+  .lede {
+    font-size: 13px; line-height: 1.55; color: #cfc1ec;
+    margin: 0 0 22px;
+  }
+  .price-card {
+    background: rgba(212, 83, 126, 0.06);
+    border: 1px solid rgba(212, 83, 126, 0.4);
+    border-radius: 8px;
+    padding: 18px 16px;
+    margin-bottom: 16px;
+    text-align: left;
+  }
+  .price-card-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 14px; padding-bottom: 12px;
+    border-bottom: 0.5px solid rgba(212, 83, 126, 0.2);
+  }
+  .price {
+    font-family: 'Iowan Old Style', Georgia, serif;
+    font-size: 30px; font-weight: 500; color: #f3edff;
+  }
+  .price-unit {
+    font-size: 13px; color: #9d8cc4;
+    font-family: ui-monospace, monospace; margin-left: 3px;
+  }
+  .tier-tag {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.08em; color: #b48cff;
+    text-transform: uppercase;
+  }
+  .features { font-size: 12px; line-height: 1.8; color: #cfc1ec; }
+  .feature { display: flex; gap: 10px; margin-bottom: 5px; }
+  .feature .check { color: #97c459; flex-shrink: 0; }
+  .form-block { margin-bottom: 8px; }
+  input[type="email"] {
+    width: 100%;
+    background: #1a0d2e;
+    border: 0.5px solid rgba(180, 150, 230, 0.3);
+    border-radius: 6px;
+    padding: 11px 13px;
+    font-size: 14px; color: #f3edff; font-family: inherit;
+    margin-bottom: 10px; outline: none;
+    transition: border-color 0.15s ease;
+  }
+  input[type="email"]:focus { border-color: #d4537e; }
+  .btn-primary {
+    width: 100%;
+    background: #D4537E; color: #ffffff;
+    border: none; border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 14px; font-weight: 500; font-family: inherit;
+    cursor: pointer; letter-spacing: 0.02em;
+    transition: background 0.15s ease;
+  }
+  .btn-primary:hover { background: #b8456c; }
+  .discount-line {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; color: #d4537e;
+    margin: 12px 0 4px; letter-spacing: 0.04em;
+  }
+  .legal-line {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; color: #9d8cc4; margin: 0;
+  }
+  .back-link {
+    display: block; margin-top: 20px;
+    padding-top: 16px;
+    border-top: 0.5px solid rgba(180, 150, 230, 0.12);
+    font-family: ui-monospace, monospace;
+    font-size: 11px; color: #b48cff;
+    text-decoration: none;
+  }
+  .error {
+    background: rgba(226, 75, 74, 0.1);
+    border: 0.5px solid rgba(226, 75, 74, 0.3);
+    border-radius: 6px;
+    padding: 10px 13px;
+    font-size: 12px; color: #f3a1a0;
+    margin-bottom: 14px;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="label">2 &middot; Second paywall</div>
+    <div class="panel">
+      <div class="header">
+        <div class="logo">
+          <svg width="32" height="14" viewBox="0 0 32 14" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 1 7 C 4 1, 8 1, 11 7 S 18 13, 21 7 S 28 1, 27.5 7" fill="none" stroke="#b48cff" stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="27.5" cy="7" r="2.6" fill="#D4537E"/>
+          </svg>
+          <span>VERUM <span class="signal">SIGNAL</span></span>
+        </div>
+      </div>
+
+      <div class="center">
+        <div class="eyebrow">YOUR FREE PRO REPORT IS USED</div>
+
+        <h1>Go <span class="accent">Pro.</span></h1>
+
+        <p class="lede">Deep claim-by-claim analysis on any article you submit.</p>
+
+        <div class="price-card">
+          <div class="price-card-head">
+            <span class="price">$25<span class="price-unit">/mo</span></span>
+            <span class="tier-tag">PRO</span>
+          </div>
+          <div class="features">
+            <div class="feature"><span class="check">&check;</span><span>50 on-demand Pro reports / month</span></div>
+            <div class="feature"><span class="check">&check;</span><span>Unlimited cached report views</span></div>
+            <div class="feature"><span class="check">&check;</span><span>Full claim-by-claim analysis</span></div>
+            <div class="feature"><span class="check">&check;</span><span>All sources, weighed and cited</span></div>
+            <div class="feature"><span class="check">&check;</span><span>Outlet history applied to scores</span></div>
+          </div>
+        </div>
+
+        {{error_html}}
+
+        <form class="form-block" method="POST" action="/waitlist/submit">
+          <input type="hidden" name="source_page" value="upgrade-paid" />
+          <input type="hidden" name="url" value="{{url}}" />
+          <input type="email" name="email" placeholder="you@example.com" value="{{prefilled_email}}" required />
+          <button type="submit" class="btn-primary">Join Pro waitlist &rarr;</button>
+        </form>
+
+        <p class="discount-line">Waitlist members get 50% off for 6 months</p>
+        <p class="legal-line">Pro launches before public launch &middot; No card today</p>
+
+        <a class="back-link" href="/report?url={{url}}&depth=2">&larr; Back to free report</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

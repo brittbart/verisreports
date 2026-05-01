@@ -180,6 +180,289 @@ def verify_and_insert_claims(claims, art_id, title, source_name, cursor, depth=N
     return out_rows
 
 
+
+# ---------- Phase 6: email stub + verification tokens ----------
+
+def send_email(to, subject, html_body):
+    """Send an email. Currently a stub — logs to console.
+    
+    TODO: Wire to Resend once domain DNS + API key are configured.
+    Resend Python SDK: pip install resend; resend.api_key=os.environ['RESEND_API_KEY']
+    Then: resend.Emails.send({"from": "noreply@verumsignal.com", "to": to, "subject": subject, "html": html_body})
+    """
+    print(f"[email-stub] TO: {to}")
+    print(f"[email-stub] SUBJECT: {subject}")
+    print(f"[email-stub] BODY (first 200 chars): {html_body[:200]}")
+    print(f"[email-stub] Email NOT actually sent. Configure Resend to enable.")
+    return True
+
+
+def generate_verification_token(email, intended_url):
+    """Create a single-use token for an email + intended URL.
+    
+    Returns the token string. Caller is responsible for sending an email
+    with a link like /verify?token=<token>.
+    """
+    token = secrets.token_urlsafe(32)[:64]  # ~43 chars after urlsafe encoding
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO verification_tokens (token, email, intended_url) VALUES (%s, %s, %s)",
+            (token, email.lower().strip(), intended_url),
+        )
+        conn.commit()
+        return token
+    finally:
+        cur.close()
+        conn.close()
+
+
+def consume_verification_token(token):
+    """Exchange a token for (email, intended_url). Marks token used.
+    
+    Returns (email, intended_url) on success, None if token is invalid,
+    expired (>24h old), or already used.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT email, intended_url, used_at, created_at "
+            "FROM verification_tokens WHERE token = %s",
+            (token,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        email, intended_url, used_at, created_at = row
+        if used_at is not None:
+            return None  # already used
+        # 24-hour expiry
+        from datetime import datetime, timedelta
+        if datetime.now() - created_at > timedelta(hours=24):
+            return None
+        # Mark used
+        cur.execute(
+            "UPDATE verification_tokens SET used_at = NOW() WHERE token = %s",
+            (token,),
+        )
+        conn.commit()
+        return (email, intended_url)
+    finally:
+        cur.close()
+        conn.close()
+
+
+
+@app.route('/upgrade', methods=['GET'])
+def upgrade_gate():
+    """Render the email gate for unlocking a free Pro sample report."""
+    url = request.args.get('url', '').strip()
+    if not url:
+        return redirect('/')
+    with open(os.path.join(os.path.dirname(__file__), 'templates', 'upgrade_gate.html'), 'r') as _tf:
+        html = _tf.read()
+    html = html.replace('{{url}}', url)
+    html = html.replace('{{error_html}}', '')
+    return html, 200, {'Content-Type': 'text/html'}
+
+
+
+@app.route('/upgrade/submit', methods=['POST'])
+def upgrade_submit():
+    """Process email gate form. Generates a verification token,
+    sends email (currently a stub), and shows the check-your-email page.
+    """
+    email = (request.form.get('email') or '').strip().lower()
+    url = (request.form.get('url') or '').strip()
+    
+    # Basic email validation
+    if '@' not in email or '.' not in email or len(email) < 5:
+        with open(os.path.join(os.path.dirname(__file__), 'templates', 'upgrade_gate.html'), 'r') as _tf:
+            html = _tf.read()
+        error_html = '<div class="error">Please enter a valid email address.</div>'
+        html = html.replace('{{url}}', url)
+        html = html.replace('{{error_html}}', error_html)
+        return html, 400, {'Content-Type': 'text/html'}
+    
+    # Check if this email has already used their free Pro sample
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT 1 FROM pro_samples WHERE email = %s LIMIT 1", (email,))
+        already_sampled = cur.fetchone() is not None
+    finally:
+        cur.close()
+        conn.close()
+    
+    if already_sampled:
+        return redirect('/upgrade-paid?url=' + url)
+    
+    # Generate token and "send" verification email
+    token = generate_verification_token(email, url)
+    verify_link = request.host_url.rstrip('/') + '/verify?token=' + token
+    email_body = '<html><body style="font-family:sans-serif;color:#333;max-width:520px;margin:0 auto;padding:24px;">' \
+        '<h2 style="color:#d4537e;">Your free Pro report is ready</h2>' \
+        '<p>Click the link below to unlock your one-time Pro sample report:</p>' \
+        '<p><a href="' + verify_link + '" style="display:inline-block;padding:11px 24px;background:#D4537E;color:#fff;text-decoration:none;border-radius:6px;">Open my Pro report</a></p>' \
+        '<p style="color:#666;font-size:13px;">This link expires in 24 hours and can only be used once. If you didn\'t request this, you can ignore this email.</p>' \
+        '<p style="color:#999;font-size:11px;border-top:1px solid #eee;padding-top:12px;margin-top:24px;">Verum Signal &middot; Methodology v1.5</p>' \
+        '</body></html>'
+    send_email(email, "Your free Pro report from Verum Signal", email_body)
+    
+    # Render check-your-email page (template)
+    with open(os.path.join(os.path.dirname(__file__), 'templates', 'upgrade_check_email.html'), 'r') as _tf:
+        html = _tf.read()
+    html = html.replace('{{email}}', email)
+    return html, 200, {'Content-Type': 'text/html'}
+
+
+
+@app.route('/verify', methods=['GET'])
+def verify_token():
+    """Exchange a verification token for a Pro sample.
+    Sets a cookie marking the email as having used their sample,
+    inserts into pro_samples, and redirects to the article report at depth=99.
+    """
+    token = (request.args.get('token') or '').strip()
+    if not token:
+        return _render_verify_error('Missing token.')
+    
+    result = consume_verification_token(token)
+    if result is None:
+        return _render_verify_error('This link has expired, been used already, or is invalid. Each link works once and lasts 24 hours.')
+    
+    email, intended_url = result
+    
+    # Find the article ID for the intended URL (so we can record the sample)
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM articles WHERE url = %s LIMIT 1", (intended_url,))
+        row = cur.fetchone()
+        article_id = row[0] if row else None
+        # Record the sample (idempotent — UNIQUE on email+article_id from Phase 1 schema)
+        if article_id:
+            try:
+                cur.execute(
+                    "INSERT INTO pro_samples (email, article_id) VALUES (%s, %s) "
+                    "ON CONFLICT (email, article_id) DO NOTHING",
+                    (email, article_id),
+                )
+                conn.commit()
+            except Exception as e:
+                print(f"[verify] Could not record pro_sample: {e}")
+                conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+    
+    # Redirect to paid report. Set cookie so future visits know this email had a sample.
+    target = '/report?url=' + intended_url + '&depth=99'
+    response = redirect(target)
+    # Cookie expires in 1 year; readable on subsequent /upgrade visits
+    response.set_cookie('vs_email', email, max_age=60*60*24*365, secure=True, httponly=True, samesite='Lax')
+    return response
+
+
+def _render_verify_error(message):
+    """Render a friendly error page when verify fails."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Link expired — Verum Signal</title>
+<style>
+* {{ box-sizing: border-box; }}
+body {{ margin: 0; background: #1a0d2e; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; color: #e7dffb; }}
+.stage {{ width: 100%; max-width: 460px; }}
+.panel {{ background: #100820; border: 0.5px solid rgba(180, 150, 230, 0.18); border-radius: 10px; padding: 32px 24px; text-align: center; }}
+h1 {{ font-family: 'Iowan Old Style', Georgia, serif; font-size: 22px; font-weight: 500; margin: 0 0 12px; color: #f3edff; }}
+p {{ font-size: 13px; line-height: 1.6; color: #cfc1ec; margin: 0 0 16px; }}
+a {{ color: #b48cff; text-decoration: none; font-family: ui-monospace, monospace; font-size: 12px; }}
+</style></head>
+<body>
+<div class="stage"><div class="panel">
+<h1>Link expired or invalid</h1>
+<p>{message}</p>
+<a href="/">&larr; Back to Verum Signal</a>
+</div></div>
+</body></html>""", 400, {'Content-Type': 'text/html'}
+
+
+
+@app.route('/upgrade-paid', methods=['GET'])
+def upgrade_paid():
+    """Second paywall — shown when a user has already used their free Pro sample.
+    Renders mockup 02 with the waitlist form."""
+    url = (request.args.get('url') or '').strip()
+    prefilled_email = request.cookies.get('vs_email', '')
+    with open(os.path.join(os.path.dirname(__file__), 'templates', 'upgrade_paid.html'), 'r') as _tf:
+        html = _tf.read()
+    html = html.replace('{{url}}', url)
+    html = html.replace('{{prefilled_email}}', prefilled_email)
+    html = html.replace('{{error_html}}', '')
+    return html, 200, {'Content-Type': 'text/html'}
+
+
+
+@app.route('/waitlist/submit', methods=['POST'])
+def waitlist_submit():
+    """Process waitlist signup. Inserts into waitlist table, sends confirmation
+    email (currently a stub), and redirects to the confirmation page.
+    """
+    email = (request.form.get('email') or '').strip().lower()
+    source_page = (request.form.get('source_page') or 'unknown').strip()
+    url = (request.form.get('url') or '').strip()
+    
+    # Basic email validation
+    if '@' not in email or '.' not in email or len(email) < 5:
+        # Re-render second paywall with error
+        with open(os.path.join(os.path.dirname(__file__), 'templates', 'upgrade_paid.html'), 'r') as _tf:
+            html = _tf.read()
+        error_html = '<div class="error">Please enter a valid email address.</div>'
+        html = html.replace('{{url}}', url)
+        html = html.replace('{{prefilled_email}}', email)
+        html = html.replace('{{error_html}}', error_html)
+        return html, 400, {'Content-Type': 'text/html'}
+    
+    # Insert into waitlist (idempotent — UNIQUE constraint on email)
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO waitlist (email, source_page) VALUES (%s, %s) "
+            "ON CONFLICT (email) DO NOTHING",
+            (email, source_page),
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"[waitlist] Insert error: {e}")
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+    
+    # Send confirmation email (stub for now)
+    email_body = '<html><body style="font-family:sans-serif;color:#333;max-width:520px;margin:0 auto;padding:24px;">' \
+        '<h2 style="color:#d4537e;">You\'re on the list</h2>' \
+        '<p>Thanks for joining the Verum Signal Pro waitlist. We\'ll email you the moment Pro is live.</p>' \
+        '<p>As an early member, you\'ll get <strong>50% off for 6 months</strong> &mdash; $12.50/mo to start.</p>' \
+        '<p style="color:#999;font-size:11px;border-top:1px solid #eee;padding-top:12px;margin-top:24px;">Verum Signal &middot; Methodology v1.5</p>' \
+        '</body></html>'
+    send_email(email, "You're on the Verum Signal Pro waitlist", email_body)
+    
+    return redirect('/waitlist-confirmed')
+
+
+@app.route('/waitlist-confirmed', methods=['GET'])
+def waitlist_confirmed():
+    """Render the waitlist confirmation page (mockup 03)."""
+    with open(os.path.join(os.path.dirname(__file__), 'templates', 'waitlist_confirmed.html'), 'r') as _tf:
+        html = _tf.read()
+    return html, 200, {'Content-Type': 'text/html'}
+
+
 @app.route('/api/source', methods=['GET'])
 def get_source():
     domain = request.args.get('domain', '')

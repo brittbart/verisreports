@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verum Signal — You're on the list</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #1a0d2e;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    color: #e7dffb;
+  }
+  .stage { width: 100%; max-width: 460px; }
+  .label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px; letter-spacing: 0.12em; color: #d4537e;
+    text-transform: uppercase; margin-bottom: 8px; padding-left: 4px;
+  }
+  .panel {
+    background: #100820;
+    border: 0.5px solid rgba(180, 150, 230, 0.18);
+    border-radius: 10px;
+    padding: 22px 20px 20px;
+  }
+  .header {
+    display: flex; justify-content: center;
+    padding-bottom: 18px;
+    border-bottom: 0.5px solid rgba(180, 150, 230, 0.12);
+    margin-bottom: 26px;
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; letter-spacing: 0.18em; color: #ffffff; font-weight: 500;
+  }
+  .logo .signal { font-style: italic; color: #b48cff; font-weight: 400; }
+  .center { text-align: center; }
+  .check-circle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(151, 196, 89, 0.14);
+    border: 0.5px solid rgba(151, 196, 89, 0.4);
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    font-size: 26px; font-weight: 500; line-height: 1.2;
+    margin: 0 0 12px; color: #f3edff;
+  }
+  h1 .accent { font-style: italic; color: #d4537e; }
+  .lede {
+    font-size: 13px; line-height: 1.6; color: #cfc1ec;
+    margin: 0 0 14px; padding: 0 6px;
+  }
+  .lede .pink { color: #d4537e; }
+  .sublede {
+    font-size: 12px; line-height: 1.55; color: #b9a8e8;
+    margin: 0 0 24px; padding: 0 6px;
+  }
+  .next-card {
+    background: rgba(180, 140, 255, 0.04);
+    border: 0.5px solid rgba(180, 150, 230, 0.18);
+    border-radius: 8px;
+    padding: 16px 14px 14px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+  .next-head {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.1em; color: #b48cff;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .next-list { font-size: 12px; line-height: 1.7; color: #cfc1ec; }
+  .next-row { display: flex; gap: 12px; margin-bottom: 7px; }
+  .next-num {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; color: #9d8cc4; min-width: 16px;
+  }
+  .actions {
+    display: flex; gap: 8px; justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-secondary {
+    background: transparent;
+    border: 0.5px solid rgba(180, 150, 230, 0.3);
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 13px; color: #f3edff; font-family: inherit;
+    cursor: pointer; text-decoration: none;
+    transition: border-color 0.15s ease;
+  }
+  .btn-secondary:hover { border-color: rgba(180, 150, 230, 0.5); }
+  .footer-note {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; color: #9d8cc4; margin: 20px 0 0;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="label">3 &middot; Waitlist confirmed</div>
+    <div class="panel">
+      <div class="header">
+        <div class="logo">
+          <svg width="32" height="14" viewBox="0 0 32 14" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 1 7 C 4 1, 8 1, 11 7 S 18 13, 21 7 S 28 1, 27.5 7" fill="none" stroke="#b48cff" stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="27.5" cy="7" r="2.6" fill="#D4537E"/>
+          </svg>
+          <span>VERUM <span class="signal">SIGNAL</span></span>
+        </div>
+      </div>
+
+      <div class="center">
+        <div class="check-circle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12L10 17L19 7" stroke="#97c459" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <h1>You're <span class="accent">on the list.</span></h1>
+
+        <p class="lede">We'll email you the moment Pro is live. As an early member, you'll get <span class="pink">50% off for 6 months</span> &mdash; $12.50/mo to start.</p>
+
+        <p class="sublede">That's six months of unlimited on-demand reports at half price.</p>
+
+        <div class="next-card">
+          <div class="next-head">WHAT HAPPENS NEXT</div>
+          <div class="next-list">
+            <div class="next-row"><span class="next-num">01</span><span>Confirmation email is on its way to your inbox.</span></div>
+            <div class="next-row"><span class="next-num">02</span><span>You'll hear from us before public launch.</span></div>
+            <div class="next-row"><span class="next-num">03</span><span>Discount code arrives the day Pro opens.</span></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <a class="btn-secondary" href="/">Read free reports &rarr;</a>
+          <a class="btn-secondary" href="/leaderboard">View leaderboard &rarr;</a>
+        </div>
+
+        <p class="footer-note">Methodology v1.5 &middot; Same applied across free and Pro</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
