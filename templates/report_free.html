@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{title}} — Verum Signal</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #1a0d2e;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+    color: #e7dffb;
+  }
+  .stage { width: 100%; max-width: 460px; }
+  .label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px; letter-spacing: 0.12em; color: #9d8cc4;
+    text-transform: uppercase; margin-bottom: 8px; padding-left: 4px;
+  }
+  .panel {
+    background: #100820;
+    border: 0.5px solid rgba(180, 150, 230, 0.18);
+    border-radius: 10px;
+    padding: 20px 20px 16px;
+  }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 0.5px solid rgba(180, 150, 230, 0.12);
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; letter-spacing: 0.18em; color: #ffffff; font-weight: 500;
+  }
+  .logo .signal { font-style: italic; color: #b48cff; font-weight: 400; }
+  .header-right {
+    display: inline-flex; align-items: center; gap: 14px;
+  }
+  .share-btn {
+    background: transparent;
+    border: 0.5px solid rgba(180, 150, 230, 0.3);
+    border-radius: 4px; padding: 5px 11px;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: 0.08em; color: #cfc1ec; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: border-color 0.15s ease;
+  }
+  .share-btn:hover { border-color: rgba(180, 150, 230, 0.5); }
+  .outlet-meta {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; color: #9d8cc4;
+  }
+  .outlet-meta .score-inline { color: {{score_color}}; }
+
+  .article-block { padding: 16px 0 12px; }
+  .meta-line {
+    font-family: ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.1em; color: #9d8cc4;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .article-title {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    font-size: 22px; font-weight: 500; line-height: 1.25;
+    margin: 0 0 10px; color: #f3edff;
+  }
+  .article-title a { color: #f3edff; text-decoration: none; }
+  .article-title a:hover { color: #b48cff; }
+  .article-desc {
+    font-size: 13px; line-height: 1.6;
+    color: #cfc1ec; margin: 0;
+  }
+
+  .score-strip {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0;
+    border-top: 0.5px solid rgba(180, 150, 230, 0.12);
+    border-bottom: 0.5px solid rgba(180, 150, 230, 0.12);
+    margin: 6px 0 14px;
+  }
+  .score-meta {
+    font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4;
+  }
+  .score-big {
+    font-family: 'Iowan Old Style', Georgia, serif;
+    font-size: 30px; font-weight: 500; color: {{score_color}};
+  }
+  .score-big .unit {
+    font-size: 12px; color: #9d8cc4;
+    font-family: ui-monospace, monospace; margin-left: 3px;
+  }
+
+  .section-label {
+    font-family: ui-monospace, monospace; font-size: 10px;
+    letter-spacing: 0.1em; color: #b48cff;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .verdict-distribution {
+    font-size: 12px; color: #cfc1ec; margin-bottom: 16px;
+  }
+  .verdict-distribution .green { color: #97c459; }
+  .verdict-distribution .teal { color: #5dcaa5; }
+  .verdict-distribution .amber { color: #ef9f27; }
+  .verdict-distribution .red { color: #e24b4a; }
+
+  .claim-card {
+    padding: 12px 14px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 12px;
+  }
+  .claim-card.supported { border-left: 2px solid #97c459; background: rgba(151, 196, 89, 0.04); }
+  .claim-card.plausible { border-left: 2px solid #5dcaa5; background: rgba(93, 202, 165, 0.04); }
+  .claim-card.corroborated { border-left: 2px solid #5dcaa5; background: rgba(93, 202, 165, 0.04); }
+  .claim-card.overstated { border-left: 2px solid #ef9f27; background: rgba(239, 159, 39, 0.04); }
+  .claim-card.disputed { border-left: 2px solid #e24b4a; background: rgba(226, 75, 74, 0.04); }
+  .claim-card.not_supported { border-left: 2px solid #e24b4a; background: rgba(226, 75, 74, 0.04); }
+  .claim-card.opinion { border-left: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); }
+  .claim-card.not_verifiable { border-left: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); }
+
+  .claim-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px; margin-bottom: 8px;
+  }
+  .claim-num {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.1em; color: #9d8cc4;
+  }
+  .verdict-pill {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; padding: 3px 8px; border-radius: 3px;
+    letter-spacing: 0.06em;
+  }
+  .verdict-pill.supported { background: rgba(151, 196, 89, 0.15); color: #c0dd97; }
+  .verdict-pill.plausible { background: rgba(93, 202, 165, 0.15); color: #8fdfc1; }
+  .verdict-pill.corroborated { background: rgba(93, 202, 165, 0.15); color: #8fdfc1; }
+  .verdict-pill.overstated { background: rgba(239, 159, 39, 0.18); color: #fac775; }
+  .verdict-pill.disputed { background: rgba(226, 75, 74, 0.18); color: #f3a1a0; }
+  .verdict-pill.not_supported { background: rgba(226, 75, 74, 0.18); color: #f3a1a0; }
+  .verdict-pill.opinion { background: rgba(255,255,255,0.06); color: #cfc1ec; }
+  .verdict-pill.not_verifiable { background: rgba(255,255,255,0.06); color: #cfc1ec; }
+
+  .claim-text {
+    font-size: 13px; line-height: 1.6; color: #e7dffb; margin: 0 0 10px;
+  }
+  .sources-label {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.08em; color: #9d8cc4;
+    text-transform: uppercase; margin-bottom: 5px;
+  }
+  .sources-list {
+    font-size: 12px; line-height: 1.6; color: #b9a8e8; margin: 0;
+  }
+
+  .upgrade-cta {
+    background: linear-gradient(180deg, rgba(212, 83, 126, 0.08) 0%, rgba(180, 140, 255, 0.04) 100%);
+    border: 1px solid rgba(212, 83, 126, 0.4);
+    border-radius: 10px;
+    padding: 22px 22px 20px;
+    margin: 18px 0;
+    text-align: center;
+  }
+  .upgrade-cta h2 {
+    font-family: 'Iowan Old Style', Georgia, serif;
+    font-size: 24px; font-weight: 500; line-height: 1.15;
+    margin: 0 0 8px; color: #f3edff;
+  }
+  .upgrade-cta h2 .accent { font-style: italic; color: #d4537e; }
+  .upgrade-cta p {
+    font-size: 13px; line-height: 1.6; color: #cfc1ec;
+    margin: 0 auto 16px; max-width: 340px;
+  }
+  .upgrade-btn {
+    display: inline-block;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    padding: 11px 24px;
+    background: #D4537E; color: #ffffff;
+    border-radius: 6px; text-decoration: none;
+    letter-spacing: 0.02em; border: none; cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .upgrade-btn:hover { background: #b8456c; }
+  .upgrade-reassurance {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; color: #9d8cc4; margin: 12px 0 0;
+  }
+
+  .verdict-scale {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 5px 18px; font-size: 11px; color: #cfc1ec; margin-bottom: 14px;
+  }
+  .verdict-scale .green { color: #97c459; }
+  .verdict-scale .teal { color: #5dcaa5; }
+  .verdict-scale .amber { color: #ef9f27; }
+  .verdict-scale .red { color: #e24b4a; }
+  .verdict-scale .weight { color: #9d8cc4; }
+
+  .footer {
+    display: flex; justify-content: space-between;
+    padding-top: 12px;
+    border-top: 0.5px solid rgba(180, 150, 230, 0.12);
+    font-family: ui-monospace, monospace; font-size: 10px; color: #9d8cc4;
+  }
+  .footer .correction { color: #b48cff; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="label">Free report &middot; public</div>
+    <div class="panel">
+
+      <div class="header">
+        <div class="logo">
+          <svg width="32" height="14" viewBox="0 0 32 14" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 1 7 C 4 1, 8 1, 11 7 S 18 13, 21 7 S 28 1, 27.5 7" fill="none" stroke="#b48cff" stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="27.5" cy="7" r="2.6" fill="#D4537E"/>
+          </svg>
+          <span>VERUM <span class="signal">SIGNAL</span></span>
+        </div>
+        <div class="header-right">
+          <button class="share-btn" onclick="navigator.clipboard.writeText('https://{{short_url}}'); this.innerText='Copied';">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.5 8L2 4.5L5.5 1M2 4.5H10.5C12.7 4.5 14.5 6.3 14.5 8.5V11.5C14.5 13.7 12.7 15.5 10.5 15.5H2" stroke="#cfc1ec" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(45 8 8)"/></svg>
+            Share
+          </button>
+          <span class="outlet-meta">{{source}} &middot; <span class="score-inline">{{score}}/100</span></span>
+        </div>
+      </div>
+
+      <div class="article-block">
+        <div class="meta-line">{{source}} &middot; {{as_of}}</div>
+        <h1 class="article-title"><a href="{{url}}" target="_blank" rel="noopener noreferrer">{{title}}</a></h1>
+        {{summary_html}}
+      </div>
+
+      <div class="score-strip">
+        <span class="score-meta">{{total}} claims &middot; Methodology v1.5</span>
+        <span class="score-big">{{score}}<span class="unit">/100</span></span>
+      </div>
+
+      <div class="section-label">VERDICT DISTRIBUTION</div>
+      <div class="verdict-distribution">{{dist_legend_html}}</div>
+
+      {{claims_html}}
+
+      <div class="upgrade-cta">
+        <h2>Ready for <span class="accent">more?</span></h2>
+        <p>Pro reports show how every source was weighed, full claim-by-claim analysis, overall synthesis, and follow-up research.</p>
+        <a href="/upgrade?url={{url}}" class="upgrade-btn">Try one Pro report free &rarr;</a>
+        <p class="upgrade-reassurance">No card required &middot; One report on us</p>
+      </div>
+
+      <div class="section-label">VERDICT SCALE</div>
+      <div class="verdict-scale">
+        <div><span class="green">&#9679;</span> Supported <span class="weight">+1.0</span></div>
+        <div><span class="teal">&#9679;</span> Plausible <span class="weight">+0.5</span></div>
+        <div><span class="teal">&#9679;</span> Corroborated <span class="weight">+0.5</span></div>
+        <div><span class="amber">&#9679;</span> Overstated <span class="weight">-0.5</span></div>
+        <div><span class="red">&#9679;</span> Disputed <span class="weight">-1.0</span></div>
+        <div><span class="red">&#9679;</span> Not supported <span class="weight">-1.5</span></div>
+      </div>
+
+      <div class="footer">
+        <span>Methodology v1.5</span>
+        <a class="correction" href="/correction?url={{url}}">Submit a correction</a>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

@@ -1446,6 +1446,29 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 
     claims_html = "".join(claim_row(c, i+1) for i, c in enumerate(claims))
 
+    # Phase 5: simpler claim card for free report template
+    def claim_row_free(c, idx):
+        v = c.get('verdict') or 'not_verifiable'
+        VLBL_FREE = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE'}
+        text = smartquotes(c.get('claim_text', ''))
+        sources = c.get('sources_used', '') or ''
+        confidence = int(c.get('confidence_score', 2) or 2)
+        lbl = VLBL_FREE.get(v, v.upper())
+        return (
+            '<div class="claim-card ' + v + '">'
+            '<div class="claim-head">'
+            '<div class="claim-num">CLAIM ' + str(idx) + '</div>'
+            '<span class="verdict-pill ' + v + '">' + lbl + ' &middot; ' + str(confidence) + '/3</span>'
+            '</div>'
+            '<p class="claim-text">' + text + '</p>'
+            '<div class="sources-label">SOURCES</div>'
+            '<p class="sources-list">' + sources + '</p>'
+            '</div>'
+        )
+    # Only show verified claims (verdict not None) in free report
+    verified_only = [c for c in claims if c.get('verdict')]
+    claims_html_free = "".join(claim_row_free(c, i+1) for i, c in enumerate(verified_only))
+
     score_bar_pct = score
     rating_color  = score_color
 
@@ -1669,8 +1692,17 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 
     short_url_hash = get_or_create_short_hash(art_id)
     short_url = 'verumsignal.com/r/' + short_url_hash
-    with open(os.path.join(os.path.dirname(__file__), 'templates', 'report.html'), 'r') as _tf:
+    # Phase 5: free vs paid template branch
+    _template_name = 'report_free.html' if depth == 2 else 'report.html'
+    with open(os.path.join(os.path.dirname(__file__), 'templates', _template_name), 'r') as _tf:
         html = _tf.read()
+    # Free template uses the simpler claims_html_free; paid uses claims_html
+    if depth == 2:
+        claims_html = claims_html_free
+        # Recompute total to reflect verified-only claim count for free report
+        stats_total_for_free = len(verified_only)
+    else:
+        stats_total_for_free = None
     html = html.replace('{{source}}', str(source))
     html = html.replace('{{score}}', str(score))
     pass #removed
@@ -1799,7 +1831,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{background_signal_html}}', background_signal_html)
     html = html.replace('{{all_sources_html}}', str(all_sources_html))
     html = html.replace('{{compare_html}}', str(compare_html))
-    html = html.replace('{{total}}', str(stats.get('total',0)))
+    html = html.replace('{{total}}', str(stats_total_for_free if stats_total_for_free is not None else stats.get('total',0)))
     html = html.replace('{{sc}}', str(sc))
     from flask import Response
     return Response(html, mimetype='text/html')
