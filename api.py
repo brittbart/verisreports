@@ -2164,3 +2164,17 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+
+@app.route('/api/diag-secret-check')
+def diag_secret_check():
+    import hashlib
+    pw = os.environ.get('DB_PASSWORD', 'NOT_SET')
+    durl = os.environ.get('DATABASE_URL', 'NOT_SET')
+    return jsonify({
+        'db_password_last4': pw[-4:] if pw != 'NOT_SET' else 'NOT_SET',
+        'db_password_len': len(pw),
+        'db_password_sha8': hashlib.sha256(pw.encode()).hexdigest()[:8],
+        'database_url_set': durl != 'NOT_SET',
+        'database_url_pw_last4': durl.split('@')[0].split(':')[-1][-4:] if '@' in durl else 'NA',
+        'env_keys_with_db': [k for k in os.environ.keys() if 'DB' in k or 'PG' in k or 'DATABASE' in k or 'POSTGRES' in k]
+    })
