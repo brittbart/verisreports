@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+from urllib.parse import urlparse
 if os.path.exists('.env'):
     load_dotenv(override=False)
 
@@ -35,6 +36,18 @@ def run_fetch():
         log.error(f"Fetch failed: {str(e)}")
         return False
 
+def _derive_source_domain(url, fallback=''):
+    """Extract a normalized hostname from a URL. Falls back to the provided
+    string only if URL parsing fails or yields nothing."""
+    try:
+        host = urlparse(url).hostname or ''
+        host = host.lower()
+        if host.startswith('www.'):
+            host = host[4:]
+        return host or fallback
+    except Exception:
+        return fallback
+
 def run_gdelt():
     """Fetch historical articles from GDELT."""
     log.info("Starting GDELT seed...")
@@ -57,7 +70,7 @@ def run_gdelt():
             try:
                 cur.execute(
                     'INSERT INTO articles (title, source_name, url, published_at, description, content, processed) VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (url) DO NOTHING RETURNING id',
-                    (a.get('title',''), a.get('source',{}).get('name',''), a.get('url',''), None, a.get('description',''), a.get('content',''), False)
+                    (a.get('title',''), _derive_source_domain(a.get('url',''), fallback=a.get('source',{}).get('name','')), a.get('url',''), None, a.get('description',''), a.get('content',''), False)
                 )
                 if cur.fetchone():
                     added += 1

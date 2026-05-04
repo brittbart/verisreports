@@ -465,53 +465,93 @@ def waitlist_confirmed():
 
 @app.route('/api/source', methods=['GET'])
 def get_source():
-    domain = request.args.get('domain', '')
+    # Aligned with api_leaderboard.compute_score / LEADERBOARD_SQL so the
+    # extension and the public leaderboard never disagree.
+    from api_leaderboard import compute_score, compute_score_band, compute_tier, INCLUSION_THRESHOLD
+
+    domain = request.args.get('domain', '').strip()
     if not domain:
         return jsonify({'error': 'domain required'}), 400
-    core = domain.replace('www.', '')
+    core = domain.replace('www.', '').lower()
+
     try:
         conn = get_db()
         cur = conn.cursor()
         cur.execute('''
-            SELECT COUNT(*),
-            SUM(CASE WHEN verdict = 'supported' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN verdict = 'disputed' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN verdict = 'false' THEN 1 ELSE 0 END),
-            SUM(CASE WHEN verdict = 'overstated' THEN 1 ELSE 0 END)
-            FROM claims c
-            JOIN articles a ON c.article_id = a.id
-            WHERE a.source_name ILIKE %s
-            AND c.verdict IS NOT NULL
-            AND c.claim_origin = 'outlet_claim'
-AND c.claim_origin = 'outlet_claim'
-        ''', (f'%{core}%',))
+            SELECT
+                COUNT(*) FILTER (WHERE c.verdict = 'supported')      AS supported_count,
+                COUNT(*) FILTER (WHERE c.verdict = 'plausible')      AS plausible_count,
+                COUNT(*) FILTER (WHERE c.verdict = 'corroborated')   AS corroborated_count,
+                COUNT(*) FILTER (WHERE c.verdict = 'overstated')     AS overstated_count,
+                COUNT(*) FILTER (WHERE c.verdict = 'disputed')       AS disputed_count,
+                COUNT(*) FILTER (WHERE c.verdict = 'not_supported')  AS not_supported_count,
+                COUNT(*) FILTER (WHERE c.verdict = 'not_verifiable') AS not_verifiable_count,
+                COUNT(*) FILTER (WHERE c.verdict = 'opinion')        AS opinion_count,
+                COUNT(*)                                             AS verdict_count,
+                COUNT(*) FILTER (
+                    WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
+                )                                                    AS scoreable_count,
+                SUM(CASE c.verdict
+                    WHEN 'supported'     THEN  1.0
+                    WHEN 'plausible'     THEN  0.5
+                    WHEN 'corroborated'  THEN  0.5
+                    WHEN 'overstated'    THEN -0.5
+                    WHEN 'disputed'      THEN -1.0
+                    WHEN 'not_supported' THEN -1.5
+                    ELSE 0
+                END) FILTER (
+                    WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
+                )                                                    AS weighted_sum,
+                MAX(c.first_seen)                                    AS last_verdict_at
+            FROM articles a
+            JOIN claims   c ON c.article_id = a.id
+            WHERE LOWER(a.source_name) = %s
+              AND c.verdict IS NOT NULL
+              AND c.claim_origin = 'outlet_claim'
+        ''', (core,))
         row = cur.fetchone()
         conn.close()
-        if not row or row[0] == 0:
+
+        if not row or (row[8] or 0) == 0:
             return jsonify({'domain': domain, 'status': 'not_found'})
-        total = row[0]
-        supported = row[1] or 0
-        disputed = row[2] or 0
-        false_count = row[3] or 0
-        overstated = row[4] or 0
-        score = round((supported / total) * 100) if total > 0 else 0
-        if score >= 70:
-            rating = 'High'
-        elif score >= 40:
-            rating = 'Medium'
-        else:
-            rating = 'Low'
+
+        verdict_count    = row[8] or 0
+        scoreable_count  = row[9] or 0
+        weighted_sum     = row[10] or 0
+        last_verdict_at  = row[11]
+
+        if verdict_count < INCLUSION_THRESHOLD:
+            return jsonify({
+                'domain': domain,
+                'status': 'not_found',
+                'reason': 'below_inclusion_threshold',
+                'verdict_count': verdict_count,
+            })
+
+        score = compute_score(weighted_sum, scoreable_count)
+        tier  = compute_tier(verdict_count)
+        band  = compute_score_band(score)
+
+        as_of = last_verdict_at.strftime('%B %d, %Y') if last_verdict_at else None
+
         return jsonify({
-            'domain': domain,
-            'status': 'found',
-            'rating': rating,
-            'score': score,
-            'total_claims': total,
-            'supported': supported,
-            'disputed': disputed,
-            'false': false_count,
-            'overstated': overstated,
-            'as_of': datetime.now().strftime('%B %d, %Y')
+            'domain':            domain,
+            'status':            'found',
+            'score':             score,
+            'rating':            band,
+            'tier':              tier,
+            'verdict_count':     verdict_count,
+            'total_claims':      verdict_count,
+            'scoreable_count':   scoreable_count,
+            'supported':         row[0] or 0,
+            'plausible':         row[1] or 0,
+            'corroborated':      row[2] or 0,
+            'overstated':        row[3] or 0,
+            'disputed':          row[4] or 0,
+            'not_supported':     row[5] or 0,
+            'not_verifiable':    row[6] or 0,
+            'opinion':           row[7] or 0,
+            'as_of':             as_of,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
