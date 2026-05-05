@@ -11,17 +11,6 @@ from datetime import datetime
 
 
 app = Flask(__name__)
-
-print("[STARTUP] Environment variables at app start:", file=sys.stderr)
-for key in sorted(os.environ.keys()):
-    if any(x in key for x in ['DB_', 'ANTHROPIC', 'NEWSAPI', 'RAILWAY', 'TEST_']):
-        print(f"  {key}=<present>", file=sys.stderr)
-print(f"[STARTUP] Total env vars: {len(os.environ)}", file=sys.stderr)
-print(f"[STARTUP] DB_PASSWORD present: {'DB_PASSWORD' in os.environ}", file=sys.stderr)
-print(f"[STARTUP] DB_HOST present: {'DB_HOST' in os.environ}", file=sys.stderr)
-print(f"[STARTUP] ANTHROPIC_API_KEY present: {'ANTHROPIC_API_KEY' in os.environ}", file=sys.stderr)
-print(f"[STARTUP] NEWSAPI_KEY present: {'NEWSAPI_KEY' in os.environ}", file=sys.stderr)
-
 app.config['THREADED'] = True
 CORS(app)
 
@@ -37,13 +26,9 @@ def get_db():
     )
 
 from api_leaderboard import register_leaderboard_routes
-print(f"[STARTUP] After api_leaderboard import: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 from outlet_routes import register_outlet_routes
-print(f"[STARTUP] After outlet_routes import: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 register_leaderboard_routes(app, get_db)
-print(f"[STARTUP] After register_leaderboard_routes: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 register_outlet_routes(app, get_db)
-print(f"[STARTUP] After register_outlet_routes: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 # ---------- Short URL helpers (Phase 2) ----------
 
 _HASH_ALPHABET = string.digits + string.ascii_lowercase  # base36
@@ -2171,27 +2156,6 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{sc}}', str(sc))
     from flask import Response
     return Response(html, mimetype='text/html')
-
-
-@app.route("/api/diag-secret-check")
-def diag_secret_check():
-    import hashlib
-    pw = os.environ.get("DB_PASSWORD", "NOT_SET")
-    durl = os.environ.get("DATABASE_URL", "NOT_SET")
-    return jsonify({
-        "db_password_last4": pw[-4:] if pw != "NOT_SET" else "NOT_SET",
-        "db_password_len": len(pw),
-        "db_password_sha8": hashlib.sha256(pw.encode()).hexdigest()[:8],
-        "database_url_set": durl != "NOT_SET",
-        "database_url_pw_last4": durl.split("@")[0].split(":")[-1][-4:] if "@" in durl else "NA",
-        "argv": __import__("sys").argv,
-        "cwd": os.getcwd(),
-        "ppid": os.getppid(),
-        "pid": os.getpid(),
-        "exists_env_file": os.path.exists(".env"),
-        "files_in_cwd": sorted([f for f in os.listdir(".") if not f.startswith(".")]),
-        "all_env_keys": sorted(list(os.environ.keys())),
-    })
 
 
 if __name__ == '__main__':
