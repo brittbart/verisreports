@@ -19,7 +19,7 @@ def get_db():
         **(dict(dsn=os.environ['DATABASE_URL']) if os.environ.get('DATABASE_URL') else dict(
             dbname=os.environ.get('DB_NAME', 'railway'),
             user=os.environ.get('DB_USER', 'postgres'),
-            password=os.environ.get('DB_PASSWORD', 'd3aclhdlo3wynv76IMqR9GOx44PHp3eo'),
+            password=os.environ.get('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
             host=os.environ.get('DB_HOST', 'shinkansen.proxy.rlwy.net'),
             port=os.environ.get('DB_PORT', '35370')
         ))
