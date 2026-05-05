@@ -183,10 +183,10 @@ def run_pre_verify():
         return False
 
 def run_full_pipeline():
-    """Run the complete Veris pipeline."""
+    """Run the complete Verum Signal pipeline."""
     start = datetime.now()
     log.info("="*50)
-    log.info("VERIS PIPELINE STARTING")
+    log.info("VERUM SIGNAL PIPELINE STARTING")
     log.info(f"Time: {start.strftime('%Y-%m-%d %H:%M')}")
     log.info("="*50)
     

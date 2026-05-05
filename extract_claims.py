@@ -58,7 +58,7 @@ Content: {content}
 """
     
     # The prompt that tells Claude what to do
-    prompt = f"""You are the claim detection engine for Veris, an independent fact-checking tool.
+    prompt = f"""You are the claim detection engine for Verum Signal, an independent claim analysis platform.
 
 Read the following article and identify the top 3 most check-worthy factual claims. 
 

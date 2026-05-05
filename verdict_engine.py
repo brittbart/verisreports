@@ -120,7 +120,7 @@ def analyse_claim(claim_text, speaker, claim_type,
         print(f"  -> Pre-filter: opinion")
         return {"verdict":"opinion","confidence_score":1,"verdict_summary":"Prediction or editorial opinion.","full_analysis":"Pre-classified by local filter.","sources_used":"Local filter"}
     print(f"  -> Web search verification...")
-    prompt = f"""You are the Veris fact-checking engine. Your job is to verify claims with rigorous, defensible standards. Use web search to find primary sources.
+    prompt = f"""You are the Verum Signal verification engine. Your job is to verify claims with rigorous, defensible standards. Use web search to find primary sources.
 
 CLAIM: {claim_text}
 SPEAKER: {speaker}
@@ -191,7 +191,7 @@ Return ONLY this JSON:
                     "name": "web_search"
                 }
             ],
-            system=[{"type": "text", "text": "You are the Veris fact-checking engine. Return only valid JSON.", "cache_control": {"type": "ephemeral"}}],
+            system=[{"type": "text", "text": "You are the Verum Signal verification engine. Return only valid JSON.", "cache_control": {"type": "ephemeral"}}],
             messages=[
                 {"role": "user", "content": prompt}
             ]
@@ -382,7 +382,7 @@ if __name__ == "__main__":
     run_verdict_engine(limit=10)
 
 def build_prompt(claim_text, speaker, claim_type, article_title, source_name):
-    return f"""You are the Veris fact-checking engine. Verify this claim using web search.
+    return f"""You are the Verum Signal verification engine. Verify this claim using web search.
 
 CLAIM: {claim_text}
 SPEAKER: {speaker}

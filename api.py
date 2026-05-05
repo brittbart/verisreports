@@ -735,7 +735,7 @@ def submit_dispute():
         dispute_id,submitted_at = cur.fetchone()
         conn.commit()
         conn.close()
-        return jsonify({"status":"received","dispute_id":dispute_id,"domain":domain,"submitted_at":submitted_at.isoformat(),"message":"Your dispute has been logged and will appear publicly on the Verum Signal leaderboard. All disputes are reviewed within 10 business days. If a verdict is found incorrect it will be re-verified and updated."})
+        return jsonify({"status":"received","dispute_id":dispute_id,"domain":domain,"submitted_at":submitted_at.isoformat(),"message":"Your dispute has been logged and will appear publicly on the Verum Signal leaderboard. All disputes are reviewed within 10 business days. If a verdict is found incorrect it will be re-assessed and updated."})
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
@@ -1714,7 +1714,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         for d in range(3):
             cls = 'vs-conf-on' if d < confidence else 'vs-conf-off'
             conf_dots += '<span class="vs-conf-dot ' + cls + '"></span>'
-        conf_label = {1: "Confidence: 1/3 — one source found", 2: "Confidence: 2/3 — two sources found", 3: "Confidence: 3/3 — verified by multiple independent sources"}.get(confidence, "")
+        conf_label = {1: "Confidence: 1/3 — one source found", 2: "Confidence: 2/3 — two sources found", 3: "Confidence: 3/3 — supported by multiple independent sources"}.get(confidence, "")
         conf_num_html = '<span class="vs-conf-num">' + str(confidence) + '/3</span>'
         conf_html = '<div class="vs-conf" title="' + conf_label + '">' + conf_num_html + conf_dots + '</div>'
         # Wire tag
@@ -1860,7 +1860,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
                     'BACKGROUND SIGNAL</div>'
                     '<div style="font-size:11px;color:rgba(255,255,255,0.4);'
                     'margin-bottom:14px;font-style:italic;">'
-                    'Related claims, previously verified</div>'
+                    'Related claims, previously assessed</div>'
                     + _items +
                     '</div>'
                 )
@@ -1942,7 +1942,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             'SOURCE: ' + source + chr(10) +
             'OUTLET SCORE: ' + str(score) + '/100 (' + rating + ')' + chr(10) +
             'CLAIMS: ' + str(total_n) + ' total | ' + str(supported_n) + ' supported | ' + str(overstated_n) + ' overstated | ' + str(disputed_n) + ' disputed | ' + str(not_supported_n) + ' not supported' + chr(10) +
-            'VERIFIED CLAIMS:' + chr(10) + _claims_text + chr(10) +
+            'ASSESSED CLAIMS:' + chr(10) + _claims_text + chr(10) +
             'Return ONLY valid JSON: {"article_summary": "...", "overall_signal": "...", "watch_for": ["...", "...", "..."]}'
         )
         _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
