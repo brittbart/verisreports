@@ -3,14 +3,25 @@ from flask import Flask, jsonify, request, redirect, send_from_directory
 from flask_cors import CORS
 import psycopg2
 import os
+import sys
 from dotenv import load_dotenv
 import secrets
 import string
 from datetime import datetime
-import os
 
 
 app = Flask(__name__)
+
+print("[STARTUP] Environment variables at app start:", file=sys.stderr)
+for key in sorted(os.environ.keys()):
+    if any(x in key for x in ['DB_', 'ANTHROPIC', 'NEWSAPI', 'RAILWAY', 'TEST_']):
+        print(f"  {key}=<present>", file=sys.stderr)
+print(f"[STARTUP] Total env vars: {len(os.environ)}", file=sys.stderr)
+print(f"[STARTUP] DB_PASSWORD present: {'DB_PASSWORD' in os.environ}", file=sys.stderr)
+print(f"[STARTUP] DB_HOST present: {'DB_HOST' in os.environ}", file=sys.stderr)
+print(f"[STARTUP] ANTHROPIC_API_KEY present: {'ANTHROPIC_API_KEY' in os.environ}", file=sys.stderr)
+print(f"[STARTUP] NEWSAPI_KEY present: {'NEWSAPI_KEY' in os.environ}", file=sys.stderr)
+
 app.config['THREADED'] = True
 CORS(app)
 
