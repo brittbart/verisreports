@@ -37,9 +37,13 @@ def get_db():
     )
 
 from api_leaderboard import register_leaderboard_routes
+print(f"[STARTUP] After api_leaderboard import: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 from outlet_routes import register_outlet_routes
+print(f"[STARTUP] After outlet_routes import: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 register_leaderboard_routes(app, get_db)
+print(f"[STARTUP] After register_leaderboard_routes: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 register_outlet_routes(app, get_db)
+print(f"[STARTUP] After register_outlet_routes: {len(os.environ)} vars, DB_PASSWORD={'DB_PASSWORD' in os.environ}", file=sys.stderr)
 # ---------- Short URL helpers (Phase 2) ----------
 
 _HASH_ALPHABET = string.digits + string.ascii_lowercase  # base36
