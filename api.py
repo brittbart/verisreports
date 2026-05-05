@@ -2171,7 +2171,7 @@ def diag_secret_check():
         "db_password_sha8": hashlib.sha256(pw.encode()).hexdigest()[:8],
         "database_url_set": durl != "NOT_SET",
         "database_url_pw_last4": durl.split("@")[0].split(":")[-1][-4:] if "@" in durl else "NA",
-        "env_keys_with_db": [k for k in os.environ.keys() if "DB" in k or "PG" in k or "DATABASE" in k or "POSTGRES" in k]
+        "all_env_keys": sorted(list(os.environ.keys())),
     })
 
 
