@@ -12,6 +12,74 @@ METHODOLOGY_VERSION = "v1.5"
 CACHE_TTL_SECONDS = 300
 INCLUSION_THRESHOLD = 20
 
+# ==============================================================================
+# Methodology constants — single source of truth
+# Methodology v1.5 (in transition to v1.6 during Patch 5)
+# ==============================================================================
+
+# All eight verdict types per methodology Section 4.2
+VERDICT_TYPES = (
+    'supported', 'plausible', 'corroborated',
+    'overstated', 'disputed', 'not_supported',
+    'not_verifiable', 'opinion',
+)
+
+# Scoring weights for the six scoreable verdicts (methodology Section 4.2)
+WEIGHTS = {
+    'supported':     1.0,
+    'plausible':     0.5,
+    'corroborated':  0.5,
+    'overstated':   -0.5,
+    'disputed':     -1.0,
+    'not_supported':-1.5,
+}
+
+# Verdicts that contribute to scoring — derived from WEIGHTS keys
+SCOREABLE_VERDICTS = frozenset(WEIGHTS.keys())
+
+# Verdicts excluded from scoring (also enumerated for SQL composition)
+EXCLUDED_VERDICTS = frozenset(['not_verifiable', 'opinion'])
+
+# Display labels — used everywhere user-facing copy renders verdicts
+VERDICT_LABELS = {
+    'supported':      'SUPPORTED',
+    'plausible':      'PLAUSIBLE',
+    'corroborated':   'CORROBORATED',
+    'overstated':     'OVERSTATED',
+    'disputed':       'DISPUTED',
+    'not_supported':  'NOT SUPPORTED',
+    'not_verifiable': 'NOT VERIFIABLE',
+    'opinion':        'OPINION',
+}
+
+# Display weight strings (for legends and reports)
+WEIGHT_DISPLAY = {
+    'supported':     '+1.0',
+    'plausible':     '+0.5',
+    'corroborated':  '+0.5',
+    'overstated':    '-0.5',
+    'disputed':      '-1.0',
+    'not_supported': '-1.5',
+    'not_verifiable':'excl.',
+    'opinion':       'excl.',
+}
+
+# Pipeline thresholds (methodology Section 2)
+# NOTE: Cache and consensus thresholds preserved at current production values for v1.6.
+# These are deferred to a future cost-optimization session along with Finding 15.
+# They will be documented in master Section 2 as-is during Patch 5.
+PRIORITY_THRESHOLD = 30
+CACHE_SIMILARITY_THRESHOLD = 0.85
+CACHE_TIME_WINDOW_HOURS = 24
+CACHE_FALLBACK_SIMILARITY = 0.6   # tier-2 cache, undocumented in v1.5, to-be-documented in v1.6
+CONSENSUS_SIMILARITY_THRESHOLD = 0.5  # to-be-documented in v1.6
+CONSENSUS_OUTLET_THRESHOLD = 5
+
+# Breaking news gate (methodology Section 5.3)
+# v1.5 uses static 6 hour gate. Dynamic gate by claim_type is v1.7+ target.
+BREAKING_NEWS_GATE_HOURS = 6
+
+
 LEADERBOARD_SQL = """
 SELECT
     a.source_name AS domain,
@@ -83,7 +151,7 @@ def compute_tier(verdict_count):
 
 def compute_score_band(score):
     if score is None:
-        return None
+        return "Unscored"
     if score >= 70:
         return "High"
     if score >= 40:

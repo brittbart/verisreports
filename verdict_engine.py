@@ -263,6 +263,9 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
         existing = cursor.fetchone()
         old_score = existing[0] if existing else None
 
+        # Verdict weights below: see api_leaderboard.WEIGHTS for the canonical
+        # methodology source of truth. SQL kept inline here as a single tested
+        # site to avoid query-plan churn.
         cursor.execute("""
             SELECT
                 SUM(CASE WHEN verdict = 'supported'   THEN 1.0

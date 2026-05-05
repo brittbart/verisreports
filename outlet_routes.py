@@ -14,6 +14,8 @@ from api_leaderboard import (
     compute_tier,
     METHODOLOGY_VERSION,
     INCLUSION_THRESHOLD,
+    WEIGHTS,
+    SCOREABLE_VERDICTS,
 )
 
 DOMAIN_RE = re.compile(r"^[a-z0-9.-]+$")
@@ -21,17 +23,7 @@ DOMAIN_RE = re.compile(r"^[a-z0-9.-]+$")
 _history_cache = {}
 _HISTORY_TTL_SECONDS = 300
 
-_VERDICT_WEIGHTS = {
-    'supported':     1.0,
-    'plausible':     0.5,
-    'corroborated':  0.5,
-    'overstated':   -0.5,
-    'disputed':     -1.0,
-    'not_supported':-1.5,
-}
-
-_SCOREABLE_TYPES = ['supported', 'plausible', 'corroborated',
-                    'overstated', 'disputed', 'not_supported']
+# Methodology constants (WEIGHTS, SCOREABLE_VERDICTS) imported from api_leaderboard.
 
 
 def _get_outlet_aggregates(get_db_conn, domain_lc):
@@ -165,7 +157,7 @@ def _get_score_history(get_db_conn, domain_lc):
     running_sum = 0.0
     running_n = 0
     for verdict, dt in rows:
-        running_sum += _VERDICT_WEIGHTS.get(verdict, 0)
+        running_sum += WEIGHTS.get(verdict, 0)
         running_n += 1
         history.append({
             'date':  dt.strftime('%Y-%m-%d') if dt else None,
@@ -192,7 +184,7 @@ def _build_outlet_view(get_db_conn, domain_lc):
             'scoreable_count':    0,
             'excluded_count':     0,
             'threshold':          INCLUSION_THRESHOLD,
-            'verdict_breakdown':  {t: 0 for t in _SCOREABLE_TYPES},
+            'verdict_breakdown':  {t: 0 for t in WEIGHTS},
             'excluded_breakdown': {'opinion': 0, 'not_verifiable': 0},
             'history':            [],
             'verdicts':           [],

@@ -26,6 +26,7 @@ def get_db():
     )
 
 from api_leaderboard import register_leaderboard_routes
+from api_leaderboard import compute_score, compute_score_band, compute_tier, WEIGHTS, SCOREABLE_VERDICTS, INCLUSION_THRESHOLD
 from outlet_routes import register_outlet_routes
 register_leaderboard_routes(app, get_db)
 register_outlet_routes(app, get_db)
@@ -663,32 +664,12 @@ def get_report():
         unverified_count   = sum(1 for c in claims if c[5] is None)
 
         # Weighted scoring — opinion, not_verifiable, and unverified excluded.
-        # Consistent with source reliability scoring formula.
-        WEIGHTS = {
-            'supported':     1.0,
-            'plausible':     0.5,
-            'overstated':   -0.5,
-            'disputed':     -1.0,
-            'not_supported':-1.5,
-            'corroborated':  0.5,
-        }
-        weighted_sum = sum(
-            WEIGHTS[c[5]] for c in claims
-            if c[5] in WEIGHTS
-        )
+        # Uses api_leaderboard.WEIGHTS / compute_score / compute_score_band as
+        # the single source of truth (Patch 1, methodology v1.6 prep).
+        weighted_sum = sum(WEIGHTS[c[5]] for c in claims if c[5] in WEIGHTS)
         scoreable = sum(1 for c in claims if c[5] in WEIGHTS)
-        if scoreable > 0:
-            normalised = (weighted_sum / scoreable + 1.5) / 2.5
-            score = round(min(max(normalised * 100, 0), 100))
-        else:
-            score = 0
-
-        if score >= 70:
-            rating = 'High'
-        elif score >= 40:
-            rating = 'Medium'
-        else:
-            rating = 'Low'
+        score = compute_score(weighted_sum, scoreable)
+        rating = compute_score_band(score)
 
         claims_data = []
         for cid, claim_text, speaker, claim_type, claim_origin, verdict, confidence, summary, analysis, sources in claims:
@@ -1450,11 +1431,10 @@ setTimeout(checkStatus, 3000);
                         conn2.commit()
                         conn2.close()
                         rows = verified_claims
-                        W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
-                        sc = sum(1 for c in rows if c[5] in W and c[4] == 'outlet_claim')
-                        ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
-                        score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else None
-                        rating = ('High' if score>=70 else ('Medium' if score>=40 else 'Low')) if score is not None else 'Unscored'
+                        sc = sum(1 for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
+                        ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
+                        score = compute_score(ws, sc)
+                        rating = compute_score_band(score)
                         data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'extraction_method':extraction_method,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
             except Exception as e:
                 import traceback
@@ -1494,21 +1474,19 @@ setTimeout(checkStatus, 3000);
                         conn2.commit()
                         conn2.close()
                         rows = verified_claims
-                        W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
-                        sc = sum(1 for c in rows if c[5] in W and c[4] == 'outlet_claim')
-                        ws = sum(W[c[5]] for c in rows if c[5] in W and c[4] == 'outlet_claim')
-                        score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
-                        rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
+                        sc = sum(1 for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
+                        ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
+                        score = compute_score(ws, sc)
+                        rating = compute_score_band(score)
                         data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
                 except Exception as e:
                     print(f"On-demand extraction (no_claims path) failed: {e}")
                     data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
             else:
-                W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
-                sc = sum(1 for c in rows if c[5] in W)
-                ws = sum(W[c[5]] for c in rows if c[5] in W)
-                score = round(min(max((ws/sc+1.5)/2.5*100,0),100)) if sc else 0
-                rating = 'High' if score>=70 else ('Medium' if score>=40 else 'Low')
+                sc = sum(1 for c in rows if c[5] in WEIGHTS)
+                ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS)
+                score = compute_score(ws, sc)
+                rating = compute_score_band(score)
                 scoreable_labels = {'supported':'supported by independent sources','plausible':'consistent with one credible source','corroborated':'corroborated by 5+ outlets','overstated':'overstated relative to evidence','disputed':'disputed by a credible source','not_supported':'actively contradicted by evidence'}
                 parts = []
                 for vk, lbl in scoreable_labels.items():
@@ -1625,7 +1603,11 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     title   = data.get('title', 'Article Report')
     source  = data.get('source', '')
     score   = data.get('score', 0)
-    rating  = data.get('rating', 'Medium')
+    # Patch 1: coerce None → 0 for rendering math. The 'Unscored' rating
+    # comes through 'rating' below; Patch 3 will replace the visible chip.
+    if score is None:
+        score = 0
+    rating  = data.get('rating', 'Unscored')
     as_of   = data.get('as_of', '')
     methodology_callout = data.get('methodology_callout', 'Each factual claim passes through a three-step pipeline: cache check, internal consensus check, then web search.')
     url = data.get('url', '')
@@ -1664,7 +1646,14 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         'not_verifiable': 'excluded', 'opinion': 'excluded',
     }
 
-    score_color = '#4ade80' if score >= 70 else ('#fbbf24' if score >= 40 else '#f87171')
+    if score is None:
+        score_color = 'rgba(255,255,255,0.3)'
+    elif score >= 70:
+        score_color = '#4ade80'
+    elif score >= 40:
+        score_color = '#fbbf24'
+    else:
+        score_color = '#f87171'
 
     def pill(verdict, count):
         if count == 0:
@@ -2072,27 +2061,21 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         _outlet_verdicts = [r[0] for r in _ic_cur.fetchall()]
         _verdict_count = len(_outlet_verdicts)
         _ic.close()
-        _W = {'supported':1.0,'plausible':0.5,'corroborated':0.5,'overstated':-0.5,'disputed':-1.0,'not_supported':-1.5}
-        _scoreable_outlet = [v for v in _outlet_verdicts if v in _W]
-        if _scoreable_outlet:
-            _ws = sum(_W[v] for v in _scoreable_outlet)
-            outlet_score = round(min(max((_ws/len(_scoreable_outlet)+1.5)/2.5*100,0),100))
-            outlet_rating = 'High' if outlet_score>=70 else ('Medium' if outlet_score>=40 else 'Low')
-        else:
-            outlet_score = None
-            outlet_rating = 'Unscored'
+        _scoreable_outlet = [v for v in _outlet_verdicts if v in WEIGHTS]
+        _ws = sum(WEIGHTS[v] for v in _scoreable_outlet)
+        outlet_score = compute_score(_ws, len(_scoreable_outlet))
+        outlet_rating = compute_score_band(outlet_score)
     except:
         _verdict_count = 0
         outlet_score = None
         outlet_rating = 'Unscored' 
-    if _verdict_count >= 100:
-        inclusion_tier, tier_color = 'Published', '#4ade80'
-    elif _verdict_count >= 50:
-        inclusion_tier, tier_color = 'Stabilizing', '#60a5fa'
-    elif _verdict_count >= 20:
-        inclusion_tier, tier_color = 'Limited Data', '#fbbf24'
-    else:
-        inclusion_tier, tier_color = 'Excluded', '#f87171'
+    inclusion_tier = compute_tier(_verdict_count)
+    tier_color = {
+        'Published':    '#4ade80',
+        'Stabilizing':  '#60a5fa',
+        'Limited Data': '#fbbf24',
+        'Excluded':     '#f87171',
+    }[inclusion_tier]
     html = html.replace('{{inclusion_tier}}', str(inclusion_tier))
     html = html.replace('{{tier_color}}', str(tier_color))
     html = html.replace('{{verdict_count}}', str(_verdict_count))
