@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ outlet.domain }} — Verum Signal</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/static/css/outlet.css">
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <div class="nav-inner">
+    <a class="nav-logo" href="/">
+      <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
+    </a>
+    <div class="nav-links">
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/methodology">Methodology</a>
+      <a href="/how-it-works">How it works</a>
+      <a class="nav-cta" href="/">Try it</a>
+    </div>
+  </div>
+</nav>
+
+<main class="outlet-page">
+  <div class="container">
+
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/leaderboard">Leaderboard</a>
+      <span class="sep">/</span>
+      <span style="color: var(--text-2);">{{ outlet.domain }}</span>
+    </nav>
+
+    <div class="outlet-header">
+      <div class="outlet-eyebrow">Outlet · Source page</div>
+      <h1 class="outlet-domain">{{ outlet.domain }}</h1>
+      <div class="outlet-stamp">
+        {% if outlet.scored_as_of %}
+          <span>Score as of <strong>{{ outlet.scored_as_of }}</strong></span>
+          <span class="dot">·</span>
+        {% endif %}
+        <span>under <a href="/methodology">Methodology {{ methodology_version }}</a></span>
+        <span class="dot">·</span>
+        <span><strong>{{ outlet.scoreable_count }}</strong> scoreable verdicts</span>
+        <span class="dot">·</span>
+        <span>Wire-service reprints excluded</span>
+      </div>
+    </div>
+
+    {% if outlet.state == 'scored' %}
+      {% set sb = 'high' if outlet.score >= 70 else ('med' if outlet.score >= 40 else 'low') %}
+      {% set tier_class = 'published' if outlet.tier == 'Published' else ('stabilizing' if outlet.tier == 'Stabilizing' else 'limited') %}
+      <div class="score-block">
+        <div class="score-main">
+          <div>
+            <div class="score-label">Reliability score</div>
+            <div class="score-num score-num--{{ sb }}">{{ outlet.score }}<span class="score-suffix">/100</span></div>
+            <div class="score-band-row">
+              <span class="score-band-pill score-band-pill--{{ sb }}">{{ outlet.score_band }}</span>
+              <span class="score-band-tier">·  {{ outlet.tier }} tier</span>
+            </div>
+          </div>
+          <div class="score-stamp-foot">
+            As of {{ outlet.scored_as_of }} ·
+            <a href="/methodology">under Methodology {{ methodology_version }} →</a>
+          </div>
+        </div>
+        <div class="score-meta">
+          <div class="meta-row">
+            <span class="meta-label">Tier</span>
+            <span class="meta-tier-pill meta-tier-pill--{{ tier_class }}">{{ outlet.tier }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Verdicts evaluated</span>
+            <span class="meta-value">{{ outlet.verdict_count }}<small>total</small></span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Scoreable</span>
+            <span class="meta-value-stacked">
+              <span class="meta-value">{{ outlet.scoreable_count }}</span>
+              <span class="meta-sub">{{ outlet.excluded_count }} excluded · Opinion + Not verifiable</span>
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Score band</span>
+            <span class="meta-tier-pill meta-tier-pill--{{ sb }}">{{ outlet.score_band }}</span>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      {% set pct = (100 if outlet.scoreable_count >= outlet.threshold else (outlet.scoreable_count * 100 / outlet.threshold)) | round %}
+      <div class="score-block is-sub-threshold">
+        <div class="score-main">
+          <div>
+            <div class="score-label">Reliability score</div>
+            <div class="score-num-text">Not yet <em>scored.</em></div>
+            <div class="threshold-progress">
+              <div class="threshold-progress-row">
+                <span><strong>{{ outlet.scoreable_count }}</strong> of {{ outlet.threshold }} scoreable verdicts</span>
+                <span>{{ pct }}%</span>
+              </div>
+              <div class="threshold-bar">
+                <div class="threshold-fill" style="width: {{ pct }}%;"></div>
+                <div class="threshold-tick" data-label="20"></div>
+              </div>
+            </div>
+            <div class="threshold-caption">
+              Outlets are scored once <strong>{{ outlet.threshold }} scoreable verdicts</strong> have been recorded under Methodology {{ methodology_version }}. Until then, the page shows the verdict mix collected so far — <strong>without a score</strong>.
+            </div>
+          </div>
+          <div class="score-stamp-foot">
+            {% if outlet.scored_as_of %}As of {{ outlet.scored_as_of }} ·{% endif %}
+            <a href="/methodology">under Methodology {{ methodology_version }} →</a>
+          </div>
+        </div>
+        <div class="score-meta">
+          <div class="meta-row"><span class="meta-label">Tier</span><span class="meta-tier-pill meta-tier-pill--limited">Limited Data</span></div>
+          <div class="meta-row"><span class="meta-label">Verdicts evaluated</span><span class="meta-value">{{ outlet.verdict_count }}<small>total</small></span></div>
+          <div class="meta-row"><span class="meta-label">Scoreable</span><span class="meta-value-stacked"><span class="meta-value">{{ outlet.scoreable_count }}</span><span class="meta-sub">{{ outlet.excluded_count }} excluded · {{ outlet.threshold - outlet.scoreable_count }} more to threshold</span></span></div>
+          <div class="meta-row"><span class="meta-label">Status</span><span class="meta-status-text">Not yet scored</span></div>
+        </div>
+      </div>
+    {% endif %}
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title-block">
+          <div class="panel-eyebrow">Section 03 · Score history</div>
+          <h2 class="panel-title">Score history</h2>
+          <p class="panel-sub">Score-as-of trajectory with a methodological confidence band that <em>tightens</em> as the verdict count grows. Points at lower N are inherently more volatile; the band shows that volatility honestly.{% if outlet.state == 'sub_threshold' and outlet.scoreable_count > 0 %} <span>Currently below threshold — preliminary, not used for scoring.</span>{% endif %}</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        {% if outlet.history|length == 0 %}
+          <div class="history-empty">
+            {% if outlet.verdict_count == 0 %}
+              <strong>No verdicts recorded yet.</strong><br>This outlet is tracked but no scoreable verdicts have been logged. Score history begins once the first verdict lands and a chart appears at the {{ outlet.threshold }}-verdict threshold.
+            {% else %}
+              <strong>Score history will appear once the outlet reaches the {{ outlet.threshold }}-verdict threshold.</strong><br>We record each verdict as it lands but don't begin plotting an outlet's score-over-time until the methodology returns a score. Currently {{ outlet.scoreable_count }} of {{ outlet.threshold }}.
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="history-svg-wrap" id="history-wrap" data-history='{{ outlet.history | tojson }}'></div>
+          <div class="history-meta">
+            <div class="history-legend"><span class="history-legend-swatch history-legend-swatch--line"></span><span>Score-as-of line</span></div>
+            <div class="history-legend"><span class="history-legend-swatch history-legend-swatch--band"></span><span>±20/√N confidence band</span></div>
+            <div class="history-legend"><span class="history-legend-swatch history-legend-swatch--threshold"></span><span>Tier thresholds (20 / 50 / 100)</span></div>
+            <div style="margin-left:auto;"><strong>{{ outlet.history|length }}</strong> data points</div>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title-block">
+          <div class="panel-eyebrow">Section 04 · Verdict distribution</div>
+          <h2 class="panel-title">Verdict distribution</h2>
+          <p class="panel-sub">All six scoreable verdict types under Methodology {{ methodology_version }}. Counts shown including zeros — a zero count is meaningful (it tells you the outlet hasn't hit that verdict type).</p>
+        </div>
+        <div class="panel-head-stat">
+          <div class="panel-head-stat-big"><span>{{ outlet.scoreable_count }}</span> scoreable</div>
+          <div class="panel-head-stat-sub">{{ outlet.verdict_count }} total</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        {% set scoreable_types = ['supported','plausible','corroborated','overstated','disputed','not_supported'] %}
+        <div class="dist-bar">
+          {% for t in scoreable_types %}
+            {% set c = outlet.verdict_breakdown[t] %}
+            {% if outlet.scoreable_count > 0 and c > 0 %}
+              {% set w = (c * 100 / outlet.scoreable_count) %}
+              <div class="seg seg-{{ t }}" style="width: {{ w }}%;" title="{{ t }}: {{ c }}"></div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% if outlet.state == 'sub_threshold' and outlet.scoreable_count > 0 %}
+          <div class="preliminary-note">Preliminary distribution — outlet not yet at the {{ outlet.threshold }}-verdict scoring threshold.</div>
+        {% endif %}
+        {% set verdict_labels = {'supported':'Supported','plausible':'Plausible','corroborated':'Corroborated','overstated':'Overstated','disputed':'Disputed','not_supported':'Not supported'} %}
+        {% set verdict_weights = {'supported':'+1.0','plausible':'+0.5','corroborated':'+0.5','overstated':'-0.5','disputed':'-1.0','not_supported':'-1.5'} %}
+        <div class="dist-counts">
+          {% for t in scoreable_types %}
+            {% set c = outlet.verdict_breakdown[t] %}
+            <div class="dist-item dist-{{ t }}{% if c == 0 %} is-zero{% endif %}">
+              <div class="dist-dot"></div>
+              <div class="dist-name-block">
+                <div class="dist-name">{{ verdict_labels[t] }}</div>
+                <div class="dist-weight">Weight {{ verdict_weights[t] }}</div>
+              </div>
+              <div class="dist-num">{{ c }}</div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="dist-excluded">
+          <span class="ex-tag">Also recorded · Excluded from scoring</span>
+          <span><strong>{{ outlet.excluded_breakdown.opinion }}</strong> Opinion · <strong>{{ outlet.excluded_breakdown.not_verifiable }}</strong> Not verifiable</span>
+          <span style="margin-left: auto;"><a href="/methodology">Methodology {{ methodology_version }} · Excluded verdict types →</a></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title-block">
+          <div class="panel-eyebrow">Section 05 · Recent verdicts</div>
+          <h2 class="panel-title">Recent verdicts</h2>
+          <p class="panel-sub">The most recent verdicts evaluated under Methodology {{ methodology_version }}. Each row links to its per-article report — the full evidence trail. No reporter names, no comments, no share-a-single-verdict.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        {% if outlet.verdicts|length == 0 %}
+          <div class="verdict-empty">No verdicts recorded yet for this outlet.</div>
+        {% else %}
+          {% set ns = namespace(counts={'all': outlet.verdicts|length, 'supported':0, 'plausible':0, 'corroborated':0, 'overstated':0, 'disputed':0, 'not_supported':0}) %}
+          {% for v in outlet.verdicts %}
+            {% if v.verdict in ns.counts %}
+              {% set _ = ns.counts.update({v.verdict: ns.counts[v.verdict] + 1}) %}
+            {% endif %}
+          {% endfor %}
+          <div class="verdict-controls" id="verdict-controls">
+            <button class="verdict-filter-pill active" data-filter="all"><span class="pill-dot"></span>All verdicts<span class="pill-count">{{ ns.counts.all }}</span></button>
+            {% for t in scoreable_types %}
+              <button class="verdict-filter-pill" data-filter="{{ t }}"><span class="pill-dot"></span>{{ verdict_labels[t] }}<span class="pill-count">{{ ns.counts[t] }}</span></button>
+            {% endfor %}
+          </div>
+          <div class="verdict-list" id="verdict-list">
+            {% for v in outlet.verdicts %}
+              <a href="{{ v.report }}" class="verdict-row tag-row-{{ v.verdict }}" data-verdict="{{ v.verdict }}" style="text-decoration: none;">
+                <span class="verdict-tag tag-{{ v.verdict }}">{{ verdict_labels.get(v.verdict, v.verdict) }}</span>
+                <div class="verdict-body">
+                  <h3 class="verdict-headline">{{ v.headline }} <span class="verdict-arrow">→</span></h3>
+                  <p class="verdict-claim">"{{ v.claim }}"</p>
+                </div>
+                <div class="verdict-meta"><span>{{ v.date }}</span><span class="verdict-report-link">Per-article report →</span></div>
+              </a>
+            {% endfor %}
+            <div class="verdict-empty" id="verdict-empty" style="display: none;">No verdicts of this type in the recent feed.</div>
+          </div>
+          {% if outlet.scoreable_count >= 50 %}
+            {% set negatives = outlet.verdicts | selectattr('verdict', 'in', ['overstated', 'disputed', 'not_supported']) | list %}
+            {% if negatives|length > 0 %}
+              <div class="negatives-callout">
+                <div class="negatives-callout-head">
+                  <h3 class="negatives-callout-title">Negatives, in full</h3>
+                  <span class="negatives-callout-count">{{ negatives|length }} of {{ outlet.verdicts|length }} recent</span>
+                </div>
+                <p class="negatives-callout-sub">Every recent verdict marked Overstated, Disputed, or Not supported — surfaced here in full so they can't be characterized as hidden. Each links to its per-article evidence.</p>
+                <div class="verdict-list">
+                  {% for v in negatives %}
+                    <a href="{{ v.report }}" class="verdict-row tag-row-{{ v.verdict }}" style="text-decoration: none;">
+                      <span class="verdict-tag tag-{{ v.verdict }}">{{ verdict_labels[v.verdict] }}</span>
+                      <div class="verdict-body">
+                        <h3 class="verdict-headline">{{ v.headline }} <span class="verdict-arrow">→</span></h3>
+                        <p class="verdict-claim">"{{ v.claim }}"</p>
+                      </div>
+                      <div class="verdict-meta"><span>{{ v.date }}</span><span class="verdict-report-link">Per-article report →</span></div>
+                    </a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="correction">
+      <p class="correction-text">
+        <strong>Disagree with a verdict?</strong> Every claim and verdict on this page links to its per-article evidence. If you believe a specific verdict was assigned in error, send the verdict ID and the basis for your dispute.
+        <span class="correction-meta">Corrections are reviewed under Methodology {{ methodology_version }}.</span>
+      </p>
+      <a class="correction-cta" href="mailto:disputes@verumsignal.com?subject=Correction%20-%20{{ outlet.domain }}">Submit a correction</a>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand"><span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span></div>
+    <span class="site-footer-tagline">Encourage independent thinking. Question across party lines.</span>
+    <div class="site-footer-nav">
+      <a href="/methodology">Methodology</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/leaderboard">Leaderboard</a>
+    </div>
+    <span class="site-footer-meta">Methodology {{ methodology_version }}</span>
+  </div>
+</footer>
+
+<script src="/static/js/outlet.js" defer></script>
+</body>
+</html>
