@@ -1318,6 +1318,7 @@ def report_page():
             is_async = request.args.get('_async') == '1'
             if not is_async:
                 # Return loading page immediately, JS will poll for completion
+                depth_param = ('&depth=' + str(depth)) if depth is not None else ''
                 loading_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1372,6 +1373,7 @@ let current = 0;
 let attempts = 0;
 const maxAttempts = 40;
 const encodedUrl = encodeURIComponent('{url}');
+        const depthParam = '{depth_param}';
 
 function advanceStep() {{
   if (current < steps.length - 1) {{
@@ -1384,14 +1386,14 @@ function advanceStep() {{
 function checkStatus() {{
   attempts++;
   if (attempts > maxAttempts) {{
-    window.location.href = '/report?url=' + encodedUrl + '&_async=1';
+    window.location.href = '/report?url=' + encodedUrl + '&_async=1' + depthParam;
     return;
   }}
-  fetch('/api/report-status?url=' + encodedUrl)
+  fetch('/api/report-status?url=' + encodedUrl + depthParam)
     .then(r => r.json())
     .then(data => {{
       if (data.status === 'ready') {{
-        window.location.href = '/report?url=' + encodedUrl + '&_async=1';
+        window.location.href = '/report?url=' + encodedUrl + '&_async=1' + depthParam;
       }} else {{
         if (attempts === 3) advanceStep();
         if (attempts === 8) advanceStep();
@@ -1403,7 +1405,7 @@ function checkStatus() {{
 }}
 
 // Trigger background processing
-fetch('/report?url=' + encodedUrl + '&_async=1');
+fetch('/report?url=' + encodedUrl + '&_async=1' + depthParam);
 setTimeout(checkStatus, 3000);
 </script>
 </body>
