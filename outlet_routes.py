@@ -102,7 +102,7 @@ def _get_recent_verdicts(get_db_conn, domain_lc, limit):
         cur.execute('''
             SELECT
                 c.id, c.verdict, c.claim_text,
-                a.id, a.title, a.fetched_at, a.published_at
+                a.id, a.title, a.fetched_at, a.published_at, a.url
             FROM claims c
             JOIN articles a ON a.id = c.article_id
             WHERE LOWER(a.source_name) = %s
@@ -116,7 +116,7 @@ def _get_recent_verdicts(get_db_conn, domain_lc, limit):
         cur.close()
         out = []
         for r in rows:
-            cid, verdict, claim_text, article_id, title, fetched_at, published_at = r
+            cid, verdict, claim_text, article_id, title, fetched_at, published_at, url = r
             row_dt = published_at or fetched_at
             out.append({
                 'id':         str(cid),
@@ -125,7 +125,7 @@ def _get_recent_verdicts(get_db_conn, domain_lc, limit):
                 'headline':   title,
                 'claim':      claim_text,
                 'article_id': article_id,
-                'report':     '/report?article_id=' + str(article_id),
+                'report':     ('/report?url=' + url) if url else '#',
             })
         return out
     finally:
