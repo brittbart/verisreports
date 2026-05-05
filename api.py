@@ -826,6 +826,14 @@ def leaderboard_clean():
 def pricing_clean():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'pricing.html')
 
+@app.route('/privacy.html', methods=['GET'])
+def privacy_html():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'privacy.html')
+
+@app.route('/privacy', methods=['GET'])
+def privacy_clean():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'privacy.html')
+
 @app.route('/index.html', methods=['GET'])
 def index_html():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'index.html')
