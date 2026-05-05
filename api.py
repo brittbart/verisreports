@@ -2171,6 +2171,12 @@ def diag_secret_check():
         "db_password_sha8": hashlib.sha256(pw.encode()).hexdigest()[:8],
         "database_url_set": durl != "NOT_SET",
         "database_url_pw_last4": durl.split("@")[0].split(":")[-1][-4:] if "@" in durl else "NA",
+        "argv": __import__("sys").argv,
+        "cwd": os.getcwd(),
+        "ppid": os.getppid(),
+        "pid": os.getpid(),
+        "exists_env_file": os.path.exists(".env"),
+        "files_in_cwd": sorted([f for f in os.listdir(".") if not f.startswith(".")]),
         "all_env_keys": sorted(list(os.environ.keys())),
     })
 
