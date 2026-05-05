@@ -2190,6 +2190,17 @@ def diag_secret_check():
     })
 
 
+@app.route('/api/test-env', methods=['GET'])
+def test_env():
+    return jsonify({
+        'DB_PASSWORD': os.environ.get('DB_PASSWORD', 'NOT_FOUND'),
+        'DB_HOST': os.environ.get('DB_HOST', 'NOT_FOUND'),
+        'ANTHROPIC_API_KEY': os.environ.get('ANTHROPIC_API_KEY', 'NOT_FOUND'),
+        'NEWSAPI_KEY': os.environ.get('NEWSAPI_KEY', 'NOT_FOUND'),
+        'total_env_vars': len(os.environ),
+    })
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
