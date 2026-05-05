@@ -9,8 +9,6 @@ import string
 from datetime import datetime
 import os
 
-if os.path.exists('.env'):
-    load_dotenv(override=False)
 
 app = Flask(__name__)
 app.config['THREADED'] = True
