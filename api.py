@@ -1456,19 +1456,33 @@ setTimeout(checkStatus, 3000);
             rows = cur.fetchall()
             conn.close()
             if not rows:
-                # Trigger on-demand extraction for articles in DB but not yet extracted
+                # Trigger on-demand extraction for articles in DB but not yet extracted.
+                # Routed through fetch_article_content (the three-method fetcher) to handle
+                # anti-bot, paywalled, and JS-rendered sites uniformly with the user-submitted path.
                 try:
-                    import requests as _req
-                    from bs4 import BeautifulSoup
+                    import anthropic as _anth_cached
                     from extract_claims import extract_claims_from_article
                     from verdict_engine import analyse_claim
-                    _r = _req.get(art_url, timeout=(8,15), headers={'User-Agent': 'Mozilla/5.0'})
-                    soup = BeautifulSoup(_r.text, 'html.parser')
-                    body_text = ' '.join(p.get_text() for p in soup.find_all('p'))[:8000]
-                    article_dict = {'title': title_db, 'description': body_text[:500], 'content': body_text, 'source': {'name': source_name}, 'url': art_url, 'publishedAt': ''}
-                    claims = extract_claims_from_article(article_dict)
-                    if not claims:
-                        data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
+                    _anth_client_cached = _anth_cached.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+                    fetch_result = fetch_article_content(art_url, _anth_client_cached)
+                    _fetch_failed = False
+                    if fetch_result is None:
+                        print(f'[cached-path] All fetch methods failed for {art_url}')
+                        data = {'status': 'scrape_failed', 'title': title_db, 'source': source_name, 'url': art_url}
+                        claims = []
+                        _fetch_failed = True
+                    elif fetch_result.get('status') == 'paywall':
+                        print(f'[cached-path] Paywall detected for {art_url}')
+                        data = {'status': 'paywall', 'title': title_db, 'source': source_name, 'url': art_url}
+                        claims = []
+                        _fetch_failed = True
+                    else:
+                        body_text = fetch_result.get('body', '')
+                        title_text = fetch_result.get('title') or title_db
+                        article_dict = {'title': title_text, 'description': body_text[:500], 'content': body_text, 'source': {'name': source_name}, 'url': art_url, 'publishedAt': ''}
+                        claims = extract_claims_from_article(article_dict)
+                    if not _fetch_failed and not claims:
+                        data = {'status': 'no_claims', 'title': title_db, 'source': source_name, 'url': art_url}
                     else:
                         conn2 = get_db()
                         cur2 = conn2.cursor()

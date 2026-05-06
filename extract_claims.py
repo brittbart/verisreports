@@ -106,7 +106,7 @@ Return only the JSON, no other text."""
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1000,
+            max_tokens=3000,  # Sized for up to 7 claims with full schema. Was 1000 (truncated mid-JSON for >3 claims).
             messages=[
                 {"role": "user", "content": prompt}
             ]
