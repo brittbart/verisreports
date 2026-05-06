@@ -1,6 +1,6 @@
 
 """
-Leaderboard API endpoint — Methodology v1.5 compliant.
+Leaderboard API endpoint — Methodology v1.6 compliant.
 """
 
 import time
@@ -8,13 +8,13 @@ import threading
 from datetime import datetime, timezone
 from flask import jsonify
 
-METHODOLOGY_VERSION = "v1.5"
+METHODOLOGY_VERSION = "v1.6"
 CACHE_TTL_SECONDS = 300
 INCLUSION_THRESHOLD = 20
 
 # ==============================================================================
 # Methodology constants — single source of truth
-# Methodology v1.5 (in transition to v1.6 during Patch 5)
+# Methodology v1.6
 # ==============================================================================
 
 # All eight verdict types per methodology Section 4.2
@@ -71,12 +71,12 @@ WEIGHT_DISPLAY = {
 PRIORITY_THRESHOLD = 30
 CACHE_SIMILARITY_THRESHOLD = 0.85
 CACHE_TIME_WINDOW_HOURS = 24
-CACHE_FALLBACK_SIMILARITY = 0.6   # tier-2 cache, undocumented in v1.5, to-be-documented in v1.6
+CACHE_FALLBACK_SIMILARITY = 0.6   # tier-2 cache, undocumented in v1.6
 CONSENSUS_SIMILARITY_THRESHOLD = 0.5  # to-be-documented in v1.6
 CONSENSUS_OUTLET_THRESHOLD = 5
 
 # Breaking news gate (methodology Section 5.3)
-# v1.5 uses static 6 hour gate. Dynamic gate by claim_type is v1.7+ target.
+# v1.6 uses static 6 hour gate. Dynamic gate by claim_type is v1.7+ target.
 BREAKING_NEWS_GATE_HOURS = 6
 
 

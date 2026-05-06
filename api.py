@@ -306,7 +306,7 @@ def upgrade_submit():
         '<p>Click the link below to unlock your one-time Pro sample report:</p>' \
         '<p><a href="' + verify_link + '" style="display:inline-block;padding:11px 24px;background:#D4537E;color:#fff;text-decoration:none;border-radius:6px;">Open my Pro report</a></p>' \
         '<p style="color:#666;font-size:13px;">This link expires in 24 hours and can only be used once. If you didn\'t request this, you can ignore this email.</p>' \
-        '<p style="color:#999;font-size:11px;border-top:1px solid #eee;padding-top:12px;margin-top:24px;">Verum Signal &middot; Methodology v1.5</p>' \
+        '<p style="color:#999;font-size:11px;border-top:1px solid #eee;padding-top:12px;margin-top:24px;">Verum Signal &middot; Methodology v1.6</p>' \
         '</body></html>'
     send_email(email, "Your free Pro report from Verum Signal", email_body)
     
@@ -447,7 +447,7 @@ def waitlist_submit():
         '<h2 style="color:#d4537e;">You\'re on the list</h2>' \
         '<p>Thanks for joining the Verum Signal Pro waitlist. We\'ll email you the moment Pro is live.</p>' \
         '<p>As an early member, you\'ll get <strong>50% off for 6 months</strong> &mdash; $12.50/mo to start.</p>' \
-        '<p style="color:#999;font-size:11px;border-top:1px solid #eee;padding-top:12px;margin-top:24px;">Verum Signal &middot; Methodology v1.5</p>' \
+        '<p style="color:#999;font-size:11px;border-top:1px solid #eee;padding-top:12px;margin-top:24px;">Verum Signal &middot; Methodology v1.6</p>' \
         '</body></html>'
     send_email(email, "You're on the Verum Signal Pro waitlist", email_body)
     
@@ -778,7 +778,9 @@ def methodology_page():
 
 @app.route('/methodology/archive/v1.5', methods=['GET'])
 def methodology_v15():
-    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology'), 'index.html')
+    # Serves the v1.5-era static methodology page (preserved verbatim).
+    # Live methodology is at /methodology (currently v1.6).
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
 
 
 @app.route('/how-it-works.html', methods=['GET'])
@@ -1215,7 +1217,7 @@ def homepage_old():
       <a href="/api/stats">Stats</a>
       <a href="/api/health">Status</a>
     </div>
-    <div class="tagline">METHODOLOGY v1.5 &nbsp;·&nbsp; AUTOMATED &nbsp;·&nbsp; AUDITABLE</div>
+    <div class="tagline">METHODOLOGY v1.6 &nbsp;·&nbsp; AUTOMATED &nbsp;·&nbsp; AUDITABLE</div>
   </div>
   <script>
     function analyse() {
@@ -1913,7 +1915,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     if clean_domains:
         all_sources_html = ''.join('<a href="https://' + d + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + _src_class(d) + '">' + d + '</a>' for d in sorted(clean_domains))
     else:
-        all_sources_html = '<span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.3);">No independent sources found — see Methodology v1.5 Section 5 (independence rule)</span>'
+        all_sources_html = '<span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.3);">No independent sources found — see Methodology v1.6 Section 5 (independence rule)</span>'
 
 
     # --- Defaults for generated content ---
@@ -1929,7 +1931,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         for _i, _c in enumerate(claims):
             _claims_parts.append('Claim ' + str(_i+1) + ': "' + (_c.get('claim_text','') or '') + '" - Verdict: ' + ((_c.get('verdict','') or '')).upper() + ' - Reasoning: ' + (_c.get('verdict_summary','') or ''))
         _claims_text = chr(10).join(_claims_parts)
-        _prompt = ('You are the editorial analysis layer for Verum Signal, an independent claim analysis platform governed by Methodology v1.5.' + chr(10) +
+        _prompt = ('You are the editorial analysis layer for Verum Signal, an independent claim analysis platform governed by Methodology v1.6.' + chr(10) +
             'Your job is to produce three sections: article_summary, overall_signal, and watch_for.' + chr(10) +
             'CRITICAL RULES — follow exactly:' + chr(10) +
             '- DESCRIBE what the evidence shows. Do NOT speculate about the outlet motive, intent, or editorial agenda.' + chr(10) +
@@ -2101,7 +2103,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         outlet_history_line = (
             source + ' outlet history: '
             '<b>insufficient data</b> '
-            '(' + str(_verdict_count) + '/20 verdicts collected, see <a href=\"/methodology\" target=\"_blank\">Methodology v1.5</a>)'
+            '(' + str(_verdict_count) + '/20 verdicts collected, see <a href=\"/methodology\" target=\"_blank\">Methodology v1.6</a>)'
         )
     html = html.replace('{{outlet_history_line}}', outlet_history_line)
     # Excluded tier display logic

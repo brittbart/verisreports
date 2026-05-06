@@ -38,7 +38,7 @@ function TOC({ sections, activeId, onJump }) {
             <text x="88" y="19" fontFamily="Trebuchet MS,sans-serif" fontSize="13" fontWeight="400" fontStyle="italic" fill="#c084fc" letterSpacing="1.5" transform="skewX(-6)">SIGNAL</text>
           </svg>
         </div>
-        <div className="vs-toc__meta">Methodology \u00b7 v1.5</div>
+        <div className="vs-toc__meta">Methodology \u00b7 v1.6</div>
         <div className="vs-toc__meta">April 25, 2026</div>
       </div>
     </nav>
