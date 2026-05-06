@@ -60,13 +60,16 @@ Content: {content}
     # The prompt that tells Claude what to do
     prompt = f"""You are the claim detection engine for Verum Signal, an independent claim analysis platform.
 
-Read the following article and identify the top 3 most check-worthy factual claims. 
+Read the following article and identify up to 7 of the most check-worthy factual claims.
 
 A check-worthy claim is:
-- A specific, verifiable factual statement (not an opinion)
-- Something that could be true or false and can be checked against evidence
-- Significant enough that if wrong, it would mislead the reader
-- Includes specific numbers, statistics, names, dates, or events when possible
+- A specific factual assertion that could be checked against evidence
+- Something that, if wrong, would meaningfully mislead the reader
+- Often (not always) includes specific numbers, statistics, names, dates, or events
+
+IMPORTANT: Articles from any genre — opinion pieces, analysis, news, blogs, columns — can contain factual claims worth checking. Do not skip an article because its overall genre is opinion or commentary. Look for the embedded factual assertions within. An opinion piece that says "Tesla's stock dropped 40% last quarter and Musk fired half the legal team" contains two extractable factual claims even though the surrounding text is opinion.
+
+If you find fewer than 7 truly check-worthy claims, return only what you find. Do not pad. Returning 0 claims is acceptable when an article genuinely contains no concrete factual assertions (e.g. pure aesthetic review with no facts, or speculation without specifics).
 
 For each claim return:
 1. The exact claim text (quote directly from the article where possible)

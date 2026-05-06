@@ -1604,7 +1604,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     source  = data.get('source', '')
     score   = data.get('score', 0)
     # Patch 1: coerce None → 0 for rendering math. The 'Unscored' rating
-    # comes through 'rating' below; Patch 3 will replace the visible chip.
+    # comes through 'rating' below.
+    _score_was_none = (score is None)
     if score is None:
         score = 0
     rating  = data.get('rating', 'Unscored')
@@ -2037,6 +2038,13 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{short_url}}', str(short_url))
     pass #removed
     html = html.replace('{{score_color}}', str(score_color))
+    # Patch 3: render the article-score chip in Python so unscored articles
+    # don't display a misleading '0/100 Unscored'.
+    if _score_was_none:
+        score_chip_html = '<span class="vs-chip-score" style="color:rgba(255,255,255,0.3)">Article: Unscored</span>'
+    else:
+        score_chip_html = f'<span class="vs-chip-score" style="color:{score_color}">Article: {score}/100 {rating}</span>'
+    html = html.replace('{{score_chip_html}}', score_chip_html)
     # ─────────────────────────────────────────────
     # ARTICLE SCORE vs OUTLET SCORE
     # The variables score / rating from data dict are the ARTICLE's score
@@ -2100,12 +2108,14 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     # ── TOP-OF-PAGE: always article score (nav chip + sidebar big number) ──
     # Per design: top of page shows the ARTICLE's score only. Outlet score
     # lives in the bottom stats row.
-    _article_display_score = str(article_score) if article_score is not None else 'Unscored'
-    outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <b>' + _article_display_score + ('/100</b> ' + article_rating if article_score is not None else '</b>')
-    if article_score is not None:
-        score_block_html = ('<div class="vs-score-num" style="color:' + article_score_color + '">' + str(article_score) + '</div><div class="vs-score-unit">/100</div><div class="vs-score-tier" style="color:' + article_score_color + '">' + article_rating + '</div>')
-    else:
+    # Patch 3: use _score_was_none (captured before Patch 1's coerce) instead of
+    # article_score is None, since article_score is always int after the coerce.
+    _article_display_score = 'Unscored' if _score_was_none else str(article_score)
+    outlet_badge_html = source + ' &nbsp;&middot;&nbsp; <b>' + _article_display_score + ('</b>' if _score_was_none else '/100</b> ' + article_rating)
+    if _score_was_none:
         score_block_html = ('<div class="vs-score-num" style="color:rgba(232,232,240,0.35);font-size:32px;">Unscored</div><div class="vs-score-unit">no scoreable claims</div>')
+    else:
+        score_block_html = ('<div class="vs-score-num" style="color:' + article_score_color + '">' + str(article_score) + '</div><div class="vs-score-unit">/100</div><div class="vs-score-tier" style="color:' + article_score_color + '">' + article_rating + '</div>')
 
     # No mid-page outlet inset — outlet status communicated via bottom stats row only
     excluded_inset_html = ''
