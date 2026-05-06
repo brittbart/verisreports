@@ -507,6 +507,8 @@ def get_source():
             WHERE LOWER(a.source_name) = %s
               AND c.verdict IS NOT NULL
               AND c.claim_origin = 'outlet_claim'
+              AND a.published_at IS NOT NULL
+              AND a.published_at < NOW() - INTERVAL '6 hours'
         ''', (core,))
         row = cur.fetchone()
         conn.close()
@@ -2065,7 +2067,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     try:
         _ic = get_db()
         _ic_cur = _ic.cursor()
-        _ic_cur.execute("SELECT verdict FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim'", (source,))
+        _ic_cur.execute("SELECT verdict FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim' AND a.published_at IS NOT NULL AND a.published_at < NOW() - INTERVAL '6 hours'", (source,))
         _outlet_verdicts = [r[0] for r in _ic_cur.fetchall()]
         _verdict_count = len(_outlet_verdicts)
         _ic.close()

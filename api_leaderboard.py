@@ -113,6 +113,8 @@ FROM articles a
 JOIN claims   c ON c.article_id = a.id
 WHERE c.verdict IS NOT NULL
   AND c.claim_origin = 'outlet_claim'
+  AND a.published_at IS NOT NULL
+  AND a.published_at < NOW() - INTERVAL '6 hours'
 GROUP BY a.source_name
 HAVING COUNT(*) >= %s
 ORDER BY a.source_name;

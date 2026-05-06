@@ -61,6 +61,8 @@ def _get_outlet_aggregates(get_db_conn, domain_lc):
             WHERE LOWER(a.source_name) = %s
               AND c.verdict IS NOT NULL
               AND c.claim_origin = 'outlet_claim'
+              AND a.published_at IS NOT NULL
+              AND a.published_at < NOW() - INTERVAL '6 hours'
         ''', (domain_lc,))
         row = cur.fetchone()
         cur.close()
@@ -143,6 +145,8 @@ def _get_score_history(get_db_conn, domain_lc):
               AND c.verdict IS NOT NULL
               AND c.claim_origin = 'outlet_claim'
               AND c.verdict NOT IN ('not_verifiable', 'opinion')
+              AND a.published_at IS NOT NULL
+              AND a.published_at < NOW() - INTERVAL '6 hours'
             ORDER BY COALESCE(a.published_at, a.fetched_at) ASC NULLS LAST,
                      c.id ASC
         ''', (domain_lc,))
