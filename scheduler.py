@@ -6,6 +6,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 from urllib.parse import urlparse
+from scripts.backfill_published_at import backfill_recent_articles
 if os.path.exists('.env'):
     load_dotenv(override=False)
 
@@ -182,6 +183,17 @@ def run_pre_verify():
         log.error(f"Pre-verification failed: {str(e)}")
         return False
 
+def run_backfill():
+    """Backfill published_at for articles ingested in the last cycle that lack it.
+    Targets articles ingested within the last 4 hours (one cycle + buffer) so we
+    catch what just came in without re-processing the entire corpus."""
+    try:
+        return backfill_recent_articles(hours=4, limit=50, logger=log)
+    except Exception as e:
+        log.error(f"run_backfill exception: {type(e).__name__}: {e}")
+        return False
+
+
 def run_full_pipeline():
     """Run the complete Verum Signal pipeline."""
     start = datetime.now()
@@ -195,6 +207,7 @@ def run_full_pipeline():
     ("GDELT seed", run_gdelt),
     ("Extract claims", run_extract),
     ("Load to database", run_load),
+    ("Backfill published_at", run_backfill),
     ("Pre-verify top outlets", run_pre_verify),
     ("Score priorities", run_priority),
     ("Assign verdicts", run_verdicts),]
