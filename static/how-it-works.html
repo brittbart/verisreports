@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- saved from url=(0045)https://www.verumsignal.com/how-it-works.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How it works — Verum Signal</title>
-<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="%230A0A0F"/><path d="M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32" fill="none" stroke="%23a855f7" stroke-width="3" stroke-linecap="round"/><circle cx="58" cy="32" r="4" fill="%23ec4899"/></svg>' />
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
+<link href="./How it works — Verum Signal_files/css2" rel="stylesheet">
+<link rel="stylesheet" href="./How it works — Verum Signal_files/styles.css">
 <style>
   .page-hero {
     position: relative;
@@ -174,69 +174,945 @@
   @media (max-width: 640px) {
     .verdict-grid { grid-template-columns: 1fr; }
   }
+
+  /* === REDESIGNED HOW IT WORKS PAGE — built around skeptical questions ===
+     Methodology v1.6. Cycling explainer at top, then 6 numbered Q&A sections,
+     ending in the original verdict definitions cards. */
+
+  /* Hero compact */
+  .hiw-hero {
+    position: relative;
+    padding: 160px 0 56px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hiw-hero-content { position: relative; z-index: 2; max-width: 760px; margin: 0 auto; }
+  .hiw-hero h1 {
+    font-family: var(--font-display);
+    font-size: 56px;
+    font-weight: 400;
+    letter-spacing: -1.4px;
+    line-height: 1.05;
+    margin: 16px 0 16px;
+  }
+  .hiw-hero h1 em { font-style: italic; color: var(--violet-light); }
+  .hiw-hero p {
+    font-size: 17px;
+    color: var(--text-2);
+    max-width: 560px;
+    margin: 0 auto;
+    line-height: 1.55;
+    font-weight: 300;
+  }
+  .hiw-version {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+    text-transform: uppercase;
+  }
+  .hiw-version .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 8px rgba(74,222,128,0.5); }
+
+  /* === Cycling explainer (4 scenes / 30s) — top of page === */
+  .hiw-exp-section { padding: 24px 0 96px; }
+  .hiw-exp {
+    position: relative;
+    max-width: 920px;
+    margin: 0 auto;
+    aspect-ratio: 16 / 8;
+    max-height: 460px;        /* hard cap so it never gets oversized */
+    background: linear-gradient(180deg, rgba(168,85,247,0.04) 0%, rgba(10,10,15,0) 60%), var(--black);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(168,85,247,0.08);
+  }
+  .hiw-exp:hover .he-scene, .hiw-exp:hover .he-cap, .hiw-exp:hover .he-scene *, .hiw-exp:hover .he-pdot::after { animation-play-state: paused !important; }
+  .he-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(168,85,247,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(168,85,247,0.04) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+  .he-glow { position: absolute; top: -40%; left: 50%; transform: translateX(-50%); width: 700px; height: 500px; background: radial-gradient(ellipse, rgba(168,85,247,0.18) 0%, transparent 60%); pointer-events: none; z-index: 0; }
+
+  /* Caption: persistent label slot, never moves vertically.
+     Strategy: every caption is *always* mounted at identical position,
+     uses opacity-only fade, and its sub line is anchored to a fixed bottom. */
+  .he-cap-frame {
+    position: absolute;
+    top: 22px; left: 24px; right: 24px;
+    height: 80px;             /* fixed total slot */
+    z-index: 5;
+    pointer-events: none;
+  }
+  .he-cap-eyebrow {
+    text-align: center;
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    color: var(--violet-light);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    height: 14px;
+  }
+  .he-cap {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    text-align: center;
+    opacity: 0;
+  }
+  .he-cap-main {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    margin: 0;
+    /* No fixed height — text sits on its baseline at the bottom. */
+  }
+  .he-cap-main em { font-style: italic; color: var(--violet-light); margin-left: 0.28em; }
+  .he-cap.c1 { animation: heCap1 30s linear infinite; }
+  .he-cap.c2 { animation: heCap2 30s linear infinite; }
+  .he-cap.c3 { animation: heCap3 30s linear infinite; }
+  .he-cap.c4 { animation: heCap4 30s linear infinite; }
+  /* Pure opacity fades — zero translation. Position is bottom-anchored. */
+  @keyframes heCap1 { 0% { opacity: 0; } 2.5% { opacity: 1; } 22.5% { opacity: 1; } 25% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heCap2 { 0%, 25% { opacity: 0; } 27.5% { opacity: 1; } 47.5% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heCap3 { 0%, 50% { opacity: 0; } 52.5% { opacity: 1; } 72.5% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heCap4 { 0%, 75% { opacity: 0; } 77.5% { opacity: 1; } 97.5% { opacity: 1; } 99.5% { opacity: 0; } 100% { opacity: 0; } }
+
+  /* Scenes */
+  .he-stage { position: absolute; inset: 116px 48px 48px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+  .he-scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
+  .he-scene.c1 { animation: heScene1 30s linear infinite; }
+  .he-scene.c2 { animation: heScene2 30s linear infinite; }
+  .he-scene.c3 { animation: heScene3 30s linear infinite; }
+  .he-scene.c4 { animation: heScene4 30s linear infinite; }
+  @keyframes heScene1 { 0% { opacity: 0; } 2% { opacity: 1; } 23% { opacity: 1; } 25% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heScene2 { 0%, 25% { opacity: 0; } 27% { opacity: 1; } 48% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heScene3 { 0%, 50% { opacity: 0; } 52% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heScene4 { 0%, 75% { opacity: 0; } 77% { opacity: 1; } 98% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* Scene 1 — Pipeline */
+  .he-pipe { width: 100%; max-width: 720px; }
+  .he-pipe-stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; margin-bottom: 28px; }
+  .he-pipe-stages::before { content: ""; position: absolute; top: 24px; left: 12.5%; right: 12.5%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(168,85,247,0.3) 10%, rgba(168,85,247,0.3) 90%, transparent 100%); z-index: 1; }
+  .he-pipe-stages::after { content: ""; position: absolute; top: 24px; left: 12.5%; height: 1px; width: 0; background: linear-gradient(90deg, var(--violet-light), #ec4899); z-index: 1; box-shadow: 0 0 8px rgba(168,85,247,0.6); animation: hePipeFlow 30s linear infinite; }
+  @keyframes hePipeFlow { 0% { width: 0; } 4% { width: 0; } 18% { width: 75%; } 23% { width: 75%; } 25% { width: 0; } 100% { width: 0; } }
+  .he-pipe-stage { display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; z-index: 2; }
+  .he-pipe-node { width: 48px; height: 48px; border-radius: 50%; background: var(--black); border: 0.5px solid rgba(168,85,247,0.35); display: grid; place-items: center; margin-bottom: 14px; }
+  .he-pipe-node svg { width: 18px; height: 18px; stroke: var(--violet-light); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .he-pipe-stage.s1 .he-pipe-node { animation: hePN1 30s linear infinite; }
+  .he-pipe-stage.s2 .he-pipe-node { animation: hePN2 30s linear infinite; }
+  .he-pipe-stage.s3 .he-pipe-node { animation: hePN3 30s linear infinite; }
+  .he-pipe-stage.s4 .he-pipe-node { animation: hePN4 30s linear infinite; }
+  @keyframes hePN1 { 0%, 4% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 6% { border-color: rgba(168,85,247,0.7); box-shadow: 0 0 16px rgba(168,85,247,0.35); } 12% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 100% { border-color: rgba(168,85,247,0.35); } }
+  @keyframes hePN2 { 0%, 9% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 11% { border-color: rgba(168,85,247,0.7); box-shadow: 0 0 16px rgba(168,85,247,0.35); } 17% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 100% { border-color: rgba(168,85,247,0.35); } }
+  @keyframes hePN3 { 0%, 14% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 16% { border-color: rgba(168,85,247,0.7); box-shadow: 0 0 16px rgba(168,85,247,0.35); } 22% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 100% { border-color: rgba(168,85,247,0.35); } }
+  @keyframes hePN4 { 0%, 18% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 20% { border-color: #4ADE80; box-shadow: 0 0 16px rgba(74,222,128,0.4); } 25% { border-color: rgba(168,85,247,0.35); box-shadow: none; } 100% { border-color: rgba(168,85,247,0.35); } }
+  .he-pipe-num { font-family: ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.16em; color: var(--violet-light); text-transform: uppercase; margin-bottom: 4px; font-weight: 500; }
+  .he-pipe-label { font-family: var(--font-display); font-size: 14px; line-height: 1.2; color: var(--text); letter-spacing: -0.2px; margin-bottom: 4px; }
+  .he-pipe-meta { font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--text-3); letter-spacing: 0.04em; line-height: 1.4; }
+  .he-pipe-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 600px; margin: 0 auto; opacity: 0; animation: heFacts 30s linear infinite; }
+  @keyframes heFacts { 0%, 16% { opacity: 0; } 19% { opacity: 1; } 23% { opacity: 1; } 25% { opacity: 0; } 100% { opacity: 0; } }
+  .he-pipe-fact { padding: 10px 12px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 8px; text-align: left; }
+  .he-pipe-fact-label { font-family: ui-monospace, monospace; font-size: 9px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .he-pipe-fact-value { font-size: 12px; color: var(--text); line-height: 1.3; }
+  .he-pipe-fact-value strong { color: var(--violet-light); font-weight: 400; }
+
+  /* Scene 2 — Independence + Consensus */
+  .he-rules { width: 100%; max-width: 660px; }
+  .he-rules-claim { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 12px 18px; margin: 0 auto 14px; max-width: 520px; opacity: 0; animation: heClaim 30s linear infinite; }
+  @keyframes heClaim { 0%, 26% { opacity: 0; } 28% { opacity: 1; } 48% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  .he-rules-meta { font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .he-rules-quote { font-family: 'Iowan Old Style', Georgia, serif; font-size: 14px; line-height: 1.4; color: rgba(255,255,255,0.92); }
+  .he-rules-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .he-outlet { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; background: var(--surface); border: 0.5px solid var(--border); font-size: 10.5px; color: var(--text); opacity: 0; }
+  .he-outlet .src { font-family: ui-monospace, monospace; font-size: 8.5px; color: var(--text-3); padding-left: 6px; margin-left: 6px; border-left: 0.5px solid var(--border); }
+  .he-outlet.o1 { animation: heOut1 30s linear infinite; }
+  .he-outlet.o2 { animation: heOut2 30s linear infinite; }
+  .he-outlet.o3 { animation: heOut3 30s linear infinite; }
+  .he-outlet.o4 { animation: heOut4 30s linear infinite; }
+  .he-outlet.o5 { animation: heOut5 30s linear infinite; }
+  @keyframes heOut1 { 0%, 30% { opacity: 0; } 32% { opacity: 1; } 38% { opacity: 1; border-color: var(--border); } 39.5% { opacity: 0.4; border-color: rgba(251,191,36,0.4); } 48% { opacity: 0.4; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heOut2 { 0%, 31% { opacity: 0; } 33% { opacity: 1; } 38% { opacity: 1; border-color: var(--border); } 39.5% { opacity: 0.4; border-color: rgba(251,191,36,0.4); } 48% { opacity: 0.4; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heOut3 { 0%, 32% { opacity: 0; } 34% { opacity: 1; } 38% { opacity: 1; border-color: var(--border); } 39.5% { opacity: 0.4; border-color: rgba(251,191,36,0.4); } 48% { opacity: 0.4; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heOut4 { 0%, 33% { opacity: 0; } 35% { opacity: 1; } 38% { opacity: 1; border-color: var(--border); } 39.5% { opacity: 0.4; border-color: rgba(251,191,36,0.4); } 48% { opacity: 0.4; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heOut5 { 0%, 34% { opacity: 0; } 36% { opacity: 1; } 38% { opacity: 1; border-color: var(--border); } 39.5% { opacity: 0.4; border-color: rgba(251,191,36,0.4); } 48% { opacity: 0.4; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  .he-rule-stack { display: flex; flex-direction: column; gap: 8px; max-width: 580px; margin: 0 auto; }
+  .he-rule { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(168,85,247,0.06); border: 0.5px solid rgba(168,85,247,0.25); border-radius: 8px; opacity: 0; }
+  .he-rule.r1 { animation: heRule1 30s linear infinite; }
+  .he-rule.r2 { animation: heRule2 30s linear infinite; }
+  @keyframes heRule1 { 0%, 39% { opacity: 0; } 41% { opacity: 1; } 48% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heRule2 { 0%, 43% { opacity: 0; } 45% { opacity: 1; } 48% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
+  .he-rule-icon { width: 16px; height: 16px; color: var(--violet-light); flex-shrink: 0; }
+  .he-rule-text { font-size: 11.5px; color: var(--text); line-height: 1.4; text-align: left; }
+  .he-rule-text em { font-style: italic; color: var(--violet-light); }
+  .he-rule-text .label { display: block; font-family: ui-monospace, monospace; font-size: 9px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+  .he-rule-result { font-family: ui-monospace, monospace; font-size: 10.5px; color: var(--violet-light); padding: 3px 9px; border-radius: 100px; background: rgba(168,85,247,0.12); border: 0.5px solid rgba(168,85,247,0.3); flex-shrink: 0; letter-spacing: 0.04em; white-space: nowrap; }
+
+  /* Scene 3 — 8 verdicts + math */
+  .he-math { width: 100%; max-width: 700px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; }
+  .he-math-tally { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .he-math-cap { font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .he-trow { display: grid; grid-template-columns: 10px 1fr auto auto; align-items: center; gap: 8px; padding: 4px 0; font-size: 11px; opacity: 0; }
+  .he-trow.exc .name, .he-trow.exc .count { color: var(--text-3); }
+  .he-trow .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .he-trow .name { color: var(--text); }
+  .he-trow .count { font-family: ui-monospace, monospace; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .he-trow .w { font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--text-3); padding-left: 6px; border-left: 0.5px solid var(--border); }
+  .he-trow .w.exc { font-style: italic; }
+  .he-divider { height: 0.5px; background: var(--border); margin: 6px 0; opacity: 0; animation: heDiv 30s linear infinite; }
+  @keyframes heDiv { 0%, 60% { opacity: 0; } 62% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  .he-trow.t1 { animation: heT1 30s linear infinite; }
+  .he-trow.t2 { animation: heT2 30s linear infinite; }
+  .he-trow.t3 { animation: heT3 30s linear infinite; }
+  .he-trow.t4 { animation: heT4 30s linear infinite; }
+  .he-trow.t5 { animation: heT5 30s linear infinite; }
+  .he-trow.t6 { animation: heT6 30s linear infinite; }
+  .he-trow.t7 { animation: heT7 30s linear infinite; }
+  .he-trow.t8 { animation: heT8 30s linear infinite; }
+  @keyframes heT1 { 0%, 52% { opacity: 0; } 54% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heT2 { 0%, 53% { opacity: 0; } 55% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heT3 { 0%, 54% { opacity: 0; } 56% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heT4 { 0%, 55% { opacity: 0; } 57% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heT5 { 0%, 56% { opacity: 0; } 58% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heT6 { 0%, 57% { opacity: 0; } 59% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heT7 { 0%, 60% { opacity: 0; } 62% { opacity: 0.55; } 73% { opacity: 0.55; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heT8 { 0%, 61% { opacity: 0; } 63% { opacity: 0.55; } 73% { opacity: 0.55; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  .he-formula { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+  .he-fline { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-2); line-height: 1.4; padding: 7px 11px; background: rgba(168,85,247,0.04); border-left: 1.5px solid rgba(168,85,247,0.35); border-radius: 0 6px 6px 0; opacity: 0; }
+  .he-fline .k { color: var(--violet-light); }
+  .he-fline.f1 { animation: heF1 30s linear infinite; }
+  .he-fline.f2 { animation: heF2 30s linear infinite; }
+  .he-fline.f3 { animation: heF3 30s linear infinite; }
+  @keyframes heF1 { 0%, 63% { opacity: 0; } 65% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heF2 { 0%, 65% { opacity: 0; } 67% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  @keyframes heF3 { 0%, 67% { opacity: 0; } 69% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  .he-score { display: flex; align-items: baseline; gap: 4px; padding-top: 4px; opacity: 0; animation: heScore 30s linear infinite; }
+  @keyframes heScore { 0%, 69% { opacity: 0; } 71% { opacity: 1; } 73% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
+  .he-score .num { font-family: var(--font-display); font-size: 36px; line-height: 1; color: #4ADE80; letter-spacing: -1px; }
+  .he-score .unit { font-family: ui-monospace, monospace; font-size: 12px; color: var(--text-3); }
+
+  /* Scene 4 — Inclusion tiers */
+  .he-tiers { width: 100%; max-width: 620px; }
+  .he-tier { display: grid; grid-template-columns: 110px 1fr 60px; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 0.5px solid var(--border); opacity: 0; }
+  .he-tier:last-of-type { border-bottom: none; }
+  .he-tier-name { font-size: 13px; color: var(--text); }
+  .he-tier-name .sub { display: block; font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--text-3); margin-top: 2px; letter-spacing: 0.04em; }
+  .he-tier-bar { height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+  .he-tier-fill { height: 100%; border-radius: 2px; transform-origin: left; transform: scaleX(0); animation: heTierFill 30s linear infinite; }
+  .he-tier-count { font-family: ui-monospace, monospace; font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+  .he-tier.tr1 { animation: heTR1 30s linear infinite; }
+  .he-tier.tr2 { animation: heTR2 30s linear infinite; }
+  .he-tier.tr3 { animation: heTR3 30s linear infinite; }
+  .he-tier.tr4 { animation: heTR4 30s linear infinite; }
+  @keyframes heTR1 { 0%, 78% { opacity: 0; } 80% { opacity: 1; } 98% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes heTR2 { 0%, 80% { opacity: 0; } 82% { opacity: 1; } 98% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes heTR3 { 0%, 82% { opacity: 0; } 84% { opacity: 1; } 98% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes heTR4 { 0%, 84% { opacity: 0; } 86% { opacity: 1; } 98% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes heTierFill { 0%, 86% { transform: scaleX(0); } 93% { transform: scaleX(var(--w, 0.5)); } 98% { transform: scaleX(var(--w, 0.5)); } 100% { transform: scaleX(var(--w, 0.5)); } }
+  .he-tier-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; opacity: 0; animation: heTierPills 30s linear infinite; }
+  @keyframes heTierPills { 0%, 90% { opacity: 0; } 92% { opacity: 1; } 98% { opacity: 1; } 100% { opacity: 0; } }
+  .he-tier-pill { font-family: ui-monospace, monospace; font-size: 10px; padding: 5px 11px; border-radius: 100px; background: rgba(168,85,247,0.08); border: 0.5px solid rgba(168,85,247,0.3); color: var(--violet-light); letter-spacing: 0.04em; }
+
+  /* Progress dots */
+  .he-progress { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 5; }
+  .he-pdot { width: 24px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.1); overflow: hidden; position: relative; }
+  .he-pdot::after { content: ''; position: absolute; inset: 0; background: var(--violet-light); transform: scaleX(0); transform-origin: left; }
+  .he-pdot.d1::after { animation: hePD1 30s linear infinite; }
+  .he-pdot.d2::after { animation: hePD2 30s linear infinite; }
+  .he-pdot.d3::after { animation: hePD3 30s linear infinite; }
+  .he-pdot.d4::after { animation: hePD4 30s linear infinite; }
+  @keyframes hePD1 { 0% { transform: scaleX(0); } 25% { transform: scaleX(1); } 25.01% { transform: scaleX(0); } 100% { transform: scaleX(0); } }
+  @keyframes hePD2 { 0%, 25% { transform: scaleX(0); } 50% { transform: scaleX(1); } 50.01% { transform: scaleX(0); } 100% { transform: scaleX(0); } }
+  @keyframes hePD3 { 0%, 50% { transform: scaleX(0); } 75% { transform: scaleX(1); } 75.01% { transform: scaleX(0); } 100% { transform: scaleX(0); } }
+  @keyframes hePD4 { 0%, 75% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+
+  .he-stamp { position: absolute; top: 16px; right: 18px; z-index: 5; font-family: ui-monospace, monospace; font-size: 9.5px; color: var(--text-3); letter-spacing: 0.08em; padding: 4px 10px; border-radius: 100px; border: 0.5px solid var(--border); background: rgba(0,0,0,0.4); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .he-scene, .he-scene *, .he-cap, .he-pdot::after { animation: none !important; }
+    .he-scene.c1 { opacity: 1; }
+    .he-scene.c2, .he-scene.c3, .he-scene.c4 { display: none; }
+    .he-cap.c1 { opacity: 1; }
+    .he-cap.c2, .he-cap.c3, .he-cap.c4 { display: none; }
+    .he-pipe-stages::after { width: 75%; }
+    .he-pipe-facts { opacity: 1; }
+  }
+
+  /* === Numbered Q&A sections === */
+  .qa-section { padding: 96px 0; border-top: 0.5px solid var(--border); }
+  .qa-section:first-of-type { border-top: 0; padding-top: 32px; }
+  .qa-grid { display: grid; grid-template-columns: 280px 1fr; gap: 80px; align-items: start; max-width: 1080px; margin: 0 auto; }
+  .qa-marker { position: sticky; top: 100px; }
+  .qa-num { font-family: var(--font-display); font-size: 88px; line-height: 0.9; color: var(--violet-light); font-style: italic; letter-spacing: -3px; margin-bottom: 16px; font-weight: 400; }
+  .qa-eyebrow { font-family: ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.16em; color: var(--text-3); text-transform: uppercase; margin-bottom: 12px; }
+  .qa-anchor { font-family: var(--font-display); font-size: 14px; color: var(--text-2); line-height: 1.4; max-width: 240px; }
+  .qa-body { max-width: 660px; }
+  .qa-body h2 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    line-height: 1.2;
+    letter-spacing: -0.6px;
+    font-weight: 400;
+    color: var(--text);
+    margin: 0 0 36px;
+  }
+  .qa-body h2 em { font-style: italic; color: var(--violet-light); }
+  .qa-block { margin-bottom: 32px; }
+  .qa-block:last-child { margin-bottom: 0; }
+  .qa-block h3 {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin: 0 0 8px;
+  }
+  .qa-block p {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--text-2);
+    font-weight: 300;
+    margin: 0;
+  }
+  .qa-block p + p { margin-top: 10px; }
+  .qa-block p em { font-style: italic; color: var(--text); }
+
+  /* Worked example callout in section 1 */
+  .qa-example {
+    margin-top: 44px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 36px;
+  }
+  .qa-example-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    color: var(--violet-light);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .qa-example-head::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--violet-light); }
+  .qa-example-claim {
+    font-family: 'Iowan Old Style', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.45;
+    color: var(--text);
+    padding: 14px 18px;
+    background: rgba(0,0,0,0.3);
+    border-left: 2px solid var(--violet-light);
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 18px;
+  }
+  .qa-example-meta {
+    display: block;
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--text-3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .qa-trace {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .qa-step {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 16px;
+    padding: 14px 0;
+    border-top: 0.5px dashed rgba(255,255,255,0.08);
+  }
+  .qa-step:first-child { border-top: none; padding-top: 0; }
+  .qa-step-num {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text-3);
+    text-transform: uppercase;
+    padding-top: 2px;
+  }
+  .qa-step-name { font-family: var(--font-display); font-size: 16px; color: var(--text); margin: 0 0 4px; letter-spacing: -0.2px; }
+  .qa-step-desc { font-size: 13px; line-height: 1.55; color: var(--text-2); font-weight: 300; }
+  .qa-step-desc code { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--violet-light); background: rgba(168,85,247,0.08); padding: 1px 6px; border-radius: 4px; }
+  .qa-example-result {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 18px;
+    background: rgba(74,222,128,0.06);
+    border: 0.5px solid rgba(74,222,128,0.25);
+    border-radius: 8px;
+  }
+  .qa-result-label { font-family: ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.12em; color: rgba(74,222,128,0.85); text-transform: uppercase; }
+  .qa-result-text { font-size: 13px; color: var(--text); line-height: 1.4; }
+  .qa-result-pill { font-family: ui-monospace, monospace; font-size: 11px; color: #4ADE80; padding: 4px 11px; border-radius: 100px; border: 0.5px solid rgba(74,222,128,0.4); background: rgba(74,222,128,0.1); letter-spacing: 0.04em; white-space: nowrap; }
+
+  /* Inline rule chips for section 2 */
+  .qa-chips { display: flex; flex-direction: column; gap: 12px; }
+  .qa-chip { display: grid; grid-template-columns: 88px 1fr; gap: 16px; padding: 14px 18px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; }
+  .qa-chip-label { font-family: ui-monospace, monospace; font-size: 10px; color: var(--violet-light); letter-spacing: 0.08em; text-transform: uppercase; padding-top: 2px; }
+  .qa-chip-body { font-size: 13.5px; color: var(--text); line-height: 1.55; font-weight: 300; }
+  .qa-chip-body strong { color: var(--text); font-weight: 500; }
+
+  /* Changelog */
+  .qa-changelog { display: flex; flex-direction: column; gap: 24px; margin-bottom: 24px; }
+  .qa-version { padding: 22px 24px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; }
+  .qa-version-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+  .qa-version-num { font-family: var(--font-display); font-size: 22px; color: var(--violet-light); font-style: italic; letter-spacing: -0.5px; }
+  .qa-version-date { font-family: ui-monospace, monospace; font-size: 10.5px; color: var(--text-3); letter-spacing: 0.08em; }
+  .qa-version-tag { font-family: ui-monospace, monospace; font-size: 9px; padding: 2px 8px; border-radius: 100px; background: rgba(168,85,247,0.1); border: 0.5px solid rgba(168,85,247,0.3); color: var(--violet-light); letter-spacing: 0.08em; text-transform: uppercase; margin-left: auto; }
+  .qa-version ul { list-style: none; padding: 0; margin: 0; }
+  .qa-version li { font-size: 13px; line-height: 1.55; color: var(--text-2); padding: 6px 0 6px 20px; position: relative; font-weight: 300; }
+  .qa-version li::before { content: ""; position: absolute; left: 0; top: 14px; width: 8px; height: 1px; background: var(--violet-light); }
+
+  .qa-archive-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: ui-monospace, monospace; font-size: 11.5px;
+    color: var(--violet-light); text-decoration: none;
+    padding: 10px 16px; border: 0.5px solid rgba(168,85,247,0.3); border-radius: 8px;
+    transition: border-color .15s, background .15s;
+  }
+  .qa-archive-link:hover { border-color: var(--violet-light); background: rgba(168,85,247,0.06); }
+  .qa-archive-link::after { content: "→"; }
+
+  /* Section 5 limitation cards */
+  .qa-limits { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .qa-limit { padding: 18px 20px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; }
+  .qa-limit h4 { font-family: var(--font-sans); font-size: 14px; font-weight: 500; color: var(--text); margin: 0 0 8px; letter-spacing: -0.01em; }
+  .qa-limit p { font-size: 13px; line-height: 1.55; color: var(--text-2); font-weight: 300; margin: 0; }
+
+  /* Final CTA */
+  .qa-cta {
+    text-align: center;
+    padding: 96px 24px 120px;
+    border-top: 0.5px solid var(--border);
+  }
+  .qa-cta h3 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 400;
+    letter-spacing: -0.6px;
+    margin: 0 0 12px;
+  }
+  .qa-cta h3 em { font-style: italic; color: var(--violet-light); }
+  .qa-cta p { font-size: 14px; color: var(--text-2); max-width: 520px; margin: 0 auto 28px; line-height: 1.55; font-weight: 300; }
+  .qa-cta-row { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .qa-cta-btn { padding: 12px 22px; border-radius: 8px; font-size: 13px; text-decoration: none; transition: opacity .15s, border-color .15s; font-weight: 500; }
+  .qa-cta-btn.primary { background: var(--violet); color: #fff; }
+  .qa-cta-btn.primary:hover { opacity: 0.85; }
+  .qa-cta-btn.secondary { background: transparent; color: var(--text-2); border: 0.5px solid var(--border); }
+  .qa-cta-btn.secondary:hover { border-color: var(--violet); color: var(--text); }
+
+  /* Mobile */
+  @media (max-width: 900px) {
+    .hiw-hero { padding: 110px 0 24px; }
+    .hiw-hero h1 { font-size: 38px; }
+    .hiw-hero p { font-size: 15px; }
+    .hiw-exp { aspect-ratio: 4 / 5; max-height: none; }
+    .he-cap-frame { left: 16px; right: 16px; height: 76px; top: 18px; }
+    .he-cap-main { font-size: 18px; line-height: 1.2; }
+    .he-stage { inset: 110px 18px 48px; }
+    .he-pipe-node { width: 38px; height: 38px; margin-bottom: 10px; }
+    .he-pipe-node svg { width: 14px; height: 14px; }
+    .he-pipe-num { font-size: 8.5px; }
+    .he-pipe-label { font-size: 11px; }
+    .he-pipe-meta { font-size: 8.5px; }
+    .he-pipe-stages { margin-bottom: 18px; }
+    .he-pipe-stages::before, .he-pipe-stages::after { top: 19px; }
+    .he-pipe-facts { grid-template-columns: 1fr; gap: 6px; }
+    .he-pipe-fact { padding: 7px 10px; }
+    .he-rules-claim { padding: 9px 12px; max-width: 100%; }
+    .he-rules-quote { font-size: 11.5px; }
+    .he-outlet { font-size: 9.5px; padding: 4px 8px; }
+    .he-outlet .src { font-size: 8px; padding-left: 5px; margin-left: 5px; }
+    .he-rule { padding: 8px 10px; gap: 8px; }
+    .he-rule-text { font-size: 10px; }
+    .he-rule-result { font-size: 9px; padding: 2px 7px; }
+    .he-math { grid-template-columns: 1fr; gap: 12px; max-width: 100%; }
+    .he-math-tally { padding: 10px 12px; }
+    .he-trow { font-size: 10px; gap: 6px; padding: 3px 0; }
+    .he-trow .w { font-size: 9px; padding-left: 4px; }
+    .he-fline { font-size: 9.5px; padding: 6px 9px; }
+    .he-score .num { font-size: 26px; }
+    .he-tier { grid-template-columns: 90px 1fr 50px; gap: 10px; padding: 8px 0; }
+    .he-tier-name { font-size: 11px; }
+    .he-tier-name .sub { font-size: 8.5px; }
+    .he-tier-count { font-size: 10.5px; }
+    .he-tier-pill { font-size: 9px; padding: 4px 9px; }
+    .he-progress { bottom: 14px; gap: 6px; }
+    .he-pdot { width: 16px; height: 2px; }
+    .he-stamp { font-size: 8.5px; padding: 3px 8px; top: 12px; right: 12px; }
+
+    .qa-section { padding: 64px 0; }
+    .qa-section:first-of-type { padding-top: 24px; }
+    .qa-grid { grid-template-columns: 1fr; gap: 28px; }
+    .qa-marker { position: static; }
+    .qa-num { font-size: 56px; margin-bottom: 8px; }
+    .qa-body h2 { font-size: 24px; margin-bottom: 24px; }
+    .qa-block { margin-bottom: 24px; }
+    .qa-example { padding: 22px; margin-top: 32px; }
+    .qa-step { grid-template-columns: 48px 1fr; gap: 12px; padding: 10px 0; }
+    .qa-step-num { font-size: 9px; }
+    .qa-step-name { font-size: 14px; }
+    .qa-step-desc { font-size: 12.5px; }
+    .qa-example-result { grid-template-columns: 1fr; gap: 10px; }
+    .qa-chip { grid-template-columns: 1fr; gap: 6px; }
+    .qa-limits { grid-template-columns: 1fr; }
+    .qa-cta h3 { font-size: 24px; }
+  }
 </style>
 </head>
-<body data-page="how">
+<body data-page="how"><nav class="nav">
+    <div class="nav-inner">
+      <a href="https://www.verumsignal.com/index.html" class="nav-logo"><svg width="280" height="40" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
+    <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="25" cy="14" r="2.5" fill="#ec4899"></circle>
+    <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+    <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+  </svg></a>
+      <div class="nav-links">
+        <a href="https://www.verumsignal.com/index.html" class="">Home</a><a href="https://www.verumsignal.com/how-it-works.html" class="active">How it works</a><a href="https://www.verumsignal.com/pricing.html" class="">Pricing</a><a href="https://www.verumsignal.com/leaderboard.html" class="">Leaderboard</a>
+        <a href="https://www.verumsignal.com/index.html#analyze" class="nav-cta">Analyze</a>
+      </div>
+    </div>
+  </nav>
 
-<section class="page-hero">
+<!-- HERO -->
+<section class="hiw-hero">
   <div class="hero-grid"></div>
   <div class="hero-glow" style="top: 55%;"></div>
-  <div class="container page-hero-content">
-    <div class="eyebrow fu" style="justify-content:center; max-width:340px; margin:0 auto 28px;">Methodology</div>
-    <h1 class="display h-page fu2">How Verum Signal works.</h1>
-    <p class="sub fu3">Documented methodology. Same standards applied to every outlet.</p>
+  <div class="container hiw-hero-content">
+    <div class="hiw-version fu"><span class="dot"></span>Methodology v1.6 · May 2026</div>
+    <h1 class="fu2">How Verum Signal <em>works.</em></h1>
+    <p class="fu3">Documented. Versioned. Same standards applied to every outlet. Built to answer the questions skeptics actually ask.</p>
   </div>
 </section>
 
-<!-- METHODOLOGY -->
-<section class="section" style="padding-top: 60px;">
+<!-- TOP-OF-PAGE EXPLAINER (cycling video) -->
+<section class="hiw-exp-section">
   <div class="container">
-    <div class="eyebrow" style="max-width: 820px; margin: 0 auto 40px;">The rules</div>
-    <div class="method-stack">
-      <div class="method-card">
-        <div class="method-num">1</div>
-        <div>
-          <h3>Independence rule</h3>
-          <p>Two sources are only independent if they obtained information through genuinely different means. Five outlets citing the same wire report counts as one source.</p>
+    <div class="hiw-exp" aria-label="Animated explainer of Verum Signal methodology v1.6">
+      <div class="he-grid"></div>
+      <div class="he-glow"></div>
+      <div class="he-stamp">METHODOLOGY v1.6</div>
+
+      <div class="he-cap-frame">
+        <div class="he-cap-eyebrow">The pipeline at a glance</div>
+        <div class="he-cap c1">
+          <div class="he-cap-main">Every article runs the <em>same pipeline.</em></div>
+        </div>
+        <div class="he-cap c2">
+          <div class="he-cap-main">Two rules govern <em>independence.</em></div>
+        </div>
+        <div class="he-cap c3">
+          <div class="he-cap-main">Eight verdicts. Six <em>scoreable.</em></div>
+        </div>
+        <div class="he-cap c4">
+          <div class="he-cap-main">Outlets earn their tier <em>by volume.</em></div>
         </div>
       </div>
-      <div class="method-card">
-        <div class="method-num">2</div>
-        <div>
-          <h3>Consensus exception</h3>
-          <p>When five or more outlets consistently report the same claim without contradiction, a verdict may be assigned at reduced confidence.</p>
+
+      <div class="he-stage">
+
+        <!-- Scene 1 — Pipeline -->
+        <div class="he-scene c1">
+          <div class="he-pipe">
+            <div class="he-pipe-stages">
+              <div class="he-pipe-stage s1">
+                <div class="he-pipe-node"><svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/></svg></div>
+                <div class="he-pipe-num">01</div>
+                <div class="he-pipe-label">Ingest</div>
+                <div class="he-pipe-meta">URL → text<br>language · source ID</div>
+              </div>
+              <div class="he-pipe-stage s2">
+                <div class="he-pipe-node"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h16"/></svg></div>
+                <div class="he-pipe-num">02</div>
+                <div class="he-pipe-label">Extract</div>
+                <div class="he-pipe-meta">claims via Sonnet<br>up to 7 per article</div>
+              </div>
+              <div class="he-pipe-stage s3">
+                <div class="he-pipe-node"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+                <div class="he-pipe-num">03</div>
+                <div class="he-pipe-label">Priority</div>
+                <div class="he-pipe-meta">score ≥ 30<br>filters lifestyle / fluff</div>
+              </div>
+              <div class="he-pipe-stage s4">
+                <div class="he-pipe-node"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+                <div class="he-pipe-num">04</div>
+                <div class="he-pipe-label">Verify</div>
+                <div class="he-pipe-meta">cache → consensus<br>→ web search</div>
+              </div>
+            </div>
+            <div class="he-pipe-facts">
+              <div class="he-pipe-fact">
+                <div class="he-pipe-fact-label">Breaking-news gate</div>
+                <div class="he-pipe-fact-value"><strong>6 hours</strong> before a claim affects an outlet's score</div>
+              </div>
+              <div class="he-pipe-fact">
+                <div class="he-pipe-fact-label">Wire reprints</div>
+                <div class="he-pipe-fact-value">Verbatim Reuters / AP / AFP / Bloomberg <strong>excluded</strong></div>
+              </div>
+              <div class="he-pipe-fact">
+                <div class="he-pipe-fact-label">Quoted speakers</div>
+                <div class="he-pipe-fact-value">Scored on <strong>quote accuracy</strong>, not the speaker's claim</div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="method-card">
-        <div class="method-num">3</div>
-        <div>
-          <h3>Outlet claims vs attributed claims</h3>
-          <p>We distinguish between claims the outlet makes directly and claims attributed to named speakers. A politician's claim is scored against the politician's record, not the outlet's.</p>
+
+        <!-- Scene 2 — Independence + Consensus -->
+        <div class="he-scene c2">
+          <div class="he-rules">
+            <div class="he-rules-claim">
+              <div class="he-rules-meta">Claim · April 2026</div>
+              <div class="he-rules-quote">"The Senate passed the Western Water Security Act 61–38."</div>
+            </div>
+            <div class="he-rules-row">
+              <div class="he-outlet o1">Sentinel Press<span class="src">via Reuters</span></div>
+              <div class="he-outlet o2">Beacon Daily<span class="src">via Reuters</span></div>
+              <div class="he-outlet o3">Northwind News<span class="src">via Reuters</span></div>
+              <div class="he-outlet o4">Crosswire<span class="src">via Reuters</span></div>
+              <div class="he-outlet o5">Citywire<span class="src">via Reuters</span></div>
+            </div>
+            <div class="he-rule-stack">
+              <div class="he-rule r1">
+                <svg class="he-rule-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+                <div class="he-rule-text"><span class="label">Independence rule</span>Five outlets cite <em>the same wire</em> — counted as one source, not five.</div>
+                <div class="he-rule-result">= 1 source</div>
+              </div>
+              <div class="he-rule r2">
+                <svg class="he-rule-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+                <div class="he-rule-text"><span class="label">Consensus exception</span>5+ outlets reporting consistently → claim assigned at <em>reduced confidence</em>.</div>
+                <div class="he-rule-result">+0.5 weight</div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- Scene 3 — 8 verdicts + math -->
+        <div class="he-scene c3">
+          <div class="he-math">
+            <div class="he-math-tally">
+              <div class="he-math-cap">Outlet · all-time tally</div>
+              <div class="he-trow t1"><span class="dot" style="background:#4ADE80;"></span><span class="name">Supported</span><span class="count">128</span><span class="w">×&nbsp;+1.0</span></div>
+              <div class="he-trow t2"><span class="dot" style="background:#60A5FA;"></span><span class="name">Plausible</span><span class="count">42</span><span class="w">×&nbsp;+0.5</span></div>
+              <div class="he-trow t3"><span class="dot" style="background:#34D399;"></span><span class="name">Corroborated</span><span class="count">31</span><span class="w">×&nbsp;+0.5</span></div>
+              <div class="he-trow t4"><span class="dot" style="background:#FBBF24;"></span><span class="name">Overstated</span><span class="count">18</span><span class="w">×&nbsp;−0.5</span></div>
+              <div class="he-trow t5"><span class="dot" style="background:#F87171;"></span><span class="name">Disputed</span><span class="count">9</span><span class="w">×&nbsp;−1.0</span></div>
+              <div class="he-trow t6"><span class="dot" style="background:#EF4444;"></span><span class="name">Not supported</span><span class="count">4</span><span class="w">×&nbsp;−1.5</span></div>
+              <div class="he-divider"></div>
+              <div class="he-trow t7 exc"><span class="dot" style="background:#9CA3AF;"></span><span class="name">Opinion</span><span class="count">37</span><span class="w exc">excluded</span></div>
+              <div class="he-trow t8 exc"><span class="dot" style="background:#6B7280;"></span><span class="name">Not verifiable</span><span class="count">22</span><span class="w exc">excluded</span></div>
+            </div>
+            <div class="he-formula">
+              <div class="he-fline f1"><span class="k">weighted_sum</span> = Σ (weight × count)</div>
+              <div class="he-fline f2"><span class="k">scoreable</span> = total − (opinion + not_verifiable)</div>
+              <div class="he-fline f3"><span class="k">score</span> = (sum / scoreable + 1.5) / 2.5 × 100</div>
+              <div class="he-score"><span class="num">82</span><span class="unit">/100</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scene 4 — Inclusion tiers -->
+        <div class="he-scene c4">
+          <div class="he-tiers">
+            <div class="he-tier tr1">
+              <div class="he-tier-name">Published<span class="sub">100+ verdicts</span></div>
+              <div class="he-tier-bar"><div class="he-tier-fill" style="--w: 1.0; background: linear-gradient(90deg, #4ADE80, #86EFAC);"></div></div>
+              <div class="he-tier-count">142</div>
+            </div>
+            <div class="he-tier tr2">
+              <div class="he-tier-name">Stabilizing<span class="sub">50–99</span></div>
+              <div class="he-tier-bar"><div class="he-tier-fill" style="--w: 0.65; background: linear-gradient(90deg, #60A5FA, #93C5FD);"></div></div>
+              <div class="he-tier-count">59</div>
+            </div>
+            <div class="he-tier tr3">
+              <div class="he-tier-name">Limited Data<span class="sub">20–49</span></div>
+              <div class="he-tier-bar"><div class="he-tier-fill" style="--w: 0.4; background: linear-gradient(90deg, #FBBF24, #FCD34D);"></div></div>
+              <div class="he-tier-count">31</div>
+            </div>
+            <div class="he-tier tr4">
+              <div class="he-tier-name">Excluded<span class="sub">under 20</span></div>
+              <div class="he-tier-bar"><div class="he-tier-fill" style="--w: 0.18; background: linear-gradient(90deg, #6B7280, #9CA3AF);"></div></div>
+              <div class="he-tier-count">12</div>
+            </div>
+            <div class="he-tier-pills">
+              <div class="he-tier-pill">Inclusion threshold · 20 verdicts</div>
+              <div class="he-tier-pill">Excluded outlets still analysed</div>
+            </div>
+          </div>
+        </div>
+
       </div>
-      <div class="method-card">
-        <div class="method-num">4</div>
-        <div>
-          <h3>No human editorial decisions</h3>
-          <p>Every verdict is generated automatically using the same prompt, the same standards, applied identically to every outlet.</p>
+
+      <div class="he-progress">
+        <div class="he-pdot d1"></div>
+        <div class="he-pdot d2"></div>
+        <div class="he-pdot d3"></div>
+        <div class="he-pdot d4"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 1 — How do I know you're not just confirming what you already think? -->
+<section class="qa-section">
+  <div class="container">
+    <div class="qa-grid">
+      <div class="qa-marker">
+        <div class="qa-num">01</div>
+        <div class="qa-eyebrow">The skeptic asks</div>
+        <div class="qa-anchor">"How do I know you're not just confirming what you already think?"</div>
+      </div>
+      <div class="qa-body">
+        <h2>The independence rule does <em>the work.</em></h2>
+
+        <div class="qa-block">
+          <p>Two sources only count as independent if they obtained their information through genuinely different means. Five outlets republishing the same Reuters report counts as one source, not five. This is how the system avoids confusing reach with corroboration.</p>
+        </div>
+
+        <div class="qa-block">
+          <h3>The consensus exception is bounded.</h3>
+          <p>When five or more outlets consistently report the same claim without contradiction, the claim can be assigned at <em>reduced</em> confidence — not full confidence. This is a guardrail against echo chambers, not an endorsement of them.</p>
+        </div>
+
+        <div class="qa-block">
+          <h3>Outlet claims vs attributed claims.</h3>
+          <p>A claim made directly by the outlet is scored against the outlet. A claim attributed to a named speaker — a politician, an official, a CEO — is scored against the speaker's record, not the outlet's. The outlet is evaluated on whether it quoted accurately.</p>
+        </div>
+
+        <!-- Worked example -->
+        <div class="qa-example">
+          <div class="qa-example-head">Worked example · hypothetical claim</div>
+          <span class="qa-example-meta">Sentinel Press · April 2026</span>
+          <div class="qa-example-claim">"The Senate passed the Western Water Security Act 61 to 38, allocating $4.2 billion over seven years to permanently resolve interstate water disputes."</div>
+
+          <div class="qa-trace">
+            <div class="qa-step">
+              <div class="qa-step-num">Step 01</div>
+              <div>
+                <div class="qa-step-name">Ingestion</div>
+                <div class="qa-step-desc">Article fetched. Source identified. Publication timestamp parsed. Article is older than the <code>6-hour gate</code>, so any verdicts produced will affect the outlet's live score.</div>
+              </div>
+            </div>
+            <div class="qa-step">
+              <div class="qa-step-num">Step 02</div>
+              <div>
+                <div class="qa-step-name">Extraction</div>
+                <div class="qa-step-desc">Three checkable factual claims extracted from the sentence: <em>(1)</em> the Senate vote count, <em>(2)</em> the appropriation amount and duration, <em>(3)</em> the framing claim that the bill will "permanently resolve" disputes.</div>
+              </div>
+            </div>
+            <div class="qa-step">
+              <div class="qa-step-num">Step 03</div>
+              <div>
+                <div class="qa-step-name">Priority</div>
+                <div class="qa-step-desc">Each claim scored against the priority threshold. All three score above <code>30</code> and enter the verification queue.</div>
+              </div>
+            </div>
+            <div class="qa-step">
+              <div class="qa-step-num">Step 04</div>
+              <div>
+                <div class="qa-step-name">Verification</div>
+                <div class="qa-step-desc">Vote count: confirmed by Senate.gov roll-call record and AP wire reporting. <em>Independent sources.</em> → <code>Supported</code> · +1.0<br>
+                Appropriation: confirmed by the Congressional Budget Office summary and the bill text. → <code>Supported</code> · +1.0<br>
+                "Permanently resolve" framing: water-rights legal scholars in the cited reporting describe the bill as a 7-year settlement, not a permanent one. → <code>Overstated</code> · −0.5</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="qa-example-result">
+            <div class="qa-result-label">Result</div>
+            <div class="qa-result-text">Two supported claims, one overstated. Sources cited in the published report. The independence rule was applied at verification — the AP wire and Senate.gov are independent.</div>
+            <div class="qa-result-pill">Article: 78/100</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Pull quote -->
-<section>
+<!-- SECTION 2 — What if the AI gets it wrong? -->
+<section class="qa-section">
   <div class="container">
-    <div class="pull-callout">
-      Evaluate claims <em>on evidence</em> —<br/>
-      not on who made them.
+    <div class="qa-grid">
+      <div class="qa-marker">
+        <div class="qa-num">02</div>
+        <div class="qa-eyebrow">The skeptic asks</div>
+        <div class="qa-anchor">"What if the AI gets it wrong?"</div>
+      </div>
+      <div class="qa-body">
+        <h2>Same prompt. Same standards. <em>Every outlet.</em></h2>
+
+        <div class="qa-block">
+          <p>Every verdict is generated automatically using the same prompt and the same standards, applied identically to every outlet. No human editorial decisions sit between an article and its verdict.</p>
+          <p>That means a verdict is reproducible: re-running the same article through the same methodology produces the same result. It also means there's no editor with a thumb on the scale for any outlet — favorable or unfavorable.</p>
+        </div>
+
+        <div class="qa-chips">
+          <div class="qa-chip">
+            <div class="qa-chip-label">6-hour gate</div>
+            <div class="qa-chip-body"><strong>Claims from articles less than 6 hours old don't yet affect outlet scores.</strong> They need time for corroborating sources to surface. The gate is enforced uniformly across every scoring surface — leaderboard, outlet pages, score history, article badges.</div>
+          </div>
+          <div class="qa-chip">
+            <div class="qa-chip-label">Opinion excluded</div>
+            <div class="qa-chip-body"><strong>"Is this accurate?" is the wrong question for editorial commentary.</strong> Opinion content is excluded from outlet scoring — not because opinion is bad, but because reliability is the wrong axis to judge it on.</div>
+          </div>
+          <div class="qa-chip">
+            <div class="qa-chip-label">Not verifiable</div>
+            <div class="qa-chip-body"><strong>Absence of evidence is not evidence of inaccuracy.</strong> When a claim cannot be confirmed or denied — sources unavailable, paywalled, empirically untestable — it's marked Not verifiable and excluded from scoring rather than counted against the outlet.</div>
+          </div>
+          <div class="qa-chip">
+            <div class="qa-chip-label">Wire reprints</div>
+            <div class="qa-chip-body"><strong>Verbatim Reuters, AP, AFP, and Bloomberg reprints are removed entirely from the outlet's claim pool.</strong> An outlet cannot earn a high score by republishing wire copy.</div>
+          </div>
+          <div class="qa-chip">
+            <div class="qa-chip-label">Quoted speakers</div>
+            <div class="qa-chip-body"><strong>When an outlet reports what a politician said, the verdict evaluates whether the outlet quoted the politician accurately</strong> — not whether the politician's underlying claim is true. The politician's claim is scored against the politician's record, not the outlet's.</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- VERDICT DEFINITIONS -->
-<section class="section">
+<!-- SECTION 3 — What's your political bias? -->
+<section class="qa-section">
+  <div class="container">
+    <div class="qa-grid">
+      <div class="qa-marker">
+        <div class="qa-num">03</div>
+        <div class="qa-eyebrow">The skeptic asks</div>
+        <div class="qa-anchor">"What's your political bias?"</div>
+      </div>
+      <div class="qa-body">
+        <h2>The methodology doesn't know what political affiliation an outlet has.</h2>
+
+        <div class="qa-block">
+          <p>The pipeline ingests an article, extracts factual claims, runs each claim against the same evidence-finding process, and assigns a verdict from the same eight categories. Every outlet runs the same code path. There is no dial labeled "left" or "right." There is no editor who decides which outlets get scrutiny.</p>
+        </div>
+
+        <div class="qa-block">
+          <h3>What we never call ourselves.</h3>
+          <p>Verum Signal never describes itself as a fact-checker. Fact-checking is a craft — one that involves human judgment, editorial framing, and choices about what to cover. Verum Signal does something narrower: it evaluates claims on evidence using a documented methodology, applied uniformly. <em>We provide the signals. You decide.</em></p>
+        </div>
+
+        <div class="qa-block">
+          <h3>What the leaderboard reflects.</h3>
+          <p>Outlet scores are a function of the verdicts that outlet has accumulated under this methodology. They are not curated. They are not adjusted for editorial reasons. They change as more verdicts are accumulated, and the trajectory of any outlet's score is itself public.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4 — What changed and when? -->
+<section class="qa-section">
+  <div class="container">
+    <div class="qa-grid">
+      <div class="qa-marker">
+        <div class="qa-num">04</div>
+        <div class="qa-eyebrow">The skeptic asks</div>
+        <div class="qa-anchor">"What changed and when?"</div>
+      </div>
+      <div class="qa-body">
+        <h2>The methodology is versioned. Changes are documented. Old versions are archived.</h2>
+        <div class="qa-block">
+          <p>Methodology versions are bumped when scoring math, verdict definitions, or inclusion rules change. Substantive changes are documented. Archived versions remain available and continue to be browsable.</p>
+        </div>
+
+        <div class="qa-changelog">
+          <div class="qa-version">
+            <div class="qa-version-head">
+              <div class="qa-version-num">v1.6</div>
+              <div class="qa-version-date">May 5, 2026</div>
+              <div class="qa-version-tag">Current</div>
+            </div>
+            <ul>
+              <li>Single source of truth for scoring constants — verdict weights, scoreable verdict types, tier thresholds, formula divisor — consolidated to one module.</li>
+              <li>The 6-hour breaking-news gate is now applied uniformly across every scoring surface (leaderboard, outlet aggregates, score history, article badges, individual outlet endpoints).</li>
+              <li>Articles with no scoreable claims now display as "Unscored" instead of receiving a misleading 0/100 score.</li>
+              <li>Extraction prompt rewritten to be genre-agnostic — opinion pieces and analysis can contain checkable factual claims, and aren't skipped because of their genre label.</li>
+              <li>Paid extraction depth raised from 3 to 7 claims per article. Free reports continue to verify the top 2 claims.</li>
+              <li>Brand language aligned: user-facing strings consistently use "verification engine" and "claim analysis platform" framing.</li>
+              <li>Known data limitation acknowledged: a subset of ingested articles arrive without a parseable publication timestamp and are excluded from outlet scoring under the date-required policy. The ingestion pipeline is being improved to reduce this exclusion rate.</li>
+            </ul>
+          </div>
+
+          <div class="qa-version">
+            <div class="qa-version-head">
+              <div class="qa-version-num">v1.5</div>
+              <div class="qa-version-date">retrospective entries</div>
+              <div class="qa-version-tag" style="background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text-3);">Archived</div>
+            </div>
+            <ul>
+              <li>Eight verdict types defined (six scoreable, two excluded).</li>
+              <li>Score formula established: <code style="font-family:ui-monospace,monospace;font-size:11px;color:var(--violet-light);">(weighted_sum / scoreable + 1.5) / 2.5 × 100</code>.</li>
+              <li>Public leaderboard launched.</li>
+              <li>6-hour breaking-news gate defined.</li>
+            </ul>
+          </div>
+        </div>
+
+        <a href="/methodology/archive/v1.5" class="qa-archive-link">Read the archived v1.5 methodology</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5 — What can't you do? -->
+<section class="qa-section">
+  <div class="container">
+    <div class="qa-grid">
+      <div class="qa-marker">
+        <div class="qa-num">05</div>
+        <div class="qa-eyebrow">The skeptic asks</div>
+        <div class="qa-anchor">"What can't you do?"</div>
+      </div>
+      <div class="qa-body">
+        <h2>The honest limitations of <em>this approach.</em></h2>
+        <div class="qa-block">
+          <p>A methodology should be honest about what it can't do. Some of what follows is by design; some is a function of where the system is in its lifecycle. Either way, it's worth saying out loud.</p>
+        </div>
+
+        <div class="qa-limits">
+          <div class="qa-limit">
+            <h4>Limited outlet coverage today.</h4>
+            <p>The leaderboard is still maturing. Outlets need at least 20 verdicts to receive a public score, and many outlets are below that threshold. Coverage will expand as the corpus grows.</p>
+          </div>
+          <div class="qa-limit">
+            <h4>Paywalled sources can limit verification.</h4>
+            <p>When the only credible source for a claim sits behind a paywall the system cannot access, the claim may land in <em>Not verifiable</em> — excluded from scoring rather than counted against the outlet.</p>
+          </div>
+          <div class="qa-limit">
+            <h4>Articles missing publication timestamps are excluded.</h4>
+            <p>A subset of ingested articles arrive without a parseable publication date and are excluded from outlet scoring under the date-required policy. The ingestion pipeline is being improved to reduce this exclusion rate.</p>
+          </div>
+          <div class="qa-limit">
+            <h4>Opinion content is not "judged."</h4>
+            <p>Opinion is excluded from scoring rather than rated, because reliability is the wrong axis to judge editorial commentary on. This means an opinion-heavy outlet has fewer scoreable claims, not a lower score.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6 — Verdict definitions (kept from original page) -->
+<section class="qa-section">
   <div class="container">
     <div class="eyebrow">Verdict definitions</div>
     <h2 class="display h-section" style="max-width: 720px; margin-bottom: 12px;">Eight possible verdicts.</h2>
@@ -332,28 +1208,37 @@
     </div>
   </div>
 </section>
-<script src="chrome.js?v=1777162767838"></script>
+
+<!-- FINAL CTA -->
+<section class="qa-cta">
+  <div class="container">
+    <h3>Read the full <em>Methodology v1.6.</em></h3>
+    <p>The complete reference — implementation details, scoring constants, the unabridged changelog, and every rule that produces a verdict.</p>
+    <div class="qa-cta-row">
+      <a href="/methodology" class="qa-cta-btn primary">Methodology v1.6</a>
+      <a href="/leaderboard.html" class="qa-cta-btn secondary">View the leaderboard</a>
+    </div>
+  </div>
+</section>
+<script src="./How it works — Verum Signal_files/chrome.js.download"></script>
 
 <!-- Site footer -->
 <footer class="site-footer">
   <div class="site-footer-inner">
     <div class="site-footer-brand">
       <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
-        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"></path>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"></circle>
       </svg>
       <span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span>
     </div>
     <div class="site-footer-tagline">We provide the signals. You decide.</div>
     <nav class="site-footer-nav">
-      <a href="/methodology">Methodology</a>
-      <a href="/how-it-works.html">How it works</a>
-      <a href="/leaderboard.html">Leaderboard</a>
-      <a href="/pricing.html">Pricing</a>
+      <a href="https://www.verumsignal.com/methodology">Methodology</a>
+      <a href="https://www.verumsignal.com/how-it-works.html">How it works</a>
+      <a href="https://www.verumsignal.com/leaderboard.html">Leaderboard</a>
+      <a href="https://www.verumsignal.com/pricing.html">Pricing</a>
     </nav>
     <div class="site-footer-meta">Methodology v1.6 · Automated · Auditable</div>
   </div>
 </footer>
-
-</body>
-</html>
