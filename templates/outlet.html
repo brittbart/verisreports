@@ -6,10 +6,6 @@
   <title>{{ outlet.domain }} — Verum Signal</title>
   <link rel="stylesheet" href="/styles.css?v=5">
   <link rel="stylesheet" href="/static/css/outlet.css">
-<style>
-/* DEBUG: show drawer state visibly */
-.nav-links.is-open { background: lime !important; opacity: 1 !important; pointer-events: auto !important; }
-</style>
 </head>
 <body>
 
@@ -306,21 +302,6 @@
 </footer>
 
 <script src="/static/js/outlet.js" defer></script>
-<script src="/chrome.js?v=1778135200"></script>
-<script>
-console.log('[outlet debug] script loaded');
-window.addEventListener('DOMContentLoaded', function(){
-  console.log('[outlet debug] DOM ready');
-  var btn = document.querySelector('.nav-toggle');
-  console.log('[outlet debug] toggle button found:', !!btn);
-  if (btn) {
-    btn.addEventListener('click', function(){
-      alert('Hamburger tapped! Menu should be opening.');
-      var menu = document.getElementById('nav-menu');
-      console.log('[outlet debug] menu has is-open:', menu && menu.classList.contains('is-open'));
-    });
-  }
-});
-</script>
+<script src="/chrome.js?v=1778145000"></script>
 </body>
 </html>
