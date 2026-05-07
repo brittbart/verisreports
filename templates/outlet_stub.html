@@ -155,25 +155,42 @@
   </style>
 </head>
 <body data-page="outlet">
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="/index.html" class="nav-logo">
-        <svg width="280" height="40" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
-          <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-          <circle cx="25" cy="14" r="2.5" fill="#ec4899"></circle>
-          <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
-          <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
-        </svg>
-      </a>
-      <div class="nav-links">
-        <a href="/index.html">Home</a>
-        <a href="/how-it-works.html">How it works</a>
-        <a href="/pricing.html">Pricing</a>
-        <a href="/leaderboard.html">Leaderboard</a>
-        <a href="/index.html#analyze" class="nav-cta">Analyze</a>
-      </div>
+  <nav class="nav" aria-label="Site">
+  <div class="nav-inner">
+    <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
+      <svg width="180" height="26" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-controls="nav-menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-menu">
+      <a href="/index.html">Home</a>
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/leaderboard.html" class="active">Leaderboard</a>
+      <a href="/methodology">Methodology</a>
+      <a href="#" class="nav-cta">Get the extension</a>
     </div>
-  </nav>
+  </div>
+</nav>
+<script>
+(function(){
+  var btn=document.querySelector('.nav-toggle'),menu=document.getElementById('nav-menu');
+  if(!btn||!menu)return;
+  btn.addEventListener('click',function(){
+    var open=menu.classList.toggle('is-open');
+    btn.setAttribute('aria-expanded',open?'true':'false');
+  });
+  menu.addEventListener('click',function(e){
+    if(e.target.tagName==='A'){menu.classList.remove('is-open');btn.setAttribute('aria-expanded','false');}
+  });
+})();
+</script>
 
   <section class="outlet-stub">
     <div class="container">

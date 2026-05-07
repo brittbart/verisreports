@@ -444,3 +444,111 @@ nav.nav.scrolled {
 .url-wrap button { pointer-events: auto !important; z-index: 11; position: relative; }
 /* Fix input blocking on Windows */
 .url-wrap { animation: none !important; opacity: 1 !important; transform: none !important; }
+
+/* ============================================================
+   CANONICAL TOP NAV — added 2026-05-06
+   Replaces any prior .nav rules below this point should be deleted
+   if they conflict; otherwise leave as fallback.
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(10, 10, 15, 0.72);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+}
+.nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.nav-logo { display: inline-flex; align-items: center; flex-shrink: 0; }
+.nav-logo svg { display: block; height: 26px; width: auto; }
+.nav-links { display: flex; align-items: center; gap: 28px; }
+.nav-links a {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 14px;
+  font-weight: 400;
+  text-decoration: none;
+  letter-spacing: -0.005em;
+  transition: color 0.15s ease;
+}
+.nav-links a:hover { color: #ffffff; }
+.nav-links a.active { color: #ffffff; }
+.nav-cta {
+  padding: 9px 18px;
+  background: var(--violet, #a855f7);
+  color: #ffffff !important;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 0.15s ease;
+}
+.nav-cta:hover { opacity: 0.88; color: #ffffff !important; }
+.nav-toggle {
+  display: none;
+  background: transparent;
+  border: 0;
+  padding: 8px;
+  cursor: pointer;
+  flex-direction: column;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+}
+.nav-toggle span {
+  display: block;
+  width: 18px;
+  height: 1.5px;
+  background: rgba(255,255,255,0.78);
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+.nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+@media (max-width: 760px) {
+  .nav-inner { padding: 14px 20px; }
+  .nav-logo svg { height: 22px; }
+  .nav-toggle { display: flex; }
+  .nav-links {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 8px 16px 20px;
+    background: rgba(10, 10, 15, 0.96);
+    backdrop-filter: blur(14px);
+    border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    transform: translateY(-8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .nav-links.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .nav-links a {
+    padding: 14px 8px;
+    border-bottom: 0.5px solid rgba(255,255,255,0.05);
+    font-size: 16px;
+    color: rgba(255,255,255,0.85);
+  }
+  .nav-links a:last-child { border-bottom: 0; }
+  .nav-cta {
+    margin-top: 12px;
+    text-align: center;
+    padding: 14px 18px !important;
+  }
+}
