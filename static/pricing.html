@@ -304,6 +304,19 @@
   .free-stage, .pro-stage { max-width: 560px; margin: 0 auto; }
 }
 
+
+.pro-claim-header { cursor: pointer; transition: background 0.15s; }
+.pro-claim-header:hover { background: rgba(255,255,255,0.02); }
+.pro-claim-body { padding: 0 18px 14px 31px; background: rgba(255,255,255,0.01); border-top: 0.5px solid rgba(255,255,255,0.04); }
+.pro-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding-top: 12px; margin-bottom: 8px; }
+.pro-detail-label { font-family: monospace; font-size: 9px; letter-spacing: 0.16em; color: rgba(255,255,255,0.22); text-transform: uppercase; margin-bottom: 4px; }
+.pro-detail-val { font-size: 12px; color: rgba(232,232,240,0.75); line-height: 1.55; }
+.pro-src-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.pro-src { font-family: monospace; font-size: 10px; padding: 2px 6px; border-radius: 3px; text-decoration: none; display: inline-block; cursor: pointer; }
+.pro-src-p { background: rgba(52,211,153,0.1); color: #34d399; border: 0.5px solid rgba(52,211,153,0.2); }
+.pro-src-i { background: rgba(96,165,250,0.1); color: #60a5fa; border: 0.5px solid rgba(96,165,250,0.2); }
+.pro-src-c { background: rgba(251,191,36,0.1); color: #fbbf24; border: 0.5px solid rgba(251,191,36,0.2); }
+
 </style>
 </head>
 <body data-page="pricing">
@@ -585,6 +598,26 @@
                   <div class="pro-claim-right">
                     <span class="pro-pill p-sup">SUPPORTED</span>
                     <div class="pro-conf"><span class="pro-conf-num">4/4</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span></div>
+                    <span class="pro-toggle">Hide details ▴</span>
+                  </div>
+                </div>
+                <div class="pro-claim-body" style="display:block;">
+                  <div class="pro-detail-grid">
+                    <div>
+                      <div class="pro-detail-label">REASONING</div>
+                      <div class="pro-detail-val">Enrollment figure verified against three independent records: the State Department of Health's Q1 2026 enrollment report, Riverdale County HR's public dashboard, and the State Auditor's quarterly review which flagged no discrepancy. The 1,847 figure was reported consistently across all four sources within the same reporting period.</div>
+                    </div>
+                    <div>
+                      <div class="pro-detail-label">CONFIDENCE</div>
+                      <div class="pro-detail-val">4/4 — Primary statutory record + independent confirmations + auditor sign-off</div>
+                    </div>
+                  </div>
+                  <div class="pro-detail-label" style="margin-top:10px;">SOURCES</div>
+                  <div class="pro-src-pills">
+                    <a class="pro-src pro-src-p">[P] State Health Q1 enrollment report</a>
+                    <a class="pro-src pro-src-i">[I] Riverdale County HR dashboard</a>
+                    <a class="pro-src pro-src-c">[C] Riverdale Business Journal</a>
+                    <a class="pro-src pro-src-i">[I] State Auditor quarterly review</a>
                   </div>
                 </div>
               </div>
@@ -600,6 +633,7 @@
                   <div class="pro-claim-right">
                     <span class="pro-pill p-sup">SUPPORTED</span>
                     <div class="pro-conf"><span class="pro-conf-num">3/3</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span></div>
+                    <span class="pro-toggle">Show details ▾</span>
                   </div>
                 </div>
               </div>
@@ -615,6 +649,7 @@
                   <div class="pro-claim-right">
                     <span class="pro-pill p-cor">CORROBORATED</span>
                     <div class="pro-conf"><span class="pro-conf-num">6/6</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span></div>
+                    <span class="pro-toggle">Show details ▾</span>
                   </div>
                 </div>
               </div>
@@ -630,6 +665,7 @@
                   <div class="pro-claim-right">
                     <span class="pro-pill p-ove">OVERSTATED</span>
                     <div class="pro-conf"><span class="pro-conf-num">2/3</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-off"></span></div>
+                    <span class="pro-toggle">Show details ▾</span>
                   </div>
                 </div>
               </div>
@@ -645,6 +681,7 @@
                   <div class="pro-claim-right">
                     <span class="pro-pill p-dis">DISPUTED</span>
                     <div class="pro-conf"><span class="pro-conf-num">1/4</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-off"></span><span class="pro-conf-dot pro-conf-off"></span><span class="pro-conf-dot pro-conf-off"></span></div>
+                    <span class="pro-toggle">Show details ▾</span>
                   </div>
                 </div>
               </div>
@@ -704,6 +741,23 @@
     <div class="site-footer-meta">Methodology v1.6 · Automated · Auditable</div>
   </div>
 </footer>
+
+
+<script>
+(function(){
+  document.querySelectorAll('.samples-section .pro-claim-header').forEach(function(h){
+    h.addEventListener('click', function(){
+      var claim = h.closest('.pro-claim');
+      var body = claim.querySelector('.pro-claim-body');
+      var tog = h.querySelector('.pro-toggle');
+      if (!body) return;
+      var open = body.style.display !== 'none' && body.style.display !== '';
+      body.style.display = open ? 'none' : 'block';
+      if (tog) tog.textContent = open ? 'Show details ▾' : 'Hide details ▴';
+    });
+  });
+})();
+</script>
 
 </body>
 </html>
