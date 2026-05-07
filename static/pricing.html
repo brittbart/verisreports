@@ -303,6 +303,19 @@
   .samples-grid { grid-template-columns: 1fr; gap: 56px; }
   .free-stage, .pro-stage { max-width: 560px; margin: 0 auto; }
 }
+@media (max-width: 560px) {
+  /* Pro panel: collapse stats to 2 columns and tighten layout */
+  .pro-stats { grid-template-columns: 1fr 1fr; }
+  .pro-stat:nth-child(2) { border-right: none; }
+  .pro-stat:nth-child(odd):not(:last-child) { border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .pro-stat:nth-child(even) { border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .pro-headline-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .pro-score-block { text-align: left; }
+  .pro-detail-grid { grid-template-columns: 1fr; }
+  /* Free panel: tighten claim head wrap */
+  .free-claim-head { flex-wrap: wrap; }
+  .free-scale { grid-template-columns: 1fr; }
+}
 
 
 .pro-claim-header { cursor: pointer; transition: background 0.15s; }

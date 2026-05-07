@@ -674,6 +674,14 @@
     .qa-limits { grid-template-columns: 1fr; }
     .qa-cta h3 { font-size: 24px; }
   }
+
+  /* Pipeline mobile collapse (added 2026-05-06 mobile audit) */
+  @media (max-width: 600px) {
+    .he-pipe-stages { grid-template-columns: 1fr 1fr; gap: 16px 8px; }
+    .he-pipe-stages::before, .he-pipe-stages::after { display: none; }
+    .he-pipe-meta { font-size: 11px; }
+  }
+
 </style>
 </head>
 <body data-page="how"><nav class="nav" aria-label="Site">
