@@ -91,3 +91,10 @@ body { font-family: var(--vs-font-sans); -webkit-font-smoothing: antialiased; }
   --bad-bg: rgba(248,113,113,0.12);
   --bad-border: rgba(248,113,113,0.3);
 }
+
+/* ---------- Hide internal masthead row when site nav is present ---------- */
+/* The site-wide nav (added 2026-05-06) provides the logo + branding,
+   so hide the React app's internal __row that duplicates it. The hero
+   block (H1 + lede) below it remains. */
+.vs-masthead { padding-top: 0 !important; }
+.vs-masthead__row { display: none !important; }
