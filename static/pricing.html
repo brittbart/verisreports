@@ -165,11 +165,11 @@
   }
 
 /* ============================================================
-   SAMPLE REPORTS — Pricing page (added 2026-05-06)
-   All rules prefixed with .sr- to avoid collisions.
-   Mirrors the production report.html / report_free.html design.
+   SAMPLE REPORTS — Pricing page (added 2026-05-06, v2)
+   - .free- prefix → mirrors templates/report_free.html
+   - .pro-  prefix → mirrors templates/report.html
    ============================================================ */
-.samples-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1080px; margin: 0 auto; }
+.samples-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1180px; margin: 0 auto; align-items: start; }
 .sample-wrap { display: flex; flex-direction: column; align-items: center; }
 .sample-tag {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -187,110 +187,121 @@
   background: rgba(212,83,126,0.08);
 }
 
-/* ----- The mini report panel ----- */
-.sr-stage { width: 100%; max-width: 460px; color: #e7dffb; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
-.sr-panel { background: #100820; border: 0.5px solid rgba(180,150,230,0.18); border-radius: 10px; padding: 20px 20px 16px; }
-.sr-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding-bottom: 14px;
-  border-bottom: 0.5px solid rgba(180,150,230,0.12);
-  flex-wrap: wrap; gap: 8px;
-}
-.sr-logo { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.18em; color: #fff; font-weight: 500; }
-.sr-logo .sr-signal { font-style: italic; color: #b48cff; font-weight: 400; }
-.sr-outlet-meta { font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4; }
-.sr-score-inline { color: #4ade80; }
-.sr-score-inline-amber { color: #fac775; }
+/* ============ FREE sample (mirrors report_free.html) ============ */
+.free-stage { width: 100%; max-width: 480px; color: #e7dffb; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+.free-panel { background: #100820; border: 0.5px solid rgba(180,150,230,0.18); border-radius: 10px; padding: 20px 20px 16px; }
+.free-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 0.5px solid rgba(180,150,230,0.12); flex-wrap: wrap; gap: 8px; }
+.free-logo { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 0.18em; color: #fff; font-weight: 500; }
+.free-logo .free-signal { font-style: italic; color: #b48cff; font-weight: 400; }
+.free-outlet-meta { font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4; }
+.free-outlet-meta .free-score-inline { color: #4ade80; }
+.free-article-block { padding: 16px 0 12px; }
+.free-meta-line { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.1em; color: #9d8cc4; text-transform: uppercase; margin-bottom: 8px; }
+.free-article-title { font-family: 'Iowan Old Style','Palatino Linotype',Georgia,serif; font-size: 19px; font-weight: 500; line-height: 1.25; margin: 0 0 10px; color: #f3edff; }
+.free-summary { font-size: 13px; line-height: 1.6; color: #cfc1ec; margin: 0; }
+.free-score-strip { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-top: 0.5px solid rgba(180,150,230,0.12); border-bottom: 0.5px solid rgba(180,150,230,0.12); margin: 6px 0 14px; }
+.free-score-meta { font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4; }
+.free-score-big { font-family: 'Iowan Old Style',Georgia,serif; font-size: 30px; font-weight: 500; color: #4ade80; }
+.free-score-big .free-unit { font-size: 12px; color: #9d8cc4; font-family: ui-monospace, monospace; margin-left: 3px; }
+.free-section-label { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.1em; color: #b48cff; text-transform: uppercase; margin-bottom: 8px; }
+.free-distribution { font-size: 12px; color: #cfc1ec; margin-bottom: 16px; }
+.free-leg-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.free-claim-card { padding: 12px 14px; border-radius: 0 6px 6px 0; margin-bottom: 12px; }
+.free-claim-card.supported { border-left: 2px solid #97c459; background: rgba(151,196,89,0.04); }
+.free-claim-card.corroborated { border-left: 2px solid #5dcaa5; background: rgba(93,202,165,0.04); }
+.free-claim-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.free-claim-num { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.1em; color: #9d8cc4; }
+.free-pill { font-family: ui-monospace, monospace; font-size: 10px; padding: 3px 8px; border-radius: 3px; letter-spacing: 0.06em; }
+.free-pill.supported { background: rgba(151,196,89,0.15); color: #c0dd97; }
+.free-pill.corroborated { background: rgba(93,202,165,0.15); color: #8fdfc1; }
+.free-claim-text { font-size: 13px; line-height: 1.6; color: #e7dffb; margin: 0 0 10px; }
+.free-sources-label { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; color: #9d8cc4; text-transform: uppercase; margin-bottom: 5px; }
+.free-sources-list { font-size: 12px; line-height: 1.6; color: #b9a8e8; margin: 0; }
+.free-upgrade { background: linear-gradient(180deg, rgba(212,83,126,0.08) 0%, rgba(180,140,255,0.04) 100%); border: 1px solid rgba(212,83,126,0.4); border-radius: 10px; padding: 22px 22px 20px; margin: 18px 0; text-align: center; }
+.free-upgrade h2 { font-family: 'Iowan Old Style',Georgia,serif; font-size: 22px; font-weight: 500; line-height: 1.15; margin: 0 0 8px; color: #f3edff; }
+.free-upgrade h2 .free-accent { font-style: italic; color: #d4537e; }
+.free-upgrade p { font-size: 13px; line-height: 1.6; color: #cfc1ec; margin: 0 auto 16px; max-width: 340px; }
+.free-upgrade-btn { display: inline-block; font-family: inherit; font-size: 14px; font-weight: 500; padding: 11px 24px; background: #D4537E; color: #fff; border-radius: 6px; text-decoration: none; }
+.free-reassurance { font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4; margin: 12px 0 0; }
+.free-scale { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 18px; font-size: 11px; color: #cfc1ec; margin-bottom: 14px; }
+.free-scale .free-w { color: #9d8cc4; }
+.free-footer { display: flex; justify-content: space-between; padding-top: 12px; border-top: 0.5px solid rgba(180,150,230,0.12); font-family: ui-monospace, monospace; font-size: 10px; color: #9d8cc4; }
+.free-footer .free-correction { color: #b48cff; }
 
-.sr-article-block { padding: 16px 0 12px; }
-.sr-meta-line { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.1em; color: #9d8cc4; text-transform: uppercase; margin-bottom: 8px; }
-.sr-article-title {
-  font-family: 'Iowan Old Style','Palatino Linotype',Georgia,serif;
-  font-size: 19px; font-weight: 500; line-height: 1.25;
-  margin: 0 0 10px; color: #f3edff;
-}
-.sr-summary { font-size: 13px; line-height: 1.6; color: #cfc1ec; margin: 0; }
+/* ============ PRO sample (mirrors report.html) ============ */
+.pro-stage { width: 100%; max-width: 580px; color: #e8e8f0; font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.6; }
+.pro-vs { background: #080810; border: 0.5px solid rgba(168,85,247,0.2); border-radius: 14px; overflow: hidden; }
+.pro-topbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 18px; border-bottom: 0.5px solid rgba(168,85,247,0.2); background: rgba(8,8,16,0.98); }
+.pro-brand { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 0.18em; font-weight: 700; color: #fff; }
+.pro-brand em { color: #c084fc; font-style: italic; font-weight: 400; }
+.pro-outlet-badge { font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.45); }
+.pro-outlet-badge b { color: #a855f7; font-weight: 600; }
+.pro-header { padding: 18px 18px 14px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.pro-source-line { font-family: monospace; font-size: 10px; letter-spacing: 0.14em; color: rgba(255,255,255,0.3); text-transform: uppercase; margin-bottom: 8px; }
+.pro-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 10px; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); color: #a855f7; }
+.pro-headline-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 8px; }
+.pro-title { font-family: 'DM Sans', sans-serif; font-size: 18px; line-height: 1.25; color: #fff; max-width: 360px; font-weight: 500; }
+.pro-shorturl { font-family: monospace; font-size: 10px; color: rgba(240,240,248,0.45); margin-top: 5px; letter-spacing: 0.02em; }
+.pro-summary { font-size: 13px; color: rgba(232,232,240,0.65); line-height: 1.6; border-left: 2px solid rgba(168,85,247,0.3); padding-left: 10px; margin-top: 8px; max-width: 360px; }
+.pro-score-block { text-align: right; flex-shrink: 0; }
+.pro-score-num { font-family: 'DM Sans', sans-serif; font-size: 56px; line-height: 1; font-weight: 700; color: #fac775; }
+.pro-score-unit { font-size: 10px; color: rgba(255,255,255,0.28); font-family: monospace; }
+.pro-score-tier { font-family: monospace; font-size: 10px; letter-spacing: 0.1em; margin-top: 2px; color: #fac775; }
+.pro-meta-row { display: flex; flex-wrap: wrap; align-items: center; padding: 7px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.015); }
+.pro-chip { font-family: monospace; font-size: 11px; letter-spacing: 0.05em; color: rgba(232,232,240,0.5); padding: 2px 6px; }
+.pro-chip-sep { color: rgba(255,255,255,0.15); font-size: 9px; }
+.pro-callout { margin: 12px 18px; padding: 9px 12px; background: rgba(168,85,247,0.06); border: 0.5px solid rgba(168,85,247,0.18); border-left: 3px solid #a855f7; border-radius: 4px; }
+.pro-callout-label { font-family: monospace; font-size: 10px; letter-spacing: 0.18em; color: rgba(168,85,247,0.65); margin-bottom: 4px; text-transform: uppercase; }
+.pro-callout-body { font-size: 11px; color: rgba(232,232,240,0.55); line-height: 1.55; }
+.pro-dist-wrap { padding: 4px 18px 12px; }
+.pro-dist-label { font-family: monospace; font-size: 11px; letter-spacing: 0.16em; color: rgba(255,255,255,0.22); text-transform: uppercase; margin-bottom: 6px; }
+.pro-dist-bar { display: flex; gap: 2px; height: 5px; border-radius: 3px; overflow: hidden; margin-bottom: 7px; }
+.pro-dist-seg { border-radius: 2px; }
+.pro-dist-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+.pro-leg { font-family: monospace; font-size: 10px; color: rgba(232,232,240,0.4); display: flex; align-items: center; gap: 4px; }
+.pro-leg-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.pro-claims { border-top: 0.5px solid rgba(255,255,255,0.06); }
+.pro-claim { border-bottom: 0.5px solid rgba(255,255,255,0.05); }
+.pro-claim-header { display: flex; align-items: flex-start; padding: 11px 18px; gap: 10px; }
+.pro-claim-bar { width: 3px; border-radius: 2px; min-height: 38px; flex-shrink: 0; align-self: stretch; }
+.pro-claim-main { flex: 1; }
+.pro-claim-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.pro-claim-num { font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.22); letter-spacing: 0.1em; flex-shrink: 0; }
+.pro-claim-quote { font-size: 13px; color: rgba(232,232,240,0.88); line-height: 1.5; margin-bottom: 4px; }
+.pro-claim-brief { font-family: 'DM Sans', sans-serif; font-size: 12px; color: rgba(232,232,240,0.55); line-height: 1.5; }
+.pro-claim-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.pro-pill { font-family: monospace; font-size: 10px; padding: 3px 7px; border-radius: 3px; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; }
+.pro-pill.p-sup { background: rgba(74,222,128,0.12); color: #4ade80; border: 0.5px solid rgba(74,222,128,0.25); }
+.pro-pill.p-cor { background: rgba(52,211,153,0.1); color: #34d399; border: 0.5px solid rgba(52,211,153,0.2); }
+.pro-pill.p-ove { background: rgba(251,146,60,0.12); color: #fb923c; border: 0.5px solid rgba(251,146,60,0.25); }
+.pro-pill.p-dis { background: rgba(248,113,113,0.12); color: #f87171; border: 0.5px solid rgba(248,113,113,0.25); }
+.pro-conf { display: flex; gap: 4px; align-items: center; }
+.pro-conf-num { font-size: 9px; font-family: monospace; color: rgba(168,85,247,0.7); letter-spacing: 0.05em; font-weight: 500; }
+.pro-conf-dot { width: 4px; height: 4px; border-radius: 50%; }
+.pro-conf-on { background: #a855f7; }
+.pro-conf-off { background: rgba(168,85,247,0.18); }
+.pro-toggle { font-size: 10px; color: rgba(168,85,247,0.6); flex-shrink: 0; margin-top: 2px; font-weight: 500; letter-spacing: 0.05em; white-space: nowrap; }
+.pro-signal { margin: 14px 18px; padding: 14px 16px; background: linear-gradient(135deg, rgba(168,85,247,0.08), rgba(236,72,153,0.04)); border: 0.5px solid rgba(168,85,247,0.2); border-radius: 10px; }
+.pro-signal-label { font-family: monospace; font-size: 10px; letter-spacing: 0.18em; color: rgba(168,85,247,0.6); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.pro-signal-label::after { content: ""; flex: 1; height: 0.5px; background: rgba(168,85,247,0.2); }
+.pro-signal-body { font-family: 'DM Sans', sans-serif; font-size: 13px; color: rgba(232,232,240,0.85); line-height: 1.65; margin-bottom: 10px; }
+.pro-watchfor-label { font-family: monospace; font-size: 10px; letter-spacing: 0.16em; color: rgba(255,255,255,0.28); text-transform: uppercase; margin-bottom: 6px; }
+.pro-watchfor-list { display: flex; flex-direction: column; gap: 6px; }
+.pro-watchfor-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: rgba(232,232,240,0.6); line-height: 1.55; padding: 6px 10px; background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.06); border-radius: 6px; }
+.pro-watchfor-arrow { color: #a855f7; flex-shrink: 0; font-size: 10px; margin-top: 1px; }
+.pro-stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 0.5px solid rgba(255,255,255,0.06); }
+.pro-stat { padding: 10px 12px; border-right: 0.5px solid rgba(255,255,255,0.06); }
+.pro-stat:last-child { border-right: none; }
+.pro-stat-label { font-family: monospace; font-size: 9px; letter-spacing: 0.12em; color: rgba(255,255,255,0.22); margin-bottom: 4px; text-transform: uppercase; }
+.pro-stat-value { font-family: 'DM Sans', sans-serif; font-size: 18px; color: #fff; }
+.pro-stat-value-sm { font-family: 'DM Sans', sans-serif; font-size: 11px; color: #fff; }
+.pro-footer { display: flex; align-items: center; justify-content: space-between; padding: 9px 18px; border-top: 0.5px solid rgba(168,85,247,0.15); flex-wrap: wrap; gap: 6px; background: rgba(168,85,247,0.02); font-family: monospace; font-size: 10px; }
+.pro-footer-l { color: rgba(168,85,247,0.55); }
+.pro-footer-r { color: rgba(168,85,247,0.45); }
 
-.sr-score-strip {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 0;
-  border-top: 0.5px solid rgba(180,150,230,0.12);
-  border-bottom: 0.5px solid rgba(180,150,230,0.12);
-  margin: 6px 0 14px;
-}
-.sr-score-meta { font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4; }
-.sr-score-big { font-family: 'Iowan Old Style',Georgia,serif; font-size: 30px; font-weight: 500; color: #4ade80; }
-.sr-score-big-amber { font-family: 'Iowan Old Style',Georgia,serif; font-size: 30px; font-weight: 500; color: #fac775; }
-.sr-unit { font-size: 12px; color: #9d8cc4; font-family: ui-monospace, monospace; margin-left: 3px; }
-
-.sr-section-label {
-  font-family: ui-monospace, monospace;
-  font-size: 10px; letter-spacing: 0.1em; color: #b48cff;
-  text-transform: uppercase; margin-bottom: 8px;
-}
-.sr-verdict-distribution { font-size: 12px; color: #cfc1ec; margin-bottom: 16px; }
-.sr-leg-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
-
-.sr-claim-card { padding: 12px 14px; border-radius: 0 6px 6px 0; margin-bottom: 12px; }
-.sr-claim-card.supported { border-left: 2px solid #97c459; background: rgba(151,196,89,0.04); }
-.sr-claim-card.corroborated { border-left: 2px solid #5dcaa5; background: rgba(93,202,165,0.04); }
-.sr-claim-card.overstated { border-left: 2px solid #ef9f27; background: rgba(239,159,39,0.04); }
-.sr-claim-card.disputed { border-left: 2px solid #e24b4a; background: rgba(226,75,74,0.04); }
-
-.sr-claim-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
-.sr-claim-num { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.1em; color: #9d8cc4; }
-.sr-verdict-pill { font-family: ui-monospace, monospace; font-size: 10px; padding: 3px 8px; border-radius: 3px; letter-spacing: 0.06em; }
-.sr-verdict-pill.supported { background: rgba(151,196,89,0.15); color: #c0dd97; }
-.sr-verdict-pill.corroborated { background: rgba(93,202,165,0.15); color: #8fdfc1; }
-.sr-verdict-pill.overstated { background: rgba(239,159,39,0.18); color: #fac775; }
-.sr-verdict-pill.disputed { background: rgba(226,75,74,0.18); color: #f3a1a0; }
-
-.sr-claim-text { font-size: 13px; line-height: 1.6; color: #e7dffb; margin: 0 0 10px; }
-.sr-sources-label { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; color: #9d8cc4; text-transform: uppercase; margin-bottom: 5px; }
-.sr-sources-list { font-size: 12px; line-height: 1.6; color: #b9a8e8; margin: 0; }
-
-.sr-upgrade-cta {
-  background: linear-gradient(180deg, rgba(212,83,126,0.08) 0%, rgba(180,140,255,0.04) 100%);
-  border: 1px solid rgba(212,83,126,0.4);
-  border-radius: 10px;
-  padding: 22px 22px 20px;
-  margin: 18px 0;
-  text-align: center;
-}
-.sr-upgrade-cta h2 {
-  font-family: 'Iowan Old Style',Georgia,serif;
-  font-size: 24px; font-weight: 500; line-height: 1.15;
-  margin: 0 0 8px; color: #f3edff;
-}
-.sr-upgrade-cta h2 .sr-accent { font-style: italic; color: #d4537e; }
-.sr-upgrade-cta p { font-size: 13px; line-height: 1.6; color: #cfc1ec; margin: 0 auto 16px; max-width: 340px; }
-.sr-upgrade-btn {
-  display: inline-block;
-  font-family: inherit; font-size: 14px; font-weight: 500;
-  padding: 11px 24px;
-  background: #D4537E; color: #fff;
-  border-radius: 6px; text-decoration: none;
-  letter-spacing: 0.02em; border: none;
-}
-.sr-reassurance { font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4; margin: 12px 0 0; }
-
-.sr-verdict-scale { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 18px; font-size: 11px; color: #cfc1ec; margin-bottom: 14px; }
-.sr-dot-green { color: #97c459; }
-.sr-dot-teal { color: #5dcaa5; }
-.sr-dot-amber { color: #ef9f27; }
-.sr-dot-red { color: #e24b4a; }
-.sr-weight { color: #9d8cc4; }
-
-.sr-footer {
-  display: flex; justify-content: space-between;
-  padding-top: 12px;
-  border-top: 0.5px solid rgba(180,150,230,0.12);
-  font-family: ui-monospace, monospace; font-size: 10px; color: #9d8cc4;
-}
-.sr-correction { color: #b48cff; cursor: pointer; }
-
-@media (max-width: 900px) {
-  .samples-grid { grid-template-columns: 1fr; gap: 48px; }
+@media (max-width: 1000px) {
+  .samples-grid { grid-template-columns: 1fr; gap: 56px; }
+  .free-stage, .pro-stage { max-width: 560px; margin: 0 auto; }
 }
 
 </style>
@@ -418,163 +429,250 @@
 </section>
 
 <!-- ============================================================
-     SAMPLE REPORTS SECTION — added 2026-05-06
-     Side-by-side Free vs Pro samples using fictional outlet
+     SAMPLE REPORTS SECTION — added 2026-05-06 (v2)
      ============================================================ -->
 <section class="section samples-section" style="padding: 80px 0 100px; border-top: 0.5px solid var(--border);">
   <div class="container">
     <div class="eyebrow" style="justify-content:center; max-width:340px; margin:0 auto 28px;">See it in action</div>
     <h2 class="display h-section" style="text-align:center; margin-bottom: 16px;">Free vs <em>Pro</em> reports.</h2>
-    <p class="sub" style="text-align:center; max-width:560px; margin:0 auto 64px; font-size:17px; color:rgba(255,255,255,0.62); line-height:1.5;">Same reports, different depths. The Free report verifies your top claim. Pro reports verify every claim with full source weighting.</p>
+    <p class="sub" style="text-align:center; max-width:560px; margin:0 auto 64px; font-size:17px; color:rgba(255,255,255,0.62); line-height:1.5;">Same engine, different depth. Free verifies your top two claims. Pro verifies every claim, weighs every source, and synthesizes the overall signal.</p>
 
     <div class="samples-grid">
 
-      <!-- ============ FREE REPORT SAMPLE ============ -->
+      <!-- ==================== FREE ==================== -->
       <div class="sample-wrap">
         <div class="sample-tag">FREE REPORT</div>
-        <div class="sr-stage">
-          <div class="sr-panel">
-            <div class="sr-header">
-              <div class="sr-logo">
+        <div class="free-stage">
+          <div class="free-panel">
+            <div class="free-header">
+              <div class="free-logo">
                 <svg width="32" height="14" viewBox="0 0 32 14" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                   <path d="M 1 7 C 4 1, 8 1, 11 7 S 18 13, 21 7 S 28 1, 27.5 7" fill="none" stroke="#b48cff" stroke-width="1.7" stroke-linecap="round"/>
                   <circle cx="27.5" cy="7" r="2.6" fill="#D4537E"/>
                 </svg>
-                <span>VERUM <span class="sr-signal">SIGNAL</span></span>
+                <span>VERUM <span class="free-signal">SIGNAL</span></span>
               </div>
-              <span class="sr-outlet-meta">riverdaletribune.example · <span class="sr-score-inline">100/100</span></span>
+              <span class="free-outlet-meta">riverdaletribune.example · <span class="free-score-inline">100/100</span></span>
             </div>
 
-            <div class="sr-article-block">
-              <div class="sr-meta-line">riverdaletribune.example · May 04, 2026</div>
-              <h3 class="sr-article-title">Riverdale council approves $14M downtown transit overhaul, citing 22% projected ridership gain</h3>
-              <div class="sr-summary">The article reports on Riverdale's unanimous council vote approving a downtown transit modernization package and includes ridership projections from the regional transportation authority.</div>
+            <div class="free-article-block">
+              <div class="free-meta-line">riverdaletribune.example · May 04, 2026</div>
+              <h3 class="free-article-title">Riverdale council approves $14M downtown transit overhaul, citing 22% projected ridership gain</h3>
+              <div class="free-summary">The article reports on Riverdale's unanimous council vote approving a downtown transit modernization package and includes ridership projections from the regional transportation authority.</div>
             </div>
 
-            <div class="sr-score-strip">
-              <span class="sr-score-meta">1 claim · Methodology v1.6</span>
-              <span class="sr-score-big">100<span class="sr-unit">/100</span></span>
+            <div class="free-score-strip">
+              <span class="free-score-meta">2 claims · Methodology v1.6</span>
+              <span class="free-score-big">100<span class="free-unit">/100</span></span>
             </div>
 
-            <div class="sr-section-label">VERDICT DISTRIBUTION</div>
-            <div class="sr-verdict-distribution"><span class="sr-leg-dot" style="background:#4ade80"></span>1 Supported</div>
-
-            <div class="sr-claim-card supported">
-              <div class="sr-claim-head"><div class="sr-claim-num">CLAIM 1</div><span class="sr-verdict-pill supported">SUPPORTED · 3/3</span></div>
-              <p class="sr-claim-text">The Riverdale Regional Transportation Authority projects a 22% ridership increase within three years of the downtown transit overhaul completion.</p>
-              <div class="sr-sources-label">SOURCES</div>
-              <p class="sr-sources-list">1) RRTA official press release (riverdale-rta.example) — primary source. 2) Riverdale City Council meeting minutes (May 3, 2026) — confirms the projection figure was presented to council. 3) Regional Transit Quarterly — independently reported the 22% figure with methodology context.</p>
+            <div class="free-section-label">VERDICT DISTRIBUTION</div>
+            <div class="free-distribution">
+              <span class="free-leg-dot" style="background:#4ade80"></span>1 Supported &nbsp;
+              <span class="free-leg-dot" style="background:#5dcaa5"></span>1 Corroborated
             </div>
 
-            <div class="sr-upgrade-cta">
-              <h2>Ready for <span class="sr-accent">more?</span></h2>
-              <p>Pro reports show every claim, every source, weighed and cited.</p>
-              <a href="/pricing.html" class="sr-upgrade-btn">Try one Pro report free →</a>
-              <p class="sr-reassurance">No card required · One report on us</p>
+            <div class="free-claim-card supported">
+              <div class="free-claim-head"><div class="free-claim-num">CLAIM 1</div><span class="free-pill supported">SUPPORTED · 4/4</span></div>
+              <p class="free-claim-text">The Riverdale council voted unanimously (7–0) to approve the $14M downtown transit modernization package on May 3.</p>
+              <div class="free-sources-label">SOURCES</div>
+              <p class="free-sources-list">1) Riverdale City Council official meeting minutes (May 3, 2026) — primary source. 2) Riverdale City Clerk roll-call vote record. 3) Riverdale Public Radio — independently reported the unanimous vote. 4) Local Government Watch — confirmed all 7 council members voted yes.</p>
             </div>
 
-            <div class="sr-section-label">VERDICT SCALE</div>
-            <div class="sr-verdict-scale">
-              <div><span class="sr-dot-green">●</span> Supported <span class="sr-weight">+1.0</span></div>
-              <div><span class="sr-dot-teal">●</span> Plausible <span class="sr-weight">+0.5</span></div>
-              <div><span class="sr-dot-teal">●</span> Corroborated <span class="sr-weight">+0.5</span></div>
-              <div><span class="sr-dot-amber">●</span> Overstated <span class="sr-weight">-0.5</span></div>
-              <div><span class="sr-dot-red">●</span> Disputed <span class="sr-weight">-1.0</span></div>
-              <div><span class="sr-dot-red">●</span> Not supported <span class="sr-weight">-1.5</span></div>
+            <div class="free-claim-card corroborated">
+              <div class="free-claim-head"><div class="free-claim-num">CLAIM 2</div><span class="free-pill corroborated">CORROBORATED · 6/6</span></div>
+              <p class="free-claim-text">The Riverdale Regional Transportation Authority projects a 22% ridership increase within three years of completion.</p>
+              <div class="free-sources-label">SOURCES</div>
+              <p class="free-sources-list">6 outlets reported the 22% figure consistently, citing the RRTA's published projection. No source independently audits the underlying methodology, but no source contradicts it.</p>
             </div>
 
-            <div class="sr-footer">
+            <div class="free-upgrade">
+              <h2>Want every <span class="free-accent">claim?</span></h2>
+              <p>Pro reports verify every claim, weigh every source, and synthesize the overall signal.</p>
+              <a href="/pricing.html" class="free-upgrade-btn">Try one Pro report free →</a>
+              <p class="free-reassurance">No card required · One report on us</p>
+            </div>
+
+            <div class="free-section-label">VERDICT SCALE</div>
+            <div class="free-scale">
+              <div><span style="color:#97c459">●</span> Supported <span class="free-w">+1.0</span></div>
+              <div><span style="color:#5dcaa5">●</span> Plausible <span class="free-w">+0.5</span></div>
+              <div><span style="color:#5dcaa5">●</span> Corroborated <span class="free-w">+0.5</span></div>
+              <div><span style="color:#ef9f27">●</span> Overstated <span class="free-w">-0.5</span></div>
+              <div><span style="color:#e24b4a">●</span> Disputed <span class="free-w">-1.0</span></div>
+              <div><span style="color:#e24b4a">●</span> Not supported <span class="free-w">-1.5</span></div>
+            </div>
+
+            <div class="free-footer">
               <span>Methodology v1.6</span>
-              <span class="sr-correction">Submit a correction</span>
+              <span class="free-correction">Submit a correction</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ============ PRO REPORT SAMPLE ============ -->
+      <!-- ==================== PRO ==================== -->
       <div class="sample-wrap">
         <div class="sample-tag pro">PRO REPORT</div>
-        <div class="sr-stage">
-          <div class="sr-panel">
-            <div class="sr-header">
-              <div class="sr-logo">
-                <svg width="32" height="14" viewBox="0 0 32 14" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <path d="M 1 7 C 4 1, 8 1, 11 7 S 18 13, 21 7 S 28 1, 27.5 7" fill="none" stroke="#b48cff" stroke-width="1.7" stroke-linecap="round"/>
-                  <circle cx="27.5" cy="7" r="2.6" fill="#D4537E"/>
+        <div class="pro-stage">
+          <div class="pro-vs">
+
+            <div class="pro-topbar">
+              <div class="pro-brand">
+                <svg width="26" height="18" viewBox="0 0 54 40" fill="none" aria-hidden="true">
+                  <path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+                  <circle cx="37" cy="18" r="4.2" fill="#e879f9"/>
                 </svg>
-                <span>VERUM <span class="sr-signal">SIGNAL</span></span>
+                <span style="font-weight:700;color:#fff;letter-spacing:0.15em;">VERUM</span>
+                <em style="font-weight:400;color:#c084fc;font-style:italic;letter-spacing:0.15em;">SIGNAL</em>
               </div>
-              <span class="sr-outlet-meta">riverdaletribune.example · <span class="sr-score-inline-amber">68/100</span></span>
+              <div class="pro-outlet-badge"><b>riverdaletribune.example</b></div>
             </div>
 
-            <div class="sr-article-block">
-              <div class="sr-meta-line">riverdaletribune.example · May 05, 2026</div>
-              <h3 class="sr-article-title">State health agency says new wellness initiative will save Riverdale County $3.2M annually, but data review shows mixed picture</h3>
-              <div class="sr-summary">The article covers a state-issued wellness program targeting Riverdale County workplaces, including cost-savings projections, enrollment figures, and comparisons to similar programs in neighboring counties. Independent review of cited sources reveals several claims are well-supported while others overstate the underlying evidence.</div>
+            <div class="pro-header">
+              <div class="pro-source-line">riverdaletribune.example &nbsp;·&nbsp; May 05, 2026</div>
+              <span class="pro-tag">MAJOR</span>
+              <div class="pro-headline-row">
+                <div>
+                  <div class="pro-title">State health agency says new wellness initiative will save Riverdale County $3.2M annually, but data review shows mixed picture</div>
+                  <div class="pro-shorturl">Share: vsig.al/r/x4k2pn</div>
+                  <div class="pro-summary">A state-issued wellness program targeting Riverdale County workplaces, with cost-savings projections, enrollment figures, and comparisons to similar programs. Independent review reveals several claims are well-supported while others overstate the underlying evidence.</div>
+                </div>
+                <div class="pro-score-block">
+                  <div class="pro-score-num">68<span class="pro-score-unit">/100</span></div>
+                  <div class="pro-score-tier">MIXED</div>
+                </div>
+              </div>
             </div>
 
-            <div class="sr-score-strip">
-              <span class="sr-score-meta">5 claims · Methodology v1.6</span>
-              <span class="sr-score-big-amber">68<span class="sr-unit">/100</span></span>
+            <div class="pro-meta-row">
+              <span class="pro-chip">May 05, 2026</span><span class="pro-chip-sep">·</span>
+              <span class="pro-chip">5 claims assessed</span><span class="pro-chip-sep">·</span>
+              <span class="pro-chip">Methodology v1.6</span>
             </div>
 
-            <div class="sr-section-label">VERDICT DISTRIBUTION</div>
-            <div class="sr-verdict-distribution">
-              <span class="sr-leg-dot" style="background:#4ade80"></span>2 Supported &nbsp;
-              <span class="sr-leg-dot" style="background:#5dcaa5"></span>1 Corroborated &nbsp;
-              <span class="sr-leg-dot" style="background:#ef9f27"></span>1 Overstated &nbsp;
-              <span class="sr-leg-dot" style="background:#e24b4a"></span>1 Disputed
+            <div class="pro-callout">
+              <div class="pro-callout-label">METHODOLOGY APPLIED</div>
+              <div class="pro-callout-body">5 scoreable claims, weighted by verdict and divided by scoreable count. Outlet's prior history applied to this article's contribution. Methodology v1.6.</div>
             </div>
 
-            <div class="sr-claim-card supported">
-              <div class="sr-claim-head"><div class="sr-claim-num">CLAIM 1</div><span class="sr-verdict-pill supported">SUPPORTED · 4/4</span></div>
-              <p class="sr-claim-text">The state's Workplace Wellness Initiative enrolled 1,847 Riverdale County employees in its first quarter, exceeding the 1,500 target.</p>
-              <div class="sr-sources-label">SOURCES</div>
-              <p class="sr-sources-list">1) State Department of Health Q1 2026 enrollment report (PDF) — primary source, verified. 2) Riverdale County HR public dashboard — independently confirms the 1,847 figure. 3) Riverdale Business Journal — reported the same figure with corroborating interviews. 4) State Auditor's office quarterly review — no discrepancy flagged.</p>
+            <div class="pro-dist-wrap">
+              <div class="pro-dist-label">VERDICT DISTRIBUTION</div>
+              <div class="pro-dist-bar">
+                <div class="pro-dist-seg" style="background:#4ade80;flex:2"></div>
+                <div class="pro-dist-seg" style="background:#34d399;flex:1"></div>
+                <div class="pro-dist-seg" style="background:#fb923c;flex:1"></div>
+                <div class="pro-dist-seg" style="background:#f87171;flex:1"></div>
+              </div>
+              <div class="pro-dist-legend">
+                <span class="pro-leg"><span class="pro-leg-dot" style="background:#4ade80"></span>2 supported</span>
+                <span class="pro-leg"><span class="pro-leg-dot" style="background:#34d399"></span>1 corroborated</span>
+                <span class="pro-leg"><span class="pro-leg-dot" style="background:#fb923c"></span>1 overstated</span>
+                <span class="pro-leg"><span class="pro-leg-dot" style="background:#f87171"></span>1 disputed</span>
+              </div>
             </div>
 
-            <div class="sr-claim-card supported">
-              <div class="sr-claim-head"><div class="sr-claim-num">CLAIM 2</div><span class="sr-verdict-pill supported">SUPPORTED · 3/3</span></div>
-              <p class="sr-claim-text">Participating employers receive a $400 per-employee tax credit through the program's first two years.</p>
-              <div class="sr-sources-label">SOURCES</div>
-              <p class="sr-sources-list">1) State Senate Bill 412 (signed Feb 2026) — primary statutory text. 2) Department of Revenue program guidance memo. 3) State Chamber of Commerce program brief — confirms credit amount and duration.</p>
+            <div class="pro-claims">
+
+              <div class="pro-claim">
+                <div class="pro-claim-header">
+                  <div class="pro-claim-bar" style="background:#4ade80"></div>
+                  <div class="pro-claim-main">
+                    <div class="pro-claim-top"><span class="pro-claim-num">01</span></div>
+                    <div class="pro-claim-quote">The state's Workplace Wellness Initiative enrolled 1,847 Riverdale County employees in its first quarter, exceeding the 1,500 target.</div>
+                    <div class="pro-claim-brief">4 independent sources, including the State Auditor's quarterly review, confirm the figure.</div>
+                  </div>
+                  <div class="pro-claim-right">
+                    <span class="pro-pill p-sup">SUPPORTED</span>
+                    <div class="pro-conf"><span class="pro-conf-num">4/4</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pro-claim">
+                <div class="pro-claim-header">
+                  <div class="pro-claim-bar" style="background:#4ade80"></div>
+                  <div class="pro-claim-main">
+                    <div class="pro-claim-top"><span class="pro-claim-num">02</span></div>
+                    <div class="pro-claim-quote">Participating employers receive a $400 per-employee tax credit through the program's first two years.</div>
+                    <div class="pro-claim-brief">Confirmed by the signed statute (Senate Bill 412) and Department of Revenue guidance.</div>
+                  </div>
+                  <div class="pro-claim-right">
+                    <span class="pro-pill p-sup">SUPPORTED</span>
+                    <div class="pro-conf"><span class="pro-conf-num">3/3</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pro-claim">
+                <div class="pro-claim-header">
+                  <div class="pro-claim-bar" style="background:#34d399"></div>
+                  <div class="pro-claim-main">
+                    <div class="pro-claim-top"><span class="pro-claim-num">03</span></div>
+                    <div class="pro-claim-quote">A similar program in neighboring Greenwood County reported $2.1M in measurable savings during its first full year.</div>
+                    <div class="pro-claim-brief">6 outlets reported the figure consistently. No source contradicts it; no primary methodology document was located.</div>
+                  </div>
+                  <div class="pro-claim-right">
+                    <span class="pro-pill p-cor">CORROBORATED</span>
+                    <div class="pro-conf"><span class="pro-conf-num">6/6</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pro-claim">
+                <div class="pro-claim-header">
+                  <div class="pro-claim-bar" style="background:#fb923c"></div>
+                  <div class="pro-claim-main">
+                    <div class="pro-claim-top"><span class="pro-claim-num">04</span></div>
+                    <div class="pro-claim-quote">The program is projected to save Riverdale County $3.2 million annually once fully implemented.</div>
+                    <div class="pro-claim-brief">State Budget Office projects $1.8M–$2.4M; the $3.2M figure is the high-end projection presented without confidence interval.</div>
+                  </div>
+                  <div class="pro-claim-right">
+                    <span class="pro-pill p-ove">OVERSTATED</span>
+                    <div class="pro-conf"><span class="pro-conf-num">2/3</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-off"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pro-claim">
+                <div class="pro-claim-header">
+                  <div class="pro-claim-bar" style="background:#f87171"></div>
+                  <div class="pro-claim-main">
+                    <div class="pro-claim-top"><span class="pro-claim-num">05</span></div>
+                    <div class="pro-claim-quote">Pilot data shows participants reduced sick days by an average of 38% within six months.</div>
+                    <div class="pro-claim-brief">Peer-reviewed literature clusters at 8–14% for similar programs. Independent reanalysis could not replicate the 38% figure.</div>
+                  </div>
+                  <div class="pro-claim-right">
+                    <span class="pro-pill p-dis">DISPUTED</span>
+                    <div class="pro-conf"><span class="pro-conf-num">1/4</span><span class="pro-conf-dot pro-conf-on"></span><span class="pro-conf-dot pro-conf-off"></span><span class="pro-conf-dot pro-conf-off"></span><span class="pro-conf-dot pro-conf-off"></span></div>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            <div class="sr-claim-card corroborated">
-              <div class="sr-claim-head"><div class="sr-claim-num">CLAIM 3</div><span class="sr-verdict-pill corroborated">CORROBORATED · 6/6</span></div>
-              <p class="sr-claim-text">A similar program in neighboring Greenwood County reported $2.1M in measurable savings during its first full year.</p>
-              <div class="sr-sources-label">SOURCES</div>
-              <p class="sr-sources-list">6 outlets reported the Greenwood figure consistently within a $50K range. No source independently audits the methodology, but no source contradicts it. Marked corroborated rather than supported because no primary methodology document was located.</p>
+            <div class="pro-signal">
+              <div class="pro-signal-label">OVERALL SIGNAL</div>
+              <div class="pro-signal-body">Most factual core (enrollment, tax credit, comparison county) is well-sourced. The headline savings figure is the high end of a wider state estimate, and the 38% sick-day reduction does not survive independent review. Read the savings claim as a ceiling, not a forecast.</div>
+              <div class="pro-watchfor-label">WATCH FOR</div>
+              <div class="pro-watchfor-list">
+                <div class="pro-watchfor-item"><span class="pro-watchfor-arrow">→</span>Whether subsequent reporting cites $3.2M as a confirmed annual figure or as a projection range</div>
+                <div class="pro-watchfor-item"><span class="pro-watchfor-arrow">→</span>State Auditor's full review of the pilot's 38% sick-day claim, expected Q3</div>
+              </div>
             </div>
 
-            <div class="sr-claim-card overstated">
-              <div class="sr-claim-head"><div class="sr-claim-num">CLAIM 4</div><span class="sr-verdict-pill overstated">OVERSTATED · 2/3</span></div>
-              <p class="sr-claim-text">The program is projected to save Riverdale County $3.2 million annually once fully implemented.</p>
-              <div class="sr-sources-label">SOURCES</div>
-              <p class="sr-sources-list">1) State Department of Health press release — cites the $3.2M figure. 2) State Budget Office briefing — projects $1.8M-$2.4M annual savings range, lower than press release. 3) Independent Riverdale County fiscal analyst review — flags the $3.2M figure as a high-end projection presented without confidence interval. Core claim is real but framed more confidently than evidence supports.</p>
+            <div class="pro-stats">
+              <div class="pro-stat"><div class="pro-stat-label">CLAIMS</div><div class="pro-stat-value">5</div></div>
+              <div class="pro-stat"><div class="pro-stat-label">SCOREABLE</div><div class="pro-stat-value">5</div></div>
+              <div class="pro-stat"><div class="pro-stat-label">OUTLET</div><div class="pro-stat-value">74</div></div>
+              <div class="pro-stat"><div class="pro-stat-label">TIER</div><div class="pro-stat-value-sm">Stabilizing</div></div>
             </div>
 
-            <div class="sr-claim-card disputed">
-              <div class="sr-claim-head"><div class="sr-claim-num">CLAIM 5</div><span class="sr-verdict-pill disputed">DISPUTED · 1/4</span></div>
-              <p class="sr-claim-text">Pilot data shows participants reduced sick days by an average of 38% within six months.</p>
-              <div class="sr-sources-label">SOURCES</div>
-              <p class="sr-sources-list">1) State press release — cites the 38% figure. 2) Peer-reviewed wellness research literature — typical sick-day reductions in similar programs cluster at 8-14%, not 38%. 3) State Auditor preliminary review — questioned the pilot sample size (n=42). 4) Independent reanalysis published by State University researchers — could not replicate the 38% figure using the disclosed pilot data.</p>
+            <div class="pro-footer">
+              <div class="pro-footer-l">Generated under Methodology v1.6</div>
+              <div class="pro-footer-r">Submit a correction ↗</div>
             </div>
 
-            <div class="sr-section-label">VERDICT SCALE</div>
-            <div class="sr-verdict-scale">
-              <div><span class="sr-dot-green">●</span> Supported <span class="sr-weight">+1.0</span></div>
-              <div><span class="sr-dot-teal">●</span> Plausible <span class="sr-weight">+0.5</span></div>
-              <div><span class="sr-dot-teal">●</span> Corroborated <span class="sr-weight">+0.5</span></div>
-              <div><span class="sr-dot-amber">●</span> Overstated <span class="sr-weight">-0.5</span></div>
-              <div><span class="sr-dot-red">●</span> Disputed <span class="sr-weight">-1.0</span></div>
-              <div><span class="sr-dot-red">●</span> Not supported <span class="sr-weight">-1.5</span></div>
-            </div>
-
-            <div class="sr-footer">
-              <span>Methodology v1.6</span>
-              <span class="sr-correction">Submit a correction</span>
-            </div>
           </div>
         </div>
       </div>
