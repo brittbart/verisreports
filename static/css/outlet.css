@@ -277,8 +277,6 @@ a { color: inherit; }
   .verdict-tag { align-self: start; }
   .verdict-meta { padding-left: 0; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 4px; }
   .dist-counts { grid-template-columns: 1fr; }
-  .nav-links { gap: 14px; }
-  .nav-links a:not(.nav-cta) { display: none; }
 }
 @media (max-width: 420px) {
   .outlet-domain { font-size: 32px; letter-spacing: -0.6px; }
