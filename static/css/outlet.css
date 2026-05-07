@@ -36,9 +36,11 @@ a { color: inherit; }
 .nav { position: sticky; top: 0; z-index: 49; background: rgba(10,10,15,0.78); backdrop-filter: saturate(140%) blur(14px); -webkit-backdrop-filter: saturate(140%) blur(14px); border-bottom: 0.5px solid var(--border); }
 .nav-inner { max-width: 1280px; margin: 0 auto; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
 .nav-logo { display: inline-flex; align-items: center; text-decoration: none; }
-.nav-links { display: flex; gap: 28px; align-items: center; }
-.nav-links a { color: var(--text-2); text-decoration: none; font-size: 14px; transition: color .12s; }
-.nav-links a:hover { color: var(--text); }
+@media (min-width: 901px) {
+  .nav-links { display: flex; gap: 28px; align-items: center; }
+  .nav-links a { color: var(--text-2); text-decoration: none; font-size: 14px; transition: color .12s; }
+  .nav-links a:hover { color: var(--text); }
+}
 .nav-cta { background: var(--violet); color: #fff !important; padding: 8px 16px; border-radius: 100px; font-weight: 500; }
 .nav-cta:hover { background: var(--violet-light); }
 
