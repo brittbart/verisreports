@@ -287,19 +287,7 @@
     </div>
   </div>
 </nav>
-<script>
-(function(){
-  var btn=document.querySelector('.nav-toggle'),menu=document.getElementById('nav-menu');
-  if(!btn||!menu)return;
-  btn.addEventListener('click',function(){
-    var open=menu.classList.toggle('is-open');
-    btn.setAttribute('aria-expanded',open?'true':'false');
-  });
-  menu.addEventListener('click',function(e){
-    if(e.target.tagName==='A'){menu.classList.remove('is-open');btn.setAttribute('aria-expanded','false');}
-  });
-})();
-</script>
+
 
 
 <!-- HERO -->
