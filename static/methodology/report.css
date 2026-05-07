@@ -98,3 +98,13 @@ body { font-family: var(--vs-font-sans); -webkit-font-smoothing: antialiased; }
    block (H1 + lede) below it remains. */
 .vs-masthead { padding-top: 0 !important; }
 .vs-masthead__row { display: none !important; }
+
+/* ---------- Clear the fixed site nav ---------- */
+/* The site nav is position:fixed and ~80px tall. The methodology page
+   needs top padding so its content doesn't slam into it. */
+.vs-main, .vs-root { padding-top: 100px; }
+
+/* The site nav defaults to transparent and only becomes opaque on scroll.
+   On the methodology page we always want it solid because the React app's
+   content (TOC sidebar in particular) sits at top:0 and bleeds through. */
+nav.nav { background: rgba(10,10,15,0.95) !important; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 0.5px solid rgba(255,255,255,0.06); }
