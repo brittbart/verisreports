@@ -469,7 +469,7 @@ nav.nav.scrolled {
   gap: 24px;
 }
 .nav-logo { display: inline-flex; align-items: center; flex-shrink: 0; }
-.nav-logo svg { display: block; height: 26px; width: auto; }
+.nav-logo svg { display: block; height: 32px; width: auto; }
 .nav-links { display: flex; align-items: center; gap: 28px; }
 .nav-links a {
   color: rgba(255, 255, 255, 0.62);
@@ -517,7 +517,7 @@ nav.nav.scrolled {
 .nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
 @media (max-width: 760px) {
   .nav-inner { padding: 14px 20px; }
-  .nav-logo svg { height: 22px; }
+  .nav-logo svg { height: 28px; }
   .nav-toggle { display: flex; }
   .nav-links {
     position: absolute;
