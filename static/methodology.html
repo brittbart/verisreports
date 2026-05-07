@@ -85,7 +85,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15
 .page-footer-right a:hover{color:var(--violet)}
 @media(max-width:640px){.tier-grid{grid-template-columns:repeat(2,1fr)}.verdict-row{grid-template-columns:1fr 48px}.verdict-row .verdict-desc{grid-column:1/-1}.page-wrap{padding:2.5rem 1.25rem 6rem}}
 </style>
-  <link rel="stylesheet" href="/styles.css?v=3">
+  <link rel="stylesheet" href="/styles.css?v=5">
 </head>
 <body>
 <nav class="nav" aria-label="Site">
@@ -111,19 +111,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15
     </div>
   </div>
 </nav>
-<script>
-(function(){
-  var btn=document.querySelector('.nav-toggle'),menu=document.getElementById('nav-menu');
-  if(!btn||!menu)return;
-  btn.addEventListener('click',function(){
-    var open=menu.classList.toggle('is-open');
-    btn.setAttribute('aria-expanded',open?'true':'false');
-  });
-  menu.addEventListener('click',function(e){
-    if(e.target.tagName==='A'){menu.classList.remove('is-open');btn.setAttribute('aria-expanded','false');}
-  });
-})();
-</script>
+
 
 <nav class="topbar">
   <a href="/" class="topbar-brand">
