@@ -203,6 +203,64 @@
   @keyframes pdot4 { 0%, 75% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
   @media (prefers-reduced-motion: reduce) { .scene, .scene *, .caption, .progress-dot::after { animation: none !important; } .scene.s1 { opacity: 1; } .scene.s2, .scene.s3, .scene.s4 { display: none; } .caption.c1 { opacity: 1; } .caption.c2, .caption.c3, .caption.c4 { display: none; } .s1-pill { opacity: 1; transform: none; } .s1-pill.highlight { border-color: rgba(74,222,128,0.45); box-shadow: 0 0 0 0.5px rgba(74,222,128,0.45); } }
   @media (max-width: 640px) { .explainer { aspect-ratio: 9 / 14; margin-top: 16px; } .caption-track { position: relative; top: auto; padding: 0 4px; min-height: 76px; margin-bottom: 8px; } .caption { position: relative; padding: 0; } .caption-main { font-size: 19px; line-height: 1.2; } .caption-sub { font-size: 11px; } .stage, .scene { padding: 28px 20px 56px; inset: 28px 20px 56px; align-items: center; } .s1-claim { padding: 12px 16px; margin: 0 auto 18px; max-width: 100%; } .s1-claim-quote { font-size: 13px; } .s1-claim-meta { font-size: 9px; margin-bottom: 6px; } .s1-pills { grid-template-columns: 1fr; gap: 6px; max-width: 100%; } .s1-pill { padding: 7px 12px; gap: 10px; } .s1-pill .label { font-size: 11px; } .s1-pill .weight { font-size: 9px; } .s2-wrap { width: 100%; } .s2-urlbar { padding: 8px 12px; font-size: 11px; margin-bottom: 14px; } .s2-report { padding: 14px 16px; } .s2-report-title { font-size: 12px; line-height: 1.25; } .s2-report-meta { font-size: 9px; margin-bottom: 4px; } .s2-score { font-size: 22px; } .s2-claim-row { padding: 5px 0; gap: 8px; } .s2-claim-row .text { font-size: 11px; } .s2-claim-row .pill { font-size: 8px; padding: 2px 6px; } .s3-wrap { max-width: 100%; } .s3-bar { padding: 8px 12px; gap: 6px; } .s3-url { font-size: 9px; padding: 4px 8px; } .s3-content { padding: 14px 16px; min-height: 160px; } .s3-fake-line { height: 6px; margin-bottom: 8px; } .s3-fake-line.title { height: 11px; margin-bottom: 14px; } .s3-badge { width: 138px; padding: 9px 11px; bottom: 12px; right: 12px; } .s3-badge-head { margin-bottom: 6px; } .s3-badge-domain { font-size: 8px; } .s3-badge-score .num { font-size: 18px; } .s3-badge-score .unit { font-size: 9px; } .s3-badge-pill { font-size: 8px; padding: 1px 6px; } .s3-badge-btn { font-size: 9px; padding: 5px 8px; } .s4-wrap { width: 100%; } .s4-row { grid-template-columns: 20px 1fr 50px 60px; gap: 8px; padding: 8px 0; } .s4-rank { font-size: 10px; } .s4-name { font-size: 12px; line-height: 1.25; } .s4-score { font-size: 11px; } .progress { bottom: 14px; gap: 6px; } .progress-dot { width: 16px; height: 2px; } } @media (max-width: 380px) { .caption-main { font-size: 17px; } .caption-track { min-height: 70px; } .s1-pill { padding: 6px 10px; } .s2-report-title { font-size: 11px; } }
+
+  /* ===== "No side" section redesign (2026-05-06) ===== */
+  .ns-lead { margin: 8px auto 56px; }
+  .ns-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 980px; margin: 0 auto; }
+  .ns-card {
+    background: rgba(255,255,255,0.015);
+    border: 1.5px solid rgba(168,85,247,0.18);
+    border-radius: 14px;
+    padding: 36px 36px 32px;
+    transition: border-color .2s, transform .2s;
+  }
+  .ns-card:hover { border-color: rgba(168,85,247,0.45); }
+  .ns-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .ns-card-num {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -1px;
+    color: var(--violet-light);
+    line-height: 1;
+  }
+  .ns-card-rule { flex: 1; height: 0.5px; background: rgba(168,85,247,0.25); }
+  .ns-card h4 {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: -0.6px;
+    color: var(--text);
+    margin: 0 0 10px;
+    line-height: 1.15;
+  }
+  .ns-card p {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 14.5px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+    font-weight: 300;
+    margin: 0;
+  }
+  .ns-receipt { margin-top: 64px; padding-top: 36px; border-top: 0.5px solid var(--border); text-align: center; }
+  .ns-receipt-label { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-3); font-weight: 500; margin-bottom: 18px; }
+  .ns-receipt-row span {
+    padding: 6px 18px;
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: rgba(255,255,255,0.42);
+    letter-spacing: -0.2px;
+    transition: color .25s;
+  }
+  .ns-receipt-row span:hover { color: var(--violet-light); }
+  @media (max-width: 760px) {
+    .ns-grid { grid-template-columns: 1fr; }
+    .ns-card { padding: 28px 24px; }
+    .ns-card h4 { font-size: 22px; }
+  }
+  /* ===== End "No side" redesign ===== */
+
 </style>
 </head>
 <body data-page="home">
@@ -440,11 +498,27 @@
       </h2>
       <p class="body-lg ns-sub">The same methodology. The same standards. Applied identically to every outlet.</p>
     </div>
-    <div class="ns-principles">
-      <div class="ns-principle"><div class="ns-num">1</div><div class="ns-body"><h4>No human editors</h4><p>Every verdict is generated automatically using a documented methodology.</p></div></div>
-      <div class="ns-principle"><div class="ns-num">2</div><div class="ns-body"><h4>Independence rule</h4><p>Five outlets citing the same wire report counts as one source, not five.</p></div></div>
-      <div class="ns-principle"><div class="ns-num">3</div><div class="ns-body"><h4>Full transparency</h4><p>Every verdict shows the sources used and the reasoning behind it.</p></div></div>
-      <div class="ns-principle"><div class="ns-num">4</div><div class="ns-body"><h4>Real-time</h4><p>Updated continuously as new articles are published.</p></div></div>
+    <div class="ns-grid">
+      <div class="ns-card">
+        <div class="ns-card-head"><span class="ns-card-num">01</span><span class="ns-card-rule"></span></div>
+        <h4>No human editors</h4>
+        <p>Every verdict is generated automatically using a documented methodology.</p>
+      </div>
+      <div class="ns-card">
+        <div class="ns-card-head"><span class="ns-card-num">02</span><span class="ns-card-rule"></span></div>
+        <h4>Independence rule</h4>
+        <p>Five outlets citing the same wire report counts as one source, not five.</p>
+      </div>
+      <div class="ns-card">
+        <div class="ns-card-head"><span class="ns-card-num">03</span><span class="ns-card-rule"></span></div>
+        <h4>Full transparency</h4>
+        <p>Every verdict shows the sources used and the reasoning behind it.</p>
+      </div>
+      <div class="ns-card">
+        <div class="ns-card-head"><span class="ns-card-num">04</span><span class="ns-card-rule"></span></div>
+        <h4>Real-time</h4>
+        <p>Updated continuously as new articles are published.</p>
+      </div>
     </div>
     <div class="ns-receipt">
       <div class="ns-receipt-label">The same verdict applies regardless of source</div>
