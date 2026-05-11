@@ -112,6 +112,7 @@ Return only the JSON, no other text."""
                 {"role": "user", "content": prompt}
             ]
         )
+        from token_logging import log_usage; log_usage('extract', message)
         
         # Parse the response
         response_text = message.content[0].text.strip()

@@ -208,6 +208,7 @@ Return ONLY this JSON:
                 {"role": "user", "content": prompt}
             ]
         )
+        from token_logging import log_usage; log_usage('verdicts', message)
         response_text = ""
         for block in message.content:
             if hasattr(block, "text"):

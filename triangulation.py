@@ -33,6 +33,7 @@ def second_pass(claim_text, speaker, claim_type, title, source):
             model="claude-sonnet-4-6", max_tokens=1500,
             tools=[{"type":"web_search_20250305","name":"web_search"}],
             messages=[{"role":"user","content":prompt}])
+        from token_logging import log_usage; log_usage('triangulation', msg)
         text = "".join(b.text for b in msg.content if hasattr(b,"text")).strip()
         start = text.find("{")
         end = text.rfind("}") + 1

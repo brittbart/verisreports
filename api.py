@@ -998,6 +998,7 @@ def _try_web_search(url, anthropic_client):
             model='claude-sonnet-4-6', max_tokens=2500,
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{'role': 'user', 'content': query}])
+        from token_logging import log_usage; log_usage('api_web_search', msg)
         text = ''.join(b.text for b in msg.content if hasattr(b, 'text'))
         if not text or len(text) < 500: print(f"[web_search] Too thin"); return None
         title = ''
@@ -1139,6 +1140,7 @@ def get_background_signal(article_claim_texts, anthropic_client=None):
                 tools=[{"type": "web_search_20250305", "name": "web_search"}],
                 messages=[{'role': 'user', 'content': prompt}]
             )
+            from token_logging import log_usage; log_usage('api_background_signal', msg)
             text = ''.join(b.text for b in msg.content if hasattr(b, 'text'))
 
             import json as _json
@@ -1965,6 +1967,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             'Return ONLY valid JSON: {"article_summary": "...", "overall_signal": "...", "watch_for": ["...", "...", "..."]}'
         )
         _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
+        from token_logging import log_usage as _log_usage; _log_usage('api_report_summary', _msg)
         _text = _msg.content[0].text.strip()
         _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
         article_summary = smartquotes(_result.get('article_summary', ''))

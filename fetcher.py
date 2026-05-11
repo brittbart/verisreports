@@ -299,6 +299,7 @@ def _try_web_search(url, anthropic_client):
             model='claude-sonnet-4-6', max_tokens=2500,
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{'role': 'user', 'content': query}])
+        from token_logging import log_usage; log_usage('fetcher_web_search', msg)
         text = ''.join(b.text for b in msg.content if hasattr(b, 'text'))
         if not text or len(text) < 500:
             print(f"[web_search] Too thin")
