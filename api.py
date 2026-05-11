@@ -2179,6 +2179,296 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     return Response(html, mimetype='text/html')
 
 
+
+# ----------------------------------------------------------------------
+# Operational dashboard (/api/job-runs JSON + /ops HTML) — Patch 19
+# ----------------------------------------------------------------------
+# Both routes are basic-auth protected via OPS_PASSWORD env var.
+# Username is 'admin', password is OPS_PASSWORD.
+# If OPS_PASSWORD is unset, both return 503 (fail closed).
+
+def _ops_auth():
+    """Returns None if request is authorized, else a Flask Response."""
+    import base64
+    from flask import Response
+
+    expected_pw = os.environ.get('OPS_PASSWORD')
+    if not expected_pw:
+        return Response(
+            'OPS_PASSWORD not configured on server',
+            status=503,
+            mimetype='text/plain',
+        )
+
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Basic '):
+        return Response(
+            'Authentication required',
+            status=401,
+            headers={'WWW-Authenticate': 'Basic realm="Veris Ops"'},
+        )
+
+    try:
+        decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
+        username, _, password = decoded.partition(':')
+    except Exception:
+        return Response(
+            'Malformed Authorization header',
+            status=400,
+        )
+
+    import hmac
+    if username != 'admin' or not hmac.compare_digest(password, expected_pw):
+        return Response(
+            'Invalid credentials',
+            status=401,
+            headers={'WWW-Authenticate': 'Basic realm="Veris Ops"'},
+        )
+
+    return None
+
+
+@app.route('/api/job-runs', methods=['GET'])
+def api_job_runs():
+    """Return last 24h of job_runs as JSON. Basic-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+
+    try:
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        id, stage, started_at, finished_at, duration_ms,
+                        status, items_processed, error_class, error_message, hostname
+                    FROM job_runs
+                    WHERE started_at >= NOW() - INTERVAL '24 hours'
+                    ORDER BY id DESC
+                """)
+                cols = [d[0] for d in cur.description]
+                rows = []
+                for row in cur.fetchall():
+                    rec = dict(zip(cols, row))
+                    for k in ('started_at', 'finished_at'):
+                        if rec.get(k) is not None:
+                            rec[k] = rec[k].isoformat()
+                    rows.append(rec)
+        finally:
+            conn.close()
+
+        return jsonify({'count': len(rows), 'runs': rows})
+    except Exception as e:
+        return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
+
+
+_OPS_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Veris Ops</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --fg: #e8e8e8;
+    --fg-dim: #888;
+    --accent: #a855f7;
+    --ok: #4ade80;
+    --bad: #f87171;
+    --running: #fbbf24;
+    --border: #222;
+    --card: #111;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--fg-dim); font-size: 12px; margin-bottom: 24px; }
+  .grid {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px;
+  }
+  .card h3 {
+    margin: 0 0 8px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--fg-dim); font-weight: 500;
+  }
+  .stage-stats { font-family: var(--mono); font-size: 12px; }
+  .stage-stats > div { display: flex; justify-content: space-between; padding: 2px 0; }
+  .stage-stats .label { color: var(--fg-dim); }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--mono); font-size: 12px;
+  }
+  th, td {
+    text-align: left; padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  th {
+    color: var(--fg-dim); font-weight: 500;
+    text-transform: uppercase; font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  td.error { white-space: normal; max-width: 400px; word-break: break-word; }
+  .status-ok { color: var(--ok); }
+  .status-failed { color: var(--bad); font-weight: 600; }
+  .status-running { color: var(--running); }
+  .stage-tag {
+    display: inline-block; padding: 2px 6px; border-radius: 3px;
+    background: var(--border); font-size: 11px;
+  }
+  .refresh-info {
+    color: var(--fg-dim); font-size: 11px;
+    font-family: var(--mono); margin-top: 24px;
+  }
+  .empty { color: var(--fg-dim); padding: 32px; text-align: center; font-style: italic; }
+</style>
+</head>
+<body>
+<h1>Veris pipeline — last 24h</h1>
+<div class="subtitle" id="subtitle">loading…</div>
+
+<div id="summary" class="grid"></div>
+
+<h2 style="font-size: 14px; margin: 24px 0 8px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;">Recent runs</h2>
+<table id="runs-table">
+  <thead><tr>
+    <th>id</th><th>stage</th><th>started</th><th>duration</th>
+    <th>status</th><th>items</th><th>error</th>
+  </tr></thead>
+  <tbody><tr><td colspan="7" class="empty">loading…</td></tr></tbody>
+</table>
+
+<div class="refresh-info" id="refresh-info">auto-refresh every 30s</div>
+
+<script>
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+}
+function fmtDuration(ms) {
+  if (ms === null || ms === undefined) return '—';
+  if (ms < 1000) return ms + 'ms';
+  if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+  const m = Math.floor(ms / 60000);
+  const s = ((ms % 60000) / 1000).toFixed(0);
+  return m + 'm ' + s + 's';
+}
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+function render(data) {
+  const runs = data.runs || [];
+
+  const byStage = {};
+  for (const r of runs) {
+    if (!byStage[r.stage]) byStage[r.stage] = { runs: [], ok: 0, failed: 0, running: 0 };
+    byStage[r.stage].runs.push(r);
+    if (r.status === 'ok') byStage[r.stage].ok++;
+    else if (r.status === 'failed') byStage[r.stage].failed++;
+    else if (r.status === 'running') byStage[r.stage].running++;
+  }
+
+  const orderedStages = ['fetch', 'extract', 'load', 'priority', 'preverify', 'backfill', 'verdicts'];
+  const allStages = orderedStages.filter(s => byStage[s]).concat(
+    Object.keys(byStage).filter(s => !orderedStages.includes(s))
+  );
+
+  const summary = document.getElementById('summary');
+  summary.innerHTML = allStages.map(stage => {
+    const s = byStage[stage];
+    const okDurations = s.runs.filter(r => r.status === 'ok' && r.duration_ms).map(r => r.duration_ms);
+    const avgMs = okDurations.length ? Math.round(okDurations.reduce((a,b) => a+b, 0) / okDurations.length) : null;
+    const lastRun = s.runs[0];
+    return '<div class="card">'
+      + '<h3>' + escapeHtml(stage) + '</h3>'
+      + '<div class="stage-stats">'
+      + '<div><span class="label">runs</span><span>' + s.runs.length + '</span></div>'
+      + '<div><span class="label">ok</span><span class="status-ok">' + s.ok + '</span></div>'
+      + (s.failed ? '<div><span class="label">failed</span><span class="status-failed">' + s.failed + '</span></div>' : '')
+      + (s.running ? '<div><span class="label">running</span><span class="status-running">' + s.running + '</span></div>' : '')
+      + '<div><span class="label">avg</span><span>' + fmtDuration(avgMs) + '</span></div>'
+      + '<div><span class="label">last</span><span>' + fmtTime(lastRun ? lastRun.started_at : null) + '</span></div>'
+      + '</div></div>';
+  }).join('');
+
+  const tbody = document.querySelector('#runs-table tbody');
+  if (runs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">no runs in the last 24h</td></tr>';
+  } else {
+    tbody.innerHTML = runs.map(r => {
+      const statusClass = 'status-' + r.status;
+      const errCell = r.error_class
+        ? '<td class="error"><strong>' + escapeHtml(r.error_class) + '</strong>: ' + escapeHtml(r.error_message || '') + '</td>'
+        : '<td>—</td>';
+      return '<tr>'
+        + '<td>' + r.id + '</td>'
+        + '<td><span class="stage-tag">' + escapeHtml(r.stage) + '</span></td>'
+        + '<td>' + fmtTime(r.started_at) + '</td>'
+        + '<td>' + fmtDuration(r.duration_ms) + '</td>'
+        + '<td class="' + statusClass + '">' + escapeHtml(r.status) + '</td>'
+        + '<td>' + (r.items_processed !== null ? r.items_processed : '—') + '</td>'
+        + errCell
+        + '</tr>';
+    }).join('');
+  }
+
+  document.getElementById('subtitle').textContent = data.count + ' runs · refreshed ' + new Date().toLocaleTimeString();
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('/api/job-runs', { credentials: 'same-origin' });
+    if (!res.ok) {
+      document.getElementById('subtitle').textContent = 'error: ' + res.status + ' ' + res.statusText;
+      return;
+    }
+    const data = await res.json();
+    render(data);
+  } catch (err) {
+    document.getElementById('subtitle').textContent = 'fetch error: ' + err.message;
+  }
+}
+
+loadData();
+setInterval(loadData, 30000);
+</script>
+</body>
+</html>"""
+
+
+@app.route('/ops', methods=['GET'])
+def ops_dashboard():
+    """Render the ops dashboard HTML. Basic-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+
+    from flask import Response
+    return Response(_OPS_HTML, mimetype='text/html')
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
