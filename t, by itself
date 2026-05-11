@@ -1,0 +1,49 @@
+[1mdiff --git a/load_to_database.py b/load_to_database.py[m
+[1mindex 26144bf..8cc28df 100644[m
+[1m--- a/load_to_database.py[m
+[1m+++ b/load_to_database.py[m
+[36m@@ -47,20 +47,15 @@[m [mdef load_articles(articles_file, claims_file):[m
+         title = article.get('title', 'No title')[m
+         raw_source = article.get('source', {}).get('name', 'Unknown')[m
+         url = article.get('url', '')[m
+[31m-        if 'news.google.com' in url:[m
+[31m-            try:[m
+[31m-                import requests as _r[m
+[31m-                resp = _r.get(url, timeout=5, allow_redirects=True,[m
+[31m-                              headers={'User-Agent':'Mozilla/5.0'})[m
+[31m-                url = resp.url[m
+[31m-            except Exception:[m
+[31m-                pass[m
+[32m+[m[32m        # Google News redirect resolution removed — was synchronous HTTP per article,[m
+[32m+[m[32m        # caused 5-min load step hangs and idle DB connection timeouts.[m
+         # Normalise source name to clean domain after redirect resolution[m
+         from urllib.parse import urlparse as _up[m
+         _h = _up(url).hostname or ''[m
+         _h = _h.replace('www.','').replace('feeds.','').replace('rss.','')[m
+         source_name = _h if _h else raw_source[m
+[31m-        published = article.get('publishedAt')[m
+[32m+[m[32m        _raw_pub = article.get('publishedAt')[m
+[32m+[m[32m        published = _raw_pub if (_raw_pub and str(_raw_pub).strip()) else None[m
+         description = article.get('description', '')[m
+         content = article.get('content', '')[m
+         [m
+[36m@@ -74,6 +69,7 @@[m [mdef load_articles(articles_file, claims_file):[m
+         """, (source_name,))[m
+         [m
+         # Insert article[m
+[32m+[m[32m        cursor.execute("SAVEPOINT article_sp;")[m
+         try:[m
+             cursor.execute("""[m
+                 INSERT INTO articles [m
+[36m@@ -112,9 +108,10 @@[m [mdef load_articles(articles_file, claims_file):[m
+                     ))[m
+                     claims_added += 1[m
+                     [m
+[32m+[m[32m            cursor.execute("RELEASE SAVEPOINT article_sp;")[m
+         except Exception as e:[m
+             print(f"  Error on article {i+1}: {str(e)}")[m
+[31m-            conn.rollback()[m
+[32m+[m[32m            cursor.execute("ROLLBACK TO SAVEPOINT article_sp;")[m
+             continue[m
+     [m
+     conn.commit()[m

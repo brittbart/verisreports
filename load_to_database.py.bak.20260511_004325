@@ -47,24 +47,20 @@ def load_articles(articles_file, claims_file):
         title = article.get('title', 'No title')
         raw_source = article.get('source', {}).get('name', 'Unknown')
         url = article.get('url', '')
-        # Google News redirect resolution removed — was synchronous HTTP per article,
-        # caused 5-min load step hangs and idle DB connection timeouts.
+        if 'news.google.com' in url:
+            try:
+                import requests as _r
+                resp = _r.get(url, timeout=5, allow_redirects=True,
+                              headers={'User-Agent':'Mozilla/5.0'})
+                url = resp.url
+            except Exception:
+                pass
         # Normalise source name to clean domain after redirect resolution
         from urllib.parse import urlparse as _up
-from google_news_parser import resolve_publisher  # Patch 9
         _h = _up(url).hostname or ''
         _h = _h.replace('www.','').replace('feeds.','').replace('rss.','')
         source_name = _h if _h else raw_source
-        # Patch 9: Google News URLs have opaque base64 blobs that hide
-        # the real publisher. The RSS title suffix carries it, e.g.
-        # 'Headline - breitbart.com'. Recover that when possible; keep
-        # news.google.com as fallback when we can't extract confidently.
-        if source_name == 'news.google.com':
-            _recovered = resolve_publisher(url, title)
-            if _recovered:
-                source_name = _recovered
-        _raw_pub = article.get('publishedAt')
-        published = _raw_pub if (_raw_pub and str(_raw_pub).strip()) else None
+        published = article.get('publishedAt')
         description = article.get('description', '')
         content = article.get('content', '')
         
@@ -78,7 +74,6 @@ from google_news_parser import resolve_publisher  # Patch 9
         """, (source_name,))
         
         # Insert article
-        cursor.execute("SAVEPOINT article_sp;")
         try:
             cursor.execute("""
                 INSERT INTO articles 
@@ -117,19 +112,10 @@ from google_news_parser import resolve_publisher  # Patch 9
                     ))
                     claims_added += 1
                     
-            cursor.execute("RELEASE SAVEPOINT article_sp;")
         except Exception as e:
             print(f"  Error on article {i+1}: {str(e)}")
-            cursor.execute("ROLLBACK TO SAVEPOINT article_sp;")
+            conn.rollback()
             continue
-
-        # Patch 9: commit every 25 articles so the transaction stays
-        # bounded. Reduces lock contention against leaderboard reads
-        # on articles + sources. Savepoint scope is per-article so
-        # this doesn't change error isolation.
-        if (i + 1) % 25 == 0:
-            conn.commit()
-            print(f"  [commit] {i+1} articles persisted")
     
     conn.commit()
     cursor.close()

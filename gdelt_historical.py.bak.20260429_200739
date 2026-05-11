@@ -1,0 +1,149 @@
+"""
+GDELT historical ingestion with full article scraping.
+Target: 10K articles across balanced outlet mix.
+Run overnight.
+"""
+import os, requests, time, psycopg2
+from datetime import datetime, timedelta
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+if os.path.exists(".env"):
+    load_dotenv(override=False)
+
+DB = dict(host='shinkansen.proxy.rlwy.net', port=35370, dbname='railway', user='postgres', password=os.getenv('DB_PASSWORD','Kx9mPqR7nWjL2vTsYdF4bHcE6uZaGpNe'))
+
+OUTLETS = [
+    'apnews.com', 'reuters.com', 'bloomberg.com', 'axios.com',
+    'theguardian.com', 'npr.org', 'msnbc.com', 'vox.com',
+    'theintercept.com', 'motherjones.com',
+    'politico.com', 'thehill.com', 'nytimes.com', 'washingtonpost.com',
+    'foxnews.com', 'nypost.com', 'washingtonexaminer.com',
+    'dailywire.com', 'newsmax.com', 'breitbart.com',
+    'nationalreview.com', 'thefederalist.com',
+    'bbc.com', 'aljazeera.com',
+]
+
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+
+PAYWALL_DOMAINS = {'nytimes.com', 'washingtonpost.com', 'bloomberg.com', 'wsj.com'}
+
+def query_gdelt(domain, days_back=90, max_records=250):
+    end = datetime.now()
+    start = end - timedelta(days=days_back)
+    params = {
+        'query': f'domain:{domain} sourcelang:english',
+        'mode': 'artlist',
+        'maxrecords': max_records,
+        'startdatetime': start.strftime('%Y%m%d%H%M%S'),
+        'enddatetime': end.strftime('%Y%m%d%H%M%S'),
+        'format': 'json'
+    }
+    try:
+        r = requests.get('https://api.gdeltproject.org/api/v2/doc/doc', params=params, timeout=30)
+        if r.status_code == 200:
+            articles = r.json().get('articles', [])
+            print(f"  {domain}: {len(articles)} from GDELT")
+            return articles
+        else:
+            print(f"  {domain}: HTTP {r.status_code}")
+            return []
+    except Exception as e:
+        print(f"  {domain}: GDELT error {e}")
+        return []
+
+def scrape_article(url, domain):
+    if any(p in domain for p in PAYWALL_DOMAINS):
+        return None, 'paywall'
+    try:
+        r = requests.get(url, timeout=12, headers=HEADERS)
+        if r.status_code != 200:
+            return None, f'http_{r.status_code}'
+        soup = BeautifulSoup(r.text, 'html.parser')
+        # Remove nav, footer, ads
+        for tag in soup(['nav','footer','header','script','style','aside']):
+            tag.decompose()
+        paragraphs = soup.find_all('p')
+        text = ' '.join(p.get_text().strip() for p in paragraphs if len(p.get_text().strip()) > 40)
+        if len(text) < 200:
+            return None, 'too_short'
+        return text[:8000], 'ok'
+    except Exception as e:
+        return None, f'error_{str(e)[:30]}'
+
+def load_to_db(title, url, domain, content, published):
+    conn = psycopg2.connect(**DB)
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM articles WHERE url = %s", (url,))
+        if cur.fetchone():
+            conn.close()
+            return 'duplicate'
+        cur.execute("""
+            INSERT INTO articles (title, source_name, url, fetched_at, claims_verified, description)
+            VALUES (%s, %s, %s, NOW(), FALSE, %s)
+        """, (title, domain, url, content[:500] if content else ''))
+        conn.commit()
+        conn.close()
+        return 'added'
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return f'error_{str(e)[:30]}'
+
+def run(days_back=90, max_per_outlet=250):
+    print(f"GDELT historical ingestion — {days_back} days, up to {max_per_outlet} per outlet")
+    print(f"Outlets: {len(OUTLETS)}")
+    print(f"Started: {datetime.now()}")
+    print("="*60)
+
+    total_added = 0
+    total_skipped = 0
+    total_paywall = 0
+    total_failed = 0
+
+    for domain in OUTLETS:
+        print(f"\n[{domain}]")
+        articles = query_gdelt(domain, days_back, max_per_outlet)
+        if not articles:
+            continue
+
+        outlet_added = 0
+        for a in articles:
+            url = a.get('url', '')
+            title = a.get('title', '')
+            published = a.get('seendate', '')
+            if not url or not title:
+                continue
+
+            content, status = scrape_article(url, domain)
+
+            if status == 'paywall':
+                # Still add to DB with title only — useful for URL matching
+                result = load_to_db(title, url, domain, '', published)
+                total_paywall += 1
+            elif status == 'ok':
+                result = load_to_db(title, url, domain, content, published)
+            else:
+                total_failed += 1
+                continue
+
+            if result == 'added':
+                total_added += 1
+                outlet_added += 1
+            elif result == 'duplicate':
+                total_skipped += 1
+
+            time.sleep(0.5)  # Rate limit per article
+
+        print(f"  -> {outlet_added} added")
+        time.sleep(2)  # Rate limit per outlet
+
+    print("\n" + "="*60)
+    print(f"Done: {datetime.now()}")
+    print(f"Added: {total_added}")
+    print(f"Duplicates skipped: {total_skipped}")
+    print(f"Paywall (title only): {total_paywall}")
+    print(f"Failed: {total_failed}")
+
+if __name__ == '__main__':
+    run()
