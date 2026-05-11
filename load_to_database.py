@@ -47,20 +47,15 @@ def load_articles(articles_file, claims_file):
         title = article.get('title', 'No title')
         raw_source = article.get('source', {}).get('name', 'Unknown')
         url = article.get('url', '')
-        if 'news.google.com' in url:
-            try:
-                import requests as _r
-                resp = _r.get(url, timeout=5, allow_redirects=True,
-                              headers={'User-Agent':'Mozilla/5.0'})
-                url = resp.url
-            except Exception:
-                pass
+        # Google News redirect resolution removed — was synchronous HTTP per article,
+        # caused 5-min load step hangs and idle DB connection timeouts.
         # Normalise source name to clean domain after redirect resolution
         from urllib.parse import urlparse as _up
         _h = _up(url).hostname or ''
         _h = _h.replace('www.','').replace('feeds.','').replace('rss.','')
         source_name = _h if _h else raw_source
-        published = article.get('publishedAt')
+        _raw_pub = article.get('publishedAt')
+        published = _raw_pub if (_raw_pub and str(_raw_pub).strip()) else None
         description = article.get('description', '')
         content = article.get('content', '')
         
@@ -74,6 +69,7 @@ def load_articles(articles_file, claims_file):
         """, (source_name,))
         
         # Insert article
+        cursor.execute("SAVEPOINT article_sp;")
         try:
             cursor.execute("""
                 INSERT INTO articles 
@@ -112,9 +108,10 @@ def load_articles(articles_file, claims_file):
                     ))
                     claims_added += 1
                     
+            cursor.execute("RELEASE SAVEPOINT article_sp;")
         except Exception as e:
             print(f"  Error on article {i+1}: {str(e)}")
-            conn.rollback()
+            cursor.execute("ROLLBACK TO SAVEPOINT article_sp;")
             continue
     
     conn.commit()
