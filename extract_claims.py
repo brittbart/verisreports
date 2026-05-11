@@ -9,7 +9,8 @@ if os.path.exists(".env"):
 anthropic_key = os.getenv('ANTHROPIC_API_KEY')
 
 # Connect to Anthropic
-client = anthropic.Anthropic(api_key=anthropic_key)
+# Patch 13: explicit timeout prevents indefinite block on wedged API connection
+client = anthropic.Anthropic(api_key=anthropic_key, timeout=120.0)
 
 
 def deduplicate_claims(claims, threshold=0.6):

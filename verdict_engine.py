@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 
 if os.path.exists(".env"):
     load_dotenv(override=False)
-client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+# Patch 13: explicit timeout prevents indefinite block on wedged API connection
+client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'), timeout=120.0)
 
 
 OPINION_SIGNALS = [
@@ -37,13 +38,24 @@ def pre_filter_claim(claim_text):
     return "send_to_api"
 
 def get_connection():
-    return psycopg2.connect(
+    # Patch 13: timeouts + keepalives + statement_timeout (180s)
+    conn = psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
         host=os.getenv('DB_HOST'),
-        port=os.getenv('DB_PORT', '5432')
+        port=os.getenv('DB_PORT', '5432'),
+        connect_timeout=10,
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
+        application_name='veris-verdict',
     )
+    with conn.cursor() as cur:
+        cur.execute("SET statement_timeout = 180000")
+    conn.commit()
+    return conn
 
 def check_database_first(cursor, claim_text):
     try:

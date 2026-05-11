@@ -19,13 +19,24 @@ HIGH_PRIORITY_TYPES = ['statistical', 'legal', 'scientific']
 MEDIUM_PRIORITY_TYPES = ['factual', 'causal']
 
 def get_connection():
-    return psycopg2.connect(
+    # Patch 13: timeouts + keepalives + statement_timeout (180s)
+    conn = psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
         host=os.getenv('DB_HOST'),
-        port=os.getenv('DB_PORT', '5432')
+        port=os.getenv('DB_PORT', '5432'),
+        connect_timeout=10,
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
+        application_name='veris-priority',
     )
+    with conn.cursor() as cur:
+        cur.execute("SET statement_timeout = 180000")
+    conn.commit()
+    return conn
 
 def calculate_priority(claim_text, claim_type, source_name):
     score = 0

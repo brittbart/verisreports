@@ -12,13 +12,24 @@ TOP_OUTLETS = [
 ]
 
 def get_connection():
-    return psycopg2.connect(
+    # Patch 13: timeouts + keepalives + statement_timeout (180s)
+    conn = psycopg2.connect(
         dbname=os.environ.get("DB_NAME", "railway"),
         user=os.environ.get("DB_USER", "postgres"),
         password=os.environ.get("DB_PASSWORD"),
         host=os.environ.get("DB_HOST", "shinkansen.proxy.rlwy.net"),
-        port=os.environ.get("DB_PORT", "35370")
+        port=os.environ.get("DB_PORT", "35370"),
+        connect_timeout=10,
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
+        application_name='veris-preverify',
     )
+    with conn.cursor() as cur:
+        cur.execute("SET statement_timeout = 180000")
+    conn.commit()
+    return conn
 
 def is_top_outlet(source_name):
     if not source_name:

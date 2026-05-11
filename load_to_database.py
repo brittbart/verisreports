@@ -3,18 +3,31 @@ import json
 import psycopg2
 from dotenv import load_dotenv
 from datetime import datetime
-
+from google_news_parser import resolve_publisher
 if os.path.exists(".env"):
     load_dotenv(override=False)
 
 def get_connection():
-    return psycopg2.connect(
+    # Patch 13: connect_timeout protects against DNS/TCP hangs.
+    # keepalives let Railway middleboxes see the conn as alive during 5+ min Load step.
+    # statement_timeout caps any single query at 180s server-side.
+    conn = psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
         host=os.getenv('DB_HOST'),
-        port=os.getenv('DB_PORT', '5432')
+        port=os.getenv('DB_PORT', '5432'),
+        connect_timeout=10,
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
+        application_name='veris-load',
     )
+    with conn.cursor() as cur:
+        cur.execute("SET statement_timeout = 180000")  # 180s
+    conn.commit()
+    return conn
 
 def load_articles(articles_file, claims_file):
     """Load articles and claims from JSON files into the database."""
@@ -51,14 +64,9 @@ def load_articles(articles_file, claims_file):
         # caused 5-min load step hangs and idle DB connection timeouts.
         # Normalise source name to clean domain after redirect resolution
         from urllib.parse import urlparse as _up
-from google_news_parser import resolve_publisher  # Patch 9
         _h = _up(url).hostname or ''
         _h = _h.replace('www.','').replace('feeds.','').replace('rss.','')
         source_name = _h if _h else raw_source
-        # Patch 9: Google News URLs have opaque base64 blobs that hide
-        # the real publisher. The RSS title suffix carries it, e.g.
-        # 'Headline - breitbart.com'. Recover that when possible; keep
-        # news.google.com as fallback when we can't extract confidently.
         if source_name == 'news.google.com':
             _recovered = resolve_publisher(url, title)
             if _recovered:
@@ -122,14 +130,9 @@ from google_news_parser import resolve_publisher  # Patch 9
             print(f"  Error on article {i+1}: {str(e)}")
             cursor.execute("ROLLBACK TO SAVEPOINT article_sp;")
             continue
-
-        # Patch 9: commit every 25 articles so the transaction stays
-        # bounded. Reduces lock contention against leaderboard reads
-        # on articles + sources. Savepoint scope is per-article so
-        # this doesn't change error isolation.
         if (i + 1) % 25 == 0:
             conn.commit()
-            print(f"  [commit] {i+1} articles persisted")
+            print(f"  [commit] {i+1} articles persisted", flush=True)
     
     conn.commit()
     cursor.close()

@@ -10,3 +10,11 @@ articles_*.json
 *.save
 Database
 Web
+*.bak
+*.bak.*
+pending_batch.txt
+gdelt_historical.log
+.vscode/
+.idea/
+.DS_Store
+.env.*

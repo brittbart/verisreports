@@ -204,7 +204,6 @@ def run_full_pipeline():
     
     steps = [
     ("Fetch articles", run_fetch),
-    ("GDELT seed", run_gdelt),
     ("Extract claims", run_extract),
     ("Load to database", run_load),
     ("Backfill published_at", run_backfill),
