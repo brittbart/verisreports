@@ -14,7 +14,7 @@ if os.path.exists(".env"):
 
 from stages._common import run_stage
 
-VERDICTS_PER_RUN = 20
+VERDICTS_PER_RUN = 50
 
 
 def main() -> int:
