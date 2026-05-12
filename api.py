@@ -2575,7 +2575,8 @@ _OPS_HTML = """<!DOCTYPE html>
   <div class="corpus-card"><div class="label">Claims (all)</div><div class="total">\u2014</div><div class="delta">&nbsp;</div></div>
 </div>
 
-<h2>Pipeline health</h2>
+<h2>Pipeline health <span id="pipeline-status-badge" style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:normal;margin-left:8px;"></span></h2>
+<div id="schedule-grid" class="grid" style="margin-bottom:20px;"></div>
 <div id="summary" class="grid"></div>
 
 <h2>Recent runs</h2>
@@ -2657,64 +2658,7 @@ function renderCorpus(data) {
     }
   });
 }
-function renderRuns(data) {
-  const runs = data.runs || [];
 
-  const byStage = {};
-  for (const r of runs) {
-    if (!byStage[r.stage]) byStage[r.stage] = { runs: [], ok: 0, failed: 0, running: 0 };
-    byStage[r.stage].runs.push(r);
-    if (r.status === 'ok') byStage[r.stage].ok++;
-    else if (r.status === 'failed') byStage[r.stage].failed++;
-    else if (r.status === 'running') byStage[r.stage].running++;
-  }
-
-  const orderedStages = ['fetch', 'extract', 'load', 'priority', 'preverify', 'backfill', 'verdicts'];
-  const allStages = orderedStages.filter(s => byStage[s]).concat(
-    Object.keys(byStage).filter(s => !orderedStages.includes(s))
-  );
-
-  const summary = document.getElementById('summary');
-  summary.innerHTML = allStages.map(stage => {
-    const s = byStage[stage];
-    const okDurations = s.runs.filter(r => r.status === 'ok' && r.duration_ms).map(r => r.duration_ms);
-    const avgMs = okDurations.length ? Math.round(okDurations.reduce((a,b) => a+b, 0) / okDurations.length) : null;
-    const lastRun = s.runs[0];
-    return '<div class="card">'
-      + '<h3>' + escapeHtml(stage) + '</h3>'
-      + '<div class="stage-stats">'
-      + '<div><span class="label">runs</span><span>' + s.runs.length + '</span></div>'
-      + '<div><span class="label">ok</span><span class="status-ok">' + s.ok + '</span></div>'
-      + (s.failed ? '<div><span class="label">failed</span><span class="status-failed">' + s.failed + '</span></div>' : '')
-      + (s.running ? '<div><span class="label">running</span><span class="status-running">' + s.running + '</span></div>' : '')
-      + '<div><span class="label">avg</span><span>' + fmtDuration(avgMs) + '</span></div>'
-      + '<div><span class="label">last</span><span>' + fmtTime(lastRun ? lastRun.started_at : null) + '</span></div>'
-      + '</div></div>';
-  }).join('');
-
-  const tbody = document.querySelector('#runs-table tbody');
-  if (runs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">no runs in the last 24h</td></tr>';
-  } else {
-    tbody.innerHTML = runs.map(r => {
-      const statusClass = 'status-' + r.status;
-      const errCell = r.error_class
-        ? '<td class="error"><strong>' + escapeHtml(r.error_class) + '</strong>: ' + escapeHtml(r.error_message || '') + '</td>'
-        : '<td>\u2014</td>';
-      return '<tr>'
-        + '<td>' + r.id + '</td>'
-        + '<td><span class="stage-tag">' + escapeHtml(r.stage) + '</span></td>'
-        + '<td>' + fmtTime(r.started_at) + '</td>'
-        + '<td>' + fmtDuration(r.duration_ms) + '</td>'
-        + '<td class="' + statusClass + '">' + escapeHtml(r.status) + '</td>'
-        + '<td class="num">' + (r.items_processed !== null ? r.items_processed : '\u2014') + '</td>'
-        + errCell
-        + '</tr>';
-    }).join('');
-  }
-
-  document.getElementById('subtitle').textContent = data.count + ' runs · refreshed ' + new Date().toLocaleTimeString();
-}
 
 function renderCosts(data) {
   const stages = data.stages || [];
@@ -2785,6 +2729,142 @@ async function loadData() {
   } catch (err) {
     console.error('token-usage fetch error:', err);
   }
+}
+
+
+// Schedule config: cron expressions and friendly names
+const SCHEDULES = [
+  { stage: 'fetch',    label: 'Fetch',    intervalMins: 180, icon: '⬇' },
+  { stage: 'extract',  label: 'Extract',  intervalMins: 60,  icon: '🔍' },
+  { stage: 'verdicts', label: 'Verdicts', intervalMins: 360, icon: '⚖' },
+];
+
+function renderSchedule(runs) {
+  const byStage = {};
+  for (const r of runs) {
+    if (!byStage[r.stage] || new Date(r.started_at) > new Date(byStage[r.stage].started_at)) {
+      byStage[r.stage] = r;
+    }
+  }
+
+  const grid = document.getElementById('schedule-grid');
+  let anyBad = false;
+
+  grid.innerHTML = SCHEDULES.map(({ stage, label, intervalMins, icon }) => {
+    const last = byStage[stage];
+    const isRunning = last && last.status === 'running';
+    const lastTime = last ? new Date(last.started_at) : null;
+    const now = new Date();
+    const elapsedMins = lastTime ? (now - lastTime) / 60000 : null;
+    const nextMins = elapsedMins !== null ? Math.max(0, intervalMins - elapsedMins) : null;
+
+    let statusColor = 'var(--ok)';
+    let statusText = '';
+    let nextText = '';
+
+    if (isRunning) {
+      statusColor = 'var(--running)';
+      statusText = 'RUNNING';
+      nextText = 'in progress';
+    } else if (elapsedMins === null) {
+      statusColor = 'var(--fg-dim)';
+      statusText = 'NO DATA';
+      nextText = 'unknown';
+    } else if (elapsedMins > intervalMins * 1.5) {
+      statusColor = 'var(--bad)';
+      statusText = 'OVERDUE';
+      nextText = 'overdue by ' + Math.round(elapsedMins - intervalMins) + 'm';
+      anyBad = true;
+    } else if (elapsedMins > intervalMins * 1.1) {
+      statusColor = 'var(--running)';
+      statusText = 'LATE';
+      nextText = 'due now';
+    } else {
+      statusText = 'OK';
+      const h = Math.floor(nextMins / 60);
+      const m = Math.round(nextMins % 60);
+      nextText = h > 0 ? 'in ' + h + 'h ' + m + 'm' : 'in ' + Math.round(nextMins) + 'm';
+    }
+
+    const lastStr = lastTime ? fmtTime(lastTime.toISOString()) : '—';
+
+    return '<div class="card">'
+      + '<h3>' + icon + ' ' + label + ' <span style="color:' + statusColor + ';font-size:10px;">' + statusText + '</span></h3>'
+      + '<div class="stage-stats">'
+      + '<div><span class="label">next run</span><span style="color:' + statusColor + ';">' + nextText + '</span></div>'
+      + '<div><span class="label">last run</span><span>' + lastStr + '</span></div>'
+      + '<div><span class="label">cadence</span><span>' + (intervalMins >= 60 ? intervalMins/60 + 'h' : intervalMins + 'm') + '</span></div>'
+      + '</div></div>';
+  }).join('');
+
+  const badge = document.getElementById('pipeline-status-badge');
+  if (anyBad) {
+    badge.textContent = '⚠ overdue';
+    badge.style.color = 'var(--bad)';
+  } else {
+    badge.textContent = '✓ healthy';
+    badge.style.color = 'var(--ok)';
+  }
+}
+
+function renderRuns(data) {
+  const runs = data.runs || [];
+  renderSchedule(runs);
+
+  const byStage = {};
+  for (const r of runs) {
+    if (!byStage[r.stage]) byStage[r.stage] = { runs: [], ok: 0, failed: 0, running: 0 };
+    byStage[r.stage].runs.push(r);
+    if (r.status === 'ok') byStage[r.stage].ok++;
+    else if (r.status === 'failed') byStage[r.stage].failed++;
+    else if (r.status === 'running') byStage[r.stage].running++;
+  }
+
+  const orderedStages = ['fetch', 'extract', 'load', 'priority', 'preverify', 'backfill', 'verdicts'];
+  const allStages = orderedStages.filter(s => byStage[s]).concat(
+    Object.keys(byStage).filter(s => !orderedStages.includes(s))
+  );
+
+  const summary = document.getElementById('summary');
+  summary.innerHTML = allStages.map(stage => {
+    const s = byStage[stage];
+    const okDurations = s.runs.filter(r => r.status === 'ok' && r.duration_ms).map(r => r.duration_ms);
+    const avgMs = okDurations.length ? Math.round(okDurations.reduce((a,b) => a+b, 0) / okDurations.length) : null;
+    const lastRun = s.runs[0];
+    return '<div class="card">'
+      + '<h3>' + escapeHtml(stage) + '</h3>'
+      + '<div class="stage-stats">'
+      + '<div><span class="label">runs</span><span>' + s.runs.length + '</span></div>'
+      + '<div><span class="label">ok</span><span class="status-ok">' + s.ok + '</span></div>'
+      + (s.failed ? '<div><span class="label">failed</span><span class="status-failed">' + s.failed + '</span></div>' : '')
+      + (s.running ? '<div><span class="label">running</span><span class="status-running">' + s.running + '</span></div>' : '')
+      + '<div><span class="label">avg</span><span>' + fmtDuration(avgMs) + '</span></div>'
+      + '<div><span class="label">last</span><span>' + fmtTime(lastRun ? lastRun.started_at : null) + '</span></div>'
+      + '</div></div>';
+  }).join('');
+
+  const tbody = document.querySelector('#runs-table tbody');
+  if (runs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">no runs in the last 24h</td></tr>';
+  } else {
+    tbody.innerHTML = runs.map(r => {
+      const statusClass = 'status-' + r.status;
+      const errCell = r.error_class
+        ? '<td class="error"><strong>' + escapeHtml(r.error_class) + '</strong>: ' + escapeHtml(r.error_message || '') + '</td>'
+        : '<td>\u2014</td>';
+      return '<tr>'
+        + '<td>' + r.id + '</td>'
+        + '<td><span class="stage-tag">' + escapeHtml(r.stage) + '</span></td>'
+        + '<td>' + fmtTime(r.started_at) + '</td>'
+        + '<td>' + fmtDuration(r.duration_ms) + '</td>'
+        + '<td class="' + statusClass + '">' + escapeHtml(r.status) + '</td>'
+        + '<td class="num">' + (r.items_processed !== null ? r.items_processed : '\u2014') + '</td>'
+        + errCell
+        + '</tr>';
+    }).join('');
+  }
+
+  document.getElementById('subtitle').textContent = data.count + ' runs · refreshed ' + new Date().toLocaleTimeString();
 }
 
 loadData();
