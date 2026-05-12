@@ -1475,8 +1475,13 @@ setTimeout(checkStatus, 3000);
                     else:
                         conn2 = get_db()
                         cur2 = conn2.cursor()
-                        cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) RETURNING id", (title_text, domain, url))
-                        art_id = cur2.fetchone()[0]
+                        cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) ON CONFLICT (url) DO NOTHING RETURNING id", (title_text, domain, url))
+                        row2 = cur2.fetchone()
+                        if row2 is None:
+                            # Article already exists — fetch its id
+                            cur2.execute("SELECT id FROM articles WHERE url = %s LIMIT 1", (url,))
+                            row2 = cur2.fetchone()
+                        art_id = row2[0]
                         verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
                         conn2.commit()
                         conn2.close()
