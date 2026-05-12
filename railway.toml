@@ -1,4 +1,13 @@
-[deploy]
+[services.verisreports]
 startCommand = "python api.py"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
+
+[services.passionate-endurance]
+startCommand = "python railway_fetch.py"
+
+[services.veris-extract]
+startCommand = "python railway_extract.py"
+
+[services.veris-verdicts]
+startCommand = "python railway_verdicts.py"
