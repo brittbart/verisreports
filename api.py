@@ -2266,6 +2266,69 @@ def api_job_runs():
         return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
 
 
+
+@app.route('/api/token-usage', methods=['GET'])
+def api_token_usage():
+    """Return last 24h of token usage aggregated by stage. Basic-auth protected.
+
+    Cost is calculated in SQL using Sonnet 4 pricing (May 2026).
+    If pricing changes, edit the constants inline below.
+    """
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+
+    try:
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        stage,
+                        COUNT(*) AS calls,
+                        SUM(input_tokens) AS input_tokens,
+                        SUM(output_tokens) AS output_tokens,
+                        SUM(cache_creation_input_tokens) AS cache_creation_tokens,
+                        SUM(cache_read_input_tokens) AS cache_read_tokens,
+                        ROUND( (
+                            SUM(input_tokens) * 3.00 / 1000000 +
+                            SUM(output_tokens) * 15.00 / 1000000 +
+                            SUM(cache_creation_input_tokens) * 3.75 / 1000000 +
+                            SUM(cache_read_input_tokens) * 0.30 / 1000000
+                        )::numeric, 4) AS approx_usd,
+                        MAX(timestamp) AS last_call
+                    FROM token_usage
+                    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                    GROUP BY stage
+                    ORDER BY approx_usd DESC NULLS LAST
+                """)
+                cols = [d[0] for d in cur.description]
+                rows = []
+                for row in cur.fetchall():
+                    rec = dict(zip(cols, row))
+                    if rec.get('last_call') is not None:
+                        rec['last_call'] = rec['last_call'].isoformat()
+                    if rec.get('approx_usd') is not None:
+                        rec['approx_usd'] = float(rec['approx_usd'])
+                    rows.append(rec)
+
+                # Also compute a total row
+                total_usd = sum(r.get('approx_usd') or 0 for r in rows)
+                total_calls = sum(r.get('calls') or 0 for r in rows)
+        finally:
+            conn.close()
+
+        return jsonify({
+            'count': len(rows),
+            'total_calls': total_calls,
+            'total_usd': round(total_usd, 4),
+            'window': '24h',
+            'stages': rows,
+        })
+    except Exception as e:
+        return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
+
+
 _OPS_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2294,11 +2357,17 @@ _OPS_HTML = """<!DOCTYPE html>
     font-size: 14px; line-height: 1.5;
   }
   h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 {
+    font-size: 14px; margin: 32px 0 12px;
+    color: var(--fg-dim); text-transform: uppercase;
+    letter-spacing: 0.08em; font-weight: 500;
+  }
+  h2:first-of-type { margin-top: 24px; }
   .subtitle { color: var(--fg-dim); font-size: 12px; margin-bottom: 24px; }
   .grid {
     display: grid; gap: 12px;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    margin-bottom: 24px;
+    margin-bottom: 12px;
   }
   .card {
     background: var(--card); border: 1px solid var(--border);
@@ -2327,6 +2396,8 @@ _OPS_HTML = """<!DOCTYPE html>
     letter-spacing: 0.08em;
   }
   td.error { white-space: normal; max-width: 400px; word-break: break-word; }
+  td.num { text-align: right; }
+  th.num { text-align: right; }
   .status-ok { color: var(--ok); }
   .status-failed { color: var(--bad); font-weight: 600; }
   .status-running { color: var(--running); }
@@ -2334,33 +2405,64 @@ _OPS_HTML = """<!DOCTYPE html>
     display: inline-block; padding: 2px 6px; border-radius: 3px;
     background: var(--border); font-size: 11px;
   }
+  .total-row {
+    background: var(--card);
+    font-weight: 600;
+    border-top: 2px solid var(--border);
+  }
+  .total-row td { color: var(--fg); }
   .refresh-info {
     color: var(--fg-dim); font-size: 11px;
     font-family: var(--mono); margin-top: 24px;
   }
   .empty { color: var(--fg-dim); padding: 32px; text-align: center; font-style: italic; }
+  .cost-headline {
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 11px;
+    margin-left: 12px;
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: normal;
+  }
 </style>
 </head>
 <body>
 <h1>Veris pipeline — last 24h</h1>
 <div class="subtitle" id="subtitle">loading…</div>
 
+<h2>Pipeline health</h2>
 <div id="summary" class="grid"></div>
 
-<h2 style="font-size: 14px; margin: 24px 0 8px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;">Recent runs</h2>
+<h2>Recent runs</h2>
 <table id="runs-table">
   <thead><tr>
     <th>id</th><th>stage</th><th>started</th><th>duration</th>
-    <th>status</th><th>items</th><th>error</th>
+    <th>status</th><th class="num">items</th><th>error</th>
   </tr></thead>
   <tbody><tr><td colspan="7" class="empty">loading…</td></tr></tbody>
 </table>
 
-<div class="refresh-info" id="refresh-info">auto-refresh every 30s</div>
+<h2>Costs (24h)<span class="cost-headline" id="cost-headline"></span></h2>
+<table id="cost-table">
+  <thead><tr>
+    <th>stage</th>
+    <th class="num">calls</th>
+    <th class="num">in tokens</th>
+    <th class="num">out tokens</th>
+    <th class="num">cache in</th>
+    <th class="num">cache read</th>
+    <th class="num">approx USD</th>
+    <th>last call</th>
+  </tr></thead>
+  <tbody><tr><td colspan="8" class="empty">loading…</td></tr></tbody>
+</table>
+
+<div class="refresh-info" id="refresh-info">auto-refresh every 30s · sonnet 4 pricing</div>
 
 <script>
 function fmtTime(iso) {
-  if (!iso) return '—';
+  if (!iso) return '\u2014';
   const d = new Date(iso);
   return d.toLocaleString(undefined, {
     month: 'short', day: 'numeric',
@@ -2368,20 +2470,30 @@ function fmtTime(iso) {
   });
 }
 function fmtDuration(ms) {
-  if (ms === null || ms === undefined) return '—';
+  if (ms === null || ms === undefined) return '\u2014';
   if (ms < 1000) return ms + 'ms';
   if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
   const m = Math.floor(ms / 60000);
   const s = ((ms % 60000) / 1000).toFixed(0);
   return m + 'm ' + s + 's';
 }
+function fmtNum(n) {
+  if (n === null || n === undefined) return '\u2014';
+  return Number(n).toLocaleString();
+}
+function fmtUsd(n) {
+  if (n === null || n === undefined) return '\u2014';
+  if (n === 0) return '$0.00';
+  if (n < 0.01) return '<$0.01';
+  return '$' + Number(n).toFixed(2);
+}
 function escapeHtml(s) {
   if (s === null || s === undefined) return '';
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    .replace(/"/g, '&quot;').replace(/\'/g, '&#039;');
 }
-function render(data) {
+function renderRuns(data) {
   const runs = data.runs || [];
 
   const byStage = {};
@@ -2424,14 +2536,14 @@ function render(data) {
       const statusClass = 'status-' + r.status;
       const errCell = r.error_class
         ? '<td class="error"><strong>' + escapeHtml(r.error_class) + '</strong>: ' + escapeHtml(r.error_message || '') + '</td>'
-        : '<td>—</td>';
+        : '<td>\u2014</td>';
       return '<tr>'
         + '<td>' + r.id + '</td>'
         + '<td><span class="stage-tag">' + escapeHtml(r.stage) + '</span></td>'
         + '<td>' + fmtTime(r.started_at) + '</td>'
         + '<td>' + fmtDuration(r.duration_ms) + '</td>'
         + '<td class="' + statusClass + '">' + escapeHtml(r.status) + '</td>'
-        + '<td>' + (r.items_processed !== null ? r.items_processed : '—') + '</td>'
+        + '<td class="num">' + (r.items_processed !== null ? r.items_processed : '\u2014') + '</td>'
         + errCell
         + '</tr>';
     }).join('');
@@ -2440,17 +2552,65 @@ function render(data) {
   document.getElementById('subtitle').textContent = data.count + ' runs · refreshed ' + new Date().toLocaleTimeString();
 }
 
+function renderCosts(data) {
+  const stages = data.stages || [];
+  const tbody = document.querySelector('#cost-table tbody');
+
+  if (stages.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">no API calls in the last 24h</td></tr>';
+    document.getElementById('cost-headline').textContent = '';
+    return;
+  }
+
+  const rows = stages.map(s => {
+    return '<tr>'
+      + '<td><span class="stage-tag">' + escapeHtml(s.stage) + '</span></td>'
+      + '<td class="num">' + fmtNum(s.calls) + '</td>'
+      + '<td class="num">' + fmtNum(s.input_tokens) + '</td>'
+      + '<td class="num">' + fmtNum(s.output_tokens) + '</td>'
+      + '<td class="num">' + fmtNum(s.cache_creation_tokens) + '</td>'
+      + '<td class="num">' + fmtNum(s.cache_read_tokens) + '</td>'
+      + '<td class="num">' + fmtUsd(s.approx_usd) + '</td>'
+      + '<td>' + fmtTime(s.last_call) + '</td>'
+      + '</tr>';
+  });
+  const total = '<tr class="total-row">'
+    + '<td>TOTAL</td>'
+    + '<td class="num">' + fmtNum(data.total_calls) + '</td>'
+    + '<td class="num" colspan="4"></td>'
+    + '<td class="num">' + fmtUsd(data.total_usd) + '</td>'
+    + '<td></td>'
+    + '</tr>';
+  tbody.innerHTML = rows.join('') + total;
+
+  document.getElementById('cost-headline').textContent =
+    fmtUsd(data.total_usd) + ' across ' + fmtNum(data.total_calls) + ' API calls';
+}
+
 async function loadData() {
+  // Job runs
   try {
     const res = await fetch('/api/job-runs', { credentials: 'same-origin' });
     if (!res.ok) {
       document.getElementById('subtitle').textContent = 'error: ' + res.status + ' ' + res.statusText;
-      return;
+    } else {
+      const data = await res.json();
+      renderRuns(data);
     }
-    const data = await res.json();
-    render(data);
   } catch (err) {
     document.getElementById('subtitle').textContent = 'fetch error: ' + err.message;
+  }
+
+  // Token usage / costs
+  try {
+    const res = await fetch('/api/token-usage', { credentials: 'same-origin' });
+    if (res.ok) {
+      const data = await res.json();
+      renderCosts(data);
+    }
+  } catch (err) {
+    // Non-fatal — costs panel just won't update
+    console.error('token-usage fetch error:', err);
   }
 }
 
