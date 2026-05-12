@@ -255,9 +255,16 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
         conn.close()
         return []
 
-    results = []
-    cursor = conn.cursor()
-    for i, row in enumerate(rows):
+    # Parallel extraction: run Anthropic API calls concurrently, write serially.
+    # Each worker thread calls extract_claims_from_article() independently.
+    # DB writes happen on the main thread using per-article connections to
+    # avoid connection sharing across threads.
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    MAX_WORKERS = 5  # Enough to cut wall time ~3-4x without hammering the API
+
+    def _extract_one(row, idx, total):
+        """Run in a thread. Returns (row, claims, idx)."""
         article_dict = {
             "title": row["title"],
             "url": row["url"],
@@ -270,32 +277,47 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
             "source": {"name": row["source_name"]},
         }
         title_preview = (row["title"] or "")[:60]
-        print(f"[{i+1}/{len(rows)}] {row['source_name']}: "
-              f"{title_preview}...")
-        claims = extract_claims_from_article(article_dict)
-        if claims:
-            print(f"    Found {len(claims)} claims — writing to DB with article_id={row['id']}")
-            try:
-                # CRITICAL: pass the ACTUAL DB article_id from the row.
-                # NOT an enumerate index. This is the fix for the Patch 27 bug.
-                added = add_claims_to_existing_article(
-                    cursor=cursor,
-                    article_db_id=row["id"],
-                    claims_list=claims,
-                )
-                conn.commit()
-                results.append({
-                    "article_db_id": row["id"],
-                    "source_name": row["source_name"],
-                    "claims_added": added,
-                })
-            except Exception as e:
-                print(f"    Error writing claims for article {row['id']}: {e}")
-                conn.rollback()
-        else:
-            print(f"    No claims extracted")
+        print(f"[{idx}/{total}] {row['source_name']}: {title_preview}...")
+        try:
+            claims = extract_claims_from_article(article_dict)
+        except Exception as e:
+            print(f"    Error extracting claims: {e}")
+            claims = []
+        return row, claims, idx
 
-    cursor.close()
+    results = []
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {
+            executor.submit(_extract_one, row, i + 1, len(rows)): row
+            for i, row in enumerate(rows)
+        }
+        for future in as_completed(futures):
+            row, claims, idx = future.result()
+            if claims:
+                print(f"    Found {len(claims)} claims — writing to DB with article_id={row['id']}")
+                # Each DB write uses the shared connection on the main thread.
+                # conn is not shared across threads — only used here.
+                try:
+                    write_cur = conn.cursor()
+                    added = add_claims_to_existing_article(
+                        cursor=write_cur,
+                        article_db_id=row["id"],
+                        claims_list=claims,
+                    )
+                    conn.commit()
+                    write_cur.close()
+                    results.append({
+                        "article_db_id": row["id"],
+                        "source_name": row["source_name"],
+                        "claims_added": added,
+                    })
+                except Exception as e:
+                    print(f"    Error writing claims for article {row['id']}: {e}")
+                    conn.rollback()
+            else:
+                print(f"    No claims extracted")
+
     conn.close()
     print(f"\n\u2713 Processed {len(results)} articles with claims")
     return results
