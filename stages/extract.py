@@ -32,7 +32,12 @@ def main() -> int:
         # process_articles writes claims_YYYY-MM-DD.json as side effect.
         # It doesn\'t return a count, so we don\'t set items_processed here;
         # the load stage will report claim counts in its own job_runs row.
-        extract_claims.process_articles(input_file, limit=50)
+        # Patch 27: DB-driven extraction queue.
+        # process_articles_from_db() reads unextracted articles directly
+        # from Postgres, eliminating the fetch-overwrite-drop pattern.
+        # The old JSON-file path is retained in process_articles() for
+        # manual / ad-hoc runs.
+        extract_claims.process_articles_from_db(limit=50)
     return 0
 
 
