@@ -66,8 +66,17 @@ def load_articles(articles_file, claims_file):
         from urllib.parse import urlparse as _up
         _h = _up(url).hostname or ''
         _h = _h.replace('www.','').replace('feeds.','').replace('rss.','')
-        source_name = _h if _h else raw_source
-        if source_name == 'news.google.com':
+        # Patch 25: when URL hostname is a known aggregator, prefer
+        # raw_source (which the upstream fetcher already resolved to a
+        # real publisher) over the aggregator hostname. Resolver below
+        # remains as final fallback.
+        _AGGREGATORS = {'news.google.com', 'news.yahoo.com', 'msn.com'}
+        if _h in _AGGREGATORS and raw_source and raw_source != 'Unknown' \
+                and raw_source not in _AGGREGATORS:
+            source_name = raw_source
+        else:
+            source_name = _h if _h else raw_source
+        if source_name in _AGGREGATORS:
             _recovered = resolve_publisher(url, title)
             if _recovered:
                 source_name = _recovered
