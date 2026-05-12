@@ -1038,7 +1038,7 @@ def fetch_article_content(url, anthropic_client=None):
 
 # ── Background Signal: prior verified claims related to current article ──
 
-def get_background_signal(article_claim_texts, anthropic_client=None):
+def get_background_signal(article_claim_texts, anthropic_client=None, article_id=None):
     """
     Return prior verified claims related to the current article's claims.
 
@@ -1050,11 +1050,35 @@ def get_background_signal(article_claim_texts, anthropic_client=None):
     Optional web search fallback (gated by BACKGROUND_SIGNAL_WEB_FALLBACK=1)
     runs only if DB returns fewer than 3 facts.
 
+    Results cached in articles.background_signal_cached for 24h to avoid
+    redundant API calls on repeat report views.
+
     Returns a list of {fact, source, source_url, relevance_tag} dicts, max 3.
     Returns [] if nothing meets the threshold.
     """
     if not article_claim_texts:
         return []
+
+    # Cache check: if article_id provided and cache is fresh (<24h), return cached result
+    if article_id:
+        try:
+            import json as _cjson
+            _cconn = get_db()
+            _ccur = _cconn.cursor()
+            _ccur.execute("""
+                SELECT background_signal_cached, background_signal_cached_at
+                FROM articles WHERE id = %s
+            """, (article_id,))
+            _crow = _ccur.fetchone()
+            _cconn.close()
+            if _crow and _crow[0] is not None and _crow[1] is not None:
+                from datetime import timezone
+                _age = datetime.utcnow() - _crow[1].replace(tzinfo=None)
+                if _age.total_seconds() < 86400:
+                    print(f"[bg_signal] Cache hit for article_id={article_id} (age={int(_age.total_seconds())}s)")
+                    return _crow[0] if isinstance(_crow[0], list) else _cjson.loads(_crow[0])
+        except Exception as _ce:
+            print(f"[bg_signal] Cache read failed: {_ce}")
 
     claims_for_query = [c for c in article_claim_texts if c and len(c) > 10][:5]
     if not claims_for_query:
@@ -1115,6 +1139,25 @@ def get_background_signal(article_claim_texts, anthropic_client=None):
 
     print(f"[bg_signal] DB returned {len(results)} fact(s) above threshold 0.30")
 
+    # Store result in cache after computation (whether from DB or web search)
+    def _write_cache(aid, data):
+        if not aid:
+            return
+        try:
+            import json as _wjson
+            _wconn = get_db()
+            _wcur = _wconn.cursor()
+            _wcur.execute("""
+                UPDATE articles
+                SET background_signal_cached = %s::jsonb,
+                    background_signal_cached_at = NOW()
+                WHERE id = %s
+            """, (_wjson.dumps(data), aid))
+            _wconn.commit()
+            _wconn.close()
+        except Exception as _we:
+            print(f"[bg_signal] Cache write failed: {_we}")
+
     # ── Web search fallback (env-gated) ──
     if len(results) < 3 and os.getenv('BACKGROUND_SIGNAL_WEB_FALLBACK') == '1' and anthropic_client:
         needed = 3 - len(results)
@@ -1163,6 +1206,7 @@ def get_background_signal(article_claim_texts, anthropic_client=None):
         except Exception as e:
             print(f"[bg_signal] Web fallback failed: {e}")
 
+    _write_cache(article_id, results[:3])
     return results[:3]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1842,7 +1886,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             article_claim_texts = [c.get('claim_text', '') for c in claims if c.get('claim_text')]
             import anthropic as _bg_anth
             _bg_client = _bg_anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-            bg_facts = get_background_signal(article_claim_texts, _bg_client)
+            bg_facts = get_background_signal(article_claim_texts, _bg_client, article_id=art_id)
             if len(bg_facts) >= 3:
                 _items = ''
                 for f in bg_facts:
