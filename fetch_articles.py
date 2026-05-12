@@ -425,5 +425,52 @@ def fetch_articles():
         print(f"  {a.get('title', '')[:60]}")
     return unique
 
+
+
+def fetch_articles_to_db():
+    """Day 24: Run fetch and write articles DIRECTLY to the database.
+
+    Wraps the existing fetch_articles() so the JSON write path is still
+    available for ad-hoc/local runs. This function is what Railway cron
+    invokes via railway_fetch.py.
+
+    Returns int: count of articles inserted (after dedupe).
+    """
+    from load_to_database import get_connection, load_single_article_with_claims
+
+    articles = fetch_articles()
+    if not articles:
+        print("No articles fetched.")
+        return 0
+
+    print(f"Writing {len(articles)} fetched articles directly to DB...")
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    inserted_count = 0
+    skipped_count = 0
+    try:
+        for i, article in enumerate(articles):
+            result = load_single_article_with_claims(
+                cursor=cursor,
+                article=article,
+                claims_list=[],
+            )
+            if result['inserted']:
+                inserted_count += 1
+            else:
+                skipped_count += 1
+            if (i + 1) % 25 == 0:
+                conn.commit()
+                print(f"  [commit] {i+1} articles processed (inserted={inserted_count}, dup={skipped_count})", flush=True)
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+    print(f"\n\u2713 Inserted {inserted_count} new articles ({skipped_count} duplicates skipped)")
+    return inserted_count
+
+
 if __name__ == "__main__":
     fetch_articles()

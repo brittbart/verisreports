@@ -187,4 +187,117 @@ def process_articles(input_file, limit=50):
     print(f"\n✓ Processed {len(results)} articles")
     print(f"✓ Saved to {output_file}")
     return results
+
+
+def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
+    """Day 24 — Patch 27v2: DB-driven extraction queue with DIRECT DB writes.
+
+    Reads unextracted articles from the DB, extracts claims, writes claims
+    DIRECTLY to the DB using the article's actual DB id. No JSON intermediate.
+
+    This fixes the Patch 27 bug where claims were written to JSON keyed by
+    enumerate index (i+1), then load_to_database.py looked them up by that
+    same i+1 against a DIFFERENT article list — causing claims to be attached
+    to the wrong article.
+    """
+    import os
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    from load_to_database import add_claims_to_existing_article
+
+    conn = psycopg2.connect(
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT", "5432"),
+        connect_timeout=10,
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=3,
+        application_name="veris-extract-db",
+    )
+
+    select_sql = """
+        SELECT id, title, source_name, url, published_at,
+               description, content
+        FROM articles
+        WHERE content IS NOT NULL
+          AND LENGTH(content) >= %s
+          AND fetched_at > NOW() - (%s || ' days')::interval
+          AND source_name != 'news.google.com'
+          AND id NOT IN (
+              SELECT DISTINCT article_id
+              FROM claims
+              WHERE article_id IS NOT NULL
+          )
+        ORDER BY fetched_at DESC
+        LIMIT %s
+    """
+
+    print(f"Querying DB for unextracted articles "
+          f"(limit={limit}, min_chars={min_content_chars}, "
+          f"days={days_window})...")
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(select_sql, (min_content_chars, str(days_window), limit))
+            rows = list(cur.fetchall())
+    except Exception as e:
+        conn.close()
+        raise
+
+    print(f"Pulled {len(rows)} articles from DB.")
+
+    if not rows:
+        print("No unextracted articles match the filter. Nothing to do.")
+        conn.close()
+        return []
+
+    results = []
+    cursor = conn.cursor()
+    for i, row in enumerate(rows):
+        article_dict = {
+            "title": row["title"],
+            "url": row["url"],
+            "description": row["description"] or "",
+            "content": row["content"],
+            "publishedAt": (
+                row["published_at"].isoformat()
+                if row["published_at"] else None
+            ),
+            "source": {"name": row["source_name"]},
+        }
+        title_preview = (row["title"] or "")[:60]
+        print(f"[{i+1}/{len(rows)}] {row['source_name']}: "
+              f"{title_preview}...")
+        claims = extract_claims_from_article(article_dict)
+        if claims:
+            print(f"    Found {len(claims)} claims — writing to DB with article_id={row['id']}")
+            try:
+                # CRITICAL: pass the ACTUAL DB article_id from the row.
+                # NOT an enumerate index. This is the fix for the Patch 27 bug.
+                added = add_claims_to_existing_article(
+                    cursor=cursor,
+                    article_db_id=row["id"],
+                    claims_list=claims,
+                )
+                conn.commit()
+                results.append({
+                    "article_db_id": row["id"],
+                    "source_name": row["source_name"],
+                    "claims_added": added,
+                })
+            except Exception as e:
+                print(f"    Error writing claims for article {row['id']}: {e}")
+                conn.rollback()
+        else:
+            print(f"    No claims extracted")
+
+    cursor.close()
+    conn.close()
+    print(f"\n\u2713 Processed {len(results)} articles with claims")
+    return results
+
 # force rebuild Mon Apr 27 15:31:55 MDT 2026
