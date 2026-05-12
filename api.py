@@ -2329,6 +2329,76 @@ def api_token_usage():
         return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
 
 
+
+@app.route('/api/corpus-totals', methods=['GET'])
+def api_corpus_totals():
+    """Return article + claim totals (all-time + 24h delta). Basic-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+
+    try:
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                # Articles: all-time + last 24h via fetched_at
+                cur.execute("SELECT COUNT(*) FROM articles")
+                articles_total = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT COUNT(*) FROM articles
+                    WHERE fetched_at >= NOW() - INTERVAL '24 hours'
+                """)
+                articles_24h = cur.fetchone()[0]
+
+                # Claims (all)
+                cur.execute("SELECT COUNT(*) FROM claims")
+                claims_all_total = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT COUNT(*) FROM claims
+                    WHERE first_seen >= NOW() - INTERVAL '24 hours'
+                """)
+                claims_all_24h = cur.fetchone()[0]
+
+                # Claims (scoreable) per v1.6
+                cur.execute("""
+                    SELECT COUNT(*) FROM claims c
+                    WHERE c.verdict IS NOT NULL
+                      AND c.verdict NOT IN ('opinion', 'not_verifiable')
+                      AND c.claim_origin = 'outlet_claim'
+                """)
+                claims_scoreable_total = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT COUNT(*) FROM claims c
+                    WHERE c.verdict IS NOT NULL
+                      AND c.verdict NOT IN ('opinion', 'not_verifiable')
+                      AND c.claim_origin = 'outlet_claim'
+                      AND c.last_checked >= NOW() - INTERVAL '24 hours'
+                """)
+                claims_scoreable_24h = cur.fetchone()[0]
+        finally:
+            conn.close()
+
+        return jsonify({
+            'articles': {
+                'total': articles_total,
+                'delta_24h': articles_24h,
+            },
+            'claims_all': {
+                'total': claims_all_total,
+                'delta_24h': claims_all_24h,
+            },
+            'claims_scoreable': {
+                'total': claims_scoreable_total,
+                'delta_24h': claims_scoreable_24h,
+            },
+        })
+    except Exception as e:
+        return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
+
+
 _OPS_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2369,6 +2439,29 @@ _OPS_HTML = """<!DOCTYPE html>
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     margin-bottom: 12px;
   }
+  .corpus-grid {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin-bottom: 12px;
+  }
+  .corpus-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px 16px;
+  }
+  .corpus-card .label {
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--fg-dim);
+    margin-bottom: 6px; font-weight: 500;
+  }
+  .corpus-card .total {
+    font-family: var(--mono); font-size: 22px;
+    font-weight: 600; color: var(--fg); line-height: 1;
+  }
+  .corpus-card .delta {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--accent); margin-top: 4px;
+  }
+  .corpus-card .delta.zero { color: var(--fg-dim); }
   .card {
     background: var(--card); border: 1px solid var(--border);
     border-radius: 6px; padding: 14px;
@@ -2431,6 +2524,13 @@ _OPS_HTML = """<!DOCTYPE html>
 <h1>Veris pipeline — last 24h</h1>
 <div class="subtitle" id="subtitle">loading…</div>
 
+<h2>Corpus</h2>
+<div id="corpus" class="corpus-grid">
+  <div class="corpus-card"><div class="label">Articles</div><div class="total">\u2014</div><div class="delta">&nbsp;</div></div>
+  <div class="corpus-card"><div class="label">Claims (scoreable)</div><div class="total">\u2014</div><div class="delta">&nbsp;</div></div>
+  <div class="corpus-card"><div class="label">Claims (all)</div><div class="total">\u2014</div><div class="delta">&nbsp;</div></div>
+</div>
+
 <h2>Pipeline health</h2>
 <div id="summary" class="grid"></div>
 
@@ -2492,6 +2592,26 @@ function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/\'/g, '&#039;');
+}
+function renderCorpus(data) {
+  const cards = document.querySelectorAll('#corpus .corpus-card');
+  if (!data || cards.length < 3) return;
+  const items = [
+    { node: cards[0], total: data.articles.total, delta: data.articles.delta_24h },
+    { node: cards[1], total: data.claims_scoreable.total, delta: data.claims_scoreable.delta_24h },
+    { node: cards[2], total: data.claims_all.total, delta: data.claims_all.delta_24h },
+  ];
+  items.forEach(({ node, total, delta }) => {
+    node.querySelector('.total').textContent = fmtNum(total);
+    const deltaEl = node.querySelector('.delta');
+    if (delta && delta > 0) {
+      deltaEl.textContent = '+' + fmtNum(delta) + ' last 24h';
+      deltaEl.classList.remove('zero');
+    } else {
+      deltaEl.textContent = 'no change last 24h';
+      deltaEl.classList.add('zero');
+    }
+  });
 }
 function renderRuns(data) {
   const runs = data.runs || [];
@@ -2588,6 +2708,16 @@ function renderCosts(data) {
 }
 
 async function loadData() {
+  // Corpus totals
+  try {
+    const res = await fetch('/api/corpus-totals', { credentials: 'same-origin' });
+    if (res.ok) {
+      renderCorpus(await res.json());
+    }
+  } catch (err) {
+    console.error('corpus-totals fetch error:', err);
+  }
+
   // Job runs
   try {
     const res = await fetch('/api/job-runs', { credentials: 'same-origin' });
@@ -2609,7 +2739,6 @@ async function loadData() {
       renderCosts(data);
     }
   } catch (err) {
-    // Non-fatal — costs panel just won't update
     console.error('token-usage fetch error:', err);
   }
 }
