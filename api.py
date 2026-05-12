@@ -1886,7 +1886,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 
     # ── Background Signal: render block ──
     background_signal_html = ''
-    if len(claims) >= 3:
+    if len(claims) >= 3 and depth != 2:
         try:
             article_claim_texts = [c.get('claim_text', '') for c in claims if c.get('claim_text')]
             import anthropic as _bg_anth
