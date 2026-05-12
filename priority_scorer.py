@@ -7,12 +7,24 @@ if os.path.exists(".env"):
     load_dotenv(override=False)
 
 HIGH_PRIORITY_KEYWORDS = [
+    # Numerical magnitude
     'million', 'billion', 'trillion', '%', 'percent',
+    # Conflict and crime (original)
     'arrested', 'charged', 'killed', 'died', 'confirmed',
     'announced', 'approved', 'rejected', 'banned', 'signed',
     'first', 'largest', 'record', 'never', 'always',
     'ceasefire', 'treaty', 'sanctions', 'invasion', 'attack',
-    'election', 'vote', 'resign', 'impeach', 'convicted'
+    'election', 'vote', 'resign', 'impeach', 'convicted',
+    # v1.6 Section 4.1: Political and policy
+    'legislation', 'policy', 'congress', 'senate', 'bill',
+    'law', 'court', 'ruling', 'mandate', 'executive order',
+    'tariff', 'regulation', 'investigation', 'subpoena', 'hearing',
+    # v1.6 Section 4.1: Economic
+    'gdp', 'unemployment', 'inflation', 'interest rates',
+    'recession', 'deficit', 'debt', 'tax', 'budget',
+    # v1.6 Section 4.1: Public health
+    'vaccine', 'mortality', 'disease', 'clinical trial',
+    'outbreak', 'fda', 'cdc', 'who',
 ]
 
 HIGH_PRIORITY_TYPES = ['statistical', 'legal', 'scientific']
@@ -45,7 +57,7 @@ def calculate_priority(claim_text, claim_type, source_name):
     if claim_type in HIGH_PRIORITY_TYPES:
         score += 30
     elif claim_type in MEDIUM_PRIORITY_TYPES:
-        score += 20
+        score += 25  # Patch 24: was 20, raised to better catch v1.6 policy/economic factual claims
     else:
         score += 5
 
