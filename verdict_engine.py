@@ -281,10 +281,12 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
         # site to avoid query-plan churn.
         cursor.execute("""
             SELECT
-                SUM(CASE WHEN verdict = 'supported'   THEN 1.0
-                         WHEN verdict = 'plausible'  THEN 0.5
-                         WHEN verdict = 'overstated' THEN -0.5
-                         WHEN verdict IN ('disputed','not_supported') THEN -1.0
+                SUM(CASE WHEN verdict = 'supported'     THEN 1.0
+                         WHEN verdict = 'plausible'    THEN 0.5
+                         WHEN verdict = 'corroborated' THEN 0.5
+                         WHEN verdict = 'overstated'   THEN -0.5
+                         WHEN verdict = 'disputed'     THEN -1.0
+                         WHEN verdict = 'not_supported' THEN -1.5
                          ELSE 0 END) as weighted,
                 COUNT(*) FILTER (
                     WHERE verdict NOT IN ('opinion','not_verifiable')
