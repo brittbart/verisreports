@@ -1,0 +1,15 @@
+[Unit]
+Description=Veris pipeline — Verdicts: Submit + harvest Anthropic Batch
+After=network.target
+
+[Service]
+Type=oneshot
+User=veris
+WorkingDirectory=/home/veris/projects/veris
+Environment=PATH=/home/veris/projects/veris/venv/bin
+ExecStart=/home/veris/projects/veris/venv/bin/python3 -m stages.verdicts
+# No Restart= — oneshot services aren't restarted by systemd;
+# if a stage fails, the next 3h fetch timer reruns the whole chain.
+
+[Install]
+WantedBy=multi-user.target

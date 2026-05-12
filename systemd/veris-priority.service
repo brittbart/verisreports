@@ -1,0 +1,17 @@
+[Unit]
+Description=Veris pipeline — Stage 4: Score claim priorities
+After=network.target
+
+[Service]
+Type=oneshot
+User=veris
+WorkingDirectory=/home/veris/projects/veris
+Environment=PATH=/home/veris/projects/veris/venv/bin
+ExecStart=/home/veris/projects/veris/venv/bin/python3 -m stages.priority
+# On clean exit, trigger the next stage in the chain.
+ExecStartPost=+/usr/bin/systemctl start veris-preverify.service
+# No Restart= — oneshot services aren't restarted by systemd;
+# if a stage fails, the next 3h fetch timer reruns the whole chain.
+
+[Install]
+WantedBy=multi-user.target

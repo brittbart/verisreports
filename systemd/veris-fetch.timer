@@ -1,0 +1,14 @@
+[Unit]
+Description=Veris pipeline — run fetch every 3 hours
+Requires=veris-fetch.service
+
+[Timer]
+# Fire 2 minutes after boot, then every 3 hours.
+OnBootSec=2min
+OnUnitActiveSec=3h
+# If the system was off when a fire should have happened, fire on next boot.
+Persistent=true
+Unit=veris-fetch.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Veris pipeline — submit verdict batch every 6 hours
+Requires=veris-verdicts.service
+
+[Timer]
+# Stagger by 30 minutes so it doesn't collide with fetch chain.
+OnBootSec=30min
+OnUnitActiveSec=6h
+Persistent=true
+Unit=veris-verdicts.service
+
+[Install]
+WantedBy=timers.target
