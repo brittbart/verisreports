@@ -233,6 +233,10 @@ WHERE c.speaker_id = %s
   AND c.claim_text NOT ILIKE '%% is the %%'
   AND c.claim_text NOT ILIKE '%% was the %%'
   AND c.claim_text NOT ILIKE '%% are the %%'
+  AND c.claim_text NOT ILIKE '%%in court%%'
+  AND c.claim_text NOT ILIKE '%%fake news%%'
+  AND c.claim_text NOT ILIKE '%%false reporting%%'
+  AND c.claim_text NOT LIKE '%%...%%'
 ORDER BY c.first_seen DESC
 LIMIT 20;
 """
