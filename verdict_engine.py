@@ -526,6 +526,114 @@ Return ONLY this JSON:
 }}"""
 
 
+
+# ---------------------------------------------------------------------------
+# Synchronous debate claim verifier (surge mode)
+# Completely separate from outlet_claim batch pipeline.
+# Never touches leaderboard scoring or source profiles.
+# ---------------------------------------------------------------------------
+def verify_debate_claims_sync(event_id, limit=10):
+    """
+    Verify up to `limit` unverified debate_claim rows for event_id.
+    Uses synchronous Anthropic API with web search.
+    Returns number of claims verified.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT c.id, c.claim_text, c.speaker, c.claim_type, e.event_name
+        FROM claims c
+        JOIN events e ON e.id = c.event_id
+        WHERE c.event_id = %s
+          AND c.claim_origin = 'debate_claim'
+          AND c.verdict IS NULL
+          AND c.claim_text IS NOT NULL
+          AND LENGTH(c.claim_text) > 20
+        ORDER BY c.id ASC
+        LIMIT %s
+    """, (event_id, limit))
+
+    claims = cursor.fetchall()
+    if not claims:
+        cursor.close()
+        conn.close()
+        return 0
+
+    print(f"  [surge] Verifying {len(claims)} debate claims for event_id={event_id}")
+    verified = 0
+
+    for claim_id, claim_text, speaker, claim_type, event_name in claims:
+        try:
+            prompt = build_prompt(
+                claim_text,
+                speaker or 'Debate participant',
+                claim_type or 'factual',
+                event_name,
+                'Debate transcript'
+            )
+
+            response = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=600,
+                tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            # Parse verdict from response
+            text = ' '.join(
+                b.text for b in response.content
+                if hasattr(b, 'text')
+            )
+
+            verdict, confidence, summary = parse_verdict_response(text)
+            if not verdict:
+                print(f"    [surge] Could not parse verdict for claim {claim_id}")
+                continue
+
+            cursor.execute("""
+                UPDATE claims SET
+                    verdict = %s,
+                    confidence_score = %s,
+                    verdict_summary = %s,
+                    full_analysis = %s,
+                    last_checked = NOW()
+                WHERE id = %s
+                  AND claim_origin = 'debate_claim'
+            """, (verdict, confidence, summary, text[:2000], claim_id))
+            conn.commit()
+            verified += 1
+            print(f"    [surge] claim {claim_id}: {verdict} — {summary[:60]}")
+
+        except Exception as e:
+            print(f"    [surge] Error on claim {claim_id}: {e}")
+            conn.rollback()
+            continue
+
+    cursor.close()
+    conn.close()
+    return verified
+
+
+def get_live_event_id():
+    """Return event_id of any currently live public event, or None."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id FROM events
+            WHERE is_public = TRUE
+              AND event_date = CURRENT_DATE
+            LIMIT 1
+        """)
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
 def run_batch_verdict_engine(limit=500, depth=None):
     conn = get_connection()
     cursor = conn.cursor()
