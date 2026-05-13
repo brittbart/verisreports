@@ -243,6 +243,12 @@ WHERE c.speaker_id = %s
   AND c.claim_text NOT ILIKE '%%good news%%'
   AND c.claim_text NOT ILIKE '%%snake oil%%'
   AND c.claim_text NOT ILIKE '%%pretty good%%'
+  AND c.claim_text NOT ILIKE '%%was a mistake%%'
+  AND c.claim_text NOT ILIKE '%%will not be on the agenda%%'
+  AND c.claim_text NOT ILIKE '%%if the democrats%%'
+  AND c.claim_text NOT ILIKE '%%hearing from%%directly%%'
+  AND c.claim_text NOT ILIKE '%%called multiple%%'
+  AND c.claim_text NOT ILIKE '%%doesn%%t seem likely%%'
 ORDER BY c.first_seen DESC
 LIMIT 20;
 """

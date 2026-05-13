@@ -98,6 +98,22 @@ A claim is only check-worthy if it contains a SPECIFIC, VERIFIABLE FACTUAL ASSER
 
 A strong attributed claim looks like: "Senator X said the bill would cost $2 trillion over 10 years" or "The Pentagon confirmed 3,000 troops were deployed to X on [date]." A weak attributed claim looks like: "X said Y is important" or "X described the situation as serious."
 
+CRITICAL ATTRIBUTED CLAIM DISTINCTION: Confirming that a speaker said something is NOT the same as extracting a checkworthy factual claim. Do not extract a claim simply because a quote can be verified as having been made. The claim must contain a specific factual assertion worth checking — not just the fact of the utterance itself.
+
+Ask: "If this claim is wrong, does it materially mislead anyone about a fact that matters?" If the answer is no — if the only thing being verified is that someone said something — do not extract it.
+
+Examples of quotes to SKIP (confirming utterance only):
+- "Senator X said he underwent gallstone surgery over the weekend" — the claim is trivially about a personal event, not a policy fact
+- "X posted on X that he would see reporters in court" — legal threat, not a factual claim
+- "X said there was some pretty good news about the talks" — vague sentiment, no specific fact
+- "X called the ceasefire a mistake" — opinion characterization
+
+Examples of quotes to EXTRACT (specific verifiable content):
+- "Senator X said the bill would cost $2 trillion over 10 years" — specific figure, verifiable
+- "The Pentagon said 3,000 troops were deployed to X on [date]" — specific action, named location, verifiable
+- "X said Iran has agreed to stop enriching uranium" — specific policy claim with verifiable content
+- "X said the agency is understaffed by 30%" — specific figure attributed to named source
+
 CRITICAL CONSTRAINTS:
 - claim_origin MUST be exactly "outlet_claim" OR exactly "attributed_claim". Never null. Never empty. Never any other value.
 - If the claim has a clear speaker other than the outlet (e.g. "Trump said", "according to the Pentagon"), use "attributed_claim".
