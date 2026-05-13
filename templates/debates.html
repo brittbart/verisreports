@@ -432,7 +432,7 @@
             </div>
           </div>
           <div class="dx-participants">
-            {% for p in e.participants %}<div class="dx-pmono {{ p.color }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
+            {% for p in e.participants %}<div class="dx-pmono {{ p.color_class }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
           </div>
           <div class="dx-right">
             <span class="dx-status is-live">Live now</span>
@@ -443,13 +443,13 @@
         {% endif %}
 
         {% if upcoming_events %}
-        <div class="dx-group-head">
+        <div class="dx-group-head is-upcoming">
           <span><strong>Upcoming</strong></span>
           <span class="rule"></span>
           <span>{{ upcoming_events|length }} event{{ "s" if upcoming_events|length != 1 }}</span>
         </div>
         {% for e in upcoming_events %}
-        <a class="dx-row" href="/debates/{{ e.slug }}">
+        <a class="dx-row is-upcoming" href="/debates/{{ e.slug }}">
           <div class="dx-date">
             <div class="dx-date-mo">{{ e.event_date_mo }}</div>
             <div class="dx-date-day">{{ e.event_date_day }}</div>
@@ -464,7 +464,7 @@
             </div>
           </div>
           <div class="dx-participants">
-            {% for p in e.participants %}<div class="dx-pmono {{ p.color }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
+            {% for p in e.participants %}<div class="dx-pmono {{ p.color_class }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
           </div>
           <div class="dx-right">
             <span class="dx-status is-upcoming">Scheduled</span>
@@ -475,13 +475,13 @@
         {% endif %}
 
         {% if complete_events %}
-        <div class="dx-group-head">
+        <div class="dx-group-head is-complete">
           <span><strong>Completed</strong></span>
           <span class="rule"></span>
           <span>{{ complete_events|length }} event{{ "s" if complete_events|length != 1 }}</span>
         </div>
         {% for e in complete_events %}
-        <a class="dx-row" href="/debates/{{ e.slug }}">
+        <a class="dx-row is-complete" href="/debates/{{ e.slug }}">
           <div class="dx-date">
             <div class="dx-date-mo">{{ e.event_date_mo }}</div>
             <div class="dx-date-day">{{ e.event_date_day }}</div>
@@ -496,7 +496,7 @@
             </div>
           </div>
           <div class="dx-participants">
-            {% for p in e.participants %}<div class="dx-pmono {{ p.color }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
+            {% for p in e.participants %}<div class="dx-pmono {{ p.color_class }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
           </div>
           <div class="dx-right">
             <span class="dx-status is-complete">Complete</span>
