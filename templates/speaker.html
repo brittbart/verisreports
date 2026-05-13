@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ speaker.name }} — Verum Signal</title>
+  <link rel="stylesheet" href="/styles.css?v=5">
+  <link rel="stylesheet" href="/static/css/outlet.css?v=2">
+  <link rel="stylesheet" href="/static/css/speaker.css?v=1">
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <div class="nav-inner">
+    <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
+      <svg width="230" height="32" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-controls="nav-menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-menu">
+      <a href="/index.html">Home</a>
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/leaderboard.html">Leaderboard</a>
+      <a href="/methodology">Methodology</a>
+      <a href="#" class="nav-cta">Get the extension</a>
+    </div>
+  </div>
+</nav>
+
+<main class="outlet-page">
+  <div class="container">
+
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/speakers">Speakers</a>
+      <span class="sep">/</span>
+      <span style="color: var(--text-2);">{{ speaker.name }}</span>
+    </nav>
+
+    <div class="outlet-header">
+      <div class="outlet-eyebrow">Speaker · Claim attribution record</div>
+      <h1 class="outlet-domain">{{ speaker.name }}</h1>
+      <div class="outlet-stamp">
+        {% if speaker.speaker_type and speaker.speaker_type != 'other' %}
+          <span>{{ speaker.speaker_type | capitalize }}</span>
+          <span class="dot">·</span>
+        {% endif %}
+        {% if speaker.party %}
+          <span>{{ speaker.party }}</span>
+          <span class="dot">·</span>
+        {% endif %}
+        {% if speaker.current_office %}
+          <span>{{ speaker.current_office }}</span>
+          <span class="dot">·</span>
+        {% endif %}
+        {% if speaker.scored_as_of %}
+          <span>Last verdict <strong>{{ speaker.scored_as_of }}</strong></span>
+          <span class="dot">·</span>
+        {% endif %}
+        <span>under <a href="/methodology">Methodology {{ methodology_version }}</a></span>
+        <span class="dot">·</span>
+        <span><strong>{{ speaker.scoreable_count }}</strong> scoreable verdicts</span>
+      </div>
+    </div>
+
+    {% if speaker.state == 'scored' %}
+      {% set sb = 'high' if speaker.score >= 70 else ('med' if speaker.score >= 40 else 'low') %}
+      {% set tier_class = 'published' if speaker.tier == 'Published' else ('stabilizing' if speaker.tier == 'Stabilizing' else 'limited') %}
+      <div class="score-block">
+        <div class="score-main">
+          <div>
+            <div class="score-label">Claim reliability score</div>
+            <div class="score-num score-num--{{ sb }}">{{ speaker.score }}<span class="score-suffix">/100</span></div>
+            <div class="score-band-row">
+              <span class="score-band-pill score-band-pill--{{ sb }}">{{ speaker.score_band }}</span>
+              <span class="score-band-tier">·  {{ speaker.tier }} tier</span>
+            </div>
+          </div>
+          <div class="score-stamp-foot">
+            As of {{ speaker.scored_as_of }} ·
+            <a href="/methodology">under Methodology {{ methodology_version }} →</a>
+          </div>
+        </div>
+        <div class="score-meta">
+          <div class="meta-row">
+            <span class="meta-label">Tier</span>
+            <span class="meta-tier-pill meta-tier-pill--{{ tier_class }}">{{ speaker.tier }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Verdicts evaluated</span>
+            <span class="meta-value">{{ speaker.verdict_count }}<small>total</small></span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Scoreable</span>
+            <span class="meta-value-stacked">
+              <span class="meta-value">{{ speaker.scoreable_count }}</span>
+              <span class="meta-sub">{{ speaker.excluded_count }} excluded · Opinion + Not verifiable</span>
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Score band</span>
+            <span class="meta-tier-pill meta-tier-pill--{{ sb }}">{{ speaker.score_band }}</span>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      {% set pct = [[(speaker.scoreable_count * 100 / inclusion_threshold), 100] | min, 0] | max | round %}
+      <div class="score-block is-sub-threshold">
+        <div class="score-main">
+          <div>
+            <div class="score-label">Claim reliability score</div>
+            <div class="score-num-text">Not yet <em>scored.</em></div>
+            <div class="threshold-progress">
+              <div class="threshold-progress-row">
+                <span><strong>{{ speaker.scoreable_count }}</strong> of {{ inclusion_threshold }} scoreable verdicts</span>
+                <span>{{ pct }}%</span>
+              </div>
+              <div class="threshold-bar">
+                <div class="threshold-fill" style="width: {{ pct }}%;"></div>
+                <div class="threshold-tick" data-label="{{ inclusion_threshold }}"></div>
+              </div>
+            </div>
+            <div class="threshold-caption">
+              Speakers are scored once <strong>{{ inclusion_threshold }} scoreable verdicts</strong> have been attributed to them. Until then, this page shows the verdict mix collected so far — <strong>without a score</strong>. Scores are based on claims attributed to this speaker across all ingested articles.
+            </div>
+          </div>
+          <div class="score-stamp-foot">
+            {% if speaker.scored_as_of %}As of {{ speaker.scored_as_of }} ·{% endif %}
+            <a href="/methodology">under Methodology {{ methodology_version }} →</a>
+          </div>
+        </div>
+        <div class="score-meta">
+          <div class="meta-row"><span class="meta-label">Tier</span><span class="meta-tier-pill meta-tier-pill--limited">Limited Data</span></div>
+          <div class="meta-row"><span class="meta-label">Verdicts evaluated</span><span class="meta-value">{{ speaker.verdict_count }}<small>total</small></span></div>
+          <div class="meta-row"><span class="meta-label">Scoreable</span><span class="meta-value-stacked"><span class="meta-value">{{ speaker.scoreable_count }}</span><span class="meta-sub">{{ speaker.excluded_count }} excluded · {{ inclusion_threshold - speaker.scoreable_count }} more to threshold</span></span></div>
+          <div class="meta-row"><span class="meta-label">Status</span><span class="meta-status-text">Not yet scored</span></div>
+        </div>
+      </div>
+    {% endif %}
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title-block">
+          <div class="panel-eyebrow">Section 02 · Verdict distribution</div>
+          <h2 class="panel-title">Verdict distribution</h2>
+          <p class="panel-sub">All six scoreable verdict types under Methodology {{ methodology_version }}. Based on claims attributed to {{ speaker.name }} across ingested articles. Attributed claims are evaluated on whether the attribution is accurate — not whether the speaker's underlying assertion is true.</p>
+        </div>
+        <div class="panel-head-stat">
+          <div class="panel-head-stat-big"><span>{{ speaker.scoreable_count }}</span> scoreable</div>
+          <div class="panel-head-stat-sub">{{ speaker.verdict_count }} total</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        {% set scoreable_types = ['supported','plausible','corroborated','overstated','disputed','not_supported'] %}
+        <div class="dist-bar">
+          {% for t in scoreable_types %}
+            {% set c = speaker.verdict_breakdown[t] %}
+            {% if speaker.scoreable_count > 0 and c > 0 %}
+              {% set w = (c * 100 / speaker.scoreable_count) %}
+              <div class="seg seg-{{ t }}" style="width: {{ w }}%;" title="{{ t }}: {{ c }}"></div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% set verdict_labels = {'supported':'Supported','plausible':'Plausible','corroborated':'Corroborated','overstated':'Overstated','disputed':'Disputed','not_supported':'Not supported'} %}
+        {% set verdict_weights = {'supported':'+1.0','plausible':'+0.5','corroborated':'+0.5','overstated':'-0.5','disputed':'-1.0','not_supported':'-1.5'} %}
+        <div class="dist-counts">
+          {% for t in scoreable_types %}
+            {% set c = speaker.verdict_breakdown[t] %}
+            <div class="dist-item dist-{{ t }}{% if c == 0 %} is-zero{% endif %}">
+              <div class="dist-dot"></div>
+              <div class="dist-name-block">
+                <div class="dist-name">{{ verdict_labels[t] }}</div>
+                <div class="dist-weight">Weight {{ verdict_weights[t] }}</div>
+              </div>
+              <div class="dist-num">{{ c }}</div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="dist-excluded">
+          <span class="ex-tag">Also recorded · Excluded from scoring</span>
+          <span><strong>{{ speaker.excluded_breakdown.opinion }}</strong> Opinion · <strong>{{ speaker.excluded_breakdown.not_verifiable }}</strong> Not verifiable</span>
+          <span style="margin-left: auto;"><a href="/methodology">Methodology {{ methodology_version }} · Excluded verdict types →</a></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title-block">
+          <div class="panel-eyebrow">Section 03 · Recent verdicts</div>
+          <h2 class="panel-title">Recent verdicts</h2>
+          <p class="panel-sub">The most recent verdicts attributed to {{ speaker.name }} under Methodology {{ methodology_version }}. Each row links to the per-article report with the full evidence trail.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        {% if speaker.verdicts|length == 0 %}
+          <div class="verdict-empty">No verdicts recorded yet for this speaker.</div>
+        {% else %}
+          {% set ns = namespace(counts={'all': speaker.verdicts|length, 'supported':0, 'plausible':0, 'corroborated':0, 'overstated':0, 'disputed':0, 'not_supported':0}) %}
+          {% for v in speaker.verdicts %}
+            {% if v.verdict in ns.counts %}
+              {% set _ = ns.counts.update({v.verdict: ns.counts[v.verdict] + 1}) %}
+            {% endif %}
+          {% endfor %}
+          <div class="verdict-controls" id="verdict-controls">
+            <button class="verdict-filter-pill active" data-filter="all"><span class="pill-dot"></span>All verdicts<span class="pill-count">{{ ns.counts.all }}</span></button>
+            {% for t in scoreable_types %}
+              {% if ns.counts[t] > 0 %}
+                <button class="verdict-filter-pill" data-filter="{{ t }}"><span class="pill-dot"></span>{{ verdict_labels[t] }}<span class="pill-count">{{ ns.counts[t] }}</span></button>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div class="verdict-list" id="verdict-list">
+            {% for v in speaker.verdicts %}
+              <a href="{{ v.report }}" class="verdict-row tag-row-{{ v.verdict }}" data-verdict="{{ v.verdict }}" style="text-decoration: none;">
+                <span class="verdict-tag tag-{{ v.verdict }}">{{ v.verdict_label }}</span>
+                <div class="verdict-body">
+                  <h3 class="verdict-headline">{{ v.source_name }} <span class="verdict-arrow">→</span></h3>
+                  <p class="verdict-claim">"{{ v.claim_text }}"</p>
+                  {% if v.verdict_summary %}
+                    <p class="verdict-summary">{{ v.verdict_summary }}</p>
+                  {% endif %}
+                </div>
+                <div class="verdict-meta"><span>{{ v.first_seen }}</span><span class="verdict-report-link">Per-article report →</span></div>
+              </a>
+            {% endfor %}
+            <div class="verdict-empty" id="verdict-empty" style="display: none;">No verdicts of this type in the recent feed.</div>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="speaker-methodology-note panel">
+      <div class="panel-body">
+        <p><strong>How speaker scoring works.</strong> A verdict assigned to a claim is a statement about the claim's relationship to available evidence — not a characterization of {{ speaker.name }} as a person. Verdicts reflect whether attributed claims were accurate at the time of reporting. They do not aggregate into a judgment about the speaker's overall reliability.</p>
+        <p>Claims attributed to a speaker in articles ("{{ speaker.name }} said X") are evaluated on whether the attribution is accurate and the claim is supported by evidence. Wire-service reprints and claims originated by the outlet (not attributed) are excluded. <a href="/methodology">Full methodology →</a></p>
+      </div>
+    </div>
+
+    <div class="correction">
+      <p class="correction-text">
+        <strong>Disagree with a verdict?</strong> Every claim and verdict on this page links to its per-article evidence. If you believe a specific verdict was assigned in error, send the verdict ID and the basis for your dispute.
+        <span class="correction-meta">Corrections are reviewed under Methodology {{ methodology_version }}.</span>
+      </p>
+      <a class="correction-cta" href="mailto:disputes@verumsignal.com?subject=Correction%20-%20{{ speaker.name | urlencode }}">Submit a correction</a>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand"><span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span></div>
+    <span class="site-footer-tagline">Encourage independent thinking. Question across party lines.</span>
+    <div class="site-footer-nav">
+      <a href="/methodology">Methodology</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/speakers">Speakers</a>
+    </div>
+    <span class="site-footer-meta">Methodology {{ methodology_version }}</span>
+  </div>
+</footer>
+
+<script src="/static/js/outlet.js" defer></script>
+<script src="/chrome.js?v=1778145000"></script>
+</body>
+</html>

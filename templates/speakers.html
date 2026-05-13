@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speakers — Verum Signal</title>
+  <link rel="stylesheet" href="/styles.css?v=5">
+  <link rel="stylesheet" href="/static/css/outlet.css?v=2">
+  <link rel="stylesheet" href="/static/css/speaker.css?v=1">
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <div class="nav-inner">
+    <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
+      <svg width="230" height="32" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-controls="nav-menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-menu">
+      <a href="/index.html">Home</a>
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/leaderboard.html">Leaderboard</a>
+      <a href="/methodology">Methodology</a>
+      <a href="#" class="nav-cta">Get the extension</a>
+    </div>
+  </div>
+</nav>
+
+<main class="outlet-page">
+  <div class="container">
+
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/index.html">Home</a>
+      <span class="sep">/</span>
+      <span style="color: var(--text-2);">Speakers</span>
+    </nav>
+
+    <div class="outlet-header">
+      <div class="outlet-eyebrow">Speaker index · Claim attribution records</div>
+      <h1 class="outlet-domain">Speakers</h1>
+      <div class="outlet-stamp">
+        <span><strong>{{ total }}</strong> speakers tracked</span>
+        <span class="dot">·</span>
+        <span>under <a href="/methodology">Methodology {{ methodology_version }}</a></span>
+        <span class="dot">·</span>
+        <span>Scored once {{ 20 }} scoreable verdicts reached</span>
+      </div>
+    </div>
+
+    <div class="speakers-note">
+      <p>Each speaker record accumulates claims attributed to that person across all ingested articles. A verdict on an attributed claim reflects whether the attribution was accurate and the claim supported by evidence — not a judgment about the speaker as a person. <a href="/methodology">Full methodology →</a></p>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title-block">
+          <div class="panel-eyebrow">All speakers</div>
+          <h2 class="panel-title">Speaker records</h2>
+        </div>
+        <div class="panel-head-stat">
+          <div class="panel-head-stat-big"><span>{{ total }}</span> tracked</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        {% if speakers|length == 0 %}
+          <div class="verdict-empty">No speaker records yet.</div>
+        {% else %}
+          <div class="speakers-list">
+            {% for s in speakers %}
+              {% if s.score is not none %}
+                {% set sb = 'high' if s.score >= 70 else ('med' if s.score >= 40 else 'low') %}
+              {% else %}
+                {% set sb = 'none' %}
+              {% endif %}
+              <a href="/speaker/{{ s.slug }}" class="speaker-row" style="text-decoration: none;">
+                <div class="speaker-row-name">
+                  <div class="speaker-name">{{ s.name }}</div>
+                  {% if s.current_office %}
+                    <div class="speaker-office">{{ s.current_office }}</div>
+                  {% elif s.speaker_type and s.speaker_type != 'other' %}
+                    <div class="speaker-office">{{ s.speaker_type | capitalize }}</div>
+                  {% endif %}
+                </div>
+                {% if s.party %}
+                  <div class="speaker-party">{{ s.party }}</div>
+                {% endif %}
+                <div class="speaker-verdicts">
+                  <span class="speaker-verdict-count">{{ s.scoreable_count }}</span>
+                  <span class="speaker-verdict-label">verdicts</span>
+                </div>
+                <div class="speaker-score-cell">
+                  {% if s.score is not none %}
+                    <span class="score-band-pill score-band-pill--{{ sb }}">{{ s.score }}/100</span>
+                  {% else %}
+                    <span class="meta-status-text">Unscored</span>
+                  {% endif %}
+                </div>
+                <div class="speaker-row-arrow">→</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand"><span class="site-footer-wordmark">VERUM<em>SIGNAL</em></span></div>
+    <span class="site-footer-tagline">Encourage independent thinking. Question across party lines.</span>
+    <div class="site-footer-nav">
+      <a href="/methodology">Methodology</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/leaderboard">Leaderboard</a>
+    </div>
+    <span class="site-footer-meta">Methodology {{ methodology_version }}</span>
+  </div>
+</footer>
+
+<script src="/chrome.js?v=1778145000"></script>
+</body>
+</html>
