@@ -573,23 +573,23 @@ def verify_debate_claims_sync(event_id, limit=10):
                 'Debate transcript'
             )
 
-            response = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=600,
-                tools=[{"type": "web_search_20250305", "name": "web_search"}],
-                messages=[{"role": "user", "content": prompt}]
+            # Use existing analyse_claim() which handles API call + parsing
+            result = analyse_claim(
+                claim_text,
+                speaker or 'Debate participant',
+                claim_type or 'factual',
+                event_name,
+                'Debate transcript'
             )
 
-            # Parse verdict from response
-            text = ' '.join(
-                b.text for b in response.content
-                if hasattr(b, 'text')
-            )
-
-            verdict, confidence, summary = parse_verdict_response(text)
-            if not verdict:
+            if not result:
                 print(f"    [surge] Could not parse verdict for claim {claim_id}")
                 continue
+
+            verdict = result.get('verdict', 'not_verifiable')
+            confidence = result.get('confidence', 2)
+            summary = result.get('verdict_summary', '')
+            full_analysis = result.get('full_analysis', '')
 
             cursor.execute("""
                 UPDATE claims SET
@@ -600,7 +600,7 @@ def verify_debate_claims_sync(event_id, limit=10):
                     last_checked = NOW()
                 WHERE id = %s
                   AND claim_origin = 'debate_claim'
-            """, (verdict, confidence, summary, text[:2000], claim_id))
+            """, (verdict, confidence, summary, full_analysis[:2000], claim_id))
             conn.commit()
             verified += 1
             print(f"    [surge] claim {claim_id}: {verdict} — {summary[:60]}")
