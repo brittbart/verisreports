@@ -2450,6 +2450,82 @@ def api_corpus_totals():
         return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
 
 
+_OPS_HISTORY_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veris Pipeline History</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--yellow:#fbbf24;--blue:#60a5fa;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5}
+h1{font-size:18px;margin:0 0 4px;letter-spacing:-0.01em}.subtitle{color:var(--fg-dim);font-size:12px;margin-bottom:32px}
+.nav-back{font-family:var(--mono);font-size:11px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:20px}
+.nav-back:hover{color:#c084fc}h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);font-weight:500;margin:40px 0 16px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px}
+.chart-card.full{grid-column:1/-1}.chart-title{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fg-dim);margin-bottom:16px}
+.chart-wrap{position:relative;height:220px}.chart-wrap.tall{height:280px}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px}
+.stat-num{font-family:var(--mono);font-size:28px;font-weight:600;line-height:1;margin-bottom:6px}
+.stat-label{font-size:11px;color:var(--fg-dim);text-transform:uppercase;letter-spacing:0.1em}
+.refresh-info{color:#333;font-size:11px;font-family:var(--mono);margin-top:24px}
+@media(max-width:700px){.chart-grid{grid-template-columns:1fr}.stat-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<a class="nav-back" href="/ops">← Back to pipeline</a>
+<h1>Veris pipeline — history</h1>
+<div class="subtitle" id="subtitle">loading…</div>
+<div class="stat-row">
+<div class="stat-box"><div class="stat-num" id="s-articles" style="color:var(--accent)">—</div><div class="stat-label">Total articles</div></div>
+<div class="stat-box"><div class="stat-num" id="s-verdicts" style="color:var(--ok)">—</div><div class="stat-label">Total verdicts</div></div>
+<div class="stat-box"><div class="stat-num" id="s-outlets" style="color:var(--blue)">—</div><div class="stat-label">Outlets scored</div></div>
+<div class="stat-box"><div class="stat-num" id="s-cost" style="color:var(--yellow)">—</div><div class="stat-label">Cost last 7d</div></div>
+</div>
+<h2>Article ingestion — last 30 days</h2>
+<div class="chart-grid"><div class="chart-card full"><div class="chart-title">Daily new articles ingested</div><div class="chart-wrap tall"><canvas id="c-ing"></canvas></div></div></div>
+<h2>Corpus growth — last 30 days</h2>
+<div class="chart-grid"><div class="chart-card full"><div class="chart-title">Cumulative articles in database</div><div class="chart-wrap"><canvas id="c-corp"></canvas></div></div></div>
+<h2>Verdict volume — last 30 days</h2>
+<div class="chart-grid"><div class="chart-card full"><div class="chart-title">Daily verdicts by type</div><div class="chart-wrap tall"><canvas id="c-verd"></canvas></div></div></div>
+<h2>Cost — last 14 days</h2>
+<div class="chart-grid"><div class="chart-card full"><div class="chart-title">Daily API spend (USD)</div><div class="chart-wrap"><canvas id="c-cost"></canvas></div></div></div>
+<h2>Outlet verdict counts</h2>
+<div class="chart-grid"><div class="chart-card full"><div class="chart-title">Scoreable verdicts per outlet</div><div class="chart-wrap tall"><canvas id="c-out"></canvas></div></div></div>
+<div class="refresh-info">Data loads on page visit · verumsignal.com/ops/history</div>
+<script>
+const D={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1a1a',borderColor:'#333',borderWidth:1,titleColor:'#e8e8e8',bodyColor:'#aaa',padding:10}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{family:'ui-monospace',size:10},maxRotation:45}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#555',font:{family:'ui-monospace',size:10}}}}};
+function fd(s){const d=new Date(s+'T00:00:00');return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});}
+function fn(n){return n===null||n===undefined?'—':Number(n).toLocaleString();}
+async function load(){
+const res=await fetch('/api/pipeline-history',{credentials:'same-origin'});
+if(!res.ok){document.getElementById('subtitle').textContent='error';return;}
+const d=await res.json();
+document.getElementById('subtitle').textContent='Loaded '+new Date().toLocaleTimeString();
+const ta=d.corpus.length?d.corpus[d.corpus.length-1].cumulative:0;
+const tv=d.verdicts.reduce((s,r)=>s+r.total,0);
+const c7=d.costs.slice(-7).reduce((s,r)=>s+r.usd,0);
+document.getElementById('s-articles').textContent=fn(ta);
+document.getElementById('s-verdicts').textContent=fn(tv);
+document.getElementById('s-outlets').textContent=fn(d.outlets.length);
+document.getElementById('s-cost').textContent='$'+c7.toFixed(2);
+new Chart(document.getElementById('c-ing'),{type:'bar',data:{labels:d.ingestion.map(r=>fd(r.day)),datasets:[{data:d.ingestion.map(r=>r.articles),backgroundColor:'rgba(168,85,247,0.6)',borderColor:'rgba(168,85,247,0.9)',borderWidth:1,borderRadius:2}]},options:D});
+new Chart(document.getElementById('c-corp'),{type:'line',data:{labels:d.corpus.map(r=>fd(r.day)),datasets:[{data:d.corpus.map(r=>r.cumulative),borderColor:'#a855f7',backgroundColor:'rgba(168,85,247,0.08)',fill:true,tension:0.3,pointRadius:2}]},options:D});
+const vs=JSON.parse(JSON.stringify(D));vs.scales.x.stacked=true;vs.scales.y.stacked=true;vs.plugins.legend={display:true,labels:{color:'#888',font:{size:11},boxWidth:12}};
+new Chart(document.getElementById('c-verd'),{type:'bar',data:{labels:d.verdicts.map(r=>fd(r.day)),datasets:[{label:'Supported',data:d.verdicts.map(r=>r.supported),backgroundColor:'rgba(74,222,128,0.7)',borderRadius:2},{label:'Plausible',data:d.verdicts.map(r=>r.plausible),backgroundColor:'rgba(251,191,36,0.7)',borderRadius:2},{label:'Overstated',data:d.verdicts.map(r=>r.overstated),backgroundColor:'rgba(251,191,36,0.3)',borderRadius:2},{label:'Disputed',data:d.verdicts.map(r=>r.disputed),backgroundColor:'rgba(248,113,113,0.7)',borderRadius:2},{label:'Not supported',data:d.verdicts.map(r=>r.not_supported),backgroundColor:'rgba(239,68,68,0.7)',borderRadius:2}]},options:vs});
+const co=JSON.parse(JSON.stringify(D));co.scales.y.ticks.callback=v=>'$'+v.toFixed(2);
+new Chart(document.getElementById('c-cost'),{type:'bar',data:{labels:d.costs.map(r=>fd(r.day)),datasets:[{data:d.costs.map(r=>r.usd),backgroundColor:'rgba(251,191,36,0.6)',borderColor:'rgba(251,191,36,0.9)',borderWidth:1,borderRadius:2}]},options:co});
+const oo=JSON.parse(JSON.stringify(D));oo.indexAxis='y';oo.scales.x.stacked=true;oo.scales.y.stacked=true;oo.plugins.legend={display:true,labels:{color:'#888',font:{size:11},boxWidth:12}};
+new Chart(document.getElementById('c-out'),{type:'bar',data:{labels:d.outlets.map(r=>r.name),datasets:[{label:'Supported',data:d.outlets.map(r=>r.supported),backgroundColor:'rgba(74,222,128,0.7)',borderRadius:2},{label:'Negative',data:d.outlets.map(r=>r.negative),backgroundColor:'rgba(248,113,113,0.7)',borderRadius:2},{label:'Other',data:d.outlets.map(r=>r.scoreable-r.supported-r.negative),backgroundColor:'rgba(255,255,255,0.08)',borderRadius:2}]},options:oo});
+}
+load();
+</script>
+</body>
+</html>"""
+
 _OPS_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2880,6 +2956,88 @@ setInterval(loadData, 30000);
 </script>
 </body>
 </html>"""
+
+
+
+@app.route('/api/pipeline-history', methods=['GET'])
+def api_pipeline_history():
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DATE(fetched_at) as day, COUNT(*) as articles
+            FROM articles
+            WHERE fetched_at > NOW() - INTERVAL '30 days'
+            GROUP BY day ORDER BY day ASC
+        """)
+        ingestion = [{"day": str(r[0]), "articles": r[1]} for r in cur.fetchall()]
+        cur.execute("""
+            SELECT DATE(last_checked) as day,
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE verdict = 'supported') as supported,
+                COUNT(*) FILTER (WHERE verdict = 'plausible') as plausible,
+                COUNT(*) FILTER (WHERE verdict = 'corroborated') as corroborated,
+                COUNT(*) FILTER (WHERE verdict = 'overstated') as overstated,
+                COUNT(*) FILTER (WHERE verdict = 'disputed') as disputed,
+                COUNT(*) FILTER (WHERE verdict = 'not_supported') as not_supported
+            FROM claims
+            WHERE verdict IS NOT NULL AND last_checked > NOW() - INTERVAL '30 days'
+            GROUP BY day ORDER BY day ASC
+        """)
+        verdicts = [{"day": str(r[0]), "total": r[1], "supported": r[2],
+                     "plausible": r[3], "corroborated": r[4], "overstated": r[5],
+                     "disputed": r[6], "not_supported": r[7]} for r in cur.fetchall()]
+        cur.execute("""
+            SELECT DATE(fetched_at) as day, COUNT(*) as new_articles,
+                SUM(COUNT(*)) OVER (ORDER BY DATE(fetched_at)) as cumulative
+            FROM articles
+            WHERE fetched_at > NOW() - INTERVAL '30 days'
+            GROUP BY day ORDER BY day ASC
+        """)
+        corpus = [{"day": str(r[0]), "new": r[1], "cumulative": r[2]} for r in cur.fetchall()]
+        cur.execute("""
+            SELECT DATE(timestamp) as day,
+                ROUND(SUM(
+                    (input_tokens * 3.0 + output_tokens * 15.0 +
+                     cache_creation_input_tokens * 3.75 +
+                     cache_read_input_tokens * 0.30) / 1000000.0
+                )::numeric, 2) as usd,
+                COUNT(*) as calls
+            FROM token_usage
+            WHERE timestamp > NOW() - INTERVAL '14 days'
+            GROUP BY day ORDER BY day ASC
+        """)
+        costs = [{"day": str(r[0]), "usd": float(r[1]), "calls": r[2]} for r in cur.fetchall()]
+        cur.execute("""
+            SELECT a.source_name,
+                COUNT(*) FILTER (WHERE c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim') as scoreable,
+                COUNT(*) FILTER (WHERE c.verdict = 'supported') as supported,
+                COUNT(*) FILTER (WHERE c.verdict IN ('disputed','not_supported','overstated')) as negative
+            FROM claims c JOIN articles a ON c.article_id = a.id
+            WHERE c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim'
+            GROUP BY a.source_name
+            HAVING COUNT(*) FILTER (WHERE c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim') >= 20
+            ORDER BY scoreable DESC LIMIT 15
+        """)
+        outlets = [{"name": r[0], "scoreable": r[1], "supported": r[2], "negative": r[3]}
+                   for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return jsonify({"ingestion": ingestion, "verdicts": verdicts,
+                        "corpus": corpus, "costs": costs, "outlets": outlets})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/ops/history', methods=['GET'])
+def ops_history():
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import Response
+    return Response(_OPS_HISTORY_HTML, mimetype='text/html')
 
 
 @app.route('/ops', methods=['GET'])
