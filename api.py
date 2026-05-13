@@ -30,6 +30,8 @@ from api_leaderboard import compute_score, compute_score_band, compute_tier, WEI
 from outlet_routes import register_outlet_routes
 register_leaderboard_routes(app, get_db)
 register_outlet_routes(app, get_db)
+from speaker_routes import register_speaker_routes
+register_speaker_routes(app, get_db)
 # ---------- Short URL helpers (Phase 2) ----------
 
 _HASH_ALPHABET = string.digits + string.ascii_lowercase  # base36
@@ -2798,6 +2800,7 @@ function renderSchedule(runs) {
       + '<div class="stage-stats">'
       + '<div><span class="label">next run</span><span style="color:' + statusColor + ';">' + nextText + '</span></div>'
       + '<div><span class="label">last run</span><span>' + lastStr + '</span></div>'
+      + (last && last.items_processed !== null ? '<div><span class="label">last ingested</span><span>' + fmtNum(last.items_processed) + '</span></div>' : '')
       + '<div><span class="label">cadence</span><span>' + (intervalMins >= 60 ? intervalMins/60 + 'h' : intervalMins + 'm') + '</span></div>'
       + '</div></div>';
   }).join('');
