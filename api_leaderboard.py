@@ -225,12 +225,14 @@ SELECT
     a.id AS article_id,
     a.url AS article_url
 FROM claims c
-JOIN articles a ON a.id = c.article_id
+LEFT JOIN articles a ON a.id = c.article_id
 WHERE c.speaker_id = %s
   AND c.verdict IS NOT NULL
   AND c.claim_origin = 'attributed_claim'
   AND LENGTH(c.claim_text) >= 100
-  AND c.claim_text NOT SIMILAR TO '%(is|was|are|were) the (current |acting |former )?(president|ceo|cfo|chair|chief|director|minister|secretary|ambassador|governor|senator|representative|mayor|attorney general|chief justice|prime minister|chancellor)%'
+  AND c.claim_text NOT ILIKE '%% is the %%'
+  AND c.claim_text NOT ILIKE '%% was the %%'
+  AND c.claim_text NOT ILIKE '%% are the %%'
 ORDER BY c.first_seen DESC
 LIMIT 20;
 """
