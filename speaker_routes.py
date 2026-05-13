@@ -156,6 +156,8 @@ def _get_all_speakers(get_db_conn):
                 'scored_as_of':   last_verdict_at.strftime('%Y-%m-%d') if last_verdict_at else None,
             })
         # Sort: scored first (by score desc), then unscored by verdict count desc
+        # Exclude moderators from public index
+        speakers = [s for s in speakers if s['speaker_type'] != 'moderator']
         speakers.sort(
             key=lambda s: (s['score'] is not None, s['score'] or 0, s['scoreable_count']),
             reverse=True

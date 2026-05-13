@@ -160,6 +160,7 @@ FROM speakers s
 JOIN claims c ON c.speaker_id = s.id
 WHERE c.verdict IS NOT NULL
   AND c.claim_origin = 'attributed_claim'
+  AND s.speaker_type != 'moderator'
 GROUP BY s.id, s.name, s.normalized_name, s.slug,
          s.speaker_type, s.role, s.party, s.current_office, s.photo_url
 HAVING COUNT(*) FILTER (
