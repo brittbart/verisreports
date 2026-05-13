@@ -47,14 +47,14 @@ from resolve_speaker import find_or_create_speaker, normalize_name
 # ---------------------------------------------------------------------------
 
 EVENT = {
-    'slug':               '2024-09-10-trump-harris',
+    'slug':               'iowa-senate-dem-2026-r2',
     'event_type':         'debate',
-    'event_name':         'ABC News Presidential Debate — Trump vs. Harris',
-    'event_date':         '2024-09-10',
-    'venue':              'National Constitution Center, Philadelphia, PA',
-    'transcript_url':     'https://abcnews.go.com/Politics/harris-trump-presidential-debate-transcript/story?id=113560542',
-    'transcript_source':  'ABC News',
-    'is_public':          False,  # flip to True when report page is ready
+    'event_name':         'Iowa Senate: Democratic primary debate — Round 2',
+    'event_date':         '2026-05-14',
+    'venue':              'Iowa',
+    'transcript_url':     'https://www.iowapublicradio.org',
+    'transcript_source':  'Iowa Public Radio',
+    'is_public':          True,
     'methodology_version': 'v1.7',
 }
 

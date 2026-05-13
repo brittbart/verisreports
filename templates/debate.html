@@ -1267,6 +1267,39 @@
       });
     });
   })();
+
+  // ============= Live auto-refresh (upcoming + live states) =============
+  (function() {
+    var bodyClass = document.body.className;
+    var isLive = bodyClass.indexOf('is-live') !== -1;
+    var isUpcoming = bodyClass.indexOf('is-upcoming') !== -1;
+    if (!isLive && !isUpcoming) return;
+
+    var slug = window.location.pathname.split('/').pop();
+    var INTERVAL = isLive ? 30000 : 60000; // 30s live, 60s upcoming
+
+    function refresh() {
+      fetch('/api/debates/' + slug)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          // If status changed to live, reload the full page
+          if (isUpcoming && data.status === 'live') {
+            window.location.reload();
+            return;
+          }
+          // If new claims arrived, reload to show them
+          var feed = document.getElementById('claim-feed');
+          var current = feed ? feed.querySelectorAll('[data-row="claim"]').length : 0;
+          var incoming = (data.claims || []).filter(function(c) { return c.verdict; }).length;
+          if (incoming > current) {
+            window.location.reload();
+          }
+        })
+        .catch(function() {});
+    }
+
+    setInterval(refresh, INTERVAL);
+  })();
 </script>
 </body>
 </html>
