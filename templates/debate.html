@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reyes – Calloway Debate — Verum Signal</title>
+<title>{{ event.event_name }} — Verum Signal</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -894,12 +894,16 @@
   }
 </style>
 </head>
-<body data-page="debate" class="is-live">
+<body data-page="debate"
+  {% if event.is_live %}class="is-live"
+  {% elif event.is_upcoming %}class="is-upcoming"
+  {% else %}class="is-static"
+  {% endif %}>
 
 <!-- ============= NAV ============= -->
 <nav class="nav" aria-label="Site">
   <div class="nav-inner">
-    <a href="https://www.verumsignal.com/" class="nav-logo" aria-label="Verum Signal home">
+    <a href="/" class="nav-logo" aria-label="Verum Signal home">
       <svg width="190" height="26" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
@@ -911,11 +915,11 @@
       <span></span><span></span><span></span>
     </button>
     <div class="nav-links" id="nav-menu">
-      <a href="https://www.verumsignal.com/">Home</a>
+      <a href="/">Home</a>
       <a href="#">How it works</a>
       <a href="#">Pricing</a>
-      <a href="#">Leaderboard</a>
-      <a href="debates.html">Debates</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/debates">Debates</a>
       <a href="#">Methodology</a>
       <a href="#" class="nav-cta">Get the extension</a>
     </div>
@@ -927,48 +931,29 @@
   <div class="dt-header-grid"></div>
   <div class="container dt-header">
 
-    <!-- Breadcrumb -->
     <nav class="crumb" aria-label="Breadcrumb">
-      <a href="https://www.verumsignal.com/">Home</a>
+      <a href="/">Home</a>
       <span class="sep">/</span>
-      <a href="#">Debates</a>
+      <a href="/debates">Debates</a>
       <span class="sep">/</span>
-      <span class="current">Reyes – Calloway Policy Debate</span>
+      <span class="current">{{ event.event_name }}</span>
     </nav>
 
     <div class="dt-status-row">
       <span class="dt-eyebrow">
-        <span class="show-when-live"><span class="live-dot"></span>Live · Round 2 of 4</span>
-        <span class="show-when-static">Verified event · Complete</span>
-        <span class="show-when-upcoming"><span class="countdown-dot"></span>Upcoming · Starts in <strong id="countdown">2h 14m</strong></span>
+        <span class="show-when-live"><span class="live-dot"></span>Live now</span>
+        <span class="show-when-static">Verified event &middot; Complete</span>
+        <span class="show-when-upcoming"><span class="countdown-dot"></span>Upcoming</span>
       </span>
-
-      <!-- Live / Post-event toggle — prototype-only.
-           In production the toggle is omitted: state is derived from event date. -->
-      <div class="dt-mode" role="tablist" aria-label="Debate state">
-        <button id="mode-upcoming" type="button" role="tab" aria-selected="false">
-          <span class="mode-dot"></span>Upcoming
-        </button>
-        <button id="mode-live" class="is-active" type="button" role="tab" aria-selected="true">
-          <span class="mode-dot"></span>Live
-        </button>
-        <button id="mode-static" type="button" role="tab" aria-selected="false">
-          <span class="mode-dot"></span>Post-event
-        </button>
-      </div>
     </div>
 
-    <h1 class="dt-title">Reyes – Calloway: a <em style="font-style: normal; transform: none;">policy debate</em> on western water.</h1>
+    <h1 class="dt-title">{{ event.event_name }}</h1>
 
     <div class="dt-meta-row">
-      <span class="dt-meta-chip"><span class="dot"></span>May 7, 2026 · <strong>8:00pm ET</strong></span>
-      <span class="dt-meta-chip"><span class="dot"></span>Stanford University, Memorial Auditorium</span>
-      <span class="dt-meta-chip"><span class="dot"></span>Transcript source: <strong>ABC News</strong></span>
-      <span class="dt-meta-chip"><span class="dot"></span>Methodology <a href="#">v1.7 →</a></span>
-      <span class="show-when-live dt-meta-chip dt-meta-chip--watch">
-        <span class="live-dot"></span>
-        <a href="#" target="_blank" rel="noopener">Watch live on <strong>ABC News</strong> →</a>
-      </span>
+      <span class="dt-meta-chip"><span class="dot"></span>{{ event.event_date_str }}{% if event.start_time_str and event.start_time_str != 'TBD' %} &middot; <strong>{{ event.start_time_str }}</strong>{% endif %}</span>
+      {% if event.venue %}<span class="dt-meta-chip"><span class="dot"></span>{{ event.venue }}</span>{% endif %}
+      {% if event.transcript_source %}<span class="dt-meta-chip"><span class="dot"></span>Transcript source: <strong>{{ event.transcript_source }}</strong></span>{% endif %}
+      <span class="dt-meta-chip"><span class="dot"></span>Methodology <a href="/methodology">{{ event.methodology_version }} &rarr;</a></span>
     </div>
   </div>
 </section>
@@ -980,29 +965,26 @@
 
       <!-- Participants strip -->
       <div class="dt-participants">
-        <div class="dt-participant cand-a">
-          <div class="dt-p-avatar">MR</div>
+        {% for p in event.participants %}
+        <div class="dt-participant cand-{{ 'a' if loop.first else 'b' }}">
+          <div class="dt-p-avatar">{{ p.initials }}</div>
           <div class="dt-p-id">
-            <h3 class="dt-p-name">Sen. Mara Reyes</h3>
-            <div class="dt-p-role">Senator (California)</div>
+            <h3 class="dt-p-name">{{ p.name }}</h3>
+            <div class="dt-p-role">{{ p.role }}</div>
           </div>
           <div class="dt-p-counts">
-            <strong id="ct-a-total">7</strong>
+            <strong>{{ breakdown[p.id].total if p.id in breakdown else 0 }}</strong>
             <span>Claims verified</span>
           </div>
         </div>
-        <div class="dt-versus">vs.</div>
-        <div class="dt-participant cand-b">
-          <div class="dt-p-avatar">TC</div>
-          <div class="dt-p-id">
-            <h3 class="dt-p-name">Gov. Tobias Calloway</h3>
-            <div class="dt-p-role">Governor of Texas</div>
-          </div>
-          <div class="dt-p-counts">
-            <strong id="ct-b-total">7</strong>
-            <span>Claims verified</span>
-          </div>
+        {% if not loop.last %}<div class="dt-versus">vs.</div>{% endif %}
+        {% endfor %}
+        {% if not event.participants %}
+        <div class="dt-participant cand-a" style="opacity:0.4;">
+          <div class="dt-p-avatar">?</div>
+          <div class="dt-p-id"><h3 class="dt-p-name">Participants</h3><div class="dt-p-role">To be announced</div></div>
         </div>
+        {% endif %}
       </div>
 
       <!-- ===== Claim feed ===== -->
@@ -1013,8 +995,12 @@
           <span class="dt-filter-label">Speaker</span>
           <div class="dt-filter-row" id="speaker-filter">
             <button class="dt-filter-pill active" data-speaker="all">All</button>
-            <button class="dt-filter-pill" data-speaker="reyes"><span class="dot"></span>Reyes</button>
-            <button class="dt-filter-pill" data-speaker="calloway"><span class="dot"></span>Calloway</button>
+            {% for p in event.participants %}
+            <button class="dt-filter-pill" data-speaker="{{ p.slug or p.name|lower|replace(' ', '-') }}">
+              <span class="dot" style="background: var(--{{ 'cand-a' if loop.first else 'cand-b' }});"></span>
+              {{ p.name.split()[-1] }}
+            </button>
+            {% endfor %}
           </div>
           <span class="dt-filter-divider"></span>
           <span class="dt-filter-label">Verdict</span>
@@ -1022,549 +1008,72 @@
             <button class="dt-filter-pill active" data-verdict="all">All</button>
             <button class="dt-filter-pill" data-verdict="supported">Supported</button>
             <button class="dt-filter-pill" data-verdict="plausible">Plausible</button>
+            <button class="dt-filter-pill" data-verdict="corroborated">Corroborated</button>
             <button class="dt-filter-pill" data-verdict="overstated">Overstated</button>
             <button class="dt-filter-pill" data-verdict="disputed">Disputed</button>
-            <button class="dt-filter-pill" data-verdict="not-supported">Not supported</button>
+            <button class="dt-filter-pill" data-verdict="not_supported">Not supported</button>
           </div>
         </div>
 
-        <!-- Upcoming-state placeholder -->
+        <!-- Upcoming placeholder -->
         <div class="dt-upcoming-placeholder">
           <div class="dt-upcoming-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"/>
-              <polyline points="12 7 12 12 15 14"/>
+              <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
             </svg>
           </div>
           <h3 class="dt-upcoming-title">Debate hasn&apos;t started yet.</h3>
-          <p class="dt-upcoming-sub">Verified claims will appear here in real time once the debate begins. Watch the official broadcast on ABC News when it goes live.</p>
-          <div class="dt-upcoming-when">
-            <div class="stat"><strong id="upc-h">2</strong><span>Hours</span></div>
-            <div class="stat-sep"></div>
-            <div class="stat"><strong id="upc-m">14</strong><span>Minutes</span></div>
-            <div class="stat-sep"></div>
-            <div class="stat"><strong id="upc-s">38</strong><span>Seconds</span></div>
-          </div>
+          <p class="dt-upcoming-sub">Verified claims will appear here in real time once the debate begins.{% if event.transcript_source %} Watch the official broadcast on {{ event.transcript_source }} when it goes live.{% endif %}</p>
         </div>
 
-        <!-- Pending claim — live only -->
-        <div class="show-when-live dt-pending">
-          <span class="pulse"></span>
-          <span class="label">Verifying</span>
-          <span class="quote">"Texas added more energy capacity last year than the next three states combined."</span>
-          <span class="speaker" style="color: #fbcfe8;">Gov. Calloway · 9:14pm</span>
-        </div>
-
+        <!-- Claim feed -->
         <div class="dt-feed" id="claim-feed">
-
-          <!-- ============= ROUND 2 ============= -->
-          <div class="dt-round" data-row="round">
-            <strong>Round 2</strong>
-            <span class="rule"></span>
-            <span>Energy reliability &amp; cross-state grids</span>
-          </div>
-
-          <div class="dt-moderator" data-row="moderator">
-            <div class="meta">Moderator · Anchor Diana Hsu · 9:08pm</div>
-            <p class="question">Governor, your state recently weathered a major heatwave with intermittent grid alerts. What specifically would you do differently in a federal framework?</p>
-          </div>
-
-          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="overstated">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">TC</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Gov. Calloway</span>
-                  <span class="role">· Governor of Texas</span>
-                  <span class="time">9:09pm</span>
+          {% if claims %}
+            {% for c in claims %}
+            <article class="dt-claim {{ c.color_class }}"
+                     data-row="claim"
+                     data-speaker="{{ c.speaker_slug or c.speaker_name|lower|replace(' ', '-') }}"
+                     data-verdict="{{ c.verdict }}">
+              <div class="dt-claim-row">
+                <div class="dt-claim-mono">{{ c.initials }}</div>
+                <div class="dt-claim-body">
+                  <div class="dt-claim-speaker">
+                    <span class="name">{{ c.speaker_name }}</span>
+                    <span class="time">{{ c.first_seen }}</span>
+                  </div>
+                  <p class="dt-claim-quote">&ldquo;{{ c.claim_text }}&rdquo;</p>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="v-pill v-pill--{{ c.verdict|replace('_', '-') }}">{{ c.verdict_label }}</span>
+                    <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">Click to expand</span>
+                  </div>
                 </div>
-                <p class="dt-claim-quote">"Our grid added more capacity last winter than every other state on the western interconnect combined."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--overstated">Overstated</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                <div class="dt-claim-aside">
+                  <button class="dt-claim-expand" aria-label="Expand claim">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
                 </div>
               </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">Texas added more capacity than several individual western states, but EIA Form 860 data shows the combined western interconnect added approximately 1.4× as much capacity over the same period. The comparison framing exceeds what the data supports.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">EIA Form 860 (2025)</a>
-                <a href="#">ERCOT IRA capacity report</a>
-                <a href="#">WECC interconnect filings</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">MR</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Sen. Reyes</span>
-                  <span class="role">· Senator (California)</span>
-                  <span class="time">9:11pm</span>
-                </div>
-                <p class="dt-claim-quote">"California's reservoirs are at 88 percent of historical average for April."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--supported">Supported</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+              <div class="dt-claim-detail">
+                {% if c.verdict_summary %}<p class="dt-claim-summary">{{ c.verdict_summary }}</p>{% endif %}
+                <div class="dt-claim-detail-foot">
+                  {% if c.report_url and c.report_url != '#' %}
+                  <a href="{{ c.report_url }}" class="dt-claim-report">View full report &rarr;</a>
+                  {% endif %}
                 </div>
               </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">California DWR Apr. 15 bulletin reports statewide major reservoir storage at 88% of the 1991–2020 historical average. Matches the figure stated.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">DWR Apr-15 bulletin</a>
-                <a href="#">USGS reservoir storage data</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="plausible">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">MR</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Sen. Reyes</span>
-                  <span class="role">· Senator (California)</span>
-                  <span class="time">9:12pm</span>
-                </div>
-                <p class="dt-claim-quote">"Roughly one in four farms in the San Joaquin Valley is reliant on this allocation."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--plausible">Plausible</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">USDA NASS 2022 data places the figure in the 22–28% range. "One in four" sits inside this range but is imprecise.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">USDA NASS 2022</a>
-                <a href="#">CRS appendix B</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="disputed">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">TC</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Gov. Calloway</span>
-                  <span class="role">· Governor of Texas</span>
-                  <span class="time">9:13pm</span>
-                </div>
-                <p class="dt-claim-quote">"My opponent's home state has lost a quarter of a million people to other states in the last two years."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--disputed">Disputed</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">Census Bureau ACS estimates show net domestic out-migration from California of approximately 119,000 over the two years referenced — about half the figure stated. Net population change is also partially offset by international migration and births.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">Census ACS 2024</a>
-                <a href="#">CA Dept. of Finance demographics</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <!-- ============= ROUND 1 ============= -->
-          <div class="dt-round" data-row="round">
-            <strong>Round 1</strong>
-            <span class="rule"></span>
-            <span>Western water reform</span>
-          </div>
-
-          <div class="dt-moderator" data-row="moderator">
-            <div class="meta">Moderator · Anchor Diana Hsu · 8:32pm</div>
-            <p class="question">Senator, you introduced the Western Water Security Act last month. What does it actually do, and why now?</p>
-          </div>
-
-          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">MR</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Sen. Reyes</span>
-                  <span class="role">· Senator (California)</span>
-                  <span class="time">8:33pm</span>
-                </div>
-                <p class="dt-claim-quote">"The Western Water Security Act passed the Senate 61 to 38."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--supported">Supported</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">Senate roll-call vote 314 (Apr. 24, 2026) confirms a 61–38 passage. Matches the official Senate record.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">Senate.gov roll-call 314</a>
-                <a href="#">C-SPAN transcript</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="overstated">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">MR</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Sen. Reyes</span>
-                  <span class="role">· Senator (California)</span>
-                  <span class="time">8:34pm</span>
-                </div>
-                <p class="dt-claim-quote">"This bill will permanently end all interstate water disputes in the West."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--overstated">Overstated</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">The bill creates an arbitration framework, but its text limits scope to specified river systems. "Permanently end all" exceeds what the bill provides.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">Section 4, H.R. 2811</a>
-                <a href="#">CRS legal analysis</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <div class="dt-moderator" data-row="moderator">
-            <div class="meta">Moderator · Anchor Diana Hsu · 8:36pm</div>
-            <p class="question">Governor, you've opposed federal water frameworks. What's your specific objection?</p>
-          </div>
-
-          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="supported">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">TC</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Gov. Calloway</span>
-                  <span class="role">· Governor of Texas</span>
-                  <span class="time">8:38pm</span>
-                </div>
-                <p class="dt-claim-quote">"Texas has filed three separate amicus briefs against the existing Colorado River framework."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--supported">Supported</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">Court records show Texas filed amicus briefs on the Colorado River compact in 2022, 2024, and 2025 — three filings total, matching the figure stated.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">PACER court records</a>
-                <a href="#">TX AG filings index</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="not-supported">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">TC</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Gov. Calloway</span>
-                  <span class="role">· Governor of Texas</span>
-                  <span class="time">8:39pm</span>
-                </div>
-                <p class="dt-claim-quote">"Federal water spending has tripled in the last four years."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--not-supported">Not supported</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">USDA and DOI line-item appropriations data show federal water-program spending increased approximately 19% over the period referenced — not a tripling. No source supports the claim.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">DOI appropriations FY22–26</a>
-                <a href="#">OMB MAX historical</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="plausible">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">TC</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Gov. Calloway</span>
-                  <span class="role">· Governor of Texas</span>
-                  <span class="time">8:42pm</span>
-                </div>
-                <p class="dt-claim-quote">"Most of our state's water rights go back more than a century."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--plausible">Plausible</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">Texas Water Development Board records indicate a majority of senior water rights pre-date 1924, consistent with "more than a century" though the exact percentage isn't specified by the governor.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">TWDB historical rights index</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">MR</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Sen. Reyes</span>
-                  <span class="role">· Senator (California)</span>
-                  <span class="time">8:45pm</span>
-                </div>
-                <p class="dt-claim-quote">"The bill allocates $4.2 billion over seven years."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--supported">Supported</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">CBO scoring confirms $4.2B authorized over FY2026–FY2032.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">CBO score, March 2026</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">MR</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Sen. Reyes</span>
-                  <span class="role">· Senator (California)</span>
-                  <span class="time">8:47pm</span>
-                </div>
-                <p class="dt-claim-quote">"The bill had 14 bipartisan co-sponsors at introduction."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--supported">Supported</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">Congress.gov shows 14 co-sponsors at the bill's introduction (Mar. 8, 2026), affiliations split across both major parties.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">Congress.gov S. 1402</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="overstated">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">TC</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Gov. Calloway</span>
-                  <span class="role">· Governor of Texas</span>
-                  <span class="time">8:49pm</span>
-                </div>
-                <p class="dt-claim-quote">"Texas now produces more clean energy than any other state in the country."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--overstated">Overstated</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">EIA data shows Texas leads in wind generation, but California produces more solar and overall renewable generation when hydroelectric is included. "More clean energy than any other state" depends on definition and is not categorically true.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">EIA Electric Power Monthly</a>
-                <a href="#">EIA state-level renewables</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="corroborated">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">MR</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Sen. Reyes</span>
-                  <span class="role">· Senator (California)</span>
-                  <span class="time">8:53pm</span>
-                </div>
-                <p class="dt-claim-quote">"Three states have already signed compact-equivalent agreements based on the framework."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--corroborated">Corroborated</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">Independently confirmed by state agency releases from Arizona (Mar 22), Nevada (Mar 30), and New Mexico (Apr 5). Each cites the same framework draft.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">AZ DWR release</a>
-                <a href="#">NV state archives</a>
-                <a href="#">NM OSE bulletin</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
-          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="supported">
-            <div class="dt-claim-row">
-              <div class="dt-claim-mono">TC</div>
-              <div class="dt-claim-body">
-                <div class="dt-claim-speaker">
-                  <span class="name">Gov. Calloway</span>
-                  <span class="role">· Governor of Texas</span>
-                  <span class="time">8:55pm</span>
-                </div>
-                <p class="dt-claim-quote">"Our state is currently the country's largest agricultural exporter by total value."</p>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="v-pill v-pill--supported">Supported</span>
-                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
-                </div>
-              </div>
-              <div class="dt-claim-aside">
-                <button class="dt-claim-expand" aria-label="Expand claim">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="dt-claim-detail">
-              <p class="dt-claim-summary">USDA Economic Research Service 2025 export rankings place Texas first by total agricultural export value. Matches the claim.</p>
-              <div class="dt-claim-evidence">
-                <span class="label">Evidence</span>
-                <a href="#">USDA ERS 2025 rankings</a>
-              </div>
-              <div class="dt-claim-detail-foot">
-                <a href="#" class="dt-claim-report">View full report →</a>
-              </div>
-            </div>
-          </article>
-
+            </article>
+            {% endfor %}
+          {% endif %}
         </div>
 
-        <div class="dt-empty" id="claim-empty">
+        <div class="dt-empty{% if not claims %} is-visible{% endif %}" id="claim-empty">
+          {% if claims %}
           <strong>No claims match the current filters.</strong>
-          <div style="margin-top: 8px;">Try selecting "All" speakers or verdicts.</div>
+          <div style="margin-top:8px;">Try selecting &ldquo;All&rdquo; speakers or verdicts.</div>
+          {% else %}
+          <strong>No verified claims yet for this event.</strong>
+          <div style="margin-top:8px;">Claims will appear here once the transcript has been processed.</div>
+          {% endif %}
         </div>
       </div>
 
@@ -1572,71 +1081,45 @@
       <aside class="dt-side">
         <div class="dt-side-block">
 
-          <!-- Disclaimer -->
-          <div class="dt-disclaimer" style="margin-bottom: 12px;">
+          <div class="dt-disclaimer" style="margin-bottom:12px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span><strong>Counts are a navigation aid — not a score.</strong> No aggregate rating is computed for either participant.</span>
+            <span><strong>Counts are a navigation aid &mdash; not a score.</strong> No aggregate rating is computed for any participant.</span>
           </div>
 
-          <!-- Per-speaker summary cards -->
-          <div class="dt-side-card cand-a">
+          {% for p in event.participants %}
+          {% set bd = breakdown.get(p.id, {}) %}
+          {% set cand = 'a' if loop.first else 'b' %}
+          <div class="dt-side-card cand-{{ cand }}">
             <div class="dt-side-head">
-              <div class="dt-side-mono">MR</div>
+              <div class="dt-side-mono">{{ p.initials }}</div>
               <div>
-                <div class="dt-side-name">Sen. Reyes</div>
-                <div class="dt-side-role">California</div>
+                <div class="dt-side-name">{{ p.name }}</div>
+                <div class="dt-side-role">{{ p.role }}</div>
               </div>
-              <div style="margin-left: auto; text-align: right;">
-                <div class="dt-side-total">7</div>
+              <div style="margin-left:auto;text-align:right;">
+                <div class="dt-side-total">{{ bd.get('total', 0) }}</div>
                 <div class="dt-side-total-label">verified</div>
               </div>
             </div>
             <div class="dt-side-bar">
-              <div class="seg" style="background: var(--c-supported); flex: 4;" title="Supported: 4"></div>
-              <div class="seg" style="background: var(--c-plausible); flex: 1;" title="Plausible: 1"></div>
-              <div class="seg" style="background: var(--c-corroborated); flex: 1;" title="Corroborated: 1"></div>
-              <div class="seg" style="background: var(--c-overstated); flex: 1;" title="Overstated: 1"></div>
+              {% for v, color in [('supported','var(--c-supported)'),('plausible','var(--c-plausible)'),('corroborated','var(--c-corroborated)'),('overstated','var(--c-overstated)'),('disputed','var(--c-disputed)'),('not_supported','var(--c-not-supported)')] %}
+              {% if bd.get(v, 0) > 0 %}
+              <div class="seg" style="background:{{ color }};flex:{{ bd.get(v,0) }};" title="{{ v|replace('_',' ')|capitalize }}: {{ bd.get(v,0) }}"></div>
+              {% endif %}
+              {% endfor %}
             </div>
             <div class="dt-side-counts">
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-supported);"></span><span class="name">Supported</span><span class="num">4</span></div>
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-plausible);"></span><span class="name">Plausible</span><span class="num">1</span></div>
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-corroborated);"></span><span class="name">Corroborated</span><span class="num">1</span></div>
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-overstated);"></span><span class="name">Overstated</span><span class="num">1</span></div>
-              <div class="dt-side-count is-zero"><span class="dot" style="background: var(--c-disputed);"></span><span class="name">Disputed</span><span class="num">0</span></div>
-              <div class="dt-side-count is-zero"><span class="dot" style="background: var(--c-not-supported);"></span><span class="name">Not supported</span><span class="num">0</span></div>
+              {% for v, label, color in [('supported','Supported','var(--c-supported)'),('plausible','Plausible','var(--c-plausible)'),('corroborated','Corroborated','var(--c-corroborated)'),('overstated','Overstated','var(--c-overstated)'),('disputed','Disputed','var(--c-disputed)'),('not_supported','Not supported','var(--c-not-supported)')] %}
+              <div class="dt-side-count {% if bd.get(v,0) == 0 %}is-zero{% endif %}">
+                <span class="dot" style="background:{{ color }};"></span>
+                <span class="name">{{ label }}</span>
+                <span class="num">{{ bd.get(v, 0) }}</span>
+              </div>
+              {% endfor %}
             </div>
             <div class="dt-side-note">Counts above are for this event only.</div>
           </div>
-
-          <div class="dt-side-card cand-b">
-            <div class="dt-side-head">
-              <div class="dt-side-mono">TC</div>
-              <div>
-                <div class="dt-side-name">Gov. Calloway</div>
-                <div class="dt-side-role">Texas</div>
-              </div>
-              <div style="margin-left: auto; text-align: right;">
-                <div class="dt-side-total">7</div>
-                <div class="dt-side-total-label">verified</div>
-              </div>
-            </div>
-            <div class="dt-side-bar">
-              <div class="seg" style="background: var(--c-supported); flex: 2;" title="Supported: 2"></div>
-              <div class="seg" style="background: var(--c-plausible); flex: 1;" title="Plausible: 1"></div>
-              <div class="seg" style="background: var(--c-overstated); flex: 2;" title="Overstated: 2"></div>
-              <div class="seg" style="background: var(--c-disputed); flex: 1;" title="Disputed: 1"></div>
-              <div class="seg" style="background: var(--c-not-supported); flex: 1;" title="Not supported: 1"></div>
-            </div>
-            <div class="dt-side-counts">
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-supported);"></span><span class="name">Supported</span><span class="num">2</span></div>
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-plausible);"></span><span class="name">Plausible</span><span class="num">1</span></div>
-              <div class="dt-side-count is-zero"><span class="dot" style="background: var(--c-corroborated);"></span><span class="name">Corroborated</span><span class="num">0</span></div>
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-overstated);"></span><span class="name">Overstated</span><span class="num">2</span></div>
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-disputed);"></span><span class="name">Disputed</span><span class="num">1</span></div>
-              <div class="dt-side-count"><span class="dot" style="background: var(--c-not-supported);"></span><span class="name">Not supported</span><span class="num">1</span></div>
-            </div>
-            <div class="dt-side-note">Counts above are for this event only.</div>
-          </div>
+          {% endfor %}
 
         </div>
       </aside>
@@ -1646,21 +1129,16 @@
         <div>
           <h3>What this page shows</h3>
           <p>
-            Verified claims made by participants during this debate, as captured from the ABC News broadcast transcript. Each verdict applies to a single claim. The same evidence pipeline is applied regardless of who is speaking.
+            Verified claims made by participants during this event{% if event.transcript_source %}, as captured from the {{ event.transcript_source }} transcript{% endif %}. Each verdict applies to a single claim. The same evidence pipeline is applied regardless of who is speaking.
           </p>
           <p>
-            <strong style="color: var(--text-2);">No aggregate score is computed</strong> for the event or for either participant. Per methodology v1.7, verdicts are statements about claims, not about people. Moderator questions appear as context and are not verdicted.
+            <strong style="color:var(--text-2);">No aggregate score is computed</strong> for the event or for any participant. Per methodology {{ event.methodology_version }}, verdicts are statements about claims, not about people.
           </p>
-          <p>
-            <a href="#">Read the full methodology →</a>
-          </p>
+          <p><a href="/methodology">Read the full methodology &rarr;</a></p>
         </div>
-
         <aside class="sp-correction">
           <h3>Spot something wrong?</h3>
-          <p>
-            If a verdict, attribution, or transcript line looks incorrect, send us the timestamp and what you observed.
-          </p>
+          <p>If a verdict, attribution, or transcript line looks incorrect, send us the timestamp and what you observed.</p>
           <a href="mailto:disputes@verumsignal.com" class="dt-correction-btn">
             disputes@verumsignal.com
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
@@ -1684,95 +1162,19 @@
     </div>
     <div class="site-footer-tagline">We provide the signals. You decide.</div>
     <nav class="site-footer-nav">
-      <a href="#">Methodology</a>
+      <a href="/methodology">Methodology</a>
       <a href="#">How it works</a>
-      <a href="#">Leaderboard</a>
-      <a href="debates.html">Debates</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/debates">Debates</a>
       <a href="#">Pricing</a>
     </nav>
-    <div class="site-footer-meta">Methodology v1.7 · Automated · Auditable</div>
+    <div class="site-footer-meta">Methodology {{ methodology_version }} &middot; Automated &middot; Auditable</div>
   </div>
 </footer>
 
 <script src="/static/debate_site.js"></script>
 <script>
-  // ============= DEBATE — mode toggle, filters, expand, timeout =============
   (function () {
-    const body = document.body;
-    const upcBtn   = document.getElementById("mode-upcoming");
-    const liveBtn  = document.getElementById("mode-live");
-    const staticBtn= document.getElementById("mode-static");
-    const pending  = document.querySelector(".dt-pending");
-
-    const STUCK_AFTER_MS = 90 * 1000; // 90s spec
-    let stuckTimer = null;
-
-    function clearStuckTimer() {
-      if (stuckTimer) { clearTimeout(stuckTimer); stuckTimer = null; }
-    }
-    function armStuckTimer() {
-      clearStuckTimer();
-      if (!pending) return;
-      pending.classList.remove("is-stuck");
-      const labelEl = pending.querySelector(".label");
-      if (labelEl) labelEl.textContent = "Verifying";
-      stuckTimer = setTimeout(() => {
-        pending.classList.add("is-stuck");
-        if (labelEl) labelEl.textContent = "Taking longer than expected";
-      }, STUCK_AFTER_MS);
-    }
-
-    function setMode(mode) {
-      body.classList.remove("is-live", "is-static", "is-upcoming");
-      [upcBtn, liveBtn, staticBtn].forEach((b) => {
-        b.classList.remove("is-active");
-        b.setAttribute("aria-selected", "false");
-      });
-      let activeBtn;
-      if (mode === "live") {
-        body.classList.add("is-live");
-        activeBtn = liveBtn;
-        armStuckTimer();
-      } else if (mode === "upcoming") {
-        body.classList.add("is-upcoming");
-        activeBtn = upcBtn;
-        clearStuckTimer();
-      } else {
-        body.classList.add("is-static");
-        activeBtn = staticBtn;
-        clearStuckTimer();
-      }
-      activeBtn.classList.add("is-active");
-      activeBtn.setAttribute("aria-selected", "true");
-    }
-    upcBtn.addEventListener("click",   () => setMode("upcoming"));
-    liveBtn.addEventListener("click",  () => setMode("live"));
-    staticBtn.addEventListener("click",() => setMode("static"));
-
-    // Initial state — default to Live (most demo-worthy).
-    armStuckTimer();
-
-    // Upcoming countdown — prototype-only ticker.
-    (function tickCountdown() {
-      const hEl = document.getElementById("upc-h");
-      const mEl = document.getElementById("upc-m");
-      const sEl = document.getElementById("upc-s");
-      // Start at 2h 14m 38s and count down for demo flavor.
-      let total = 2 * 3600 + 14 * 60 + 38;
-      function fmt(n) { return String(n).padStart(2, "0"); }
-      function render() {
-        if (total <= 0) total = 2 * 3600 + 14 * 60 + 38; // loop
-        const h = Math.floor(total / 3600);
-        const m = Math.floor((total % 3600) / 60);
-        const s = total % 60;
-        if (hEl) hEl.textContent = h;
-        if (mEl) mEl.textContent = fmt(m);
-        if (sEl) sEl.textContent = fmt(s);
-      }
-      render();
-      setInterval(() => { total--; render(); }, 1000);
-    })();
-
     // ============= Filters =============
     const spkPills = document.querySelectorAll("#speaker-filter .dt-filter-pill");
     const vdtPills = document.querySelectorAll("#verdict-filter .dt-filter-pill");
@@ -1783,25 +1185,21 @@
     let activeVdt = "all";
 
     function applyFilters() {
+      if (!feed) return;
       const claims = feed.querySelectorAll('[data-row="claim"]');
-      const rounds = feed.querySelectorAll('[data-row="round"]');
-      const mods   = feed.querySelectorAll('[data-row="moderator"]');
-      let visibleClaims = 0;
-
+      let visible = 0;
       claims.forEach((c) => {
         const s = c.getAttribute("data-speaker");
         const v = c.getAttribute("data-verdict");
         const ok = (activeSpk === "all" || activeSpk === s) &&
                    (activeVdt === "all" || activeVdt === v);
         c.style.display = ok ? "" : "none";
-        if (ok) visibleClaims++;
+        if (ok) visible++;
       });
-
-      const hideMods = activeSpk !== "all" || activeVdt !== "all";
-      mods.forEach((m) => { m.style.display = hideMods ? "none" : ""; });
-      rounds.forEach((r) => { r.style.display = activeVdt !== "all" ? "none" : ""; });
-
-      empty.classList.toggle("is-visible", visibleClaims === 0);
+      if (empty) {
+        const noData = empty.querySelector('strong') && empty.querySelector('strong').textContent.includes('No verified');
+        if (!noData) empty.classList.toggle("is-visible", visible === 0);
+      }
     }
 
     spkPills.forEach((p) => {
@@ -1822,21 +1220,6 @@
     });
 
     // ============= Expand / collapse =============
-    // Mobile (<720px) defaults stay collapsed per v2 brief 2.5; that's already
-    // the case (display:none on .dt-claim-detail until .is-expanded). On window
-    // resize crossing the breakpoint, collapse any expanded cards so the feed
-    // re-renders as a scannable list.
-    let wasNarrow = window.innerWidth < 720;
-    function collapseAll() {
-      document.querySelectorAll(".dt-claim.is-expanded").forEach((c) => c.classList.remove("is-expanded"));
-    }
-    if (wasNarrow) collapseAll();
-    window.addEventListener("resize", () => {
-      const isNarrow = window.innerWidth < 720;
-      if (isNarrow && !wasNarrow) collapseAll();
-      wasNarrow = isNarrow;
-    });
-
     document.querySelectorAll(".dt-claim").forEach((card) => {
       card.addEventListener("click", (e) => {
         if (e.target.closest("a")) return;
@@ -1845,6 +1228,5 @@
     });
   })();
 </script>
-
 </body>
 </html>
