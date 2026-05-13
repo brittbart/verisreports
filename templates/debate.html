@@ -943,11 +943,17 @@
       <span class="dt-eyebrow">
         <span class="show-when-live"><span class="live-dot"></span>Live now</span>
         <span class="show-when-static">Verified event &middot; Complete</span>
-        <span class="show-when-upcoming"><span class="countdown-dot"></span>Upcoming</span>
+        <span class="show-when-upcoming"><span class="countdown-dot"></span> Upcoming</span>
       </span>
     </div>
 
-    <h1 class="dt-title">{{ event.event_name }}</h1>
+    <h1 class="dt-title">
+      {% if event.event_subtitle %}
+        {{ event.event_name | replace(event.event_subtitle, '') | trim | trim(':') | trim('—') | trim() }}: <em>{{ event.event_subtitle }}</em>
+      {% else %}
+        {{ event.event_name }}
+      {% endif %}
+    </h1>
 
     <div class="dt-meta-row">
       <span class="dt-meta-chip"><span class="dot"></span>{{ event.event_date_str }}{% if event.start_time_str and event.start_time_str != 'TBD' %} &middot; <strong>{{ event.start_time_str }}</strong>{% endif %}</span>
@@ -1024,6 +1030,40 @@
           </div>
           <h3 class="dt-upcoming-title">Debate hasn&apos;t started yet.</h3>
           <p class="dt-upcoming-sub">Verified claims will appear here in real time once the debate begins.{% if event.transcript_source %} Watch the official broadcast on {{ event.transcript_source }} when it goes live.{% endif %}</p>
+          {% if event.event_start_iso %}
+          <div class="dt-upcoming-when" id="countdown-wrap">
+            <div class="stat"><strong id="upc-d">—</strong><span>Days</span></div>
+            <div class="stat-sep"></div>
+            <div class="stat"><strong id="upc-h">—</strong><span>Hours</span></div>
+            <div class="stat-sep"></div>
+            <div class="stat"><strong id="upc-m">—</strong><span>Minutes</span></div>
+            <div class="stat-sep"></div>
+            <div class="stat"><strong id="upc-s">—</strong><span>Seconds</span></div>
+          </div>
+          <script>
+            (function() {
+              var target = new Date("{{ event.event_start_iso }}");
+              function tick() {
+                var now = new Date();
+                var diff = target - now;
+                if (diff <= 0) {
+                  document.getElementById("countdown-wrap").style.display = "none";
+                  return;
+                }
+                var d = Math.floor(diff / 86400000);
+                var h = Math.floor((diff % 86400000) / 3600000);
+                var m = Math.floor((diff % 3600000) / 60000);
+                var s = Math.floor((diff % 60000) / 1000);
+                document.getElementById("upc-d").textContent = d;
+                document.getElementById("upc-h").textContent = h;
+                document.getElementById("upc-m").textContent = String(m).padStart(2,"0");
+                document.getElementById("upc-s").textContent = String(s).padStart(2,"0");
+              }
+              tick();
+              setInterval(tick, 1000);
+            })();
+          </script>
+          {% endif %}
         </div>
 
         <!-- Claim feed -->

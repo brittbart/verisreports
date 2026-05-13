@@ -24,7 +24,7 @@ def _get_all_public_events(get_db_conn):
         cur.execute("""
             SELECT
                 e.id, e.slug, e.event_type, e.event_name,
-                e.event_date, e.start_time, e.timezone, e.venue, e.transcript_source,
+                e.event_date, e.start_time, e.timezone, e.event_subtitle, e.venue, e.transcript_source,
                 e.methodology_version, e.is_public,
                 COUNT(c.id) FILTER (WHERE c.verdict IS NOT NULL) AS claim_count
             FROM events e
@@ -41,7 +41,7 @@ def _get_all_public_events(get_db_conn):
         events = []
         today = date.today()
         for row in rows:
-            (eid, slug, event_type, event_name, event_date, start_time, timezone, venue,
+            (eid, slug, event_type, event_name, event_date, start_time, timezone, event_subtitle, venue,
              transcript_source, methodology_version, is_public, claim_count) = row
             status = _derive_status(event_date, today)
             events.append({
@@ -55,6 +55,8 @@ def _get_all_public_events(get_db_conn):
                 'event_date_day':      event_date.strftime('%-d') if event_date else '',
                 'event_date_year':     event_date.strftime('%Y') if event_date else '',
                 'start_time_str':      (start_time.strftime('%-I:%M %p') + ' ' + (timezone or 'ET')) if start_time else 'TBD',
+                'event_subtitle':      event_subtitle or '',
+                'event_start_iso':     (event_date.strftime('%Y-%m-%dT') + start_time.strftime('%H:%M:00')) if (event_date and start_time) else '',
                 'venue':               venue or '',
                 'transcript_source':   transcript_source or '',
                 'methodology_version': methodology_version or METHODOLOGY_VERSION,
@@ -75,7 +77,7 @@ def _get_event_by_slug(get_db_conn, slug):
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, slug, event_type, event_name, event_date, start_time, timezone, venue,
+            SELECT id, slug, event_type, event_name, event_date, start_time, timezone, event_subtitle, venue,
                    transcript_url, transcript_source, is_public,
                    methodology_version, notes
             FROM events
@@ -85,7 +87,7 @@ def _get_event_by_slug(get_db_conn, slug):
         if not row:
             cur.close()
             return None, []
-        (eid, slug, event_type, event_name, event_date, start_time, timezone, venue,
+        (eid, slug, event_type, event_name, event_date, start_time, timezone, event_subtitle, venue,
          transcript_url, transcript_source, is_public,
          methodology_version, notes) = row
 
@@ -100,6 +102,8 @@ def _get_event_by_slug(get_db_conn, slug):
             'event_date':          event_date,
             'event_date_str':      event_date.strftime('%B %-d, %Y') if event_date else '',
             'start_time_str':      (start_time.strftime('%-I:%M %p') + ' ' + (timezone or 'ET')) if start_time else 'TBD',
+            'event_subtitle':      event_subtitle or '',
+            'event_start_iso':     (event_date.strftime('%Y-%m-%dT') + start_time.strftime('%H:%M:00')) if (event_date and start_time) else '',
             'venue':               venue or '',
             'transcript_url':      transcript_url or '',
             'transcript_source':   transcript_source or '',
