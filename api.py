@@ -3058,18 +3058,6 @@ def ops_dashboard():
 
 
 
-@app.route('/debates', methods=['GET'])
-@app.route('/debates.html', methods=['GET'])
-def debates_page():
-    from flask import render_template
-    return render_template('debates.html',
-        live_events=[],
-        upcoming_events=[],
-        complete_events=[],
-        stats={'live_count': 0, 'upcoming_count': 2, 'complete_count': 4, 'total_claims': 0},
-        methodology_version='v1.7',
-    )
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
