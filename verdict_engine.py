@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import psycopg2
 import anthropic
 from dotenv import load_dotenv
@@ -100,6 +101,84 @@ def check_source_consensus(cursor, claim_text):
     except Exception:
         return None
     
+def strip_attribution(claim_text, speaker):
+    """Extract core factual assertion from attributed claim text."""
+    if not claim_text:
+        return claim_text
+    text = claim_text.strip()
+    patterns = [
+        r'^[^,\.]{3,60}?\s+(?:said|claimed|stated|argued|warned|noted|announced|confirmed|told\s+\w+|declared|alleged|asserted|insisted|acknowledged|admitted|revealed|suggested|indicated)\s+(?:that\s+)?(.+)$',
+        r'^[Aa]ccording\s+to\s+[^,]{3,60},\s*(.+)$',
+    ]
+    for pattern in patterns:
+        m = re.match(pattern, text, re.IGNORECASE | re.DOTALL)
+        if m:
+            core = m.group(1).strip()
+            if len(core) >= 30:
+                return core[0].upper() + core[1:]
+    return claim_text
+
+
+def build_attributed_prompt(core_claim, original_claim, speaker, claim_type, article_title, source_name):
+    """Build verification prompt for attributed claims — verifies underlying fact, not attribution."""
+    return f"""You are the Verum Signal verification engine. Your job is to verify the FACTUAL CONTENT of a claim, not whether someone said it.
+
+CONTEXT: {speaker} made the following claim, as reported by {source_name}:
+ORIGINAL: "{original_claim}"
+
+WHAT TO VERIFY — the underlying factual assertion:
+CORE CLAIM: {core_claim}
+
+CRITICAL INSTRUCTION: Do NOT verify whether {speaker} said this. Assume the attribution is correct. Your job is to verify whether the FACTUAL CONTENT of the claim is accurate. Search for evidence that confirms or contradicts the specific facts asserted.
+
+Examples:
+- "Trump said gas prices are up 5% from 2011" -> verify whether gas prices are actually up 5% from 2011
+- "Harris said the bill would cost $2 trillion" -> verify whether the bill actually costs $2 trillion
+
+TYPE: {claim_type}
+ARTICLE: {article_title}
+
+VERIFICATION STANDARDS:
+
+INDEPENDENCE RULE: Two sources are only independent if they obtained the information through different means. Multiple outlets repeating the same wire = ONE source.
+
+CONSENSUS EXCEPTION: If 5+ outlets consistently report the same factual content without contradiction, assign corroborated at confidence 2/3.
+
+VERDICT DEFINITIONS:
+- supported: Underlying fact confirmed by TWO genuinely independent primary sources
+- plausible: Consistent with evidence but only one credible source found
+- disputed: ANY credible source contradicts the factual assertion
+- overstated: Core fact is real but figure or scale is exaggerated
+- not_supported: Evidence actively contradicts the factual assertion
+- not_verifiable: Cannot confirm or deny — primary sources unavailable
+- corroborated: 5+ outlets consistently report same factual content
+- opinion: Value judgement or prediction that cannot be empirically true or false
+
+CONFIDENCE SCORE:
+- 3: Two or more genuinely independent sources with original reporting
+- 2: One credible source, or plausible based on consistent reporting
+- 1: Plausible or disputed
+
+SEARCH INSTRUCTIONS:
+1. Search for the specific factual assertion — NOT the quote or the speaker
+2. Find primary sources (government data, official reports, direct documentation)
+3. Find a second independent source
+4. If any credible source contradicts, assign disputed
+
+CRITICAL CONSTRAINTS:
+- verdict MUST be exactly one of: supported, plausible, corroborated, overstated, disputed, not_supported, not_verifiable, opinion
+- If cannot determine, use not_verifiable
+
+Return ONLY this JSON:
+{{
+  "verdict": "supported",
+  "confidence_score": 1,
+  "verdict_summary": "one sentence explaining whether the underlying fact holds up",
+  "full_analysis": "2-3 sentences on what you found, sources used, and why this verdict",
+  "sources_used": "specific named sources and whether each independently confirmed the underlying fact"
+}}"""
+
+
 def analyse_claim(claim_text, speaker, claim_type,
                   article_title, source_name, cursor=None, **kwargs):
 
@@ -131,8 +210,17 @@ def analyse_claim(claim_text, speaker, claim_type,
     if pre_filter_claim(claim_text) == "opinion":
         print(f"  -> Pre-filter: opinion")
         return {"verdict":"opinion","confidence_score":1,"verdict_summary":"Prediction or editorial opinion.","full_analysis":"Pre-classified by local filter.","sources_used":"Local filter"}
-    print(f"  -> Web search verification...")
-    prompt = f"""You are the Verum Signal verification engine. Your job is to verify claims with rigorous, defensible standards. Use web search to find primary sources.
+
+    claim_origin = kwargs.get('claim_origin', 'outlet_claim')
+    if claim_origin == 'attributed_claim':
+        core_claim = strip_attribution(claim_text, speaker or '')
+        print(f"  -> Attributed claim verification (core: {core_claim[:60]}...)")
+        prompt = build_attributed_prompt(
+            core_claim, claim_text, speaker, claim_type, article_title, source_name
+        )
+    else:
+        print(f"  -> Web search verification...")
+        prompt = f"""You are the Verum Signal verification engine. Your job is to verify claims with rigorous, defensible standards. Use web search to find primary sources.
 
 CLAIM: {claim_text}
 SPEAKER: {speaker}
@@ -338,7 +426,8 @@ def run_verdict_engine(limit=10, depth=None):
     cursor = conn.cursor()
     cursor.execute("""
         SELECT c.id, c.claim_text, c.speaker, c.claim_type,
-               a.title, a.source_name, c.priority_score
+               a.title, a.source_name, c.priority_score,
+               c.claim_origin, COALESCE(c.attribution_context, '')
         FROM claims c
         JOIN articles a ON c.article_id = a.id
         WHERE c.verdict IS NULL
@@ -354,13 +443,15 @@ def run_verdict_engine(limit=10, depth=None):
     verdicts_assigned = 0
     for i, (claim_id, claim_text, speaker, claim_type,
             article_title, source_name,
-            priority_score) in enumerate(claims):
+            priority_score, claim_origin, attribution_context) in enumerate(claims):
         print(f"[{i+1}/{len(claims)}] Priority: {priority_score}/100")
         print(f"  {claim_text[:70]}...")
-        print(f"  Source: {source_name}")
+        print(f"  Source: {source_name} [{claim_origin}]")
         result = analyse_claim(
             claim_text, speaker, claim_type,
-            article_title, source_name, cursor
+            article_title, source_name, cursor,
+            claim_origin=claim_origin,
+            attribution_context=attribution_context,
         )
         if result:
             verdict = result.get('verdict', 'not_verifiable')
@@ -440,7 +531,8 @@ def run_batch_verdict_engine(limit=500, depth=None):
     cursor = conn.cursor()
     cursor.execute("""
         SELECT c.id, c.claim_text, c.speaker, c.claim_type,
-               a.title, a.source_name, c.priority_score
+               a.title, a.source_name, c.priority_score,
+               c.claim_origin, COALESCE(c.attribution_context, '')
         FROM claims c
         JOIN articles a ON c.article_id = a.id
         WHERE c.verdict IS NULL
