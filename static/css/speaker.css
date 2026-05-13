@@ -106,3 +106,50 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* speaker.css v2 additions — verdict summary block (no score) */
+
+.speaker-summary-block {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.speaker-summary-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.speaker-summary-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.speaker-summary-count {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.speaker-summary-num {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.speaker-summary-empty {
+  font-size: 0.875rem;
+  color: var(--text-3);
+}
+
+.speaker-summary-note {
+  font-size: 0.8125rem;
+  color: var(--text-3);
+  line-height: 1.5;
+  border-top: 1px solid var(--border);
+  padding-top: 0.625rem;
+}

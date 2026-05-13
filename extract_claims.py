@@ -84,10 +84,22 @@ For each claim return:
 5. Whether this is an outlet_claim (the outlet itself is asserting this) or attributed_claim (the outlet is reporting that someone else said this)
 6. If attributed, the exact attribution context e.g. "Trump said", "according to the Pentagon", "Iran's state media reported"
 
+CLAIM QUALITY STANDARDS — apply strictly:
+A claim is only check-worthy if it contains a SPECIFIC, VERIFIABLE FACTUAL ASSERTION. All of the following must be EXCLUDED:
+
+- BIOGRAPHICAL FACTS: Do not extract claims that merely confirm someone's role, title, or identity (e.g. "Justice Surya Kant is the Chief Justice of India", "Elon Musk is the CEO of Tesla", "Senator Warren represents Massachusetts"). These are reference facts, not claims worth verifying.
+- REDUNDANT CLAIMS: Do not extract the same assertion twice. If two sentences say the same thing in different words, extract only one — the more specific version.
+- OPINION OR CHARACTERIZATION: Do not extract value judgments, characterizations, or normative statements as factual claims, even when attributed to a named speaker (e.g. "X called Y a crime against human dignity" — the characterization is opinion, not a factual claim).
+- VAGUE ASSERTIONS: Do not extract claims without specific figures, dates, named events, named documents, or concrete outcomes. "The economy is doing badly" is not a claim. "GDP contracted 1.2% in Q3" is a claim.
+- PROCESS STATEMENTS: Do not extract claims that merely describe an article's subject or event (e.g. "The article reports on remarks made at a conference").
+
+A strong attributed claim looks like: "Senator X said the bill would cost $2 trillion over 10 years" or "The Pentagon confirmed 3,000 troops were deployed to X on [date]." A weak attributed claim looks like: "X said Y is important" or "X described the situation as serious."
+
 CRITICAL CONSTRAINTS:
 - claim_origin MUST be exactly "outlet_claim" OR exactly "attributed_claim". Never null. Never empty. Never any other value.
 - If the claim has a clear speaker other than the outlet (e.g. "Trump said", "according to the Pentagon"), use "attributed_claim".
 - Otherwise use "outlet_claim".
+- Returning 0 claims is correct when an article contains no specific, verifiable factual assertions meeting the above standards.
 
 Article:
 {article_text}

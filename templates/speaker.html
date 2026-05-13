@@ -6,7 +6,7 @@
   <title>{{ speaker.name }} — Verum Signal</title>
   <link rel="stylesheet" href="/styles.css?v=5">
   <link rel="stylesheet" href="/static/css/outlet.css?v=2">
-  <link rel="stylesheet" href="/static/css/speaker.css?v=1">
+  <link rel="stylesheet" href="/static/css/speaker.css?v=2">
 </head>
 <body>
 
@@ -65,91 +65,41 @@
         {% endif %}
         <span>under <a href="/methodology">Methodology {{ methodology_version }}</a></span>
         <span class="dot">·</span>
-        <span><strong>{{ speaker.scoreable_count }}</strong> scoreable verdicts</span>
+        <span><strong>{{ speaker.verdict_count }}</strong> verdicts recorded</span>
       </div>
     </div>
 
-    {% if speaker.state == 'scored' %}
-      {% set sb = 'high' if speaker.score >= 70 else ('med' if speaker.score >= 40 else 'low') %}
-      {% set tier_class = 'published' if speaker.tier == 'Published' else ('stabilizing' if speaker.tier == 'Stabilizing' else 'limited') %}
-      <div class="score-block">
-        <div class="score-main">
-          <div>
-            <div class="score-label">Claim reliability score</div>
-            <div class="score-num score-num--{{ sb }}">{{ speaker.score }}<span class="score-suffix">/100</span></div>
-            <div class="score-band-row">
-              <span class="score-band-pill score-band-pill--{{ sb }}">{{ speaker.score_band }}</span>
-              <span class="score-band-tier">·  {{ speaker.tier }} tier</span>
-            </div>
-          </div>
-          <div class="score-stamp-foot">
-            As of {{ speaker.scored_as_of }} ·
-            <a href="/methodology">under Methodology {{ methodology_version }} →</a>
-          </div>
+    <!-- Verdict summary block — no score displayed -->
+    <div class="speaker-summary-block">
+      <div class="speaker-summary-inner">
+        <div class="speaker-summary-counts">
+          {% set scoreable_types = ['supported','plausible','corroborated','overstated','disputed','not_supported'] %}
+          {% set verdict_labels = {'supported':'Supported','plausible':'Plausible','corroborated':'Corroborated','overstated':'Overstated','disputed':'Disputed','not_supported':'Not supported'} %}
+          {% for t in scoreable_types %}
+            {% set c = speaker.verdict_breakdown[t] %}
+            {% if c > 0 %}
+              <div class="speaker-summary-count">
+                <span class="verdict-tag tag-{{ t }}">{{ verdict_labels[t] }}</span>
+                <span class="speaker-summary-num">{{ c }}</span>
+              </div>
+            {% endif %}
+          {% endfor %}
+          {% if speaker.verdict_count == 0 %}
+            <div class="speaker-summary-empty">No verdicts recorded yet.</div>
+          {% endif %}
         </div>
-        <div class="score-meta">
-          <div class="meta-row">
-            <span class="meta-label">Tier</span>
-            <span class="meta-tier-pill meta-tier-pill--{{ tier_class }}">{{ speaker.tier }}</span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">Verdicts evaluated</span>
-            <span class="meta-value">{{ speaker.verdict_count }}<small>total</small></span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">Scoreable</span>
-            <span class="meta-value-stacked">
-              <span class="meta-value">{{ speaker.scoreable_count }}</span>
-              <span class="meta-sub">{{ speaker.excluded_count }} excluded · Opinion + Not verifiable</span>
-            </span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-label">Score band</span>
-            <span class="meta-tier-pill meta-tier-pill--{{ sb }}">{{ speaker.score_band }}</span>
-          </div>
+        <div class="speaker-summary-note">
+          Verdict counts are a navigation aid — not a score. Each count reflects how many attributed claims fell into that category. <a href="/methodology">Methodology {{ methodology_version }} →</a>
         </div>
       </div>
-    {% else %}
-      {% set pct = [[(speaker.scoreable_count * 100 / inclusion_threshold), 100] | min, 0] | max | round %}
-      <div class="score-block is-sub-threshold">
-        <div class="score-main">
-          <div>
-            <div class="score-label">Claim reliability score</div>
-            <div class="score-num-text">Not yet <em>scored.</em></div>
-            <div class="threshold-progress">
-              <div class="threshold-progress-row">
-                <span><strong>{{ speaker.scoreable_count }}</strong> of {{ inclusion_threshold }} scoreable verdicts</span>
-                <span>{{ pct }}%</span>
-              </div>
-              <div class="threshold-bar">
-                <div class="threshold-fill" style="width: {{ pct }}%;"></div>
-                <div class="threshold-tick" data-label="{{ inclusion_threshold }}"></div>
-              </div>
-            </div>
-            <div class="threshold-caption">
-              Speakers are scored once <strong>{{ inclusion_threshold }} scoreable verdicts</strong> have been attributed to them. Until then, this page shows the verdict mix collected so far — <strong>without a score</strong>. Scores are based on claims attributed to this speaker across all ingested articles.
-            </div>
-          </div>
-          <div class="score-stamp-foot">
-            {% if speaker.scored_as_of %}As of {{ speaker.scored_as_of }} ·{% endif %}
-            <a href="/methodology">under Methodology {{ methodology_version }} →</a>
-          </div>
-        </div>
-        <div class="score-meta">
-          <div class="meta-row"><span class="meta-label">Tier</span><span class="meta-tier-pill meta-tier-pill--limited">Limited Data</span></div>
-          <div class="meta-row"><span class="meta-label">Verdicts evaluated</span><span class="meta-value">{{ speaker.verdict_count }}<small>total</small></span></div>
-          <div class="meta-row"><span class="meta-label">Scoreable</span><span class="meta-value-stacked"><span class="meta-value">{{ speaker.scoreable_count }}</span><span class="meta-sub">{{ speaker.excluded_count }} excluded · {{ inclusion_threshold - speaker.scoreable_count }} more to threshold</span></span></div>
-          <div class="meta-row"><span class="meta-label">Status</span><span class="meta-status-text">Not yet scored</span></div>
-        </div>
-      </div>
-    {% endif %}
+    </div>
 
     <section class="panel">
       <div class="panel-head">
         <div class="panel-title-block">
           <div class="panel-eyebrow">Section 02 · Verdict distribution</div>
           <h2 class="panel-title">Verdict distribution</h2>
-          <p class="panel-sub">All six scoreable verdict types under Methodology {{ methodology_version }}. Based on claims attributed to {{ speaker.name }} across ingested articles. Attributed claims are evaluated on whether the attribution is accurate — not whether the speaker's underlying assertion is true.</p>
+          <p class="panel-sub">All six scoreable verdict types under Methodology {{ methodology_version }}. Based on specific factual claims attributed to {{ speaker.name }} across ingested articles. Biographical facts, redundant claims, and opinion content are excluded from this count.</p>
         </div>
         <div class="panel-head-stat">
           <div class="panel-head-stat-big"><span>{{ speaker.scoreable_count }}</span> scoreable</div>
@@ -157,7 +107,6 @@
         </div>
       </div>
       <div class="panel-body">
-        {% set scoreable_types = ['supported','plausible','corroborated','overstated','disputed','not_supported'] %}
         <div class="dist-bar">
           {% for t in scoreable_types %}
             {% set c = speaker.verdict_breakdown[t] %}
@@ -167,7 +116,6 @@
             {% endif %}
           {% endfor %}
         </div>
-        {% set verdict_labels = {'supported':'Supported','plausible':'Plausible','corroborated':'Corroborated','overstated':'Overstated','disputed':'Disputed','not_supported':'Not supported'} %}
         {% set verdict_weights = {'supported':'+1.0','plausible':'+0.5','corroborated':'+0.5','overstated':'-0.5','disputed':'-1.0','not_supported':'-1.5'} %}
         <div class="dist-counts">
           {% for t in scoreable_types %}
@@ -195,7 +143,7 @@
         <div class="panel-title-block">
           <div class="panel-eyebrow">Section 03 · Recent verdicts</div>
           <h2 class="panel-title">Recent verdicts</h2>
-          <p class="panel-sub">The most recent verdicts attributed to {{ speaker.name }} under Methodology {{ methodology_version }}. Each row links to the per-article report with the full evidence trail.</p>
+          <p class="panel-sub">The most recent specific factual claims attributed to {{ speaker.name }} under Methodology {{ methodology_version }}. Each row links to the per-article report with the full evidence trail.</p>
         </div>
       </div>
       <div class="panel-body">
@@ -238,8 +186,8 @@
 
     <div class="speaker-methodology-note panel">
       <div class="panel-body">
-        <p><strong>How speaker scoring works.</strong> A verdict assigned to a claim is a statement about the claim's relationship to available evidence — not a characterization of {{ speaker.name }} as a person. Verdicts reflect whether attributed claims were accurate at the time of reporting. They do not aggregate into a judgment about the speaker's overall reliability.</p>
-        <p>Claims attributed to a speaker in articles ("{{ speaker.name }} said X") are evaluated on whether the attribution is accurate and the claim is supported by evidence. Wire-service reprints and claims originated by the outlet (not attributed) are excluded. <a href="/methodology">Full methodology →</a></p>
+        <p><strong>What this page shows.</strong> Verum Signal records specific factual claims attributed to {{ speaker.name }} in ingested articles — claims with concrete, verifiable assertions such as specific figures, named events, or dated facts. Biographical facts, redundant claims, and opinion content are not included.</p>
+        <p>A verdict on an attributed claim is a statement about the claim's relationship to available evidence — not a characterization of {{ speaker.name }} as a person. These verdicts do not aggregate into a score or judgment about the speaker's overall reliability. <a href="/methodology">Full methodology →</a></p>
       </div>
     </div>
 
