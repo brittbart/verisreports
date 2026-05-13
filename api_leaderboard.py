@@ -120,6 +120,118 @@ HAVING COUNT(*) >= %s
 ORDER BY a.source_name;
 """
 
+SPEAKER_SCORE_SQL = """
+SELECT
+    s.id,
+    s.name,
+    s.normalized_name,
+    s.slug,
+    s.speaker_type,
+    s.role,
+    s.party,
+    s.current_office,
+    s.photo_url,
+    COUNT(*) FILTER (WHERE c.verdict = 'supported')      AS supported_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'plausible')      AS plausible_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'corroborated')   AS corroborated_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'overstated')     AS overstated_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'disputed')       AS disputed_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'not_supported')  AS not_supported_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'not_verifiable') AS not_verifiable_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'opinion')        AS opinion_count,
+    COUNT(*)                                             AS verdict_count,
+    COUNT(*) FILTER (
+        WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
+    )                                                    AS scoreable_count,
+    SUM(CASE c.verdict
+        WHEN 'supported'     THEN  1.0
+        WHEN 'plausible'     THEN  0.5
+        WHEN 'corroborated'  THEN  0.5
+        WHEN 'overstated'    THEN -0.5
+        WHEN 'disputed'      THEN -1.0
+        WHEN 'not_supported' THEN -1.5
+        ELSE 0
+    END) FILTER (
+        WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
+    )                                                    AS weighted_sum,
+    MIN(c.first_seen) AS first_verdict_at,
+    MAX(c.first_seen) AS last_verdict_at
+FROM speakers s
+JOIN claims c ON c.speaker_id = s.id
+WHERE c.verdict IS NOT NULL
+  AND c.claim_origin = 'attributed_claim'
+GROUP BY s.id, s.name, s.normalized_name, s.slug,
+         s.speaker_type, s.role, s.party, s.current_office, s.photo_url
+HAVING COUNT(*) FILTER (
+    WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
+) >= 1;
+"""
+
+SPEAKER_BY_ID_SQL = """
+SELECT
+    s.id,
+    s.name,
+    s.normalized_name,
+    s.slug,
+    s.speaker_type,
+    s.role,
+    s.party,
+    s.current_office,
+    s.photo_url,
+    COUNT(*) FILTER (WHERE c.verdict = 'supported')      AS supported_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'plausible')      AS plausible_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'corroborated')   AS corroborated_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'overstated')     AS overstated_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'disputed')       AS disputed_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'not_supported')  AS not_supported_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'not_verifiable') AS not_verifiable_count,
+    COUNT(*) FILTER (WHERE c.verdict = 'opinion')        AS opinion_count,
+    COUNT(*)                                             AS verdict_count,
+    COUNT(*) FILTER (
+        WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
+    )                                                    AS scoreable_count,
+    SUM(CASE c.verdict
+        WHEN 'supported'     THEN  1.0
+        WHEN 'plausible'     THEN  0.5
+        WHEN 'corroborated'  THEN  0.5
+        WHEN 'overstated'    THEN -0.5
+        WHEN 'disputed'      THEN -1.0
+        WHEN 'not_supported' THEN -1.5
+        ELSE 0
+    END) FILTER (
+        WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
+    )                                                    AS weighted_sum,
+    MIN(c.first_seen) AS first_verdict_at,
+    MAX(c.first_seen) AS last_verdict_at
+FROM speakers s
+JOIN claims c ON c.speaker_id = s.id
+WHERE s.id = %s
+  AND c.verdict IS NOT NULL
+  AND c.claim_origin = 'attributed_claim'
+GROUP BY s.id, s.name, s.normalized_name, s.slug,
+         s.speaker_type, s.role, s.party, s.current_office, s.photo_url;
+"""
+
+SPEAKER_RECENT_CLAIMS_SQL = """
+SELECT
+    c.id,
+    c.claim_text,
+    c.verdict,
+    c.verdict_summary,
+    c.first_seen,
+    a.source_name,
+    a.id AS article_id,
+    a.url AS article_url
+FROM claims c
+JOIN articles a ON a.id = c.article_id
+WHERE c.speaker_id = %s
+  AND c.verdict IS NOT NULL
+  AND c.claim_origin = 'attributed_claim'
+ORDER BY c.first_seen DESC
+LIMIT 20;
+"""
+
+
 EXCLUDED_OUTLET_COUNT_SQL = """
 SELECT COUNT(*) FROM (
     SELECT a.source_name
@@ -159,6 +271,60 @@ def compute_score_band(score):
     if score >= 40:
         return "Medium"
     return "Low"
+
+
+def compute_speaker_score(weighted_sum, scoreable_count):
+    """
+    Identical math to compute_score(). Canonical reference per v1.7 methodology.
+    Speaker scoring uses the same formula, weights, and normalization as outlet scoring.
+    Both call the same underlying arithmetic — no parallel implementation.
+    """
+    return compute_score(weighted_sum, scoreable_count)
+
+
+def _build_speaker_row(row):
+    """Convert a DB row from SPEAKER_BY_ID_SQL into a JSON-serializable dict."""
+    (
+        speaker_id, name, normalized_name, slug, speaker_type, role, party,
+        current_office, photo_url,
+        supported, plausible, corroborated, overstated, disputed, not_supported,
+        not_verifiable, opinion, verdict_count, scoreable_count, weighted_sum,
+        first_verdict_at, last_verdict_at
+    ) = row
+
+    score = compute_speaker_score(weighted_sum, scoreable_count)
+    tier = compute_tier(scoreable_count or 0)
+    band = compute_score_band(score)
+
+    return {
+        'id': speaker_id,
+        'name': name,
+        'normalized_name': normalized_name,
+        'slug': slug,
+        'speaker_type': speaker_type,
+        'role': role,
+        'party': party,
+        'current_office': current_office,
+        'photo_url': photo_url,
+        'score': score,
+        'tier': tier,
+        'band': band,
+        'verdict_counts': {
+            'supported':      supported or 0,
+            'plausible':      plausible or 0,
+            'corroborated':   corroborated or 0,
+            'overstated':     overstated or 0,
+            'disputed':       disputed or 0,
+            'not_supported':  not_supported or 0,
+            'not_verifiable': not_verifiable or 0,
+            'opinion':        opinion or 0,
+        },
+        'verdict_count':   verdict_count or 0,
+        'scoreable_count': scoreable_count or 0,
+        'first_verdict_at': first_verdict_at.isoformat() if first_verdict_at else None,
+        'last_verdict_at':  last_verdict_at.isoformat() if last_verdict_at else None,
+        'methodology_version': METHODOLOGY_VERSION,
+    }
 
 
 _leaderboard_cache = {
@@ -304,6 +470,67 @@ def invalidate_leaderboard_cache():
 
 
 def register_leaderboard_routes(app, get_db_conn):
+
+    @app.route('/api/speaker/<int:speaker_id>')
+    def api_speaker(speaker_id):
+        """
+        Returns scoring data for a single speaker by ID.
+        Uses canonical compute_speaker_score() = compute_score() per v1.7.
+        """
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+
+            # Speaker score row
+            cur.execute(SPEAKER_BY_ID_SQL, (speaker_id,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({'error': 'Speaker not found'}), 404
+
+            speaker_data = _build_speaker_row(row)
+
+            # Recent claims
+            cur.execute(SPEAKER_RECENT_CLAIMS_SQL, (speaker_id,))
+            claims = []
+            for c in cur.fetchall():
+                claims.append({
+                    'id':             c[0],
+                    'claim_text':     c[1],
+                    'verdict':        c[2],
+                    'verdict_label':  VERDICT_LABELS.get(c[2], c[2]),
+                    'verdict_summary': c[3],
+                    'first_seen':     c[4].isoformat() if c[4] else None,
+                    'source_name':    c[5],
+                    'short_hash':     c[6],
+                })
+            speaker_data['recent_claims'] = claims
+
+            cur.close()
+            conn.close()
+            return jsonify(speaker_data)
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/speakers')
+    def api_speakers():
+        """
+        Returns all speakers with at least 1 scoreable verdict.
+        Sorted by score descending by default.
+        """
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+            cur.execute(SPEAKER_SCORE_SQL)
+            rows = cur.fetchall()
+            speakers = [_build_speaker_row(row) for row in rows]
+            # Sort by score descending, unscored last
+            speakers.sort(key=lambda s: (s['score'] is not None, s['score'] or 0), reverse=True)
+            cur.close()
+            conn.close()
+            return jsonify({'speakers': speakers, 'count': len(speakers)})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     @app.route("/api/leaderboard")
     def api_leaderboard():
         return jsonify(get_leaderboard_data(get_db_conn))
