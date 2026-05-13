@@ -115,18 +115,32 @@ def _get_event_by_slug(get_db_conn, slug):
             'is_complete':         status == 'complete',
         }
 
-        # Fetch participants (politician speakers with utterances in this event)
+        # Fetch participants — prefer event_speakers (pre-seeded), fall back to utterances
         cur.execute("""
-            SELECT DISTINCT s.id, s.name, s.normalized_name, s.slug,
-                            s.role, s.party, s.speaker_type
-            FROM speaker_utterances su
-            JOIN speakers s ON s.id = su.speaker_id
-            WHERE su.event_id = %s
-              AND s.speaker_type IN ('politician', 'official')
-            ORDER BY s.name
+            SELECT s.id, s.name, s.normalized_name, s.slug,
+                   s.role, s.party, s.speaker_type
+            FROM event_speakers es
+            JOIN speakers s ON s.id = es.speaker_id
+            WHERE es.event_id = %s
+            ORDER BY es.speaker_order
         """, (eid,))
+        rows = cur.fetchall()
+
+        # Fall back to utterance-based detection if no pre-seeded speakers
+        if not rows:
+            cur.execute("""
+                SELECT DISTINCT s.id, s.name, s.normalized_name, s.slug,
+                                s.role, s.party, s.speaker_type
+                FROM speaker_utterances su
+                JOIN speakers s ON s.id = su.speaker_id
+                WHERE su.event_id = %s
+                  AND s.speaker_type IN ('politician', 'official')
+                ORDER BY s.name
+            """, (eid,))
+            rows = cur.fetchall()
+
         participants = []
-        for p in cur.fetchall():
+        for p in rows:
             participants.append({
                 'id':             p[0],
                 'name':           p[1],
