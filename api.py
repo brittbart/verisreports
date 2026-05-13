@@ -803,6 +803,10 @@ def pricing():
 def styles():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'styles.css')
 
+@app.route('/robots.txt', methods=['GET'])
+def robots_txt():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'robots.txt')
+
 @app.route('/how-it-works', methods=['GET'])
 def how_it_works_clean():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'how-it-works.html')
