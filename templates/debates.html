@@ -212,6 +212,9 @@
   .dx-pmono.t-violet { background: rgba(168, 85, 247, 0.18); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.4); }
   .dx-pmono.t-pink   { background: rgba(236, 72, 153, 0.18); color: #fbcfe8; border-color: rgba(236, 72, 153, 0.4); }
   .dx-pmono.t-cyan   { background: rgba(34, 211, 238, 0.18); color: #7dd3fc; border-color: rgba(34, 211, 238, 0.4); }
+  .dx-pmono.t-amber  { background: rgba(251, 191, 36, 0.14);  color: #fcd34d; border-color: rgba(251, 191, 36, 0.35); }
+  .dx-pmono.t-rose   { background: rgba(251, 113, 133, 0.15); color: #fda4af; border-color: rgba(251, 113, 133, 0.35); }
+  .dx-pmono.t-more   { background: rgba(255,255,255,0.05); color: var(--text-3); border-color: var(--border); font-family: var(--font-mono); font-size: 10px; }
   .dx-pmono.t-slate  { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3); }
 
   /* Status + count column */
@@ -398,6 +401,80 @@
         </div>
       </div>
 
+      <!-- STATIC REAL EVENTS — remove once api.py serves events from DB -->
+      <div class="dx-list-wrap" style="margin-bottom: 24px;">
+
+        <div class="dx-group-head is-upcoming">
+          <span><strong>Upcoming</strong></span><span class="rule"></span><span>2 events</span>
+        </div>
+
+        <a class="dx-row is-upcoming" href="#">
+          <div class="dx-date"><div class="dx-date-mo">May</div><div class="dx-date-day">14</div><div class="dx-date-year">2026</div></div>
+          <div>
+            <h2 class="dx-title">Iowa Senate: <em>Democratic primary</em> debate &mdash; Round 2<span class="dx-arrow">&rarr;</span></h2>
+            <div class="dx-meta"><span class="dx-type">Debate</span><span class="sep">&middot;</span><span><strong>Iowa</strong> &middot; U.S. Senate primary</span><span class="sep">&middot;</span><span>Iowa Public Radio</span></div>
+          </div>
+          <div class="dx-participants"><div class="dx-pmono t-violet" title="Josh Turek">JT</div><div class="dx-pmono t-cyan" title="Zach Wahls">ZW</div></div>
+          <div class="dx-right"><span class="dx-status is-upcoming">Scheduled</span><span class="dx-count"><strong>0</strong> claims yet</span></div>
+        </a>
+
+        <a class="dx-row is-upcoming" href="#">
+          <div class="dx-date"><div class="dx-date-mo">Jun</div><div class="dx-date-day">24</div><div class="dx-date-year">2026</div></div>
+          <div>
+            <h2 class="dx-title">Arizona: <em>CCEC</em> primary debate series<span class="dx-arrow">&rarr;</span></h2>
+            <div class="dx-meta"><span class="dx-type">Debate Series</span><span class="sep">&middot;</span><span><strong>Arizona</strong> &middot; Multiple races &middot; Jul 21 primary</span><span class="sep">&middot;</span><span>AZ Citizens Clean Elections Commission</span></div>
+          </div>
+          <div class="dx-participants"><div class="dx-pmono t-slate" title="Multiple candidates">AZ</div><div class="dx-pmono t-more">+</div></div>
+          <div class="dx-right"><span class="dx-status is-upcoming">Scheduled</span><span class="dx-count"><strong>0</strong> claims yet</span></div>
+        </a>
+
+        <div class="dx-group-head is-complete">
+          <span><strong>Completed</strong></span><span class="rule"></span><span>4 events</span>
+        </div>
+
+        <a class="dx-row is-complete" href="#">
+          <div class="dx-date"><div class="dx-date-mo">May</div><div class="dx-date-day">06</div><div class="dx-date-year">2026</div></div>
+          <div>
+            <h2 class="dx-title">Iowa Senate: <em>Democratic primary</em> debate &mdash; Round 1<span class="dx-arrow">&rarr;</span></h2>
+            <div class="dx-meta"><span class="dx-type">Debate</span><span class="sep">&middot;</span><span><strong>Iowa</strong> &middot; U.S. Senate primary</span><span class="sep">&middot;</span><span>Iowa Public Radio transcript</span></div>
+          </div>
+          <div class="dx-participants"><div class="dx-pmono t-violet" title="Josh Turek">JT</div><div class="dx-pmono t-cyan" title="Zach Wahls">ZW</div></div>
+          <div class="dx-right"><span class="dx-status is-complete">Complete</span><span class="dx-count"><strong>0</strong> claims verified</span></div>
+        </a>
+
+        <a class="dx-row is-complete" href="#">
+          <div class="dx-date"><div class="dx-date-mo">May</div><div class="dx-date-day">07</div><div class="dx-date-year">2026</div></div>
+          <div>
+            <h2 class="dx-title">Colorado Governor: <em>Democratic primary</em> debate<span class="dx-arrow">&rarr;</span></h2>
+            <div class="dx-meta"><span class="dx-type">Debate</span><span class="sep">&middot;</span><span><strong>Colorado</strong> &middot; Governor primary &middot; Jun 30 primary</span><span class="sep">&middot;</span><span>CBS News Colorado transcript</span></div>
+          </div>
+          <div class="dx-participants"><div class="dx-pmono t-pink" title="Phil Weiser">PW</div><div class="dx-pmono t-amber" title="Michael Bennet">MB</div></div>
+          <div class="dx-right"><span class="dx-status is-complete">Complete</span><span class="dx-count"><strong>0</strong> claims verified</span></div>
+        </a>
+
+        <a class="dx-row is-complete" href="#">
+          <div class="dx-date"><div class="dx-date-mo">Apr</div><div class="dx-date-day">25</div><div class="dx-date-year">2026</div></div>
+          <div>
+            <h2 class="dx-title">Georgia: <em>Atlanta Press Club</em> debate series<span class="dx-arrow">&rarr;</span></h2>
+            <div class="dx-meta"><span class="dx-type">Debate Series</span><span class="sep">&middot;</span><span><strong>Georgia</strong> &middot; Senate, Governor &amp; statewide &middot; May 19 primary</span><span class="sep">&middot;</span><span>C-SPAN / Atlanta Press Club transcript</span></div>
+          </div>
+          <div class="dx-participants"><div class="dx-pmono t-violet">GA</div><div class="dx-pmono t-rose">SN</div><div class="dx-pmono t-cyan">BH</div><div class="dx-pmono t-more">+5</div></div>
+          <div class="dx-right"><span class="dx-status is-complete">Complete</span><span class="dx-count"><strong>0</strong> claims verified</span></div>
+        </a>
+
+        <a class="dx-row is-complete" href="#">
+          <div class="dx-date"><div class="dx-date-mo">Apr</div><div class="dx-date-day">28</div><div class="dx-date-year">2026</div></div>
+          <div>
+            <h2 class="dx-title">California Governor: <em>Pomona College</em> debate<span class="dx-arrow">&rarr;</span></h2>
+            <div class="dx-meta"><span class="dx-type">Debate</span><span class="sep">&middot;</span><span><strong>Pomona College</strong>, Claremont &middot; Jun 2 primary</span><span class="sep">&middot;</span><span>CBS California transcript</span></div>
+          </div>
+          <div class="dx-participants"><div class="dx-pmono t-violet" title="Xavier Becerra">XB</div><div class="dx-pmono t-pink" title="Katie Porter">KP</div><div class="dx-pmono t-amber" title="Chad Bianco">CB</div><div class="dx-pmono t-cyan" title="Steve Hilton">SH</div><div class="dx-pmono t-more">+4</div></div>
+          <div class="dx-right"><span class="dx-status is-complete">Complete</span><span class="dx-count"><strong>0</strong> claims verified</span></div>
+        </a>
+
+      </div>
+      <!-- END STATIC REAL EVENTS -->
+
       <!-- List -->
       {% if not live_events and not upcoming_events and not complete_events %}
       <div class="dx-empty">
@@ -428,6 +505,9 @@
               {% if e.transcript_source %}<span class="sep">&middot;</span><span>{{ e.transcript_source }} transcript</span>{% endif %}
             </div>
           </div>
+          <div class="dx-participants">
+            {% for p in e.participants %}<div class="dx-pmono {{ p.color }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
+          </div>
           <div class="dx-right">
             <span class="dx-status is-live">Live now</span>
             <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims verified</span>
@@ -457,6 +537,9 @@
               {% if e.transcript_source %}<span class="sep">&middot;</span><span>{{ e.transcript_source }} transcript</span>{% endif %}
             </div>
           </div>
+          <div class="dx-participants">
+            {% for p in e.participants %}<div class="dx-pmono {{ p.color }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
+          </div>
           <div class="dx-right">
             <span class="dx-status is-upcoming">Scheduled</span>
             <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims yet</span>
@@ -485,6 +568,9 @@
               {% if e.venue %}<span class="sep">&middot;</span><span><strong>{{ e.venue }}</strong></span>{% endif %}
               {% if e.transcript_source %}<span class="sep">&middot;</span><span>{{ e.transcript_source }} transcript</span>{% endif %}
             </div>
+          </div>
+          <div class="dx-participants">
+            {% for p in e.participants %}<div class="dx-pmono {{ p.color }}" title="{{ p.name }}">{{ p.initials }}</div>{% endfor %}
           </div>
           <div class="dx-right">
             <span class="dx-status is-complete">Complete</span>
