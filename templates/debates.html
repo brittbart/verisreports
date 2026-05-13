@@ -337,7 +337,7 @@
 <!-- ============= NAV ============= -->
 <nav class="nav" aria-label="Site">
   <div class="nav-inner">
-    <a href="https://www.verumsignal.com/" class="nav-logo" aria-label="Verum Signal home">
+    <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
       <svg width="190" height="26" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
@@ -349,11 +349,11 @@
       <span></span><span></span><span></span>
     </button>
     <div class="nav-links" id="nav-menu">
-      <a href="https://www.verumsignal.com/">Home</a>
+      <a href="/index.html">Home</a>
       <a href="#">How it works</a>
       <a href="#">Pricing</a>
       <a href="#">Leaderboard</a>
-      <a href="debates.html">Debates</a>
+      <a href="/debates">Debates</a>
       <a href="#">Methodology</a>
       <a href="#" class="nav-cta">Get the extension</a>
     </div>
@@ -369,11 +369,10 @@
     <h1 class="display">Debates.</h1>
     <p class="sub">Public debates, speeches, and hearings — claim by claim, as the transcripts come in.</p>
     <div class="hero-meta">
-      <span><span class="live-dot"></span><strong>1 event live now</strong></span>
+      {% if stats.live_count > 0 %}<span><span class="live-dot"></span><strong>{{ stats.live_count }} event{{ "s" if stats.live_count != 1 }} live now</strong></span><span class="dot">·</span>{% endif %}
+      <span>Methodology {{ methodology_version }}</span>
       <span class="dot">·</span>
-      <span>Methodology v1.7</span>
-      <span class="dot">·</span>
-      <span><strong>8 events</strong> tracked</span>
+      <span><strong>{{ stats.live_count + stats.upcoming_count + stats.complete_count }} event{{ "s" if (stats.live_count + stats.upcoming_count + stats.complete_count) != 1 }}</strong> tracked</span>
     </div>
   </div>
 </section>
@@ -386,251 +385,119 @@
       <!-- Counts strip -->
       <div class="dx-stats">
         <div class="dx-stat-cell">
-          <div class="dx-stat-num is-live" data-stat="live-count">1</div>
+          <div class="dx-stat-num is-live">{{ stats.live_count }}</div>
           <div class="dx-stat-label">Live now</div>
         </div>
         <div class="dx-stat-cell">
-          <div class="dx-stat-num is-upc" data-stat="upcoming-count">2</div>
-          <div class="dx-stat-label">Upcoming this month</div>
+          <div class="dx-stat-num is-upc">{{ stats.upcoming_count }}</div>
+          <div class="dx-stat-label">Upcoming</div>
         </div>
         <div class="dx-stat-cell">
-          <div class="dx-stat-num is-done" data-stat="complete-count">5</div>
-          <div class="dx-stat-label">Completed · <span data-stat="total-claims">142</span> claims verified</div>
+          <div class="dx-stat-num is-done">{{ stats.complete_count }}</div>
+          <div class="dx-stat-label">Completed &middot; <span>{{ stats.total_claims }}</span> claims verified</div>
         </div>
       </div>
 
       <!-- List -->
+      {% if not live_events and not upcoming_events and not complete_events %}
+      <div class="dx-empty">
+        <div class="dx-empty-title">No public events yet.</div>
+        <p>Check back soon &mdash; debates and hearings will appear here as they are transcribed and verified.</p>
+      </div>
+      {% else %}
       <div class="dx-list-wrap">
 
-        <!-- LIVE -->
+        {% if live_events %}
         <div class="dx-group-head is-live">
           <span><strong>Live now</strong></span>
           <span class="rule"></span>
-          <span>1 event</span>
+          <span>{{ live_events|length }} event{{ "s" if live_events|length != 1 }}</span>
         </div>
-
-        <a class="dx-row is-live" href="debate.html">
+        {% for e in live_events %}
+        <a class="dx-row is-live" href="/debates/{{ e.slug }}">
           <div class="dx-date">
-            <div class="dx-date-mo">May</div>
-            <div class="dx-date-day">07</div>
-            <div class="dx-date-year">8:00 PM ET</div>
+            <div class="dx-date-mo">{{ e.event_date_mo }}</div>
+            <div class="dx-date-day">{{ e.event_date_day }}</div>
+            <div class="dx-date-year">{{ e.event_date_year }}</div>
           </div>
           <div>
-            <h2 class="dx-title">Reyes – Calloway: a <em>policy debate</em> on western water<span class="dx-arrow">→</span></h2>
+            <h2 class="dx-title">{{ e.event_name }}<span class="dx-arrow">&rarr;</span></h2>
             <div class="dx-meta">
-              <span class="dx-type">Debate</span>
-              <span class="sep">·</span>
-              <span><strong>Stanford University</strong>, Memorial Auditorium</span>
-              <span class="sep">·</span>
-              <span>ABC News transcript</span>
+              <span class="dx-type">{{ e.event_type|capitalize }}</span>
+              {% if e.venue %}<span class="sep">&middot;</span><span><strong>{{ e.venue }}</strong></span>{% endif %}
+              {% if e.transcript_source %}<span class="sep">&middot;</span><span>{{ e.transcript_source }} transcript</span>{% endif %}
             </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-violet">MR</div>
-            <div class="dx-pmono t-pink">TC</div>
           </div>
           <div class="dx-right">
             <span class="dx-status is-live">Live now</span>
-            <span class="dx-count"><strong>14</strong>claims verified</span>
+            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims verified</span>
           </div>
         </a>
+        {% endfor %}
+        {% endif %}
 
-        <!-- UPCOMING -->
-        <div class="dx-group-head is-upcoming">
+        {% if upcoming_events %}
+        <div class="dx-group-head">
           <span><strong>Upcoming</strong></span>
           <span class="rule"></span>
-          <span>2 events</span>
+          <span>{{ upcoming_events|length }} event{{ "s" if upcoming_events|length != 1 }}</span>
         </div>
-
-        <a class="dx-row is-upcoming" href="debate.html#upcoming">
+        {% for e in upcoming_events %}
+        <a class="dx-row" href="/debates/{{ e.slug }}">
           <div class="dx-date">
-            <div class="dx-date-mo">May</div>
-            <div class="dx-date-day">21</div>
-            <div class="dx-date-year">7:00 PM ET</div>
+            <div class="dx-date-mo">{{ e.event_date_mo }}</div>
+            <div class="dx-date-day">{{ e.event_date_day }}</div>
+            <div class="dx-date-year">{{ e.event_date_year }}</div>
           </div>
           <div>
-            <h2 class="dx-title">Halloway – Ondari: climate &amp; coastal policy<span class="dx-arrow">→</span></h2>
+            <h2 class="dx-title">{{ e.event_name }}<span class="dx-arrow">&rarr;</span></h2>
             <div class="dx-meta">
-              <span class="dx-type">Debate</span>
-              <span class="sep">·</span>
-              <span><strong>UC Berkeley</strong>, Zellerbach Hall</span>
-              <span class="sep">·</span>
-              <span>PBS NewsHour transcript</span>
+              <span class="dx-type">{{ e.event_type|capitalize }}</span>
+              {% if e.venue %}<span class="sep">&middot;</span><span><strong>{{ e.venue }}</strong></span>{% endif %}
+              {% if e.transcript_source %}<span class="sep">&middot;</span><span>{{ e.transcript_source }} transcript</span>{% endif %}
             </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-pink">IH</div>
-            <div class="dx-pmono t-cyan">AO</div>
           </div>
           <div class="dx-right">
             <span class="dx-status is-upcoming">Scheduled</span>
-            <span class="dx-count"><strong>0</strong>claims yet</span>
+            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims yet</span>
           </div>
         </a>
+        {% endfor %}
+        {% endif %}
 
-        <a class="dx-row is-upcoming" href="debate.html#upcoming">
-          <div class="dx-date">
-            <div class="dx-date-mo">Jun</div>
-            <div class="dx-date-day">05</div>
-            <div class="dx-date-year">10:00 AM ET</div>
-          </div>
-          <div>
-            <h2 class="dx-title">Sec. Pratt: state of the digital economy<span class="dx-arrow">→</span></h2>
-            <div class="dx-meta">
-              <span class="dx-type">Speech</span>
-              <span class="sep">·</span>
-              <span><strong>Brookings Institution</strong>, Washington DC</span>
-              <span class="sep">·</span>
-              <span>C-SPAN transcript</span>
-            </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-slate">DP</div>
-          </div>
-          <div class="dx-right">
-            <span class="dx-status is-upcoming">Scheduled</span>
-            <span class="dx-count"><strong>0</strong>claims yet</span>
-          </div>
-        </a>
-
-        <!-- COMPLETE -->
-        <div class="dx-group-head is-complete">
+        {% if complete_events %}
+        <div class="dx-group-head">
           <span><strong>Completed</strong></span>
           <span class="rule"></span>
-          <span>5 events · 142 verified claims</span>
+          <span>{{ complete_events|length }} event{{ "s" if complete_events|length != 1 }}</span>
         </div>
-
-        <a class="dx-row is-complete" href="debate.html#static">
+        {% for e in complete_events %}
+        <a class="dx-row" href="/debates/{{ e.slug }}">
           <div class="dx-date">
-            <div class="dx-date-mo">Apr</div>
-            <div class="dx-date-day">28</div>
-            <div class="dx-date-year">2026</div>
+            <div class="dx-date-mo">{{ e.event_date_mo }}</div>
+            <div class="dx-date-day">{{ e.event_date_day }}</div>
+            <div class="dx-date-year">{{ e.event_date_year }}</div>
           </div>
           <div>
-            <h2 class="dx-title">Vega: Arizona inauguration address<span class="dx-arrow">→</span></h2>
+            <h2 class="dx-title">{{ e.event_name }}<span class="dx-arrow">&rarr;</span></h2>
             <div class="dx-meta">
-              <span class="dx-type">Speech</span>
-              <span class="sep">·</span>
-              <span><strong>Arizona State Capitol</strong>, Phoenix</span>
-              <span class="sep">·</span>
-              <span>AZPM transcript</span>
+              <span class="dx-type">{{ e.event_type|capitalize }}</span>
+              {% if e.venue %}<span class="sep">&middot;</span><span><strong>{{ e.venue }}</strong></span>{% endif %}
+              {% if e.transcript_source %}<span class="sep">&middot;</span><span>{{ e.transcript_source }} transcript</span>{% endif %}
             </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-cyan">CV</div>
           </div>
           <div class="dx-right">
             <span class="dx-status is-complete">Complete</span>
-            <span class="dx-count"><strong>23</strong>claims verified</span>
+            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims verified</span>
           </div>
         </a>
-
-        <a class="dx-row is-complete" href="debate.html#static">
-          <div class="dx-date">
-            <div class="dx-date-mo">Apr</div>
-            <div class="dx-date-day">18</div>
-            <div class="dx-date-year">2026</div>
-          </div>
-          <div>
-            <h2 class="dx-title">Lambert: judicial reform floor remarks<span class="dx-arrow">→</span></h2>
-            <div class="dx-meta">
-              <span class="dx-type">Floor speech</span>
-              <span class="sep">·</span>
-              <span><strong>U.S. Senate</strong>, Washington DC</span>
-              <span class="sep">·</span>
-              <span>C-SPAN transcript</span>
-            </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-violet">WL</div>
-          </div>
-          <div class="dx-right">
-            <span class="dx-status is-complete">Complete</span>
-            <span class="dx-count"><strong>18</strong>claims verified</span>
-          </div>
-        </a>
-
-        <a class="dx-row is-complete" href="debate.html#static">
-          <div class="dx-date">
-            <div class="dx-date-mo">Apr</div>
-            <div class="dx-date-day">12</div>
-            <div class="dx-date-year">2026</div>
-          </div>
-          <div>
-            <h2 class="dx-title">Commerce committee: AI policy hearing<span class="dx-arrow">→</span></h2>
-            <div class="dx-meta">
-              <span class="dx-type">Hearing</span>
-              <span class="sep">·</span>
-              <span><strong>Senate Commerce Committee</strong></span>
-              <span class="sep">·</span>
-              <span>C-SPAN transcript</span>
-            </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-slate">DP</div>
-            <div class="dx-pmono t-violet">MH</div>
-            <div class="dx-pmono t-pink">IH</div>
-          </div>
-          <div class="dx-right">
-            <span class="dx-status is-complete">Complete</span>
-            <span class="dx-count"><strong>47</strong>claims verified</span>
-          </div>
-        </a>
-
-        <a class="dx-row is-complete" href="debate.html#static">
-          <div class="dx-date">
-            <div class="dx-date-mo">Apr</div>
-            <div class="dx-date-day">05</div>
-            <div class="dx-date-year">2026</div>
-          </div>
-          <div>
-            <h2 class="dx-title">OMB joint briefing on FY27 outlook<span class="dx-arrow">→</span></h2>
-            <div class="dx-meta">
-              <span class="dx-type">Press conference</span>
-              <span class="sep">·</span>
-              <span><strong>White House Briefing Room</strong></span>
-              <span class="sep">·</span>
-              <span>Pool transcript</span>
-            </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-slate">EV</div>
-            <div class="dx-pmono t-slate">DP</div>
-          </div>
-          <div class="dx-right">
-            <span class="dx-status is-complete">Complete</span>
-            <span class="dx-count"><strong>31</strong>claims verified</span>
-          </div>
-        </a>
-
-        <a class="dx-row is-complete" href="debate.html#static">
-          <div class="dx-date">
-            <div class="dx-date-mo">Mar</div>
-            <div class="dx-date-day">27</div>
-            <div class="dx-date-year">2026</div>
-          </div>
-          <div>
-            <h2 class="dx-title">Bergström: UN address on humanitarian access<span class="dx-arrow">→</span></h2>
-            <div class="dx-meta">
-              <span class="dx-type">Speech</span>
-              <span class="sep">·</span>
-              <span><strong>UN General Assembly</strong>, New York</span>
-              <span class="sep">·</span>
-              <span>UN Web TV transcript</span>
-            </div>
-          </div>
-          <div class="dx-participants">
-            <div class="dx-pmono t-slate">LB</div>
-          </div>
-          <div class="dx-right">
-            <span class="dx-status is-complete">Complete</span>
-            <span class="dx-count"><strong>23</strong>claims verified</span>
-          </div>
-        </a>
+        {% endfor %}
+        {% endif %}
 
       </div>
+      {% endif %}
 
-      <!-- Footer notes -->
+<!-- Footer notes -->
       <div class="dx-footer-notes">
         <p class="dx-note">
           <strong>What appears here.</strong>
@@ -654,6 +521,11 @@
   </div>
 </section>
 
+
+    </div>
+  </div>
+</section>
+
 <!-- ============= FOOTER ============= -->
 <footer class="site-footer">
   <div class="site-footer-inner">
@@ -669,7 +541,7 @@
       <a href="#">Methodology</a>
       <a href="#">How it works</a>
       <a href="#">Leaderboard</a>
-      <a href="debates.html">Debates</a>
+      <a href="/debates">Debates</a>
       <a href="#">Pricing</a>
     </nav>
     <div class="site-footer-meta">Methodology v1.7 · Automated · Auditable</div>
