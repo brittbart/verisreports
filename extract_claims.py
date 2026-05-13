@@ -92,6 +92,9 @@ A claim is only check-worthy if it contains a SPECIFIC, VERIFIABLE FACTUAL ASSER
 - OPINION OR CHARACTERIZATION: Do not extract value judgments, characterizations, or normative statements as factual claims, even when attributed to a named speaker (e.g. "X called Y a crime against human dignity" — the characterization is opinion, not a factual claim).
 - VAGUE ASSERTIONS: Do not extract claims without specific figures, dates, named events, named documents, or concrete outcomes. "The economy is doing badly" is not a claim. "GDP contracted 1.2% in Q3" is a claim.
 - PROCESS STATEMENTS: Do not extract claims that merely describe an article's subject or event (e.g. "The article reports on remarks made at a conference").
+- PERSONAL HEALTH DISCLOSURES: Do not extract claims about a speaker's personal health, medical procedures, or physical condition (e.g. "Senator X said he underwent surgery", "X said she is recovering well").
+- RECALLED OR SECONDHAND QUOTES: Do not extract claims that are one person recalling what another person told them (e.g. "Wood recalls being told by Laffer that..."). These are not directly verifiable.
+- VAGUE SENTIMENT: Do not extract claims that express general sentiment without specific content (e.g. "X said there was some pretty good news", "X expressed optimism about the talks").
 
 A strong attributed claim looks like: "Senator X said the bill would cost $2 trillion over 10 years" or "The Pentagon confirmed 3,000 troops were deployed to X on [date]." A weak attributed claim looks like: "X said Y is important" or "X described the situation as serious."
 

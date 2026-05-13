@@ -237,6 +237,12 @@ WHERE c.speaker_id = %s
   AND c.claim_text NOT ILIKE '%%fake news%%'
   AND c.claim_text NOT ILIKE '%%false reporting%%'
   AND c.claim_text NOT LIKE '%%...%%'
+  AND c.claim_text NOT ILIKE '%%recalls being told%%'
+  AND c.claim_text NOT ILIKE '%%as recalled by%%'
+  AND c.claim_text NOT ILIKE '%%underwent surgery%%'
+  AND c.claim_text NOT ILIKE '%%good news%%'
+  AND c.claim_text NOT ILIKE '%%snake oil%%'
+  AND c.claim_text NOT ILIKE '%%pretty good%%'
 ORDER BY c.first_seen DESC
 LIMIT 20;
 """
