@@ -949,7 +949,7 @@
 
     <h1 class="dt-title">
       {% if event.event_subtitle %}
-        {{ event.event_name | replace(event.event_subtitle, '') | trim | trim(':') | trim('—') | trim() }}: <em>{{ event.event_subtitle }}</em>
+        {{ event.event_name | replace(event.event_subtitle, '') | replace('—', '') | replace('  ', ' ') | trim | trim(':') | trim() }}: <em>{{ event.event_subtitle }}</em>
       {% else %}
         {{ event.event_name }}
       {% endif %}
