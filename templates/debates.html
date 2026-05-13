@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debates — Verum Signal</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  /* ============== DEBATES INDEX ============== */
+
+  .dx-wrap { max-width: 1080px; margin: 0 auto; }
+
+  /* Header strip with counts */
+  .dx-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    margin: 0 auto 40px;
+    overflow: hidden;
+  }
+  .dx-stat-cell {
+    padding: 22px 26px;
+    border-right: 0.5px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  .dx-stat-cell:last-child { border-right: none; }
+  .dx-stat-num {
+    font-family: var(--font-display);
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: -1px;
+    font-weight: 400;
+  }
+  .dx-stat-num.is-live { color: var(--c-supported); }
+  .dx-stat-num.is-upc  { color: var(--c-overstated); }
+  .dx-stat-num.is-done { color: var(--violet-muted); }
+  .dx-stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  /* List */
+  .dx-list-wrap {
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  /* Group header */
+  .dx-group-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 26px;
+    background: rgba(0, 0, 0, 0.22);
+    border-bottom: 0.5px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .dx-group-head .rule { flex: 1; height: 0.5px; background: var(--border); }
+  .dx-group-head strong { color: var(--text-2); font-weight: 500; }
+  .dx-group-head.is-live strong { color: var(--c-supported); }
+  .dx-group-head.is-upcoming strong { color: var(--c-overstated); }
+  .dx-group-head.is-complete strong { color: var(--violet-muted); }
+  .dx-group-head.is-live { background: rgba(74, 222, 128, 0.04); border-bottom-color: rgba(74, 222, 128, 0.15); }
+  .dx-group-head.is-upcoming { background: rgba(251, 191, 36, 0.04); border-bottom-color: rgba(251, 191, 36, 0.15); }
+  .dx-group-head.is-complete { background: rgba(168, 85, 247, 0.03); border-bottom-color: rgba(168, 85, 247, 0.12); }
+
+  /* Event row */
+  .dx-row {
+    display: grid;
+    grid-template-columns: 90px 1fr auto 160px;
+    gap: 22px;
+    align-items: center;
+    padding: 22px 26px;
+    border-bottom: 0.5px solid var(--border);
+    background: transparent;
+    transition: background .12s;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+  }
+  .dx-row:last-child { border-bottom: none; }
+  .dx-row:hover {
+    background: rgba(168, 85, 247, 0.03);
+    color: inherit;
+  }
+  .dx-row.is-live { background: rgba(74, 222, 128, 0.025); }
+  .dx-row.is-live:hover { background: rgba(74, 222, 128, 0.05); }
+  .dx-row.is-upcoming { background: rgba(251, 191, 36, 0.025); }
+  .dx-row.is-upcoming:hover { background: rgba(251, 191, 36, 0.05); }
+  .dx-row.is-complete:hover { background: rgba(168, 85, 247, 0.05); }
+
+  /* Date column */
+  .dx-date {
+    text-align: left;
+    line-height: 1;
+  }
+  .dx-date-mo {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 6px;
+  }
+  .dx-date-day {
+    font-family: var(--font-display);
+    font-size: 36px;
+    color: var(--text);
+    letter-spacing: -1px;
+    font-weight: 400;
+  }
+  .dx-date-year {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--text-3);
+    margin-top: 6px;
+  }
+  .dx-row.is-live .dx-date-day { color: var(--c-supported); }
+  .dx-row.is-upcoming .dx-date-day { color: var(--c-overstated); }
+  .dx-row.is-complete .dx-date-day { color: var(--violet-muted); }
+
+  /* Title column */
+  .dx-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 1.15;
+    letter-spacing: -0.4px;
+    color: var(--text);
+    font-weight: 400;
+    margin: 0 0 8px;
+    transition: color .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .dx-row:hover .dx-title { color: var(--violet-light); }
+  .dx-row.is-live:hover .dx-title { color: var(--c-supported); }
+  .dx-row.is-upcoming:hover .dx-title { color: var(--c-overstated); }
+  .dx-title em { font-style: italic; color: var(--violet-light); transform: skewX(-4deg); display: inline-block; }
+  .dx-arrow {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--violet-light);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all .15s;
+  }
+  .dx-row:hover .dx-arrow { opacity: 1; transform: translateX(0); }
+  .dx-row.is-live .dx-arrow { color: var(--c-supported); }
+  .dx-row.is-upcoming .dx-arrow { color: var(--c-overstated); }
+
+  .dx-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-family: var(--font-sans);
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+  .dx-meta .sep { color: rgba(255, 255, 255, 0.18); }
+  .dx-meta strong { color: var(--text-2); font-weight: 500; }
+  .dx-type {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+  }
+
+  /* Participants column */
+  .dx-participants {
+    display: flex;
+    align-items: center;
+    gap: -6px;
+  }
+  .dx-pmono {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 11px;
+    border: 1.5px solid #0a0a0f;
+    margin-left: -10px;
+    flex-shrink: 0;
+  }
+  .dx-pmono:first-child { margin-left: 0; }
+  .dx-pmono.t-violet { background: rgba(168, 85, 247, 0.18); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.4); }
+  .dx-pmono.t-pink   { background: rgba(236, 72, 153, 0.18); color: #fbcfe8; border-color: rgba(236, 72, 153, 0.4); }
+  .dx-pmono.t-cyan   { background: rgba(34, 211, 238, 0.18); color: #7dd3fc; border-color: rgba(34, 211, 238, 0.4); }
+  .dx-pmono.t-slate  { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3); }
+
+  /* Status + count column */
+  .dx-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .dx-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    letter-spacing: 0.06em;
+  }
+  .dx-count strong {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--text);
+    letter-spacing: -0.4px;
+    font-weight: 400;
+    margin-right: 8px;
+  }
+
+  .dx-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .dx-status::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .dx-status.is-live {
+    color: var(--c-supported);
+    background: rgba(74, 222, 128, 0.08);
+    border: 0.5px solid rgba(74, 222, 128, 0.3);
+  }
+  .dx-status.is-live::before {
+    box-shadow: 0 0 6px currentColor;
+    animation: livePulse 2.4s ease-in-out infinite;
+  }
+  .dx-status.is-upcoming {
+    color: var(--c-overstated);
+    background: rgba(251, 191, 36, 0.10);
+    border: 0.5px solid rgba(251, 191, 36, 0.40);
+  }
+  .dx-status.is-complete {
+    color: var(--violet-muted);
+    background: rgba(168, 85, 247, 0.08);
+    border: 0.5px solid rgba(168, 85, 247, 0.30);
+  }
+
+  /* Footer notes */
+  .dx-footer-notes {
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 0.5px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 48px;
+  }
+  .dx-note {
+    font-size: 13px;
+    color: var(--text-3);
+    line-height: 1.6;
+    font-weight: 300;
+    margin: 0;
+  }
+  .dx-note strong { color: var(--text-2); font-weight: 500; }
+  .dx-note a { color: var(--violet); }
+  .dx-note a:hover { text-decoration: underline; }
+
+  /* Empty state */
+  .dx-empty {
+    padding: 72px 28px;
+    text-align: center;
+    border: 0.5px dashed var(--border);
+    border-radius: 14px;
+    color: var(--text-3);
+  }
+  .dx-empty-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--text-2);
+    margin: 0 0 8px;
+    font-weight: 400;
+    letter-spacing: -0.4px;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .dx-row { grid-template-columns: 70px 1fr auto; gap: 16px; }
+    .dx-right { grid-column: 2 / -1; align-items: flex-start; flex-direction: row; gap: 14px; margin-top: 6px; }
+    .dx-participants { grid-column: 3 / 4; grid-row: 1; }
+    .dx-date-day { font-size: 30px; }
+    .dx-footer-notes { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .dx-stats { grid-template-columns: 1fr; }
+    .dx-stat-cell { border-right: none; border-bottom: 0.5px solid var(--border); padding: 18px 22px; }
+    .dx-stat-cell:last-child { border-bottom: none; }
+    .dx-row { padding: 18px 18px; grid-template-columns: 64px 1fr; gap: 14px; }
+    .dx-participants { grid-column: 1 / -1; grid-row: auto; margin-top: 4px; }
+    .dx-right { grid-column: 1 / -1; flex-wrap: wrap; }
+    .dx-title { font-size: 18px; }
+    .dx-group-head { padding: 12px 18px; }
+  }
+</style>
+</head>
+<body data-page="debates">
+
+<!-- ============= NAV ============= -->
+<nav class="nav" aria-label="Site">
+  <div class="nav-inner">
+    <a href="https://www.verumsignal.com/" class="nav-logo" aria-label="Verum Signal home">
+      <svg width="190" height="26" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-controls="nav-menu" aria-expanded="false" type="button">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-menu">
+      <a href="https://www.verumsignal.com/">Home</a>
+      <a href="#">How it works</a>
+      <a href="#">Pricing</a>
+      <a href="#">Leaderboard</a>
+      <a href="debates.html">Debates</a>
+      <a href="#">Methodology</a>
+      <a href="#" class="nav-cta">Get the extension</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============= HERO ============= -->
+<section class="page-hero is-centered">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="container page-hero-content">
+    <div class="eyebrow">Live events &amp; transcripts</div>
+    <h1 class="display">Debates.</h1>
+    <p class="sub">Public debates, speeches, and hearings — claim by claim, as the transcripts come in.</p>
+    <div class="hero-meta">
+      <span><span class="live-dot"></span><strong>1 event live now</strong></span>
+      <span class="dot">·</span>
+      <span>Methodology v1.7</span>
+      <span class="dot">·</span>
+      <span><strong>8 events</strong> tracked</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============= MAIN ============= -->
+<section class="section" style="padding-top: 8px;">
+  <div class="container">
+    <div class="dx-wrap">
+
+      <!-- Counts strip -->
+      <div class="dx-stats">
+        <div class="dx-stat-cell">
+          <div class="dx-stat-num is-live" data-stat="live-count">1</div>
+          <div class="dx-stat-label">Live now</div>
+        </div>
+        <div class="dx-stat-cell">
+          <div class="dx-stat-num is-upc" data-stat="upcoming-count">2</div>
+          <div class="dx-stat-label">Upcoming this month</div>
+        </div>
+        <div class="dx-stat-cell">
+          <div class="dx-stat-num is-done" data-stat="complete-count">5</div>
+          <div class="dx-stat-label">Completed · <span data-stat="total-claims">142</span> claims verified</div>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="dx-list-wrap">
+
+        <!-- LIVE -->
+        <div class="dx-group-head is-live">
+          <span><strong>Live now</strong></span>
+          <span class="rule"></span>
+          <span>1 event</span>
+        </div>
+
+        <a class="dx-row is-live" href="debate.html">
+          <div class="dx-date">
+            <div class="dx-date-mo">May</div>
+            <div class="dx-date-day">07</div>
+            <div class="dx-date-year">8:00 PM ET</div>
+          </div>
+          <div>
+            <h2 class="dx-title">Reyes – Calloway: a <em>policy debate</em> on western water<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Debate</span>
+              <span class="sep">·</span>
+              <span><strong>Stanford University</strong>, Memorial Auditorium</span>
+              <span class="sep">·</span>
+              <span>ABC News transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-violet">MR</div>
+            <div class="dx-pmono t-pink">TC</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-live">Live now</span>
+            <span class="dx-count"><strong>14</strong>claims verified</span>
+          </div>
+        </a>
+
+        <!-- UPCOMING -->
+        <div class="dx-group-head is-upcoming">
+          <span><strong>Upcoming</strong></span>
+          <span class="rule"></span>
+          <span>2 events</span>
+        </div>
+
+        <a class="dx-row is-upcoming" href="debate.html#upcoming">
+          <div class="dx-date">
+            <div class="dx-date-mo">May</div>
+            <div class="dx-date-day">21</div>
+            <div class="dx-date-year">7:00 PM ET</div>
+          </div>
+          <div>
+            <h2 class="dx-title">Halloway – Ondari: climate &amp; coastal policy<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Debate</span>
+              <span class="sep">·</span>
+              <span><strong>UC Berkeley</strong>, Zellerbach Hall</span>
+              <span class="sep">·</span>
+              <span>PBS NewsHour transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-pink">IH</div>
+            <div class="dx-pmono t-cyan">AO</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-upcoming">Scheduled</span>
+            <span class="dx-count"><strong>0</strong>claims yet</span>
+          </div>
+        </a>
+
+        <a class="dx-row is-upcoming" href="debate.html#upcoming">
+          <div class="dx-date">
+            <div class="dx-date-mo">Jun</div>
+            <div class="dx-date-day">05</div>
+            <div class="dx-date-year">10:00 AM ET</div>
+          </div>
+          <div>
+            <h2 class="dx-title">Sec. Pratt: state of the digital economy<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Speech</span>
+              <span class="sep">·</span>
+              <span><strong>Brookings Institution</strong>, Washington DC</span>
+              <span class="sep">·</span>
+              <span>C-SPAN transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-slate">DP</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-upcoming">Scheduled</span>
+            <span class="dx-count"><strong>0</strong>claims yet</span>
+          </div>
+        </a>
+
+        <!-- COMPLETE -->
+        <div class="dx-group-head is-complete">
+          <span><strong>Completed</strong></span>
+          <span class="rule"></span>
+          <span>5 events · 142 verified claims</span>
+        </div>
+
+        <a class="dx-row is-complete" href="debate.html#static">
+          <div class="dx-date">
+            <div class="dx-date-mo">Apr</div>
+            <div class="dx-date-day">28</div>
+            <div class="dx-date-year">2026</div>
+          </div>
+          <div>
+            <h2 class="dx-title">Vega: Arizona inauguration address<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Speech</span>
+              <span class="sep">·</span>
+              <span><strong>Arizona State Capitol</strong>, Phoenix</span>
+              <span class="sep">·</span>
+              <span>AZPM transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-cyan">CV</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-complete">Complete</span>
+            <span class="dx-count"><strong>23</strong>claims verified</span>
+          </div>
+        </a>
+
+        <a class="dx-row is-complete" href="debate.html#static">
+          <div class="dx-date">
+            <div class="dx-date-mo">Apr</div>
+            <div class="dx-date-day">18</div>
+            <div class="dx-date-year">2026</div>
+          </div>
+          <div>
+            <h2 class="dx-title">Lambert: judicial reform floor remarks<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Floor speech</span>
+              <span class="sep">·</span>
+              <span><strong>U.S. Senate</strong>, Washington DC</span>
+              <span class="sep">·</span>
+              <span>C-SPAN transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-violet">WL</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-complete">Complete</span>
+            <span class="dx-count"><strong>18</strong>claims verified</span>
+          </div>
+        </a>
+
+        <a class="dx-row is-complete" href="debate.html#static">
+          <div class="dx-date">
+            <div class="dx-date-mo">Apr</div>
+            <div class="dx-date-day">12</div>
+            <div class="dx-date-year">2026</div>
+          </div>
+          <div>
+            <h2 class="dx-title">Commerce committee: AI policy hearing<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Hearing</span>
+              <span class="sep">·</span>
+              <span><strong>Senate Commerce Committee</strong></span>
+              <span class="sep">·</span>
+              <span>C-SPAN transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-slate">DP</div>
+            <div class="dx-pmono t-violet">MH</div>
+            <div class="dx-pmono t-pink">IH</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-complete">Complete</span>
+            <span class="dx-count"><strong>47</strong>claims verified</span>
+          </div>
+        </a>
+
+        <a class="dx-row is-complete" href="debate.html#static">
+          <div class="dx-date">
+            <div class="dx-date-mo">Apr</div>
+            <div class="dx-date-day">05</div>
+            <div class="dx-date-year">2026</div>
+          </div>
+          <div>
+            <h2 class="dx-title">OMB joint briefing on FY27 outlook<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Press conference</span>
+              <span class="sep">·</span>
+              <span><strong>White House Briefing Room</strong></span>
+              <span class="sep">·</span>
+              <span>Pool transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-slate">EV</div>
+            <div class="dx-pmono t-slate">DP</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-complete">Complete</span>
+            <span class="dx-count"><strong>31</strong>claims verified</span>
+          </div>
+        </a>
+
+        <a class="dx-row is-complete" href="debate.html#static">
+          <div class="dx-date">
+            <div class="dx-date-mo">Mar</div>
+            <div class="dx-date-day">27</div>
+            <div class="dx-date-year">2026</div>
+          </div>
+          <div>
+            <h2 class="dx-title">Bergström: UN address on humanitarian access<span class="dx-arrow">→</span></h2>
+            <div class="dx-meta">
+              <span class="dx-type">Speech</span>
+              <span class="sep">·</span>
+              <span><strong>UN General Assembly</strong>, New York</span>
+              <span class="sep">·</span>
+              <span>UN Web TV transcript</span>
+            </div>
+          </div>
+          <div class="dx-participants">
+            <div class="dx-pmono t-slate">LB</div>
+          </div>
+          <div class="dx-right">
+            <span class="dx-status is-complete">Complete</span>
+            <span class="dx-count"><strong>23</strong>claims verified</span>
+          </div>
+        </a>
+
+      </div>
+
+      <!-- Footer notes -->
+      <div class="dx-footer-notes">
+        <p class="dx-note">
+          <strong>What appears here.</strong>
+          Public events that have been (or will be) transcribed and run through the Verum Signal evidence pipeline. Each row links to the per-event claim record.
+        </p>
+        <p class="dx-note">
+          <strong>What doesn&apos;t.</strong>
+          Private events, embargoed transcripts, and events where rights restrictions prevent us from publishing a verified record. Non-public events are excluded server-side.
+        </p>
+        <p class="dx-note">
+          <strong>No event scores.</strong>
+          Events are not ranked or rated. Verdict counts describe claims, not participants. <a href="#">Read the methodology →</a>
+        </p>
+        <p class="dx-note">
+          <strong>Corrections.</strong>
+          See a misattributed claim, wrong venue, or other error? Email <a href="mailto:disputes@verumsignal.com">disputes@verumsignal.com</a>.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============= FOOTER ============= -->
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand">
+      <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      </svg>
+      <span class="site-footer-wordmark">VERUM <em>SIGNAL</em></span>
+    </div>
+    <div class="site-footer-tagline">We provide the signals. You decide.</div>
+    <nav class="site-footer-nav">
+      <a href="#">Methodology</a>
+      <a href="#">How it works</a>
+      <a href="#">Leaderboard</a>
+      <a href="debates.html">Debates</a>
+      <a href="#">Pricing</a>
+    </nav>
+    <div class="site-footer-meta">Methodology v1.7 · Automated · Auditable</div>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

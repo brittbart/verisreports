@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reyes – Calloway Debate — Verum Signal</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  /* ============== DEBATE EVENT ============== */
+
+  :root {
+    --cand-a: #a855f7;          /* Reyes — violet */
+    --cand-a-soft: rgba(168, 85, 247, 0.08);
+    --cand-a-border: rgba(168, 85, 247, 0.30);
+    --cand-a-tint: rgba(168, 85, 247, 0.04);
+
+    --cand-b: #ec4899;          /* Calloway — pink */
+    --cand-b-soft: rgba(236, 72, 153, 0.08);
+    --cand-b-border: rgba(236, 72, 153, 0.30);
+    --cand-b-tint: rgba(236, 72, 153, 0.04);
+  }
+
+  /* Tri-state visibility: is-upcoming / is-live / is-static.
+     The dt-mode toggle button group is a prototype-only affordance —
+     in production, state is derived from event date and is_public. */
+  body.is-live .show-when-static,
+  body.is-live .show-when-upcoming,
+  body.is-static .show-when-live,
+  body.is-static .show-when-upcoming,
+  body.is-upcoming .show-when-live,
+  body.is-upcoming .show-when-static { display: none !important; }
+
+  /* ===== Event header ===== */
+  .dt-header-wrap {
+    position: relative;
+    padding: 110px 0 24px;
+    overflow: hidden;
+  }
+  .dt-header-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(168, 85, 247, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168, 85, 247, 0.05) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 90% at 50% 0%, #000 30%, transparent 80%);
+            mask-image: radial-gradient(ellipse 70% 90% at 50% 0%, #000 30%, transparent 80%);
+    pointer-events: none;
+  }
+  .dt-header { position: relative; z-index: 2; }
+
+  .dt-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 20px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .dt-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--violet-light);
+    padding: 7px 14px;
+    background: rgba(168, 85, 247, 0.06);
+    border: 0.5px solid rgba(168, 85, 247, 0.25);
+    border-radius: 100px;
+  }
+  body.is-live .dt-eyebrow {
+    color: var(--c-supported);
+    background: rgba(74, 222, 128, 0.06);
+    border-color: rgba(74, 222, 128, 0.30);
+  }
+  body.is-upcoming .dt-eyebrow {
+    color: var(--c-overstated);
+    background: rgba(251, 191, 36, 0.06);
+    border-color: rgba(251, 191, 36, 0.28);
+  }
+  .dt-eyebrow .countdown-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--c-overstated);
+    box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+    display: inline-block;
+  }
+  .dt-eyebrow .live-dot { background: var(--c-supported); margin-right: 0; }
+
+  /* Mode toggle */
+  .dt-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+  }
+  .dt-mode button {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .dt-mode button:hover { color: var(--text-2); }
+  .dt-mode button.is-active {
+    background: var(--violet);
+    color: #fff;
+  }
+  body.is-live .dt-mode button.is-active {
+    background: var(--c-supported);
+    color: #0a0a0f;
+  }
+  body.is-upcoming .dt-mode button.is-active {
+    background: var(--c-overstated);
+    color: #0a0a0f;
+  }
+  .dt-mode .mode-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.6;
+  }
+  .dt-mode button.is-active .mode-dot { opacity: 1; }
+
+  .dt-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 64px;
+    line-height: 1.0;
+    letter-spacing: -1.6px;
+    margin: 0 0 18px;
+    max-width: 900px;
+  }
+  .dt-title em { font-style: italic; color: var(--violet-light); display: inline-block; transform: skewX(-4deg); }
+
+  .dt-meta-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .dt-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-2);
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+  }
+  .dt-meta-chip strong { color: var(--text); font-weight: 500; }
+  .dt-meta-chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-3); }
+  .dt-meta-chip a { color: var(--violet-light); }
+
+  /* ===== Layout ===== */
+  .dt-main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 32px;
+    margin-top: 40px;
+  }
+
+  /* ===== Participants strip ===== */
+  .dt-participants {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    gap: 18px;
+    align-items: stretch;
+    margin-bottom: 40px;
+  }
+  .dt-participant {
+    padding: 22px 24px;
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .dt-participant.cand-a {
+    border-color: rgba(168, 85, 247, 0.28);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.05), rgba(168, 85, 247, 0.01));
+  }
+  .dt-participant.cand-b {
+    border-color: rgba(236, 72, 153, 0.28);
+    background: linear-gradient(225deg, rgba(236, 72, 153, 0.05), rgba(236, 72, 153, 0.01));
+  }
+  .dt-p-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .cand-a .dt-p-avatar { background: var(--cand-a-soft); border: 0.5px solid var(--cand-a-border); color: var(--cand-a); }
+  .cand-b .dt-p-avatar { background: var(--cand-b-soft); border: 0.5px solid var(--cand-b-border); color: var(--cand-b); }
+  .dt-p-id { flex: 1; min-width: 0; }
+  .dt-p-name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    margin: 0 0 4px;
+  }
+  .dt-p-role {
+    font-size: 12.5px;
+    color: var(--text-3);
+    font-weight: 300;
+  }
+  .dt-p-counts {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .dt-p-counts strong {
+    font-family: var(--font-display);
+    font-size: 26px;
+    color: var(--text);
+    font-weight: 400;
+    letter-spacing: -0.6px;
+    display: block;
+    line-height: 1;
+    margin-bottom: 2px;
+    text-transform: none;
+  }
+  .dt-versus {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--text-3);
+  }
+
+  /* ===== Filter controls (sticky) ===== */
+  .dt-filter-bar {
+    position: sticky;
+    top: 60px;
+    z-index: 10;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .dt-filter-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .dt-filter-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .dt-filter-pill {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 0.5px solid var(--border);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dt-filter-pill:hover { border-color: var(--border-hover); color: var(--text); }
+  .dt-filter-pill.active { background: var(--violet); border-color: var(--violet); color: #fff; }
+  .dt-filter-pill[data-speaker="reyes"].active { background: var(--cand-a); border-color: var(--cand-a); }
+  .dt-filter-pill[data-speaker="calloway"].active { background: var(--cand-b); border-color: var(--cand-b); }
+  .dt-filter-pill .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+  }
+  .dt-filter-pill[data-speaker="reyes"] .dot { background: var(--cand-a); }
+  .dt-filter-pill[data-speaker="calloway"] .dot { background: var(--cand-b); }
+  .dt-filter-pill.active .dot { background: rgba(255, 255, 255, 0.7); }
+
+  .dt-filter-divider {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+  }
+
+  /* ===== Claim feed ===== */
+  .dt-feed { display: flex; flex-direction: column; gap: 8px; }
+
+  /* Watch-live chip (live state only) */
+  .dt-meta-chip--watch {
+    background: rgba(74, 222, 128, 0.06);
+    border-color: rgba(74, 222, 128, 0.30);
+    color: #86efac;
+  }
+  .dt-meta-chip--watch a {
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .dt-meta-chip--watch a:hover { color: var(--c-supported); text-decoration: none; }
+  .dt-meta-chip--watch strong { color: var(--text); font-weight: 500; }
+  .dt-meta-chip--watch .live-dot { margin-right: 0; }
+
+  /* Upcoming-state placeholder */
+  .dt-upcoming-placeholder {
+    display: none;
+    padding: 64px 28px 72px;
+    text-align: center;
+    border: 1.5px dashed rgba(251, 191, 36, 0.45);
+    background: rgba(251, 191, 36, 0.025);
+    border-radius: 14px;
+  }
+  body.is-upcoming .dt-upcoming-placeholder { display: block; }
+  body.is-upcoming .dt-feed,
+  body.is-upcoming .dt-filter-bar,
+  body.is-upcoming .dt-side-card,
+  body.is-upcoming #claim-empty { display: none !important; }
+  .dt-upcoming-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(251, 191, 36, 0.08);
+    border: 0.5px solid rgba(251, 191, 36, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 22px;
+    color: var(--c-overstated);
+  }
+  .dt-upcoming-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 1.1;
+    letter-spacing: -0.6px;
+    color: var(--text);
+    margin: 0 0 8px;
+  }
+  .dt-upcoming-sub {
+    font-size: 14px;
+    color: var(--text-3);
+    line-height: 1.55;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .dt-upcoming-when {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 0.5px dashed rgba(255, 255, 255, 0.08);
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .dt-upcoming-when .stat strong {
+    font-family: var(--font-display);
+    font-size: 36px;
+    line-height: 1;
+    color: var(--text);
+    letter-spacing: -1px;
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .dt-upcoming-when .stat span {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .dt-upcoming-when .stat-sep {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+  }
+
+  /* Stuck verifying — after 90s timeout */
+  .dt-pending.is-stuck {
+    border-style: solid;
+    border-color: var(--border);
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .dt-pending.is-stuck .pulse {
+    background: var(--text-3);
+    box-shadow: none;
+    animation: none;
+    opacity: 0.5;
+  }
+  .dt-pending.is-stuck .label { color: var(--text-3); }
+  .dt-pending.is-stuck .quote { opacity: 0.7; }
+
+  /* Pending claim — live state only */
+  .dt-pending {
+    padding: 18px 22px;
+    border: 0.5px dashed rgba(74, 222, 128, 0.35);
+    border-radius: 12px;
+    background: rgba(74, 222, 128, 0.03);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 4px;
+  }
+  .dt-pending .pulse {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--c-supported);
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.7);
+    animation: livePulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  .dt-pending .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-supported);
+    margin-right: 8px;
+  }
+  .dt-pending .quote {
+    flex: 1;
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    color: var(--text-2);
+    font-style: italic;
+    line-height: 1.45;
+  }
+  .dt-pending .speaker {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* Round divider */
+  .dt-round {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 22px 0 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .dt-round:first-child { margin-top: 0; }
+  .dt-round .rule { flex: 1; height: 0.5px; background: var(--border); }
+  .dt-round strong { color: var(--text-2); font-weight: 500; }
+
+  /* Moderator row */
+  .dt-moderator {
+    padding: 14px 20px;
+    background: rgba(255, 255, 255, 0.015);
+    border-left: 2px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0 8px 8px 0;
+    margin: 4px 0 4px 12px;
+  }
+  .dt-moderator .meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 6px;
+  }
+  .dt-moderator .question {
+    font-family: var(--font-sans);
+    font-style: italic;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--text-2);
+    margin: 0;
+    font-weight: 300;
+  }
+  .dt-moderator .question::before { content: "Q: "; color: var(--text-3); font-style: normal; font-family: var(--font-mono); font-size: 11px; margin-right: 4px; letter-spacing: 0.1em; }
+
+  /* Claim card */
+  .dt-claim {
+    position: relative;
+    padding: 18px 22px 18px 26px;
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.012);
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .15s;
+  }
+  .dt-claim:hover { border-color: var(--border-hover); }
+  .dt-claim::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--border);
+  }
+  .dt-claim.cand-a {
+    background: var(--cand-a-tint);
+    border-color: rgba(168, 85, 247, 0.18);
+  }
+  .dt-claim.cand-a::before { background: var(--cand-a); }
+  .dt-claim.cand-a:hover { border-color: rgba(168, 85, 247, 0.35); background: rgba(168, 85, 247, 0.06); }
+
+  .dt-claim.cand-b {
+    background: var(--cand-b-tint);
+    border-color: rgba(236, 72, 153, 0.18);
+  }
+  .dt-claim.cand-b::before { background: var(--cand-b); }
+  .dt-claim.cand-b:hover { border-color: rgba(236, 72, 153, 0.35); background: rgba(236, 72, 153, 0.06); }
+
+  .dt-claim-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 14px;
+    align-items: start;
+  }
+  .dt-claim-mono {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .cand-a .dt-claim-mono { background: var(--cand-a-soft); border: 0.5px solid var(--cand-a-border); color: var(--cand-a); }
+  .cand-b .dt-claim-mono { background: var(--cand-b-soft); border: 0.5px solid var(--cand-b-border); color: var(--cand-b); }
+
+  .dt-claim-body { min-width: 0; }
+  .dt-claim-speaker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .dt-claim-speaker .name {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .cand-a .dt-claim-speaker .name { color: #d8b4fe; }
+  .cand-b .dt-claim-speaker .name { color: #fbcfe8; }
+  .dt-claim-speaker .role {
+    font-size: 11px;
+    color: var(--text-3);
+    font-weight: 300;
+  }
+  .dt-claim-speaker .time {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    margin-left: auto;
+  }
+  .dt-claim-quote {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.45;
+    color: var(--text);
+    margin: 0 0 10px;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+  }
+
+  .dt-claim-aside {
+    text-align: right;
+  }
+  .dt-claim-expand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid var(--border);
+    color: var(--text-3);
+    border-radius: 50%;
+    transition: all .15s;
+    margin-top: 4px;
+  }
+  .dt-claim:hover .dt-claim-expand { color: var(--text); border-color: var(--border-hover); }
+  .dt-claim.is-expanded .dt-claim-expand { transform: rotate(180deg); background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3); color: var(--violet-light); }
+
+  /* Expanded body */
+  .dt-claim-detail {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 0.5px solid var(--border);
+    padding-left: 46px;
+  }
+  .dt-claim.is-expanded .dt-claim-detail { display: block; }
+  .dt-claim-summary {
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text-2);
+    margin: 0 0 12px;
+    font-weight: 300;
+  }
+  .dt-claim-evidence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .dt-claim-evidence .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-right: 6px;
+  }
+  .dt-claim-evidence a {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--violet-light);
+    padding: 4px 10px;
+    background: rgba(168, 85, 247, 0.06);
+    border: 0.5px solid rgba(168, 85, 247, 0.20);
+    border-radius: 4px;
+    transition: all .15s;
+  }
+  .dt-claim-evidence a:hover { background: rgba(168, 85, 247, 0.14); border-color: rgba(168, 85, 247, 0.40); }
+  .dt-claim-detail-foot {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .dt-claim-report {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--violet-light);
+    padding: 6px 12px;
+    border: 0.5px solid rgba(168, 85, 247, 0.25);
+    border-radius: 6px;
+    margin-left: auto;
+  }
+  .dt-claim-report:hover { background: rgba(168, 85, 247, 0.08); text-decoration: none; }
+
+  /* ===== Sidebar ===== */
+  .dt-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .dt-side-block {
+    position: sticky;
+    top: 120px;
+    align-self: start;
+  }
+  .dt-side-card {
+    padding: 20px 22px;
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .dt-side-card.cand-a { border-color: rgba(168, 85, 247, 0.22); background: linear-gradient(180deg, rgba(168, 85, 247, 0.04), rgba(168, 85, 247, 0.01)); }
+  .dt-side-card.cand-b { border-color: rgba(236, 72, 153, 0.22); background: linear-gradient(180deg, rgba(236, 72, 153, 0.04), rgba(236, 72, 153, 0.01)); }
+  .dt-side-card + .dt-side-card { margin-top: 12px; }
+  .dt-side-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .dt-side-mono {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .cand-a .dt-side-mono { background: var(--cand-a-soft); border: 0.5px solid var(--cand-a-border); color: var(--cand-a); }
+  .cand-b .dt-side-mono { background: var(--cand-b-soft); border: 0.5px solid var(--cand-b-border); color: var(--cand-b); }
+  .dt-side-name {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .dt-side-role {
+    font-size: 11px;
+    color: var(--text-3);
+    font-weight: 300;
+    margin-top: 1px;
+  }
+  .dt-side-total {
+    margin-left: auto;
+    font-family: var(--font-display);
+    font-size: 28px;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.5px;
+    font-weight: 400;
+  }
+  .dt-side-total-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    text-align: right;
+  }
+  .dt-side-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+    margin-bottom: 12px;
+  }
+  .dt-side-bar .seg { transition: opacity .15s; }
+  .dt-side-bar .seg:hover { opacity: 0.85; }
+
+  .dt-side-counts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 14px;
+  }
+  .dt-side-count {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 0;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .dt-side-count .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dt-side-count .name { font-size: 11.5px; color: var(--text-3); }
+  .dt-side-count .num { margin-left: auto; font-family: var(--font-mono); color: var(--text); font-variant-numeric: tabular-nums; font-weight: 500; font-size: 12px; }
+  .dt-side-count.is-zero { opacity: 0.4; }
+
+  .dt-side-note {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 0.5px solid var(--border);
+    font-size: 11.5px;
+    color: var(--text-3);
+    line-height: 1.5;
+    font-weight: 300;
+  }
+
+  /* Disclaimer mini */
+  .dt-disclaimer {
+    padding: 12px 14px;
+    background: rgba(168, 85, 247, 0.04);
+    border: 0.5px solid rgba(168, 85, 247, 0.18);
+    border-radius: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-2);
+  }
+  .dt-disclaimer svg { width: 14px; height: 14px; color: var(--violet-light); flex-shrink: 0; margin-top: 1px; }
+  .dt-disclaimer strong { color: var(--text); font-weight: 500; }
+
+  /* Empty state */
+  .dt-empty {
+    padding: 56px 24px;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 14px;
+    display: none;
+    border: 0.5px dashed var(--border);
+    border-radius: 14px;
+  }
+  .dt-empty.is-visible { display: block; }
+
+  /* Footer notes */
+  .dt-footnotes {
+    grid-column: 1 / -1;
+    margin-top: 56px;
+    padding-top: 36px;
+    border-top: 0.5px solid var(--border);
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 36px;
+  }
+  .dt-footnotes h3 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.4px;
+    margin: 0 0 12px;
+    color: var(--text);
+  }
+  .dt-footnotes p {
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text-3);
+    font-weight: 300;
+    margin: 0 0 10px;
+  }
+  .dt-footnotes a { color: var(--violet); }
+  .dt-footnotes a:hover { text-decoration: underline; }
+  .dt-footnotes .sp-correction {
+    padding: 22px 24px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+  }
+  .dt-footnotes .sp-correction h3 { font-size: 18px; margin-bottom: 8px; }
+  .dt-footnotes .sp-correction p { margin-bottom: 14px; }
+  .dt-correction-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    background: var(--violet);
+    color: #fff !important;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background .15s;
+  }
+  .dt-correction-btn:hover { background: #6d28d9; text-decoration: none !important; }
+
+  @media (max-width: 1024px) {
+    .dt-main { grid-template-columns: 1fr; }
+    .dt-side { grid-row: auto; flex-direction: row; gap: 12px; }
+    .dt-side-block { position: relative; top: auto; flex: 1; }
+    .dt-disclaimer { grid-column: 1 / -1; }
+  }
+  @media (max-width: 720px) {
+    .dt-header-wrap { padding-top: 90px; }
+    .dt-title { font-size: 38px; letter-spacing: -1px; }
+    .dt-participants { grid-template-columns: 1fr; gap: 10px; }
+    .dt-versus { display: none; }
+    .dt-side { flex-direction: column; }
+    .dt-claim { padding: 16px 18px 16px 22px; }
+    .dt-claim-row { grid-template-columns: 28px 1fr 24px; gap: 10px; }
+    .dt-claim-mono { width: 28px; height: 28px; font-size: 11px; }
+    .dt-claim-quote { font-size: 15px; }
+    .dt-claim-detail { padding-left: 0; }
+    .dt-filter-bar { padding: 12px; gap: 12px; }
+    .dt-footnotes { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-page="debate" class="is-live">
+
+<!-- ============= NAV ============= -->
+<nav class="nav" aria-label="Site">
+  <div class="nav-inner">
+    <a href="https://www.verumsignal.com/" class="nav-logo" aria-label="Verum Signal home">
+      <svg width="190" height="26" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-controls="nav-menu" aria-expanded="false" type="button">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-menu">
+      <a href="https://www.verumsignal.com/">Home</a>
+      <a href="#">How it works</a>
+      <a href="#">Pricing</a>
+      <a href="#">Leaderboard</a>
+      <a href="debates.html">Debates</a>
+      <a href="#">Methodology</a>
+      <a href="#" class="nav-cta">Get the extension</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============= HEADER ============= -->
+<section class="dt-header-wrap">
+  <div class="dt-header-grid"></div>
+  <div class="container dt-header">
+
+    <!-- Breadcrumb -->
+    <nav class="crumb" aria-label="Breadcrumb">
+      <a href="https://www.verumsignal.com/">Home</a>
+      <span class="sep">/</span>
+      <a href="#">Debates</a>
+      <span class="sep">/</span>
+      <span class="current">Reyes – Calloway Policy Debate</span>
+    </nav>
+
+    <div class="dt-status-row">
+      <span class="dt-eyebrow">
+        <span class="show-when-live"><span class="live-dot"></span>Live · Round 2 of 4</span>
+        <span class="show-when-static">Verified event · Complete</span>
+        <span class="show-when-upcoming"><span class="countdown-dot"></span>Upcoming · Starts in <strong id="countdown">2h 14m</strong></span>
+      </span>
+
+      <!-- Live / Post-event toggle — prototype-only.
+           In production the toggle is omitted: state is derived from event date. -->
+      <div class="dt-mode" role="tablist" aria-label="Debate state">
+        <button id="mode-upcoming" type="button" role="tab" aria-selected="false">
+          <span class="mode-dot"></span>Upcoming
+        </button>
+        <button id="mode-live" class="is-active" type="button" role="tab" aria-selected="true">
+          <span class="mode-dot"></span>Live
+        </button>
+        <button id="mode-static" type="button" role="tab" aria-selected="false">
+          <span class="mode-dot"></span>Post-event
+        </button>
+      </div>
+    </div>
+
+    <h1 class="dt-title">Reyes – Calloway: a <em style="font-style: normal; transform: none;">policy debate</em> on western water.</h1>
+
+    <div class="dt-meta-row">
+      <span class="dt-meta-chip"><span class="dot"></span>May 7, 2026 · <strong>8:00pm ET</strong></span>
+      <span class="dt-meta-chip"><span class="dot"></span>Stanford University, Memorial Auditorium</span>
+      <span class="dt-meta-chip"><span class="dot"></span>Transcript source: <strong>ABC News</strong></span>
+      <span class="dt-meta-chip"><span class="dot"></span>Methodology <a href="#">v1.7 →</a></span>
+      <span class="show-when-live dt-meta-chip dt-meta-chip--watch">
+        <span class="live-dot"></span>
+        <a href="#" target="_blank" rel="noopener">Watch live on <strong>ABC News</strong> →</a>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ============= MAIN ============= -->
+<section class="section">
+  <div class="container">
+    <div class="dt-main">
+
+      <!-- Participants strip -->
+      <div class="dt-participants">
+        <div class="dt-participant cand-a">
+          <div class="dt-p-avatar">MR</div>
+          <div class="dt-p-id">
+            <h3 class="dt-p-name">Sen. Mara Reyes</h3>
+            <div class="dt-p-role">Senator (California)</div>
+          </div>
+          <div class="dt-p-counts">
+            <strong id="ct-a-total">7</strong>
+            <span>Claims verified</span>
+          </div>
+        </div>
+        <div class="dt-versus">vs.</div>
+        <div class="dt-participant cand-b">
+          <div class="dt-p-avatar">TC</div>
+          <div class="dt-p-id">
+            <h3 class="dt-p-name">Gov. Tobias Calloway</h3>
+            <div class="dt-p-role">Governor of Texas</div>
+          </div>
+          <div class="dt-p-counts">
+            <strong id="ct-b-total">7</strong>
+            <span>Claims verified</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Claim feed ===== -->
+      <div>
+
+        <!-- Sticky filter -->
+        <div class="dt-filter-bar">
+          <span class="dt-filter-label">Speaker</span>
+          <div class="dt-filter-row" id="speaker-filter">
+            <button class="dt-filter-pill active" data-speaker="all">All</button>
+            <button class="dt-filter-pill" data-speaker="reyes"><span class="dot"></span>Reyes</button>
+            <button class="dt-filter-pill" data-speaker="calloway"><span class="dot"></span>Calloway</button>
+          </div>
+          <span class="dt-filter-divider"></span>
+          <span class="dt-filter-label">Verdict</span>
+          <div class="dt-filter-row" id="verdict-filter">
+            <button class="dt-filter-pill active" data-verdict="all">All</button>
+            <button class="dt-filter-pill" data-verdict="supported">Supported</button>
+            <button class="dt-filter-pill" data-verdict="plausible">Plausible</button>
+            <button class="dt-filter-pill" data-verdict="overstated">Overstated</button>
+            <button class="dt-filter-pill" data-verdict="disputed">Disputed</button>
+            <button class="dt-filter-pill" data-verdict="not-supported">Not supported</button>
+          </div>
+        </div>
+
+        <!-- Upcoming-state placeholder -->
+        <div class="dt-upcoming-placeholder">
+          <div class="dt-upcoming-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <polyline points="12 7 12 12 15 14"/>
+            </svg>
+          </div>
+          <h3 class="dt-upcoming-title">Debate hasn&apos;t started yet.</h3>
+          <p class="dt-upcoming-sub">Verified claims will appear here in real time once the debate begins. Watch the official broadcast on ABC News when it goes live.</p>
+          <div class="dt-upcoming-when">
+            <div class="stat"><strong id="upc-h">2</strong><span>Hours</span></div>
+            <div class="stat-sep"></div>
+            <div class="stat"><strong id="upc-m">14</strong><span>Minutes</span></div>
+            <div class="stat-sep"></div>
+            <div class="stat"><strong id="upc-s">38</strong><span>Seconds</span></div>
+          </div>
+        </div>
+
+        <!-- Pending claim — live only -->
+        <div class="show-when-live dt-pending">
+          <span class="pulse"></span>
+          <span class="label">Verifying</span>
+          <span class="quote">"Texas added more energy capacity last year than the next three states combined."</span>
+          <span class="speaker" style="color: #fbcfe8;">Gov. Calloway · 9:14pm</span>
+        </div>
+
+        <div class="dt-feed" id="claim-feed">
+
+          <!-- ============= ROUND 2 ============= -->
+          <div class="dt-round" data-row="round">
+            <strong>Round 2</strong>
+            <span class="rule"></span>
+            <span>Energy reliability &amp; cross-state grids</span>
+          </div>
+
+          <div class="dt-moderator" data-row="moderator">
+            <div class="meta">Moderator · Anchor Diana Hsu · 9:08pm</div>
+            <p class="question">Governor, your state recently weathered a major heatwave with intermittent grid alerts. What specifically would you do differently in a federal framework?</p>
+          </div>
+
+          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="overstated">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">TC</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Gov. Calloway</span>
+                  <span class="role">· Governor of Texas</span>
+                  <span class="time">9:09pm</span>
+                </div>
+                <p class="dt-claim-quote">"Our grid added more capacity last winter than every other state on the western interconnect combined."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--overstated">Overstated</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">Texas added more capacity than several individual western states, but EIA Form 860 data shows the combined western interconnect added approximately 1.4× as much capacity over the same period. The comparison framing exceeds what the data supports.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">EIA Form 860 (2025)</a>
+                <a href="#">ERCOT IRA capacity report</a>
+                <a href="#">WECC interconnect filings</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">MR</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Sen. Reyes</span>
+                  <span class="role">· Senator (California)</span>
+                  <span class="time">9:11pm</span>
+                </div>
+                <p class="dt-claim-quote">"California's reservoirs are at 88 percent of historical average for April."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--supported">Supported</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">California DWR Apr. 15 bulletin reports statewide major reservoir storage at 88% of the 1991–2020 historical average. Matches the figure stated.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">DWR Apr-15 bulletin</a>
+                <a href="#">USGS reservoir storage data</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="plausible">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">MR</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Sen. Reyes</span>
+                  <span class="role">· Senator (California)</span>
+                  <span class="time">9:12pm</span>
+                </div>
+                <p class="dt-claim-quote">"Roughly one in four farms in the San Joaquin Valley is reliant on this allocation."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--plausible">Plausible</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">USDA NASS 2022 data places the figure in the 22–28% range. "One in four" sits inside this range but is imprecise.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">USDA NASS 2022</a>
+                <a href="#">CRS appendix B</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="disputed">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">TC</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Gov. Calloway</span>
+                  <span class="role">· Governor of Texas</span>
+                  <span class="time">9:13pm</span>
+                </div>
+                <p class="dt-claim-quote">"My opponent's home state has lost a quarter of a million people to other states in the last two years."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--disputed">Disputed</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">Census Bureau ACS estimates show net domestic out-migration from California of approximately 119,000 over the two years referenced — about half the figure stated. Net population change is also partially offset by international migration and births.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">Census ACS 2024</a>
+                <a href="#">CA Dept. of Finance demographics</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- ============= ROUND 1 ============= -->
+          <div class="dt-round" data-row="round">
+            <strong>Round 1</strong>
+            <span class="rule"></span>
+            <span>Western water reform</span>
+          </div>
+
+          <div class="dt-moderator" data-row="moderator">
+            <div class="meta">Moderator · Anchor Diana Hsu · 8:32pm</div>
+            <p class="question">Senator, you introduced the Western Water Security Act last month. What does it actually do, and why now?</p>
+          </div>
+
+          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">MR</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Sen. Reyes</span>
+                  <span class="role">· Senator (California)</span>
+                  <span class="time">8:33pm</span>
+                </div>
+                <p class="dt-claim-quote">"The Western Water Security Act passed the Senate 61 to 38."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--supported">Supported</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">Senate roll-call vote 314 (Apr. 24, 2026) confirms a 61–38 passage. Matches the official Senate record.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">Senate.gov roll-call 314</a>
+                <a href="#">C-SPAN transcript</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="overstated">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">MR</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Sen. Reyes</span>
+                  <span class="role">· Senator (California)</span>
+                  <span class="time">8:34pm</span>
+                </div>
+                <p class="dt-claim-quote">"This bill will permanently end all interstate water disputes in the West."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--overstated">Overstated</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">The bill creates an arbitration framework, but its text limits scope to specified river systems. "Permanently end all" exceeds what the bill provides.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">Section 4, H.R. 2811</a>
+                <a href="#">CRS legal analysis</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <div class="dt-moderator" data-row="moderator">
+            <div class="meta">Moderator · Anchor Diana Hsu · 8:36pm</div>
+            <p class="question">Governor, you've opposed federal water frameworks. What's your specific objection?</p>
+          </div>
+
+          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="supported">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">TC</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Gov. Calloway</span>
+                  <span class="role">· Governor of Texas</span>
+                  <span class="time">8:38pm</span>
+                </div>
+                <p class="dt-claim-quote">"Texas has filed three separate amicus briefs against the existing Colorado River framework."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--supported">Supported</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">Court records show Texas filed amicus briefs on the Colorado River compact in 2022, 2024, and 2025 — three filings total, matching the figure stated.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">PACER court records</a>
+                <a href="#">TX AG filings index</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="not-supported">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">TC</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Gov. Calloway</span>
+                  <span class="role">· Governor of Texas</span>
+                  <span class="time">8:39pm</span>
+                </div>
+                <p class="dt-claim-quote">"Federal water spending has tripled in the last four years."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--not-supported">Not supported</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">USDA and DOI line-item appropriations data show federal water-program spending increased approximately 19% over the period referenced — not a tripling. No source supports the claim.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">DOI appropriations FY22–26</a>
+                <a href="#">OMB MAX historical</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="plausible">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">TC</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Gov. Calloway</span>
+                  <span class="role">· Governor of Texas</span>
+                  <span class="time">8:42pm</span>
+                </div>
+                <p class="dt-claim-quote">"Most of our state's water rights go back more than a century."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--plausible">Plausible</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">Texas Water Development Board records indicate a majority of senior water rights pre-date 1924, consistent with "more than a century" though the exact percentage isn't specified by the governor.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">TWDB historical rights index</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">MR</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Sen. Reyes</span>
+                  <span class="role">· Senator (California)</span>
+                  <span class="time">8:45pm</span>
+                </div>
+                <p class="dt-claim-quote">"The bill allocates $4.2 billion over seven years."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--supported">Supported</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">CBO scoring confirms $4.2B authorized over FY2026–FY2032.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">CBO score, March 2026</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="supported">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">MR</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Sen. Reyes</span>
+                  <span class="role">· Senator (California)</span>
+                  <span class="time">8:47pm</span>
+                </div>
+                <p class="dt-claim-quote">"The bill had 14 bipartisan co-sponsors at introduction."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--supported">Supported</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">Congress.gov shows 14 co-sponsors at the bill's introduction (Mar. 8, 2026), affiliations split across both major parties.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">Congress.gov S. 1402</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="overstated">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">TC</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Gov. Calloway</span>
+                  <span class="role">· Governor of Texas</span>
+                  <span class="time">8:49pm</span>
+                </div>
+                <p class="dt-claim-quote">"Texas now produces more clean energy than any other state in the country."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--overstated">Overstated</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">EIA data shows Texas leads in wind generation, but California produces more solar and overall renewable generation when hydroelectric is included. "More clean energy than any other state" depends on definition and is not categorically true.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">EIA Electric Power Monthly</a>
+                <a href="#">EIA state-level renewables</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-a" data-row="claim" data-speaker="reyes" data-verdict="corroborated">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">MR</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Sen. Reyes</span>
+                  <span class="role">· Senator (California)</span>
+                  <span class="time">8:53pm</span>
+                </div>
+                <p class="dt-claim-quote">"Three states have already signed compact-equivalent agreements based on the framework."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--corroborated">Corroborated</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">Independently confirmed by state agency releases from Arizona (Mar 22), Nevada (Mar 30), and New Mexico (Apr 5). Each cites the same framework draft.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">AZ DWR release</a>
+                <a href="#">NV state archives</a>
+                <a href="#">NM OSE bulletin</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+          <article class="dt-claim cand-b" data-row="claim" data-speaker="calloway" data-verdict="supported">
+            <div class="dt-claim-row">
+              <div class="dt-claim-mono">TC</div>
+              <div class="dt-claim-body">
+                <div class="dt-claim-speaker">
+                  <span class="name">Gov. Calloway</span>
+                  <span class="role">· Governor of Texas</span>
+                  <span class="time">8:55pm</span>
+                </div>
+                <p class="dt-claim-quote">"Our state is currently the country's largest agricultural exporter by total value."</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="v-pill v-pill--supported">Supported</span>
+                  <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.06em;">Click to expand</span>
+                </div>
+              </div>
+              <div class="dt-claim-aside">
+                <button class="dt-claim-expand" aria-label="Expand claim">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="dt-claim-detail">
+              <p class="dt-claim-summary">USDA Economic Research Service 2025 export rankings place Texas first by total agricultural export value. Matches the claim.</p>
+              <div class="dt-claim-evidence">
+                <span class="label">Evidence</span>
+                <a href="#">USDA ERS 2025 rankings</a>
+              </div>
+              <div class="dt-claim-detail-foot">
+                <a href="#" class="dt-claim-report">View full report →</a>
+              </div>
+            </div>
+          </article>
+
+        </div>
+
+        <div class="dt-empty" id="claim-empty">
+          <strong>No claims match the current filters.</strong>
+          <div style="margin-top: 8px;">Try selecting "All" speakers or verdicts.</div>
+        </div>
+      </div>
+
+      <!-- ===== Sidebar ===== -->
+      <aside class="dt-side">
+        <div class="dt-side-block">
+
+          <!-- Disclaimer -->
+          <div class="dt-disclaimer" style="margin-bottom: 12px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span><strong>Counts are a navigation aid — not a score.</strong> No aggregate rating is computed for either participant.</span>
+          </div>
+
+          <!-- Per-speaker summary cards -->
+          <div class="dt-side-card cand-a">
+            <div class="dt-side-head">
+              <div class="dt-side-mono">MR</div>
+              <div>
+                <div class="dt-side-name">Sen. Reyes</div>
+                <div class="dt-side-role">California</div>
+              </div>
+              <div style="margin-left: auto; text-align: right;">
+                <div class="dt-side-total">7</div>
+                <div class="dt-side-total-label">verified</div>
+              </div>
+            </div>
+            <div class="dt-side-bar">
+              <div class="seg" style="background: var(--c-supported); flex: 4;" title="Supported: 4"></div>
+              <div class="seg" style="background: var(--c-plausible); flex: 1;" title="Plausible: 1"></div>
+              <div class="seg" style="background: var(--c-corroborated); flex: 1;" title="Corroborated: 1"></div>
+              <div class="seg" style="background: var(--c-overstated); flex: 1;" title="Overstated: 1"></div>
+            </div>
+            <div class="dt-side-counts">
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-supported);"></span><span class="name">Supported</span><span class="num">4</span></div>
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-plausible);"></span><span class="name">Plausible</span><span class="num">1</span></div>
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-corroborated);"></span><span class="name">Corroborated</span><span class="num">1</span></div>
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-overstated);"></span><span class="name">Overstated</span><span class="num">1</span></div>
+              <div class="dt-side-count is-zero"><span class="dot" style="background: var(--c-disputed);"></span><span class="name">Disputed</span><span class="num">0</span></div>
+              <div class="dt-side-count is-zero"><span class="dot" style="background: var(--c-not-supported);"></span><span class="name">Not supported</span><span class="num">0</span></div>
+            </div>
+            <div class="dt-side-note">Counts above are for this event only.</div>
+          </div>
+
+          <div class="dt-side-card cand-b">
+            <div class="dt-side-head">
+              <div class="dt-side-mono">TC</div>
+              <div>
+                <div class="dt-side-name">Gov. Calloway</div>
+                <div class="dt-side-role">Texas</div>
+              </div>
+              <div style="margin-left: auto; text-align: right;">
+                <div class="dt-side-total">7</div>
+                <div class="dt-side-total-label">verified</div>
+              </div>
+            </div>
+            <div class="dt-side-bar">
+              <div class="seg" style="background: var(--c-supported); flex: 2;" title="Supported: 2"></div>
+              <div class="seg" style="background: var(--c-plausible); flex: 1;" title="Plausible: 1"></div>
+              <div class="seg" style="background: var(--c-overstated); flex: 2;" title="Overstated: 2"></div>
+              <div class="seg" style="background: var(--c-disputed); flex: 1;" title="Disputed: 1"></div>
+              <div class="seg" style="background: var(--c-not-supported); flex: 1;" title="Not supported: 1"></div>
+            </div>
+            <div class="dt-side-counts">
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-supported);"></span><span class="name">Supported</span><span class="num">2</span></div>
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-plausible);"></span><span class="name">Plausible</span><span class="num">1</span></div>
+              <div class="dt-side-count is-zero"><span class="dot" style="background: var(--c-corroborated);"></span><span class="name">Corroborated</span><span class="num">0</span></div>
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-overstated);"></span><span class="name">Overstated</span><span class="num">2</span></div>
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-disputed);"></span><span class="name">Disputed</span><span class="num">1</span></div>
+              <div class="dt-side-count"><span class="dot" style="background: var(--c-not-supported);"></span><span class="name">Not supported</span><span class="num">1</span></div>
+            </div>
+            <div class="dt-side-note">Counts above are for this event only.</div>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- ===== Footnotes ===== -->
+      <div class="dt-footnotes" id="correction">
+        <div>
+          <h3>What this page shows</h3>
+          <p>
+            Verified claims made by participants during this debate, as captured from the ABC News broadcast transcript. Each verdict applies to a single claim. The same evidence pipeline is applied regardless of who is speaking.
+          </p>
+          <p>
+            <strong style="color: var(--text-2);">No aggregate score is computed</strong> for the event or for either participant. Per methodology v1.7, verdicts are statements about claims, not about people. Moderator questions appear as context and are not verdicted.
+          </p>
+          <p>
+            <a href="#">Read the full methodology →</a>
+          </p>
+        </div>
+
+        <aside class="sp-correction">
+          <h3>Spot something wrong?</h3>
+          <p>
+            If a verdict, attribution, or transcript line looks incorrect, send us the timestamp and what you observed.
+          </p>
+          <a href="mailto:disputes@verumsignal.com" class="dt-correction-btn">
+            disputes@verumsignal.com
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </aside>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============= FOOTER ============= -->
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand">
+      <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      </svg>
+      <span class="site-footer-wordmark">VERUM <em>SIGNAL</em></span>
+    </div>
+    <div class="site-footer-tagline">We provide the signals. You decide.</div>
+    <nav class="site-footer-nav">
+      <a href="#">Methodology</a>
+      <a href="#">How it works</a>
+      <a href="#">Leaderboard</a>
+      <a href="debates.html">Debates</a>
+      <a href="#">Pricing</a>
+    </nav>
+    <div class="site-footer-meta">Methodology v1.7 · Automated · Auditable</div>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+<script>
+  // ============= DEBATE — mode toggle, filters, expand, timeout =============
+  (function () {
+    const body = document.body;
+    const upcBtn   = document.getElementById("mode-upcoming");
+    const liveBtn  = document.getElementById("mode-live");
+    const staticBtn= document.getElementById("mode-static");
+    const pending  = document.querySelector(".dt-pending");
+
+    const STUCK_AFTER_MS = 90 * 1000; // 90s spec
+    let stuckTimer = null;
+
+    function clearStuckTimer() {
+      if (stuckTimer) { clearTimeout(stuckTimer); stuckTimer = null; }
+    }
+    function armStuckTimer() {
+      clearStuckTimer();
+      if (!pending) return;
+      pending.classList.remove("is-stuck");
+      const labelEl = pending.querySelector(".label");
+      if (labelEl) labelEl.textContent = "Verifying";
+      stuckTimer = setTimeout(() => {
+        pending.classList.add("is-stuck");
+        if (labelEl) labelEl.textContent = "Taking longer than expected";
+      }, STUCK_AFTER_MS);
+    }
+
+    function setMode(mode) {
+      body.classList.remove("is-live", "is-static", "is-upcoming");
+      [upcBtn, liveBtn, staticBtn].forEach((b) => {
+        b.classList.remove("is-active");
+        b.setAttribute("aria-selected", "false");
+      });
+      let activeBtn;
+      if (mode === "live") {
+        body.classList.add("is-live");
+        activeBtn = liveBtn;
+        armStuckTimer();
+      } else if (mode === "upcoming") {
+        body.classList.add("is-upcoming");
+        activeBtn = upcBtn;
+        clearStuckTimer();
+      } else {
+        body.classList.add("is-static");
+        activeBtn = staticBtn;
+        clearStuckTimer();
+      }
+      activeBtn.classList.add("is-active");
+      activeBtn.setAttribute("aria-selected", "true");
+    }
+    upcBtn.addEventListener("click",   () => setMode("upcoming"));
+    liveBtn.addEventListener("click",  () => setMode("live"));
+    staticBtn.addEventListener("click",() => setMode("static"));
+
+    // Initial state — default to Live (most demo-worthy).
+    armStuckTimer();
+
+    // Upcoming countdown — prototype-only ticker.
+    (function tickCountdown() {
+      const hEl = document.getElementById("upc-h");
+      const mEl = document.getElementById("upc-m");
+      const sEl = document.getElementById("upc-s");
+      // Start at 2h 14m 38s and count down for demo flavor.
+      let total = 2 * 3600 + 14 * 60 + 38;
+      function fmt(n) { return String(n).padStart(2, "0"); }
+      function render() {
+        if (total <= 0) total = 2 * 3600 + 14 * 60 + 38; // loop
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        if (hEl) hEl.textContent = h;
+        if (mEl) mEl.textContent = fmt(m);
+        if (sEl) sEl.textContent = fmt(s);
+      }
+      render();
+      setInterval(() => { total--; render(); }, 1000);
+    })();
+
+    // ============= Filters =============
+    const spkPills = document.querySelectorAll("#speaker-filter .dt-filter-pill");
+    const vdtPills = document.querySelectorAll("#verdict-filter .dt-filter-pill");
+    const feed     = document.getElementById("claim-feed");
+    const empty    = document.getElementById("claim-empty");
+
+    let activeSpk = "all";
+    let activeVdt = "all";
+
+    function applyFilters() {
+      const claims = feed.querySelectorAll('[data-row="claim"]');
+      const rounds = feed.querySelectorAll('[data-row="round"]');
+      const mods   = feed.querySelectorAll('[data-row="moderator"]');
+      let visibleClaims = 0;
+
+      claims.forEach((c) => {
+        const s = c.getAttribute("data-speaker");
+        const v = c.getAttribute("data-verdict");
+        const ok = (activeSpk === "all" || activeSpk === s) &&
+                   (activeVdt === "all" || activeVdt === v);
+        c.style.display = ok ? "" : "none";
+        if (ok) visibleClaims++;
+      });
+
+      const hideMods = activeSpk !== "all" || activeVdt !== "all";
+      mods.forEach((m) => { m.style.display = hideMods ? "none" : ""; });
+      rounds.forEach((r) => { r.style.display = activeVdt !== "all" ? "none" : ""; });
+
+      empty.classList.toggle("is-visible", visibleClaims === 0);
+    }
+
+    spkPills.forEach((p) => {
+      p.addEventListener("click", () => {
+        spkPills.forEach((x) => x.classList.remove("active"));
+        p.classList.add("active");
+        activeSpk = p.getAttribute("data-speaker");
+        applyFilters();
+      });
+    });
+    vdtPills.forEach((p) => {
+      p.addEventListener("click", () => {
+        vdtPills.forEach((x) => x.classList.remove("active"));
+        p.classList.add("active");
+        activeVdt = p.getAttribute("data-verdict");
+        applyFilters();
+      });
+    });
+
+    // ============= Expand / collapse =============
+    // Mobile (<720px) defaults stay collapsed per v2 brief 2.5; that's already
+    // the case (display:none on .dt-claim-detail until .is-expanded). On window
+    // resize crossing the breakpoint, collapse any expanded cards so the feed
+    // re-renders as a scannable list.
+    let wasNarrow = window.innerWidth < 720;
+    function collapseAll() {
+      document.querySelectorAll(".dt-claim.is-expanded").forEach((c) => c.classList.remove("is-expanded"));
+    }
+    if (wasNarrow) collapseAll();
+    window.addEventListener("resize", () => {
+      const isNarrow = window.innerWidth < 720;
+      if (isNarrow && !wasNarrow) collapseAll();
+      wasNarrow = isNarrow;
+    });
+
+    document.querySelectorAll(".dt-claim").forEach((card) => {
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("a")) return;
+        card.classList.toggle("is-expanded");
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
