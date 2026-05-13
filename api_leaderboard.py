@@ -209,6 +209,7 @@ JOIN claims c ON c.speaker_id = s.id
 WHERE s.id = %s
   AND c.verdict IS NOT NULL
   AND c.claim_origin = 'attributed_claim'
+  AND LENGTH(c.claim_text) >= 100
 GROUP BY s.id, s.name, s.normalized_name, s.slug,
          s.speaker_type, s.role, s.party, s.current_office, s.photo_url;
 """
@@ -228,6 +229,8 @@ JOIN articles a ON a.id = c.article_id
 WHERE c.speaker_id = %s
   AND c.verdict IS NOT NULL
   AND c.claim_origin = 'attributed_claim'
+  AND LENGTH(c.claim_text) >= 100
+  AND c.claim_text NOT SIMILAR TO '%(is|was|are|were) the (current |acting |former )?(president|ceo|cfo|chair|chief|director|minister|secretary|ambassador|governor|senator|representative|mayor|attorney general|chief justice|prime minister|chancellor)%'
 ORDER BY c.first_seen DESC
 LIMIT 20;
 """
