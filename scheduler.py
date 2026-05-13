@@ -171,6 +171,22 @@ def run_verdicts():
     
 
 
+def run_parallel_shadow():
+    """Run parallel verifier in shadow mode alongside sequential. Kill-switched off by default."""
+    try:
+        from verdict_engine_parallel import is_parallel_enabled, run_parallel_verdict_engine
+        if not is_parallel_enabled():
+            return True  # kill switch off, skip silently
+        log.info("Parallel verifier shadow run starting...")
+        stats = run_parallel_verdict_engine(limit=10)
+        shadow = stats.get('shadow_stats', {})
+        log.info(f"Parallel shadow: {stats.get('claims_found',0)} claims, "
+                 f"agreement={shadow.get('rate')}% cumulative")
+        return True
+    except Exception as e:
+        log.error(f"Parallel shadow run failed: {e}")
+        return True  # never block the main pipeline
+
 def run_pre_verify():
     """Pre-verify claims for top outlet articles."""
     log.info("Pre-verifying top outlet articles...")
@@ -209,7 +225,8 @@ def run_full_pipeline():
     ("Backfill published_at", run_backfill),
     ("Pre-verify top outlets", run_pre_verify),
     ("Score priorities", run_priority),
-    ("Assign verdicts", run_verdicts),]
+    ("Assign verdicts", run_verdicts),
+    ("Parallel verifier shadow", run_parallel_shadow),]
     
     results = []
     for step_name, step_func in steps:
