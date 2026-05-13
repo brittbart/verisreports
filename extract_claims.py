@@ -70,6 +70,10 @@ A check-worthy claim is:
 
 IMPORTANT: Articles from any genre — opinion pieces, analysis, news, blogs, columns — can contain factual claims worth checking. Do not skip an article because its overall genre is opinion or commentary. Look for the embedded factual assertions within. An opinion piece that says "Tesla's stock dropped 40% last quarter and Musk fired half the legal team" contains two extractable factual claims even though the surrounding text is opinion.
 
+HEADLINE PRIORITY: Pay particular attention to claims made in the headline. Headlines are where factual distortion most commonly occurs. A headline claim that overstates, mischaracterizes, or contradicts the article body is highly check-worthy. If the headline makes a specific factual assertion, extract it as a claim even if the body qualifies or contradicts it — that gap is exactly what needs verification.
+
+OVERSTATED FRAMING: A claim is check-worthy even when it is technically accurate but omits context that would materially change the reader's understanding. "Senator X voted against the crime bill" may be technically accurate but omit that the bill was a procedural vote on an unrelated amendment. Extract such claims — the verification step will assess whether the framing is overstated.
+
 If you find fewer than 7 truly check-worthy claims, return only what you find. Do not pad. Returning 0 claims is acceptable when an article genuinely contains no concrete factual assertions (e.g. pure aesthetic review with no facts, or speculation without specifics).
 
 For each claim return:
