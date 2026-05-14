@@ -172,6 +172,7 @@ h3.display { font-size: 36px; }
   gap: 24px;
 }
 .nav-logo { display: flex; align-items: center; line-height: 0; }
+.nav-logo svg { display: block; height: 40px; width: auto; }
 .nav-logo:hover { color: inherit; }
 .nav-links {
   display: flex;
