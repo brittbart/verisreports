@@ -350,11 +350,14 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 next_idx = len(seen_speaker_ids)
                 if next_idx < len(speaker_order):
                     seen_speaker_ids[rev_speaker_idx] = speaker_order[next_idx]
-                elif confirmed_speaker_ids:
-                    # No more order slots — inherit last confirmed speaker
-                    seen_speaker_ids[rev_speaker_idx] = list(confirmed_speaker_ids.values())[-1]
                 else:
-                    seen_speaker_ids[rev_speaker_idx] = None
+                    # No more order slots — inherit last known speaker
+                    last_known = (
+                        list(confirmed_speaker_ids.values())[-1] if confirmed_speaker_ids
+                        else list(seen_speaker_ids.values())[-1] if seen_speaker_ids
+                        else speaker_order[0] if speaker_order else None
+                    )
+                    seen_speaker_ids[rev_speaker_idx] = last_known
                 speaker_id = seen_speaker_ids[rev_speaker_idx]
             else:
                 speaker_id = seen_speaker_ids.get(rev_speaker_idx)
