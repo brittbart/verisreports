@@ -54,15 +54,15 @@ nav.nav.scrolled {
   border-bottom-color: rgba(255,255,255,0.07);
 }
 .nav-inner {
-  max-width: 1100px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 18px 48px;
+  padding: 14px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 .nav-logo { display: flex; align-items: center; }
-.nav-logo svg { display: block; height: 40px; width: auto; }
+.nav-logo svg { display: block; height: 32px; width: auto; }
 .nav-toggle {
   display: none;
   background: transparent;
@@ -90,29 +90,29 @@ nav.nav.scrolled {
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 36px;
+  gap: 4px;
 }
 .nav-links a {
   font-size: 13px;
   font-weight: 400;
   color: var(--text-2);
-  transition: color .2s;
-  letter-spacing: 0.01em;
+  padding: 8px 14px;
+  border-radius: 6px;
+  transition: color .15s, background .15s;
+  letter-spacing: -0.005em;
 }
-.nav-links a:hover { color: var(--text); }
+.nav-links a:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
 .nav-links a.active { color: var(--text); }
 .nav-cta {
-  background: var(--violet);
-  color: #fff;
-  border-radius: 8px;
   margin-left: 8px;
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 500;
-  border: none;
-  transition: all .2s;
+  background: var(--violet);
+  color: #fff !important;
+  padding: 9px 16px !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  transition: background .15s !important;
 }
-.nav-cta:hover { background: #6d28d9; }
+.nav-cta:hover { background: #6d28d9 !important; }
 
 /* ---------- Buttons ---------- */
 .btn-primary {
@@ -139,7 +139,6 @@ nav.nav.scrolled {
   transition: all .2s;
 }
 
-.nav-cta:hover { background: #6d28d9; }
 
 /* ---------- Eyebrow ---------- */
 .eyebrow {
@@ -351,7 +350,7 @@ nav.nav.scrolled {
   border-color: rgba(168,85,247,0.5);
 }
 
-.nav-cta:hover { background: #9333EA; }
+
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
