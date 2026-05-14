@@ -161,51 +161,14 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False):
 
 def trigger_extraction(event_id, dry_run=False):
     """
-    Insert utterances as claims for extraction.
-    Pulls unprocessed utterances for this event and queues them.
+    Run extract_debate_claims quality pipeline on new utterances.
+    Replaces raw utterance insertion with proper claim extraction.
     """
-    if dry_run:
-        print("  [DRY RUN] would trigger extraction")
-        return
-
-    conn = get_db_conn()
     try:
-        conn.autocommit = True
-        cur = conn.cursor()
-
-        # Find utterances not yet in claims
-        cur.execute("""
-            SELECT su.id, su.speaker_id, su.utterance_text, s.name
-            FROM speaker_utterances su
-            JOIN speakers s ON s.id = su.speaker_id
-            WHERE su.event_id = %s
-              AND su.id NOT IN (
-                  SELECT utterance_id FROM claims
-                  WHERE utterance_id IS NOT NULL
-              )
-              AND LENGTH(su.utterance_text) > 50
-            ORDER BY su.utterance_order
-            LIMIT 20
-        """, (event_id,))
-
-        rows = cur.fetchall()
-        inserted = 0
-        for uid, speaker_id, text, speaker_name in rows:
-            cur.execute("""
-                INSERT INTO claims
-                    (utterance_id, event_id, speaker_id, speaker,
-                     claim_text, claim_origin, claim_type,
-                     priority_score, first_seen)
-                VALUES (%s, %s, %s, %s, %s, 'debate_claim', 'factual', 60, NOW())
-                ON CONFLICT DO NOTHING
-            """, (uid, event_id, speaker_id, speaker_name, text))
-            inserted += 1
-
-        cur.close()
-        if inserted:
-            print(f"  ✓ Queued {inserted} utterances for extraction")
-    finally:
-        conn.close()
+        from extract_debate_claims import run_extraction
+        run_extraction(event_id, limit=20, dry_run=dry_run)
+    except Exception as e:
+        print(f"  [extraction] Error: {e}")
 
 # ---------------------------------------------------------------------------
 # ASYNC MODE — submit URL to Rev AI, poll for completion
