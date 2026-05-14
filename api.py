@@ -2692,6 +2692,15 @@ _OPS_HTML = """<!DOCTYPE html>
   <tbody><tr><td colspan="8" class="empty">loading…</td></tr></tbody>
 </table>
 
+<h2>Debates <span id="surge-badge" style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:normal;margin-left:8px;"></span></h2>
+<div id="debates-grid" class="grid" style="margin-bottom:20px;"></div>
+<table id="debates-table" style="margin-bottom:24px;">
+  <thead><tr>
+    <th>Event</th><th>Date</th><th class="num">Utterances</th>
+    <th class="num">Claims</th><th class="num">Verified</th><th class="num">Pending</th>
+  </tr></thead>
+  <tbody><tr><td colspan="6" class="empty">loading…</td></tr></tbody>
+</table>
 <div class="refresh-info" id="refresh-info">auto-refresh every 30s · sonnet 4 pricing</div>
 
 <script>
@@ -3045,6 +3054,87 @@ def ops_history():
     from flask import Response
     return Response(_OPS_HISTORY_HTML, mimetype='text/html')
 
+
+@app.route('/api/ops/debates', methods=['GET'])
+def api_ops_debates():
+    """Debate pipeline stats for ops dashboard. Basic-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        # Live event check
+        cur.execute("""
+            SELECT id, slug, event_name, event_date, start_time, timezone
+            FROM events
+            WHERE is_public = TRUE AND event_date = CURRENT_DATE
+            LIMIT 1
+        """)
+        live_row = cur.fetchone()
+        live_event = None
+        if live_row:
+            live_event = {
+                'id': live_row[0],
+                'slug': live_row[1],
+                'event_name': live_row[2],
+                'event_date': str(live_row[3]),
+                'start_time': str(live_row[4]) if live_row[4] else None,
+                'timezone': live_row[5],
+            }
+
+        # Per-event stats
+        cur.execute("""
+            SELECT
+                e.id, e.slug, e.event_name, e.event_date, e.is_public,
+                COUNT(DISTINCT su.id) AS utterances,
+                COUNT(DISTINCT c.id) AS claims_total,
+                COUNT(DISTINCT c.id) FILTER (WHERE c.verdict IS NOT NULL) AS claims_verified,
+                COUNT(DISTINCT c.id) FILTER (WHERE c.verdict IS NULL) AS claims_pending
+            FROM events e
+            LEFT JOIN speaker_utterances su ON su.event_id = e.id
+            LEFT JOIN claims c ON c.event_id = e.id AND c.claim_origin = 'debate_claim'
+            WHERE e.is_public = TRUE
+            GROUP BY e.id, e.slug, e.event_name, e.event_date, e.is_public
+            ORDER BY e.event_date DESC
+        """)
+        events = []
+        for row in cur.fetchall():
+            events.append({
+                'id': row[0],
+                'slug': row[1],
+                'event_name': row[2],
+                'event_date': str(row[3]),
+                'is_public': row[4],
+                'utterances': row[5] or 0,
+                'claims_total': row[6] or 0,
+                'claims_verified': row[7] or 0,
+                'claims_pending': row[8] or 0,
+            })
+
+        # Surge mode pending claims
+        pending_surge = 0
+        if live_event:
+            cur.execute("""
+                SELECT COUNT(*) FROM claims
+                WHERE event_id = %s
+                  AND claim_origin = 'debate_claim'
+                  AND verdict IS NULL
+            """, (live_event['id'],))
+            pending_surge = cur.fetchone()[0] or 0
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            'live_event': live_event,
+            'surge_active': live_event is not None,
+            'pending_surge': pending_surge,
+            'events': events,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/ops', methods=['GET'])
 def ops_dashboard():
