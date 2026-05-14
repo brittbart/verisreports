@@ -351,13 +351,18 @@
   .dt-meta-chip--watch .live-dot { margin-right: 0; }
 
   /* Upcoming-state placeholder */
+  @keyframes upcomingPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.0), 0 0 18px rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.4); }
+    50%       { box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.08), 0 0 32px rgba(251, 191, 36, 0.2); border-color: rgba(251, 191, 36, 0.7); }
+  }
   .dt-upcoming-placeholder {
     display: none;
-    padding: 64px 28px 72px;
+    padding: 72px 40px 80px;
     text-align: center;
-    border: 1.5px dashed rgba(251, 191, 36, 0.45);
-    background: rgba(251, 191, 36, 0.025);
-    border-radius: 14px;
+    border: 1.5px dashed rgba(251, 191, 36, 0.4);
+    background: rgba(251, 191, 36, 0.02);
+    border-radius: 16px;
+    animation: upcomingPulse 3s ease-in-out infinite;
   }
   body.is-upcoming .dt-upcoming-placeholder { display: block; }
   body.is-upcoming .dt-feed,
@@ -372,16 +377,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 22px;
+    margin: 0 auto 24px;
     color: var(--c-overstated);
   }
   .dt-upcoming-title {
     font-family: var(--font-display);
-    font-size: 28px;
+    font-size: 30px;
     line-height: 1.1;
     letter-spacing: -0.6px;
     color: var(--text);
-    margin: 0 0 8px;
+    margin: 0 0 10px;
   }
   .dt-upcoming-sub {
     font-size: 14px;
@@ -391,21 +396,21 @@
     margin: 0 auto;
   }
   .dt-upcoming-when {
-    margin-top: 28px;
-    padding-top: 24px;
-    border-top: 0.5px dashed rgba(255, 255, 255, 0.08);
+    margin-top: 40px;
+    padding-top: 36px;
+    border-top: 0.5px solid rgba(251, 191, 36, 0.15);
     display: inline-flex;
     align-items: center;
-    gap: 18px;
+    gap: 28px;
   }
   .dt-upcoming-when .stat strong {
     font-family: var(--font-display);
-    font-size: 36px;
+    font-size: 72px;
     line-height: 1;
     color: var(--text);
-    letter-spacing: -1px;
+    letter-spacing: -3px;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
     font-weight: 400;
   }
   .dt-upcoming-when .stat span {
@@ -417,8 +422,8 @@
   }
   .dt-upcoming-when .stat-sep {
     width: 1px;
-    height: 32px;
-    background: var(--border);
+    height: 52px;
+    background: rgba(251, 191, 36, 0.2);
   }
 
   /* Stuck verifying — after 90s timeout */
