@@ -43,7 +43,7 @@ def _get_all_public_events(get_db_conn):
         for row in rows:
             (eid, slug, event_type, event_name, event_date, start_time, timezone, event_subtitle, venue,
              transcript_source, methodology_version, is_public, claim_count) = row
-            status = _derive_status(event_date, today, start_time)
+            status = _derive_status(event_date, today, start_time, timezone)
             events.append({
                 'id':                  eid,
                 'slug':                slug,
@@ -92,7 +92,7 @@ def _get_event_by_slug(get_db_conn, slug):
          methodology_version, notes) = row
 
         today = date.today()
-        status = _derive_status(event_date, today, start_time)
+        status = _derive_status(event_date, today, start_time, timezone)
 
         event = {
             'id':                  eid,
@@ -336,7 +336,7 @@ def _get_featured_event(get_db_conn):
 # Utilities
 # ---------------------------------------------------------------------------
 
-def _derive_status(event_date, today, start_time=None):
+def _derive_status(event_date, today, start_time=None, timezone=None):
     if event_date is None:
         return 'complete'
     if event_date < today:
@@ -344,11 +344,21 @@ def _derive_status(event_date, today, start_time=None):
     if event_date == today:
         # Only mark as live if within the debate window (30min before to 3hrs after start)
         if start_time is not None:
-            from datetime import datetime, timedelta
-            now = datetime.now().time()
-            window_start = (datetime.combine(today, start_time) - timedelta(minutes=30)).time()
-            window_end   = (datetime.combine(today, start_time) + timedelta(hours=3)).time()
-            if window_start <= now <= window_end:
+            from datetime import datetime, timedelta, timezone as tz
+            # UTC offsets for event timezone
+            tz_offsets = {
+                'ET': -4, 'EST': -5, 'EDT': -4,
+                'CT': -5, 'CST': -6, 'CDT': -5,
+                'MT': -6, 'MST': -7, 'MDT': -6,
+                'PT': -7, 'PST': -8, 'PDT': -7,
+            }
+            offset_hours = tz_offsets.get(timezone or 'CT', -5)
+            event_tz = tz(timedelta(hours=offset_hours))
+            now_utc = datetime.now(tz.utc)
+            event_start = datetime.combine(event_date, start_time).replace(tzinfo=event_tz)
+            window_start = event_start - timedelta(minutes=30)
+            window_end   = event_start + timedelta(hours=3)
+            if window_start <= now_utc <= window_end:
                 return 'live'
             else:
                 return 'upcoming'
