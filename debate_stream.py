@@ -284,6 +284,15 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 for part in sname.lower().split():
                     if len(part) > 3:
                         name_map[part] = sid
+            # Add common Rev AI misspellings
+            misspellings = {
+                'turek': ['turk', 'terk', 'turek'],
+                'wahls': ['walz', 'walls', 'wals', 'wahls'],
+            }
+            for correct, variants in misspellings.items():
+                if correct in name_map:
+                    for v in variants:
+                        name_map[v] = name_map[correct]
             cur.close(); conn.close()
             print(f"  Name detection active: {list(name_map.keys())}")
         except Exception as e:
