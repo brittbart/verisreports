@@ -180,7 +180,7 @@ Return ONLY this JSON:
 
 
 def analyse_claim(claim_text, speaker, claim_type,
-                  article_title, source_name, cursor=None, **kwargs, stage='verdicts'):
+                  article_title, source_name, cursor=None, stage='verdicts', **kwargs):
 
     if cursor:
         db_result = check_database_first(cursor, claim_text)
