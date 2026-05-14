@@ -293,7 +293,9 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         tl = text.lower()
         best_match, best_len = None, 0
         for frag, sid in name_map.items():
-            if frag in tl and len(frag) > best_len:
+            # Require minimum 4 chars AND prefer longer matches
+            # This prevents single common names from firing falsely
+            if frag in tl and len(frag) > best_len and len(frag) >= 5:
                 best_match, best_len = sid, len(frag)
         return best_match
 
@@ -351,7 +353,10 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 )
                 speaker_id = seen_speaker_ids[rev_speaker_idx]
             else:
+                # Inherit last confirmed speaker for new unmapped IDs
                 speaker_id = seen_speaker_ids.get(rev_speaker_idx)
+                if speaker_id is None and confirmed_speaker_ids:
+                    speaker_id = list(confirmed_speaker_ids.values())[-1]
 
             uid = write_utterance(
                 event_id, speaker_id, text,
