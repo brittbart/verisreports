@@ -339,20 +339,25 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 return
 
             # NAME DETECTION: anchor speaker from moderator cues
+            # Name cues always set pending — never confirm the current speaker ID
+            # This handles moderator bios where "Zach Wahls lives in..." fires on
+            # the moderator's voice, but we want to tag the NEXT new voice as Wahls
             detected = detect_name_cue(text)
             if detected is not None:
                 pending_speaker_id[0] = detected
                 print(f"  [NAME CUE] speaker={detected}: {text[:60]}")
 
             # SPEAKER RESOLUTION (priority order):
-            # 1. Name-confirmed (most reliable)
-            # 2. Pending name cue (assign and lock)
+            # 1. Name-confirmed (most reliable) — only if already locked
+            # 2. New Rev AI ID + pending name cue → lock it
             # 3. Order-based fallback
             if rev_speaker_idx in confirmed_speaker_ids:
                 speaker_id = confirmed_speaker_ids[rev_speaker_idx]
-            elif pending_speaker_id[0] is not None:
+            elif rev_speaker_idx not in seen_speaker_ids and pending_speaker_id[0] is not None:
+                # New speaker ID appeared — assign pending name cue to it
                 speaker_id = pending_speaker_id[0]
                 confirmed_speaker_ids[rev_speaker_idx] = speaker_id
+                seen_speaker_ids[rev_speaker_idx] = speaker_id
                 pending_speaker_id[0] = None
                 print(f"  [CONFIRMED] Rev AI {rev_speaker_idx} = DB speaker {speaker_id}")
             elif rev_speaker_idx not in seen_speaker_ids:
