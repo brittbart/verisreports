@@ -432,7 +432,7 @@
             <div class="dx-date-year">{{ e.event_date_year }} · {{ e.start_time_str }}</div>
           </div>
           <div>
-            <h2 class="dx-title">{{ e.event_name.split(":", 1)[0] }}{% if ":" in e.event_name %}: <em>{{ e.event_name.split(":", 1)[1].strip() }}</em>{% endif %}<span class="dx-arrow">&rarr;</span></h2>
+            <h2 class="dx-title">{{ e.event_name }}<span class="dx-arrow">&rarr;</span></h2>
             <div class="dx-meta">
               <span class="dx-type">{{ e.event_type|capitalize }}</span>
               {% if e.venue %}<span class="sep">&middot;</span><span><strong>{{ e.venue }}</strong></span>{% endif %}
@@ -464,7 +464,7 @@
             <div class="dx-date-year">{{ e.event_date_year }} · {{ e.start_time_str }}</div>
           </div>
           <div>
-            <h2 class="dx-title">{{ e.event_name.split(":", 1)[0] }}{% if ":" in e.event_name %}: <em>{{ e.event_name.split(":", 1)[1].strip() }}</em>{% endif %}<span class="dx-arrow">&rarr;</span></h2>
+            <h2 class="dx-title">{{ e.event_name }}<span class="dx-arrow">&rarr;</span></h2>
             <div class="dx-meta">
               <span class="dx-type">{{ e.event_type|capitalize }}</span>
               {% if e.venue %}<span class="sep">&middot;</span><span><strong>{{ e.venue }}</strong></span>{% endif %}
@@ -496,7 +496,7 @@
             <div class="dx-date-year">{{ e.event_date_year }} · {{ e.start_time_str }}</div>
           </div>
           <div>
-            <h2 class="dx-title">{{ e.event_name.split(":", 1)[0] }}{% if ":" in e.event_name %}: <em>{{ e.event_name.split(":", 1)[1].strip() }}</em>{% endif %}<span class="dx-arrow">&rarr;</span></h2>
+            <h2 class="dx-title">{{ e.event_name }}<span class="dx-arrow">&rarr;</span></h2>
             <div class="dx-meta">
               <span class="dx-type">{{ e.event_type|capitalize }}</span>
               {% if e.venue %}<span class="sep">&middot;</span><span><strong>{{ e.venue }}</strong></span>{% endif %}
