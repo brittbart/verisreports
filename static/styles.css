@@ -62,7 +62,7 @@ nav.nav.scrolled {
   justify-content: space-between;
 }
 .nav-logo { display: flex; align-items: center; }
-.nav-logo svg { display: block; height: 32px; width: auto; }
+.nav-logo svg { display: block; height: 40px; width: auto; }
 .nav-toggle {
   display: none;
   background: transparent;
