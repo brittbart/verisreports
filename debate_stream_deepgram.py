@@ -170,14 +170,12 @@ def insert_utterance(event_id, speaker_id, text, dry_run=False):
 def maybe_run_extraction(event_id, utterance_count, dry_run):
     if utterance_count % 5 != 0:
         return
-    mode = 'DRY RUN' if dry_run else 'APPLY'
-    subprocess.Popen(
-        [sys.executable, 'extract_debate_claims.py',
-         '--event-id', str(event_id),
-         '--mode', mode,
-         '--limit', '20'],
-        cwd=os.path.dirname(os.path.abspath(__file__))
-    )
+    cmd = [sys.executable, 'extract_debate_claims.py',
+             '--event-id', str(event_id),
+             '--limit', '20']
+    if dry_run:
+        cmd.append('--dry-run')
+    subprocess.Popen(cmd, cwd=os.path.dirname(os.path.abspath(__file__)))
 
 # ---------------------------------------------------------------------------
 # Audio pipeline
