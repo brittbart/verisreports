@@ -656,7 +656,7 @@ def run_batch_verdict_engine(limit=500, depth=None):
         return
     print(f"Preparing batch of {len(claims)} claims...")
     requests = []
-    for claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score in claims:
+    for claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score, claim_origin, attribution_context in claims:
         db_result = check_database_first(cursor, claim_text)
         if db_result:
             verdict, confidence, summary = db_result
