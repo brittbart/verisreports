@@ -275,8 +275,18 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     def on_final(response):
         try:
             data = json.loads(response) if isinstance(response, str) else response
+            # Handle speaker_switch event from enable_speaker_switch=true
+            if data.get('type') == 'speaker_switch':
+                print(f"  [SPEAKER SWITCH detected]")
+                return
+
             elements = data.get('elements', [])
-            rev_speaker_idx = data.get('speaker_id', 0)
+            # Rev AI may return speaker_id as string — normalize to int
+            raw_spk = data.get('speaker_id', 0)
+            try:
+                rev_speaker_idx = int(raw_spk)
+            except (TypeError, ValueError):
+                rev_speaker_idx = 0
 
             text = ' '.join(
                 e['value'] for e in elements
