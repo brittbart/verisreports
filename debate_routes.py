@@ -205,16 +205,19 @@ def _get_index_stats(get_db_conn):
         cur = conn.cursor()
         today = date.today()
         cur.execute("""
-            SELECT
-                COUNT(*) FILTER (WHERE event_date < %s) AS complete_count,
-                COUNT(*) FILTER (WHERE event_date = %s) AS live_count,
-                COUNT(*) FILTER (WHERE event_date > %s) AS upcoming_count
+            SELECT event_date, start_time, timezone
             FROM events WHERE is_public = TRUE
-        """, (today, today, today))
-        row = cur.fetchone()
-        complete_count = row[0] or 0
-        live_count = row[1] or 0
-        upcoming_count = row[2] or 0
+        """)
+        rows = cur.fetchall()
+        complete_count = live_count = upcoming_count = 0
+        for event_date, start_time, timezone in rows:
+            s = _derive_status(event_date, today, start_time, timezone)
+            if s == 'live':
+                live_count += 1
+            elif s == 'upcoming':
+                upcoming_count += 1
+            else:
+                complete_count += 1
 
         cur.execute("""
             SELECT COUNT(*) FROM claims
@@ -245,15 +248,20 @@ def _get_featured_event(get_db_conn):
     try:
         cur = conn.cursor()
         today = date.today()
-        # Try live first
+        # Try live first — must be within the time window
         cur.execute("""
             SELECT id, slug, event_name, event_date, venue,
-                   transcript_source, methodology_version
+                   transcript_source, methodology_version, start_time, timezone
             FROM events
             WHERE is_public = TRUE AND event_date = %s
-            ORDER BY created_at DESC LIMIT 1
+            ORDER BY created_at DESC
         """, (today,))
-        row = cur.fetchone()
+        live_rows = cur.fetchall()
+        row = None
+        for lr in live_rows:
+            if _derive_status(lr[3], today, lr[7], lr[8]) == 'live':
+                row = lr[:7]
+                break
         status = 'live'
         if not row:
             # Try upcoming
