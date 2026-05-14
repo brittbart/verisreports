@@ -180,7 +180,7 @@ Return ONLY this JSON:
 
 
 def analyse_claim(claim_text, speaker, claim_type,
-                  article_title, source_name, cursor=None, **kwargs):
+                  article_title, source_name, cursor=None, **kwargs, stage='verdicts'):
 
     if cursor:
         db_result = check_database_first(cursor, claim_text)
@@ -296,7 +296,7 @@ Return ONLY this JSON:
                 {"role": "user", "content": prompt}
             ]
         )
-        from token_logging import log_usage; log_usage('verdicts', message)
+        from token_logging import log_usage; log_usage(stage, message)
         response_text = ""
         for block in message.content:
             if hasattr(block, "text"):
@@ -579,7 +579,8 @@ def verify_debate_claims_sync(event_id, limit=10):
                 speaker or 'Debate participant',
                 claim_type or 'factual',
                 event_name,
-                'Debate transcript'
+                'Debate transcript',
+                stage='verdicts-debate'
             )
 
             if not result:
