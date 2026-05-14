@@ -801,7 +801,8 @@ def leaderboard():
     with open(static_path, 'r') as f:
         html = f.read()
     data = get_leaderboard_data(get_db)
-    html = html.replace('let API_RESPONSE = null;', f'let API_RESPONSE = {_json.dumps(data)};')
+    data_json = _json.dumps(data)
+    html = html.replace('let API_RESPONSE = null;', 'let API_RESPONSE = ' + data_json + ';')
     html = html.replace('loadLeaderboard();', 'renderHeaderMeta(); render(); // data pre-loaded server-side')
     from flask import Response
     return Response(html, mimetype='text/html')
@@ -830,7 +831,8 @@ def leaderboard_clean():
     with open(static_path, 'r') as f:
         html = f.read()
     data = get_leaderboard_data(get_db)
-    html = html.replace('let API_RESPONSE = null;', f'let API_RESPONSE = {_json.dumps(data)};')
+    data_json = _json.dumps(data)
+    html = html.replace('let API_RESPONSE = null;', 'let API_RESPONSE = ' + data_json + ';')
     html = html.replace('loadLeaderboard();', 'renderHeaderMeta(); render(); // data pre-loaded server-side')
     from flask import Response
     return Response(html, mimetype='text/html')
