@@ -347,22 +347,16 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 pending_speaker_id[0] = None
                 print(f"  [CONFIRMED] Rev AI {rev_speaker_idx} = DB speaker {speaker_id}")
             elif rev_speaker_idx not in seen_speaker_ids:
-                next_idx = len(seen_speaker_ids)
-                if next_idx < len(speaker_order):
-                    seen_speaker_ids[rev_speaker_idx] = speaker_order[next_idx]
-                else:
-                    # No more order slots — inherit last known speaker
-                    last_known = (
-                        list(confirmed_speaker_ids.values())[-1] if confirmed_speaker_ids
-                        else list(seen_speaker_ids.values())[-1] if seen_speaker_ids
-                        else speaker_order[0] if speaker_order else None
-                    )
+                # Only assign order-based mapping if we have at least one confirmed name cue
+                # This prevents the intro announcer from consuming speaker slot 0
+                if confirmed_speaker_ids:
+                    last_known = list(confirmed_speaker_ids.values())[-1]
                     seen_speaker_ids[rev_speaker_idx] = last_known
+                else:
+                    seen_speaker_ids[rev_speaker_idx] = None  # unconfirmed — wait for name cue
                 speaker_id = seen_speaker_ids[rev_speaker_idx]
             else:
                 speaker_id = seen_speaker_ids.get(rev_speaker_idx)
-                if speaker_id is None and confirmed_speaker_ids:
-                    speaker_id = list(confirmed_speaker_ids.values())[-1]
 
             uid = write_utterance(
                 event_id, speaker_id, text,

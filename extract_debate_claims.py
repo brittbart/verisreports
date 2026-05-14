@@ -276,7 +276,9 @@ def pre_filter_utterance(text: str) -> tuple:
     has_bill      = bool(re.search(r'\b(bill|act|law|legislation|amendment|resolution|budget|plan)\b', tl))
     has_statistic = bool(re.search(r'\b(percent|million|billion|trillion|thousand|hundred)\b', tl))
 
-    if not any([has_number, has_dollar, has_year, has_bill, has_statistic]):
+    has_ranking = bool(re.search(r'\b(leads?|leading|ranked?|ranking|highest|lowest|most|least|first|last|worst|best|top|bottom|ahead|behind|surpass)\b', tl))
+    has_policy  = bool(re.search(r'\b(tax|tariff|wage|medicare|medicaid|social security|insurance|subsid|foreclos|filibuster|immigration|healthcare|abortion|climate|energy|deficit|debt|budget|cut|reform|ban|mandate|repeal)\b', tl))
+    if not any([has_number, has_dollar, has_year, has_bill, has_statistic, has_ranking, has_policy]):
         return True, 'no specificity markers'
 
     return False, ''
