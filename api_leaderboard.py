@@ -556,4 +556,29 @@ def register_leaderboard_routes(app, get_db_conn):
     @app.route("/api/leaderboard")
     def api_leaderboard():
         return jsonify(get_leaderboard_data(get_db_conn))
+
+    @app.route("/leaderboard.html")
+    @app.route("/leaderboard")
+    def leaderboard_page():
+        import json as _json
+        from flask import Response as _Response
+        # Read static file
+        static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'leaderboard.html')
+        with open(static_path, 'r') as f:
+            html = f.read()
+        # Get leaderboard data server-side
+        data = get_leaderboard_data(get_db_conn)
+        data_json = _json.dumps(data)
+        # Inject pre-populated API_RESPONSE before the fetch call
+        # Replace the null initialization and skip the fetch
+        html = html.replace(
+            'let API_RESPONSE = null;',
+            f'let API_RESPONSE = {data_json};'
+        )
+        # Skip the fetch — data already loaded
+        html = html.replace(
+            'loadLeaderboard();',
+            'renderHeaderMeta(); render(); // data pre-loaded server-side'
+        )
+        return _Response(html, mimetype='text/html')
         
