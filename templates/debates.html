@@ -371,7 +371,7 @@
     <h1 class="display">Debates.</h1>
     <p class="sub">Public debates, speeches, and hearings — claim by claim, as the transcripts come in.</p>
     <div class="hero-meta">
-      {% if stats.live_count > 0 %}<span><span class="live-dot"></span><strong>{{ stats.live_count }} event{{ "s" if stats.live_count != 1 }} live now</strong></span><span class="dot">·</span>{% endif %}
+      {% if stats.live_count > 0 %}<span><span class="live-dot"></span> <strong>{{ stats.live_count }} event{{ "s" if stats.live_count != 1 }} live now</strong></span><span class="dot">·</span>{% endif %}
       <span>Methodology {{ methodology_version }}</span>
       <span class="dot">·</span>
       <span><strong>{{ stats.live_count + stats.upcoming_count + stats.complete_count }} event{{ "s" if (stats.live_count + stats.upcoming_count + stats.complete_count) != 1 }}</strong> tracked</span>
