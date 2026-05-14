@@ -339,13 +339,22 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 return
 
             # NAME DETECTION: anchor speaker from moderator cues
-            # Name cues always set pending — never confirm the current speaker ID
-            # This handles moderator bios where "Zach Wahls lives in..." fires on
-            # the moderator's voice, but we want to tag the NEXT new voice as Wahls
+            # When moderator says "Josh Turk, what would you..." the NEXT new
+            # speaker ID belongs to that candidate.
+            # Special case: if BOTH names appear in same utterance (bio section),
+            # the last name mentioned is the one introduced next — skip it.
             detected = detect_name_cue(text)
             if detected is not None:
-                pending_speaker_id[0] = detected
-                print(f"  [NAME CUE] speaker={detected}: {text[:60]}")
+                tl_check = text.lower()
+                both_present = (
+                    any(f in tl_check for f in ['turk', 'turek', 'josh t']) and
+                    any(f in tl_check for f in ['walz', 'wahls', 'walls', 'zach w'])
+                )
+                if both_present:
+                    print(f"  [NAME CUE] skipped (both names in utterance): {text[:60]}")
+                else:
+                    pending_speaker_id[0] = detected
+                    print(f"  [NAME CUE] speaker={detected}: {text[:60]}")
 
             # SPEAKER RESOLUTION (priority order):
             # 1. Name-confirmed (most reliable) — only if already locked
