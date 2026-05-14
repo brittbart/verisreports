@@ -256,6 +256,19 @@ def pre_filter_utterance(text: str) -> tuple:
     if INVALID_STARTS.match(t):
         return True, 'fragment: starts lowercase'
 
+    # Single-word sentence starter that isn't a valid opener
+    # e.g. "Represent Trump won..." — "Represent" is a fragment
+    first_word = t.split()[0].rstrip('.,;:').lower()
+    INVALID_OPENERS = {
+        'represent', 'representing', 'represented',
+        'because', 'but', 'and', 'or', 'nor', 'yet',
+        'although', 'though', 'however', 'therefore',
+        'whereas', 'which', 'that', 'who', 'whom',
+        'whose', 'when', 'where', 'while',
+    }
+    if first_word in INVALID_OPENERS:
+        return True, f'fragment: invalid opener ({first_word})'
+
     # No specificity markers
     has_number    = bool(re.search(r'\b\d+(?:\.\d+)?%?\b', t))
     has_dollar    = '$' in t
