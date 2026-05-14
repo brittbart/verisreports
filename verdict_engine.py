@@ -626,8 +626,8 @@ def get_live_event_id():
             WHERE is_public = TRUE
               AND event_date = CURRENT_DATE
               AND start_time IS NOT NULL
-              AND (start_time - INTERVAL '30 minutes') <= CURRENT_TIME
-              AND CURRENT_TIME <= (start_time + INTERVAL '3 hours')
+              AND (start_time - INTERVAL '30 minutes') <= CURRENT_TIME::time
+              AND CURRENT_TIME::time <= (start_time + INTERVAL '3 hours')
             LIMIT 1
         """)
         row = cursor.fetchone()
