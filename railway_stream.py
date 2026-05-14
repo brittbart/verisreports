@@ -197,7 +197,7 @@ def minutes_until(dt_utc):
 # ---------------------------------------------------------------------------
 def launch_stream(event_id, slug, event_name, stream_url, speaker_order):
     """Launch debate_stream.py in live mode."""
-    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debate_stream.py')
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debate_stream_deepgram.py')
 
     speaker_order_str = ','.join(str(s) for s in speaker_order)
 
