@@ -617,23 +617,39 @@ def verify_debate_claims_sync(event_id, limit=10):
 
 
 def get_live_event_id():
-    """Return event_id of any currently live public event, or None."""
+    """Return event_id of any currently live public event, or None.
+    Compares in UTC to handle server/DB/event timezone mismatches.
+    """
+    from datetime import datetime, timedelta, timezone as tz
+    TZ_OFFSETS = {
+        'ET': -4, 'EST': -5, 'EDT': -4,
+        'CT': -5, 'CST': -6, 'CDT': -5,
+        'MT': -6, 'MST': -7, 'MDT': -6,
+        'PT': -7, 'PST': -8, 'PDT': -7,
+    }
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id FROM events
+            SELECT id, event_date, start_time, timezone FROM events
             WHERE is_public = TRUE
-              AND event_date = CURRENT_DATE
               AND start_time IS NOT NULL
-              AND (start_time - INTERVAL '30 minutes') <= CURRENT_TIME::time
-              AND CURRENT_TIME::time <= (start_time + INTERVAL '3 hours')
-            LIMIT 1
+              AND event_date >= CURRENT_DATE - INTERVAL '1 day'
+              AND event_date <= CURRENT_DATE + INTERVAL '1 day'
         """)
-        row = cursor.fetchone()
+        rows = cursor.fetchall()
         cursor.close()
         conn.close()
-        return row[0] if row else None
+        now_utc = datetime.now(tz.utc)
+        for eid, event_date, start_time, event_tz in rows:
+            if not event_date or not start_time:
+                continue
+            offset = TZ_OFFSETS.get(event_tz or 'CT', -5)
+            event_tz_obj = tz(timedelta(hours=offset))
+            event_start = datetime.combine(event_date, start_time).replace(tzinfo=event_tz_obj)
+            if (event_start - timedelta(minutes=30)) <= now_utc <= (event_start + timedelta(hours=3)):
+                return eid
+        return None
     except Exception:
         return None
 
