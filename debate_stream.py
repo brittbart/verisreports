@@ -348,12 +348,15 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 print(f"  [CONFIRMED] Rev AI {rev_speaker_idx} = DB speaker {speaker_id}")
             elif rev_speaker_idx not in seen_speaker_ids:
                 next_idx = len(seen_speaker_ids)
-                seen_speaker_ids[rev_speaker_idx] = (
-                    speaker_order[next_idx] if next_idx < len(speaker_order) else None
-                )
+                if next_idx < len(speaker_order):
+                    seen_speaker_ids[rev_speaker_idx] = speaker_order[next_idx]
+                elif confirmed_speaker_ids:
+                    # No more order slots — inherit last confirmed speaker
+                    seen_speaker_ids[rev_speaker_idx] = list(confirmed_speaker_ids.values())[-1]
+                else:
+                    seen_speaker_ids[rev_speaker_idx] = None
                 speaker_id = seen_speaker_ids[rev_speaker_idx]
             else:
-                # Inherit last confirmed speaker for new unmapped IDs
                 speaker_id = seen_speaker_ids.get(rev_speaker_idx)
                 if speaker_id is None and confirmed_speaker_ids:
                     speaker_id = list(confirmed_speaker_ids.values())[-1]
