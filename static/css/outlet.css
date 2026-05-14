@@ -41,8 +41,8 @@ a { color: inherit; }
   .nav-links a { color: var(--text-2); text-decoration: none; font-size: 14px; transition: color .12s; }
   .nav-links a:hover { color: var(--text); }
 }
-.nav-cta { background: var(--violet); color: #fff !important; padding: 8px 16px; border-radius: 100px; font-weight: 500; }
-.nav-cta:hover { background: var(--violet-light); }
+.nav-cta { margin-left: 8px; background: var(--violet); color: #fff !important; padding: 9px 16px; border-radius: 8px; font-weight: 500; transition: background .15s; }
+.nav-cta:hover { background: #6d28d9; }
 
 .outlet-page { padding: 56px 0 96px; }
 
