@@ -62,6 +62,8 @@ def _get_all_public_events(get_db_conn):
                 'methodology_version': methodology_version or METHODOLOGY_VERSION,
                 'claim_count':         claim_count or 0,
                 'status':              status,
+                'start_time':          start_time,
+                'timezone':            timezone or 'CT',
             })
         return events
     finally:
@@ -405,9 +407,26 @@ def register_debate_routes(app, get_db_conn):
         stats = _get_index_stats(get_db_conn)
 
         # Group by status
+        from datetime import datetime, timedelta, timezone as tz
+        TZ_OFFSETS = {'ET':-4,'EST':-5,'EDT':-4,'CT':-5,'CST':-6,'CDT':-5,'MT':-6,'MST':-7,'MDT':-6,'PT':-7,'PST':-8,'PDT':-7}
+        now_utc = datetime.now(tz.utc)
+        def _is_soon(e):
+            """True if event starts within 24 hours."""
+            ed = e.get('event_date')
+            st = e.get('start_time')
+            etz = e.get('timezone') or 'CT'
+            if not ed or not st:
+                return False
+            offset = TZ_OFFSETS.get(etz, -5)
+            event_tz_obj = tz(timedelta(hours=offset))
+            event_start = datetime.combine(ed, st).replace(tzinfo=event_tz_obj)
+            delta = (event_start - now_utc).total_seconds()
+            return 0 < delta <= 86400
         live_events     = [e for e in events if e['status'] == 'live']
-        upcoming_events = [e for e in events if e['status'] == 'upcoming']
-        complete_events = [e for e in events if e['status'] == 'complete']
+        upcoming_events = sorted([e for e in events if e['status'] == 'upcoming'], key=lambda e: e['event_date'] or date.max)
+        complete_events = sorted([e for e in events if e['status'] == 'complete'], key=lambda e: e['event_date'] or date.min, reverse=True)
+        for e in upcoming_events:
+            e['is_soon'] = _is_soon(e)
 
         return render_template(
             "debates.html",

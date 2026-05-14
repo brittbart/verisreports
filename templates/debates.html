@@ -106,6 +106,14 @@
   .dx-row.is-upcoming { background: rgba(251, 191, 36, 0.025); }
   .dx-row.is-upcoming:hover { background: rgba(251, 191, 36, 0.05); }
   .dx-row.is-complete:hover { background: rgba(168, 85, 247, 0.05); }
+  .dx-row.is-soon {
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 0 16px rgba(251, 191, 36, 0.12);
+    animation: dxSoonPulse 3s ease-in-out infinite;
+  }
+  @keyframes dxSoonPulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 0 16px rgba(251, 191, 36, 0.12); }
+    50%       { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.55), 0 0 28px rgba(251, 191, 36, 0.22); }
+  }
 
   /* Date column */
   .dx-date {
@@ -449,7 +457,7 @@
           <span>{{ upcoming_events|length }} event{{ "s" if upcoming_events|length != 1 }}</span>
         </div>
         {% for e in upcoming_events %}
-        <a class="dx-row is-upcoming" href="/debates/{{ e.slug }}">
+        <a class="dx-row is-upcoming{% if e.is_soon %} is-soon{% endif %}" href="/debates/{{ e.slug }}">
           <div class="dx-date">
             <div class="dx-date-mo">{{ e.event_date_mo }}</div>
             <div class="dx-date-day">{{ e.event_date_day }}</div>
