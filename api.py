@@ -2968,6 +2968,38 @@ function renderRuns(data) {
 
 loadData();
 setInterval(loadData, 30000);
+
+async function loadDebates() {
+  try {
+    const res = await fetch('/api/ops/debates', {credentials: 'same-origin'});
+    const d = await res.json();
+    const badge = document.getElementById('surge-badge');
+    if (badge) {
+      if (d.surge_active) {
+        badge.innerHTML = '<span style="color:#4ade80;background:rgba(74,222,128,0.1);padding:3px 10px;border-radius:100px;border:0.5px solid rgba(74,222,128,0.3);">&#9679; SURGE ACTIVE &mdash; ' + (d.live_event ? d.live_event.event_name : '') + ' &middot; ' + d.pending_surge + ' pending</span>';
+      } else {
+        badge.innerHTML = '<span style="color:#888;background:rgba(255,255,255,0.04);padding:3px 10px;border-radius:100px;border:0.5px solid rgba(255,255,255,0.1);">&#9679; Normal mode</span>';
+      }
+    }
+    const tbody = document.querySelector('#debates-table tbody');
+    if (tbody && d.events && d.events.length) {
+      tbody.innerHTML = d.events.map(e =>
+        '<tr>'
+        + '<td><a href="/debates/' + e.slug + '" target="_blank" style="color:#a855f7;">' + e.event_name + '</a></td>'
+        + '<td>' + e.event_date + '</td>'
+        + '<td class="num">' + e.utterances + '</td>'
+        + '<td class="num">' + e.claims_total + '</td>'
+        + '<td class="num" style="color:#4ade80;">' + e.claims_verified + '</td>'
+        + '<td class="num" style="color:' + (e.claims_pending > 0 ? '#fbbf24' : '#888') + ';">' + e.claims_pending + '</td>'
+        + '</tr>'
+      ).join('');
+    } else if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">No public events yet</td></tr>';
+    }
+  } catch(e) { console.error('debates load error', e); }
+}
+loadDebates();
+setInterval(loadDebates, 30000);
 </script>
 </body>
 </html>"""
