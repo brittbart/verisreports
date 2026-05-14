@@ -372,14 +372,13 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
 
     print("Connecting to Rev AI streaming...")
     try:
-        # Add diarization params manually after SDK builds the URL
-        # Rev AI supports diarization=true&speaker_count=N as query params
-        _original_connect = client.client.connect
+        # Patch URL to enable speaker switch detection (not exposed by SDK)
+        _orig_connect = client.client.connect
         def _patched_connect(url, **kwargs):
-            if 'diarization' not in url:
-                url += '&diarization=true&speaker_count=2'
-            print(f"  Rev AI URL (diarization enabled)")
-            return _original_connect(url, **kwargs)
+            if 'enable_speaker_switch' not in url:
+                url += '&enable_speaker_switch=true'
+            print(f"  Rev AI streaming with speaker switch detection enabled")
+            return _orig_connect(url, **kwargs)
         client.client.connect = _patched_connect
 
         response_gen = client.start(audio_generator())
