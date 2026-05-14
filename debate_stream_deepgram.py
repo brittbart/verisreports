@@ -187,7 +187,7 @@ def resolve_stream_url(url):
     """Resolve a YouTube or other URL to a direct stream URL via yt-dlp."""
     print(f"  Resolving stream URL...")
     r = subprocess.run(
-        ['yt-dlp', '-g', '-f', 'bestaudio', '--quiet', url],
+        ['yt-dlp', '-g', '-f', 'bestaudio/best', '--quiet', url],
         capture_output=True, text=True, timeout=30
     )
     if r.returncode != 0 or not r.stdout.strip():
