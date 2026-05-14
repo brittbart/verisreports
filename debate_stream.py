@@ -268,6 +268,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     utterance_order = [0]
     buffer = {}  # speaker_idx -> text buffer
     written_count = [0]
+    seen_speaker_ids = {}  # maps Rev AI speaker IDs to DB speaker IDs in order of first appearance
 
     def on_partial(response):
         pass  # ignore partials
@@ -300,10 +301,15 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             if not text or len(text) < 15:
                 return
 
-            speaker_id = resolve_speaker_id(
-                rev_speaker_idx, speaker_order,
-                speaker_name=None, speaker_map=speaker_map
-            )
+            # Dynamic speaker mapping: map Rev AI IDs to DB IDs in order of first appearance
+            # This handles Rev AI's incrementing speaker IDs (1000, 1001, 1004...)
+            if rev_speaker_idx not in seen_speaker_ids:
+                next_idx = len(seen_speaker_ids)
+                if next_idx < len(speaker_order):
+                    seen_speaker_ids[rev_speaker_idx] = speaker_order[next_idx]
+                else:
+                    seen_speaker_ids[rev_speaker_idx] = None
+            speaker_id = seen_speaker_ids.get(rev_speaker_idx)
 
             uid = write_utterance(
                 event_id, speaker_id, text,
