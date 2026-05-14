@@ -37,6 +37,23 @@ def _get_all_public_events(get_db_conn):
             ORDER BY e.event_date DESC
         """)
         rows = cur.fetchall()
+        # Fetch all participants for all events in one query
+        eid_list = [r[0] for r in rows]
+        participants_by_event = {eid: [] for eid in eid_list}
+        if eid_list:
+            cur.execute("""
+                SELECT es.event_id, s.id, s.name
+                FROM event_speakers es
+                JOIN speakers s ON s.id = es.speaker_id
+                WHERE es.event_id = ANY(%s)
+                ORDER BY es.event_id, es.speaker_order
+            """, (eid_list,))
+            for ev_id, spk_id, spk_name in cur.fetchall():
+                participants_by_event[ev_id].append({
+                    'name':        spk_name,
+                    'initials':    _initials(spk_name),
+                    'color_class': _color_class(spk_id),
+                })
         cur.close()
         events = []
         today = date.today()
@@ -64,6 +81,7 @@ def _get_all_public_events(get_db_conn):
                 'status':              status,
                 'start_time':          start_time,
                 'timezone':            timezone or 'CT',
+                'participants':        participants_by_event.get(eid, []),
             })
         return events
     finally:
