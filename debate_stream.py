@@ -287,6 +287,10 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 rev_speaker_idx = int(raw_spk)
             except (TypeError, ValueError):
                 rev_speaker_idx = 0
+            # Rev AI uses 1000 as sentinel for "pre-switch unknown speaker"
+            # Treat as speaker index 0 (first in order)
+            if rev_speaker_idx == 1000:
+                rev_speaker_idx = 0
 
             text = ' '.join(
                 e['value'] for e in elements
