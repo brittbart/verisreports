@@ -43,7 +43,7 @@ def _get_all_public_events(get_db_conn):
         for row in rows:
             (eid, slug, event_type, event_name, event_date, start_time, timezone, event_subtitle, venue,
              transcript_source, methodology_version, is_public, claim_count) = row
-            status = _derive_status(event_date, today)
+            status = _derive_status(event_date, today, start_time)
             events.append({
                 'id':                  eid,
                 'slug':                slug,
@@ -92,7 +92,7 @@ def _get_event_by_slug(get_db_conn, slug):
          methodology_version, notes) = row
 
         today = date.today()
-        status = _derive_status(event_date, today)
+        status = _derive_status(event_date, today, start_time)
 
         event = {
             'id':                  eid,
