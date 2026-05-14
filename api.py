@@ -795,7 +795,16 @@ def how_it_works():
 
 @app.route('/leaderboard.html', methods=['GET'])
 def leaderboard():
-    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'leaderboard.html')
+    from api_leaderboard import get_leaderboard_data
+    import json as _json
+    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'leaderboard.html')
+    with open(static_path, 'r') as f:
+        html = f.read()
+    data = get_leaderboard_data(get_db)
+    html = html.replace('let API_RESPONSE = null;', f'let API_RESPONSE = {_json.dumps(data)};')
+    html = html.replace('loadLeaderboard();', 'renderHeaderMeta(); render(); // data pre-loaded server-side')
+    from flask import Response
+    return Response(html, mimetype='text/html')
 
 @app.route('/pricing.html', methods=['GET'])
 def pricing():
@@ -815,7 +824,16 @@ def how_it_works_clean():
 
 @app.route('/leaderboard', methods=['GET'])
 def leaderboard_clean():
-    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'leaderboard.html')
+    from api_leaderboard import get_leaderboard_data
+    import json as _json
+    static_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'leaderboard.html')
+    with open(static_path, 'r') as f:
+        html = f.read()
+    data = get_leaderboard_data(get_db)
+    html = html.replace('let API_RESPONSE = null;', f'let API_RESPONSE = {_json.dumps(data)};')
+    html = html.replace('loadLeaderboard();', 'renderHeaderMeta(); render(); // data pre-loaded server-side')
+    from flask import Response
+    return Response(html, mimetype='text/html')
 
 @app.route('/pricing', methods=['GET'])
 def pricing_clean():
