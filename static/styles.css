@@ -105,13 +105,14 @@ nav.nav.scrolled {
   background: var(--violet);
   color: #fff;
   border-radius: 8px;
+  margin-left: 8px;
   padding: 9px 18px;
   font-size: 13px;
   font-weight: 500;
   border: none;
   transition: all .2s;
 }
-.nav-cta:hover { background: #9333EA; transform: translateY(-1px); }
+.nav-cta:hover { background: #6d28d9; }
 
 /* ---------- Buttons ---------- */
 .btn-primary {
@@ -138,7 +139,7 @@ nav.nav.scrolled {
   transition: all .2s;
 }
 
-.nav-cta:hover { background: #9333EA; transform: translateY(-1px); }
+.nav-cta:hover { background: #6d28d9; }
 
 /* ---------- Eyebrow ---------- */
 .eyebrow {
