@@ -336,13 +336,23 @@ def _get_featured_event(get_db_conn):
 # Utilities
 # ---------------------------------------------------------------------------
 
-def _derive_status(event_date, today):
+def _derive_status(event_date, today, start_time=None):
     if event_date is None:
         return 'complete'
     if event_date < today:
         return 'complete'
     if event_date == today:
-        return 'live'
+        # Only mark as live if within the debate window (30min before to 3hrs after start)
+        if start_time is not None:
+            from datetime import datetime, timedelta
+            now = datetime.now().time()
+            window_start = (datetime.combine(today, start_time) - timedelta(minutes=30)).time()
+            window_end   = (datetime.combine(today, start_time) + timedelta(hours=3)).time()
+            if window_start <= now <= window_end:
+                return 'live'
+            else:
+                return 'upcoming'
+        return 'live'  # no start_time — treat as live all day
     return 'upcoming'
 
 
