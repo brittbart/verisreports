@@ -268,7 +268,34 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     utterance_order = [0]
     buffer = {}  # speaker_idx -> text buffer
     written_count = [0]
-    seen_speaker_ids = {}  # maps Rev AI speaker IDs to DB speaker IDs in order of first appearance
+    seen_speaker_ids = {}       # Rev AI ID -> DB speaker_id (order-based fallback)
+    confirmed_speaker_ids = {}  # Rev AI ID -> DB speaker_id (name-confirmed, authoritative)
+    pending_speaker_id = [None] # next speaker assigned this DB speaker_id
+
+    # Build name detection map from speaker_order
+    name_map = {}
+    if speaker_order:
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+            cur.execute("SELECT id, name FROM speakers WHERE id = ANY(%s)", (speaker_order,))
+            for sid, sname in cur.fetchall():
+                name_map[sname.lower()] = sid
+                for part in sname.lower().split():
+                    if len(part) > 3:
+                        name_map[part] = sid
+            cur.close(); conn.close()
+            print(f"  Name detection active: {list(name_map.keys())}")
+        except Exception as e:
+            print(f"  [WARNING] Could not build name map: {e}")
+
+    def detect_name_cue(text):
+        tl = text.lower()
+        best_match, best_len = None, 0
+        for frag, sid in name_map.items():
+            if frag in tl and len(frag) > best_len:
+                best_match, best_len = sid, len(frag)
+        return best_match
 
     def on_partial(response):
         pass  # ignore partials
@@ -278,7 +305,6 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             data = json.loads(response) if isinstance(response, str) else response
             # Handle speaker_switch event from enable_speaker_switch=true
             if data.get('type') == 'speaker_switch':
-                print(f"  [SPEAKER SWITCH detected]")
                 return
 
             elements = data.get('elements', [])
@@ -301,15 +327,31 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             if not text or len(text) < 15:
                 return
 
-            # Dynamic speaker mapping: map Rev AI IDs to DB IDs in order of first appearance
-            # This handles Rev AI's incrementing speaker IDs (1000, 1001, 1004...)
-            if rev_speaker_idx not in seen_speaker_ids:
+            # NAME DETECTION: anchor speaker from moderator cues
+            detected = detect_name_cue(text)
+            if detected is not None:
+                pending_speaker_id[0] = detected
+                print(f"  [NAME CUE] speaker={detected}: {text[:60]}")
+
+            # SPEAKER RESOLUTION (priority order):
+            # 1. Name-confirmed (most reliable)
+            # 2. Pending name cue (assign and lock)
+            # 3. Order-based fallback
+            if rev_speaker_idx in confirmed_speaker_ids:
+                speaker_id = confirmed_speaker_ids[rev_speaker_idx]
+            elif pending_speaker_id[0] is not None:
+                speaker_id = pending_speaker_id[0]
+                confirmed_speaker_ids[rev_speaker_idx] = speaker_id
+                pending_speaker_id[0] = None
+                print(f"  [CONFIRMED] Rev AI {rev_speaker_idx} = DB speaker {speaker_id}")
+            elif rev_speaker_idx not in seen_speaker_ids:
                 next_idx = len(seen_speaker_ids)
-                if next_idx < len(speaker_order):
-                    seen_speaker_ids[rev_speaker_idx] = speaker_order[next_idx]
-                else:
-                    seen_speaker_ids[rev_speaker_idx] = None
-            speaker_id = seen_speaker_ids.get(rev_speaker_idx)
+                seen_speaker_ids[rev_speaker_idx] = (
+                    speaker_order[next_idx] if next_idx < len(speaker_order) else None
+                )
+                speaker_id = seen_speaker_ids[rev_speaker_idx]
+            else:
+                speaker_id = seen_speaker_ids.get(rev_speaker_idx)
 
             uid = write_utterance(
                 event_id, speaker_id, text,
