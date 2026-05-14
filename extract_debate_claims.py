@@ -171,6 +171,29 @@ AGREEMENT_PATTERNS = (
     r'\bwe share\b.{0,30}\bview\b',
 )
 
+# Moderator question patterns — not candidate claims
+MODERATOR_PATTERNS = (
+    r'\bboth of you\b',
+    r'\beach of you\b',
+    r'\bwould you\b',
+    r'\bcan you\b',
+    r'\bdo you\b.{0,30}\?',
+    r'\bwhat would you\b',
+    r'\bhow would you\b',
+    r'\bwhy do you\b',
+    r'\byour (response|reaction|thoughts|position)\b',
+    r'\bspeaking to\b.{0,20}\bvoters\b',
+    r'\bmy (first|next|final) question\b',
+    r'\bi\'ll (turn|go) to\b',
+    r'\blet\'s turn to\b',
+    r'\bstaying with you\b',
+    r'\bsame question\b',
+)
+
+# Sentence-start validation — garbled/fragment utterances
+# Real sentences start with capital letter or "I"
+INVALID_STARTS = re.compile(r'^[a-z]')  # starts lowercase = fragment
+
 
 def pre_filter_utterance(text: str) -> tuple:
     """
@@ -223,6 +246,15 @@ def pre_filter_utterance(text: str) -> tuple:
     for pat in AGREEMENT_PATTERNS:
         if re.search(pat, tl):
             return True, f'agreement/meta: {pat}'
+
+    # Moderator questions — not candidate claims
+    for pat in MODERATOR_PATTERNS:
+        if re.search(pat, tl):
+            return True, f'moderator pattern: {pat}'
+
+    # Fragment/garbled utterance — starts lowercase (Rev AI artifact)
+    if INVALID_STARTS.match(t):
+        return True, 'fragment: starts lowercase'
 
     # No specificity markers
     has_number    = bool(re.search(r'\b\d+(?:\.\d+)?%?\b', t))
