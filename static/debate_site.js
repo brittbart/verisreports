@@ -8,3 +8,12 @@
     toggle.setAttribute("aria-expanded", String(isOpen));
   });
 })();
+
+// Nav: blur on scroll (matches homepage behavior)
+(function() {
+  var nav = document.querySelector('nav.nav');
+  if (!nav) return;
+  var onScroll = function() { nav.classList.toggle('scrolled', window.scrollY > 20); };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
