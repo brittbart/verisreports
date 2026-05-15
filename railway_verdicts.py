@@ -51,6 +51,25 @@ def main() -> int:
         # stable, refactor to store batch IDs in DB instead.
         if os.path.exists("pending_batch.txt"):
             process_batch_results()
+        # Verify any unverified debate claims from recent events
+        from verdict_engine import get_connection
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT event_id FROM claims
+            WHERE claim_origin = 'debate_claim'
+              AND verdict IS NULL
+              AND claim_text IS NOT NULL
+            LIMIT 5
+        """)
+        event_ids = [r[0] for r in cur.fetchall()]
+        cur.close(); conn.close()
+        if event_ids:
+            print(f"Post-debate verification: {len(event_ids)} events with unverified claims")
+            for eid in event_ids:
+                n = verify_debate_claims_sync(eid, limit=20)
+                ctx.record(items_processed=n)
+                print(f"  event_id={eid}: verified {n} claims")
         batch_id = run_batch_verdict_engine(limit=VERDICTS_PER_RUN)
         if batch_id:
             ctx.record(items_processed=VERDICTS_PER_RUN)
