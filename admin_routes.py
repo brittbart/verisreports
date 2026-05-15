@@ -429,6 +429,74 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 </main>
 </div>
 
+<!-- EDIT EVENT MODAL -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:620px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-size:16px;font-weight:500;">Edit Event</div>
+      <button onclick="closeEditModal()" style="background:none;border:none;color:var(--text-2);cursor:pointer;font-size:20px;line-height:1;">×</button>
+    </div>
+    <input type="hidden" id="edit-id">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Event Name</label>
+        <input type="text" id="edit-name">
+      </div>
+      <div class="form-group">
+        <label>Slug</label>
+        <input type="text" id="edit-slug">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="edit-type">
+          <option value="debate">Debate</option>
+          <option value="speech">Speech</option>
+          <option value="hearing">Hearing</option>
+          <option value="press_conference">Press Conference</option>
+          <option value="town_hall">Town Hall</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="edit-date">
+      </div>
+      <div class="form-group">
+        <label>Start Time</label>
+        <input type="time" id="edit-time">
+      </div>
+      <div class="form-group">
+        <label>Timezone</label>
+        <select id="edit-tz">
+          <option value="CT">CT (Central)</option>
+          <option value="ET">ET (Eastern)</option>
+          <option value="MT">MT (Mountain)</option>
+          <option value="PT">PT (Pacific)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Venue</label>
+        <input type="text" id="edit-venue">
+      </div>
+      <div class="form-group">
+        <label>Transcript Source</label>
+        <input type="text" id="edit-transcript-source">
+      </div>
+      <div class="form-group full">
+        <label>Direct Stream URL</label>
+        <input type="text" id="edit-stream-url">
+      </div>
+      <div class="form-group full">
+        <label>YouTube Search Query</label>
+        <input type="text" id="edit-search-query">
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const STATIONS = {
   'kcci':         'https://www.kcci.com/live',
@@ -722,8 +790,69 @@ async function stopStream() {
 }
 
 function editEvent(id) {
-  showAlert('Edit coming soon — use DB directly for now', 'error');
+  const e = allEvents.find(ev => ev.id === id);
+  if (!e) return;
+  document.getElementById('edit-id').value = e.id;
+  document.getElementById('edit-name').value = e.event_name || '';
+  document.getElementById('edit-slug').value = e.slug || '';
+  document.getElementById('edit-type').value = e.event_type || 'debate';
+  document.getElementById('edit-date').value = e.event_date || '';
+  // parse time from start_time_str e.g. "7:00 PM CT"
+  const timeMatch = (e.start_time_str || '').match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (timeMatch) {
+    let h = parseInt(timeMatch[1]);
+    const m = timeMatch[2];
+    const ampm = timeMatch[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    document.getElementById('edit-time').value = String(h).padStart(2,'0') + ':' + m;
+  } else {
+    document.getElementById('edit-time').value = '';
+  }
+  const tzMatch = (e.start_time_str || '').match(/(CT|ET|MT|PT)$/);
+  document.getElementById('edit-tz').value = tzMatch ? tzMatch[1] : 'CT';
+  document.getElementById('edit-venue').value = e.venue || '';
+  document.getElementById('edit-transcript-source').value = e.transcript_source || '';
+  document.getElementById('edit-stream-url').value = e.stream_url || '';
+  document.getElementById('edit-search-query').value = e.search_query || '';
+  const modal = document.getElementById('edit-modal');
+  modal.style.display = 'flex';
 }
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+async function submitEdit() {
+  const id = document.getElementById('edit-id').value;
+  const payload = {
+    event_name:        document.getElementById('edit-name').value.trim(),
+    slug:              document.getElementById('edit-slug').value.trim(),
+    event_type:        document.getElementById('edit-type').value,
+    event_date:        document.getElementById('edit-date').value,
+    start_time:        document.getElementById('edit-time').value,
+    timezone:          document.getElementById('edit-tz').value,
+    venue:             document.getElementById('edit-venue').value.trim(),
+    transcript_source: document.getElementById('edit-transcript-source').value.trim(),
+    stream_url:        document.getElementById('edit-stream-url').value.trim(),
+    search_query:      document.getElementById('edit-search-query').value.trim(),
+  };
+  const res = await fetch(`/api/admin/events/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (data.error) { showAlert(data.error, 'error'); return; }
+  showAlert('Event updated');
+  closeEditModal();
+  loadEvents();
+}
+
+// Close modal on backdrop click
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
 </script>
 </body>
 </html>
@@ -884,6 +1013,62 @@ def register_admin_routes(app, get_db_conn):
             conn.commit()
             cur.close()
             return jsonify({'id': event_id, 'slug': slug})
+        except Exception as ex:
+            conn.rollback()
+            return jsonify({'error': str(ex)}), 500
+        finally:
+            conn.close()
+
+    @app.route('/api/admin/events/<int:event_id>', methods=['PATCH'])
+    def admin_update_event(event_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data'}), 400
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            # Check event exists
+            cur.execute("SELECT id FROM events WHERE id = %s", (event_id,))
+            if not cur.fetchone():
+                return jsonify({'error': 'Event not found'}), 404
+            # Check slug uniqueness if changed
+            new_slug = data.get('slug', '').strip()
+            if new_slug:
+                cur.execute("SELECT id FROM events WHERE slug = %s AND id != %s", (new_slug, event_id))
+                if cur.fetchone():
+                    return jsonify({'error': f'Slug "{new_slug}" already in use'}), 400
+            cur.execute("""
+                UPDATE events SET
+                    event_name        = COALESCE(%s, event_name),
+                    slug              = COALESCE(NULLIF(%s,''), slug),
+                    event_type        = COALESCE(%s, event_type),
+                    event_date        = %s,
+                    start_time        = %s,
+                    timezone          = COALESCE(%s, timezone),
+                    venue             = %s,
+                    transcript_source = %s,
+                    stream_url        = NULLIF(%s, ''),
+                    search_query      = NULLIF(%s, ''),
+                    updated_at        = NOW()
+                WHERE id = %s
+            """, (
+                data.get('event_name') or None,
+                new_slug or None,
+                data.get('event_type') or None,
+                data.get('event_date') or None,
+                data.get('start_time') or None,
+                data.get('timezone') or None,
+                data.get('venue', ''),
+                data.get('transcript_source', ''),
+                data.get('stream_url', ''),
+                data.get('search_query', ''),
+                event_id,
+            ))
+            conn.commit()
+            cur.close()
+            return jsonify({'ok': True})
         except Exception as ex:
             conn.rollback()
             return jsonify({'error': str(ex)}), 500
