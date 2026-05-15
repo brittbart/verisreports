@@ -52,12 +52,10 @@ def _get_all_public_events(get_db_conn):
             for ev_id, spk_id, spk_name in cur.fetchall():
                 idx = order_counters.get(ev_id, 0)
                 order_counters[ev_id] = idx + 1
-                # Build a minimal order map for this event on the fly
-                order_map = {spk_id: idx}
                 participants_by_event[ev_id].append({
                     'name':        spk_name,
                     'initials':    _initials(spk_name),
-                    'color_class': _color_class(spk_id, {spk_id: idx}),
+                    'color_class': _listing_color_class(idx),
                 })
         cur.close()
         events = []
@@ -417,6 +415,12 @@ def _initials(name):
 
 # Candidate color classes — index-based (first speaker = cand-a, second = cand-b)
 _CAND_CLASSES = ['cand-a', 'cand-b', 'cand-c', 'cand-d']
+
+# Listing page uses t-* classes (dx-pmono system)
+_LISTING_COLORS = ['t-violet', 't-pink', 't-cyan', 't-amber']
+
+def _listing_color_class(index):
+    return _LISTING_COLORS[index % len(_LISTING_COLORS)]
 
 def _color_class(speaker_id, speaker_order_map=None):
     """Return cand-a/cand-b/etc based on speaker's position in the event.
