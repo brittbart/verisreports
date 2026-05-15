@@ -188,11 +188,18 @@
   /* ===== Participants strip ===== */
   .dt-participants {
     grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 1fr 60px 1fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 18px;
     align-items: stretch;
     margin-bottom: 40px;
+  }
+  .dt-participant {
+    flex: 1;
+    min-width: 260px;
+  }
+  .dt-versus {
+    flex: 0 0 60px;
   }
   .dt-participant {
     padding: 22px 24px;
@@ -977,7 +984,7 @@
       <!-- Participants strip -->
       <div class="dt-participants">
         {% for p in event.participants %}
-        <div class="dt-participant cand-{{ 'a' if loop.first else 'b' }}">
+        <div class="dt-participant {{ p.color_class }}">
           <div class="dt-p-avatar">{{ p.initials }}</div>
           <div class="dt-p-id">
             <h3 class="dt-p-name">{{ p.name }}</h3>

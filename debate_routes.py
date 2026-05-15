@@ -48,11 +48,16 @@ def _get_all_public_events(get_db_conn):
                 WHERE es.event_id = ANY(%s)
                 ORDER BY es.event_id, es.speaker_order
             """, (eid_list,))
+            order_counters = {}
             for ev_id, spk_id, spk_name in cur.fetchall():
+                idx = order_counters.get(ev_id, 0)
+                order_counters[ev_id] = idx + 1
+                # Build a minimal order map for this event on the fly
+                order_map = {spk_id: idx}
                 participants_by_event[ev_id].append({
                     'name':        spk_name,
                     'initials':    _initials(spk_name),
-                    'color_class': _color_class(spk_id),
+                    'color_class': _color_class(spk_id, {spk_id: idx}),
                 })
         cur.close()
         events = []
