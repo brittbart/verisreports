@@ -160,7 +160,9 @@ def _get_event_by_slug(get_db_conn, slug):
             rows = cur.fetchall()
 
         participants = []
-        for p in rows:
+        speaker_order_map = {}  # {speaker_id: 0-based index}
+        for idx, p in enumerate(rows):
+            speaker_order_map[p[0]] = idx
             participants.append({
                 'id':             p[0],
                 'name':           p[1],
@@ -170,7 +172,7 @@ def _get_event_by_slug(get_db_conn, slug):
                 'party':          p[5] or '',
                 'speaker_type':   p[6],
                 'initials':       _initials(p[1]),
-                'color_class':    _color_class(p[0]),
+                'color_class':    _color_class(p[0], speaker_order_map),
             })
         event['participants'] = participants
 
@@ -207,7 +209,7 @@ def _get_event_by_slug(get_db_conn, slug):
                 'speaker_id':      speaker_id,
                 'report_url':      ('/report?url=' + article_url) if article_url else '#',
                 'initials':        _initials(speaker_name or ''),
-                'color_class':     _color_class(speaker_id),
+                'color_class':     _color_class(speaker_id, speaker_order_map),
             })
         cur.close()
         return event, claims
@@ -404,13 +406,19 @@ def _initials(name):
     return name[0].upper()
 
 
-# Cycle through candidate colors for participants
-_COLORS = ['t-violet', 't-pink', 't-cyan', 't-slate']
+# Candidate color classes — index-based (first speaker = cand-a, second = cand-b)
+_CAND_CLASSES = ['cand-a', 'cand-b', 'cand-c', 'cand-d']
 
-def _color_class(speaker_id):
+def _color_class(speaker_id, speaker_order_map=None):
+    """Return cand-a/cand-b/etc based on speaker's position in the event.
+    speaker_order_map: dict of {speaker_id: 0-based index} for this event.
+    Falls back to speaker_id modulo if no map provided.
+    """
+    if speaker_order_map and speaker_id in speaker_order_map:
+        return _CAND_CLASSES[speaker_order_map[speaker_id] % len(_CAND_CLASSES)]
     if speaker_id is None:
-        return _COLORS[0]
-    return _COLORS[speaker_id % len(_COLORS)]
+        return _CAND_CLASSES[0]
+    return _CAND_CLASSES[speaker_id % len(_CAND_CLASSES)]
 
 
 # ---------------------------------------------------------------------------
