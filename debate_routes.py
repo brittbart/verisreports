@@ -330,7 +330,11 @@ def _get_featured_event(get_db_conn):
             WHERE su.event_id = %s AND s.speaker_type IN ('politician', 'official')
             ORDER BY s.name
         """, (eid,))
-        participants = [{'name': r[0], 'initials': _initials(r[0]), 'color_class': _color_class(r[1])} for r in cur.fetchall()]
+        featured_rows = cur.fetchall()
+        participants = [
+            {'name': r[0], 'initials': _initials(r[0]), 'color_class': _color_class(r[1], {r[1]: i})}
+            for i, r in enumerate(featured_rows)
+        ]
         # Recent claims for the live preview strip
         cur.execute("""
             SELECT c.claim_text, c.verdict, s.id AS speaker_id

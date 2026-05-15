@@ -14,15 +14,25 @@
   /* ============== DEBATE EVENT ============== */
 
   :root {
-    --cand-a: #a855f7;          /* Reyes — violet */
+    --cand-a: #a855f7;          /* violet */
     --cand-a-soft: rgba(168, 85, 247, 0.08);
     --cand-a-border: rgba(168, 85, 247, 0.30);
     --cand-a-tint: rgba(168, 85, 247, 0.04);
 
-    --cand-b: #ec4899;          /* Calloway — pink */
+    --cand-b: #ec4899;          /* pink */
     --cand-b-soft: rgba(236, 72, 153, 0.08);
     --cand-b-border: rgba(236, 72, 153, 0.30);
     --cand-b-tint: rgba(236, 72, 153, 0.04);
+
+    --cand-c: #22d3ee;          /* cyan */
+    --cand-c-soft: rgba(34, 211, 238, 0.08);
+    --cand-c-border: rgba(34, 211, 238, 0.30);
+    --cand-c-tint: rgba(34, 211, 238, 0.04);
+
+    --cand-d: #fb923c;          /* orange */
+    --cand-d-soft: rgba(251, 146, 60, 0.08);
+    --cand-d-border: rgba(251, 146, 60, 0.30);
+    --cand-d-tint: rgba(251, 146, 60, 0.04);
   }
 
   /* Tri-state visibility: is-upcoming / is-live / is-static.
@@ -566,6 +576,26 @@
   }
   .dt-claim.cand-b::before { background: var(--cand-b); }
   .dt-claim.cand-b:hover { border-color: rgba(236, 72, 153, 0.35); background: rgba(236, 72, 153, 0.06); }
+
+  .dt-participant.cand-c { border-color: rgba(34, 211, 238, 0.28); background: linear-gradient(135deg, rgba(34, 211, 238, 0.05), rgba(34, 211, 238, 0.01)); }
+  .cand-c .dt-p-avatar { background: var(--cand-c-soft); border: 0.5px solid var(--cand-c-border); color: var(--cand-c); }
+  .cand-c .dt-claim-mono { background: var(--cand-c-soft); border: 0.5px solid var(--cand-c-border); color: var(--cand-c); }
+  .cand-c .dt-claim-speaker .name { color: #a5f3fc; }
+  .dt-claim.cand-c { background: var(--cand-c-tint); border-color: rgba(34, 211, 238, 0.18); }
+  .dt-claim.cand-c::before { background: var(--cand-c); }
+  .dt-claim.cand-c:hover { border-color: rgba(34, 211, 238, 0.35); background: rgba(34, 211, 238, 0.06); }
+  .dt-side-card.cand-c { border-color: rgba(34, 211, 238, 0.22); background: linear-gradient(180deg, rgba(34, 211, 238, 0.04), rgba(34, 211, 238, 0.01)); }
+  .cand-c .dt-side-mono { background: var(--cand-c-soft); border: 0.5px solid var(--cand-c-border); color: var(--cand-c); }
+
+  .dt-participant.cand-d { border-color: rgba(251, 146, 60, 0.28); background: linear-gradient(135deg, rgba(251, 146, 60, 0.05), rgba(251, 146, 60, 0.01)); }
+  .cand-d .dt-p-avatar { background: var(--cand-d-soft); border: 0.5px solid var(--cand-d-border); color: var(--cand-d); }
+  .cand-d .dt-claim-mono { background: var(--cand-d-soft); border: 0.5px solid var(--cand-d-border); color: var(--cand-d); }
+  .cand-d .dt-claim-speaker .name { color: #fed7aa; }
+  .dt-claim.cand-d { background: var(--cand-d-tint); border-color: rgba(251, 146, 60, 0.18); }
+  .dt-claim.cand-d::before { background: var(--cand-d); }
+  .dt-claim.cand-d:hover { border-color: rgba(251, 146, 60, 0.35); background: rgba(251, 146, 60, 0.06); }
+  .dt-side-card.cand-d { border-color: rgba(251, 146, 60, 0.22); background: linear-gradient(180deg, rgba(251, 146, 60, 0.04), rgba(251, 146, 60, 0.01)); }
+  .cand-d .dt-side-mono { background: var(--cand-d-soft); border: 0.5px solid var(--cand-d-border); color: var(--cand-d); }
 
   .dt-claim-row {
     display: grid;
