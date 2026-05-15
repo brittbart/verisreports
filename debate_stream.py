@@ -178,14 +178,26 @@ def run_async(args, token, speaker_map, speaker_order, event_id):
 
     client = apiclient.RevAiAPIClient(token)
 
-    print(f"\nSubmitting to Rev AI async: {args.url}")
-    job = client.submit_job_url(
-        args.url,
-        skip_diarization=False,
-        skip_punctuation=False,
-        speaker_channels_count=None,
-        metadata=f"verum-signal-{args.event_slug}",
-    )
+    # Support local file paths as well as URLs
+    import os as _os
+    if _os.path.exists(args.url):
+        print(f"\nSubmitting local file to Rev AI async: {args.url}")
+        job = client.submit_job_local_file(
+                args.url,
+                skip_diarization=False,
+                skip_punctuation=False,
+                speaker_channels_count=None,
+                metadata=f"verum-signal-{args.event_slug}",
+            )
+    else:
+        print(f"\nSubmitting to Rev AI async: {args.url}")
+        job = client.submit_job_url(
+            args.url,
+            skip_diarization=False,
+            skip_punctuation=False,
+            speaker_channels_count=None,
+            metadata=f"verum-signal-{args.event_slug}",
+        )
     print(f"  Job ID: {job.id}")
     print(f"  Status: {job.status}")
 

@@ -78,7 +78,6 @@ SCOREABLE_SPEAKER_TYPES = {'politician', 'official'}
 SKIP_PREFIXES = (
     'uh ', 'um ', 'uh,', 'um,',
     'well,', 'well ', 'so,', 'so ',
-    'and ', 'but ',
     'you know', 'i mean', 'i think',
     'thank you', 'thanks for', 'thanks,',
     'good evening', 'good morning', 'good afternoon',
@@ -267,7 +266,7 @@ def pre_filter_utterance(text: str) -> tuple:
     first_word = t.split()[0].rstrip('.,;:').lower()
     INVALID_OPENERS = {
         'represent', 'representing', 'represented',
-        'because', 'but', 'or', 'nor', 'yet',
+        'because', 'or', 'nor', 'yet',
         'although', 'though', 'however', 'therefore',
         'whereas', 'which', 'that', 'who', 'whom',
         'whose', 'when', 'where', 'while',
