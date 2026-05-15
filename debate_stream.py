@@ -228,7 +228,7 @@ def run_async(args, token, speaker_map, speaker_order, event_id):
         rev_speaker_idx = monologue.speaker
         text = ' '.join(
             e.value for e in monologue.elements
-            if e.type == 'text'
+            if e.type_ == 'text'
         ).strip()
 
         if not text:
