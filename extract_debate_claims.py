@@ -212,9 +212,15 @@ def pre_filter_utterance(text: str) -> tuple:
     if t.rstrip().endswith('?'):
         return True, 'question'
 
-    # Filler starts
+    # Strip leading filler words then check prefixes
+    STRIP_LEADING = ('uh ', 'um ', 'uh, ', 'um, ', 'and ', 'but ', 'so ', 'well, ', 'well ')
+    cleaned = tl
+    for strip in STRIP_LEADING:
+        if cleaned.startswith(strip):
+            cleaned = cleaned[len(strip):].strip()
+            break
     for prefix in SKIP_PREFIXES:
-        if tl.startswith(prefix):
+        if cleaned.startswith(prefix):
             return True, f'filler prefix: {prefix}'
 
     # Junk keywords anywhere
@@ -261,7 +267,7 @@ def pre_filter_utterance(text: str) -> tuple:
     first_word = t.split()[0].rstrip('.,;:').lower()
     INVALID_OPENERS = {
         'represent', 'representing', 'represented',
-        'because', 'but', 'and', 'or', 'nor', 'yet',
+        'because', 'but', 'or', 'nor', 'yet',
         'although', 'though', 'however', 'therefore',
         'whereas', 'which', 'that', 'who', 'whom',
         'whose', 'when', 'where', 'while',
@@ -327,12 +333,12 @@ def post_filter_claim(claim_text: str) -> tuple:
     t = claim_text.strip()
     tl = t.lower()
 
-    # Min length
-    if len(t) < 100:
+    # Min length — debate claims can be concise
+    if len(t) < 40:
         return True, 'too short'
 
-    # Truncated
-    if '...' in t:
+    # Truncated — only reject if very short
+    if '...' in t and len(t) < 60:
         return True, 'truncated'
 
     # Biographical role
@@ -390,6 +396,7 @@ def fetch_politician_utterances(conn, event_id, limit=None):
             JOIN events e ON e.id = su.event_id
             WHERE su.event_id = %s
               AND s.speaker_type IN ('politician', 'official')
+              AND su.processed_at IS NULL
               AND su.id NOT IN (
                   SELECT utterance_id FROM claims
                   WHERE utterance_id IS NOT NULL
@@ -504,6 +511,10 @@ def run_extraction(event_id, limit=None, dry_run=False):
         if skip:
             print(f"  → pre-filtered: {reason}")
             stats['pre_filtered'] += 1
+            # Mark as processed so it doesn't re-queue next batch
+            with conn.cursor() as _cur:
+                _cur.execute("UPDATE speaker_utterances SET processed_at = NOW() WHERE id = %s", (uid,))
+            conn.commit()
             continue
 
         if dry_run:
