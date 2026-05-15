@@ -576,10 +576,16 @@ function removeSpeakerRow(btn) {
   if (rows.length > 1) btn.closest('.speaker-row').remove();
 }
 
-function lookupSpeaker(btn) {
+async function lookupSpeaker(btn) {
   const row = btn.closest('.speaker-row');
   const name = row.querySelector('.speaker-name').value.trim().toLowerCase();
   if (!name) return;
+  // Fetch fresh if allSpeakers not yet loaded
+  if (!allSpeakers.length) {
+    const res = await fetch('/api/admin/speakers');
+    const data = await res.json();
+    allSpeakers = data.speakers || [];
+  }
   const match = allSpeakers.find(s => s.name.toLowerCase().includes(name));
   if (match) {
     row.querySelector('.speaker-id').value = match.id;
@@ -999,7 +1005,7 @@ def register_admin_routes(app, get_db_conn):
         # Launch stream as background process
         import subprocess
         cmd = [
-            'python3', '-u', 'debate_stream.py',
+            'python3', '-u', 'debate_stream_deepgram.py',
             '--mode', 'live',
             '--url', url_override,
             '--event-slug', slug,
