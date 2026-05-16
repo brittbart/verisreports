@@ -1,3 +1,2 @@
 [deploy]
 startCommand = "python railway_stream.py"
-cronSchedule = "*/5 * * * *"
