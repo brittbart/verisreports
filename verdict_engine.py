@@ -573,18 +573,24 @@ def verify_debate_claims_sync(event_id, limit=10):
                 'Debate transcript'
             )
 
-            # Use existing analyse_claim() which handles API call + parsing
-            result = analyse_claim(
-                claim_text,
-                speaker or 'Debate participant',
-                claim_type or 'factual',
-                event_name,
-                'Debate transcript',
-                stage='verdicts-debate'
-            )
-
+            # Use existing analyse_claim() with retry on failure
+            result = None
+            for _attempt in range(3):
+                result = analyse_claim(
+                    claim_text,
+                    speaker or 'Debate participant',
+                    claim_type or 'factual',
+                    event_name,
+                    'Debate transcript',
+                    stage='verdicts-debate'
+                )
+                if result:
+                    break
+                if _attempt < 2:
+                    print(f"    [surge] Parse failed, retrying ({_attempt+1}/3)...")
+                    time.sleep(5 * (_attempt + 1))
             if not result:
-                print(f"    [surge] Could not parse verdict for claim {claim_id}")
+                print(f"    [surge] Could not parse verdict for claim {claim_id} after 3 attempts")
                 continue
 
             verdict = result.get('verdict', 'not_verifiable')
