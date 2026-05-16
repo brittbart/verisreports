@@ -747,9 +747,11 @@ function loadStreamEvents() {
 }
 
 function populateStreamSelect(events) {
-  const sel = document.getElementById('stream-event-select');
-  sel.innerHTML = '<option value="">— Select event —</option>' +
+  const opts = '<option value="">— Select event —</option>' +
     events.map(e => `<option value="${e.id}">${e.event_name} (${e.event_date||'TBD'})</option>`).join('');
+  document.getElementById('stream-event-select').innerHTML = opts;
+  const replaySel = document.getElementById('replay-event-select');
+  if (replaySel) replaySel.innerHTML = opts;
 }
 
 async function quickStream(eventId) {
@@ -1190,7 +1192,7 @@ def register_admin_routes(app, get_db_conn):
         # Launch stream as background process
         import subprocess
         cmd = [
-            'python3', '-u', 'debate_stream_deepgram.py',
+            'python3', '-u', 'debate_stream.py',
             '--mode', 'live',
             '--url', url_override,
             '--event-slug', slug,
@@ -1207,6 +1209,64 @@ def register_admin_routes(app, get_db_conn):
                 start_new_session=True
             )
             return jsonify({'message': f'Stream launched (PID {proc.pid})', 'pid': proc.pid})
+        except Exception as ex:
+            return jsonify({'error': str(ex)}), 500
+
+    @app.route('/api/admin/stream/replay', methods=['POST'])
+    def admin_replay_stream():
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        data = request.get_json()
+        event_id = data.get('event_id')
+        url = data.get('url', '').strip()
+        if not event_id:
+            return jsonify({'error': 'event_id required'}), 400
+        if not url:
+            return jsonify({'error': 'YouTube URL required'}), 400
+        # Get event slug and speaker order
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT e.slug,
+                       string_agg(es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_order,
+                       string_agg(s.name || ':' || es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_map
+                FROM events e
+                LEFT JOIN event_speakers es ON es.event_id = e.id
+                LEFT JOIN speakers s ON s.id = es.speaker_id
+                WHERE e.id = %s
+                GROUP BY e.id
+            """, (event_id,))
+            row = cur.fetchone()
+            cur.close()
+        finally:
+            conn.close()
+        if not row:
+            return jsonify({'error': 'Event not found'}), 404
+        slug, speaker_order, speaker_map = row
+        import subprocess
+        log_path = f'/tmp/replay_{event_id}.log'
+        cmd = [
+            'python3', '-u', 'debate_stream.py',
+            '--mode', 'async',
+            '--url', url,
+            '--event-slug', slug,
+        ]
+        if speaker_map:
+            cmd += ['--speakers', speaker_map.upper()]
+        if speaker_order:
+            cmd += ['--speaker-order', speaker_order]
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                cwd=os.path.expanduser('~/projects/veris'),
+                stdout=open(log_path, 'w'),
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                env={**os.environ,
+                     'PATH': f"{os.path.expanduser('~/projects/veris/venv/bin')}:{os.environ.get('PATH','')}"}
+            )
+            return jsonify({'message': f'Replay started (PID {proc.pid}). Check /tmp/replay_{event_id}.log for progress.'})
         except Exception as ex:
             return jsonify({'error': str(ex)}), 500
 
