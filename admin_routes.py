@@ -765,6 +765,21 @@ async function quickStream(eventId) {
   showAlert(data.message || 'Stream launched');
 }
 
+async function launchReplay() {
+  const eventId = document.getElementById('replay-event-select').value;
+  const url = document.getElementById('replay-url').value.trim();
+  const status = document.getElementById('replay-status');
+  if (!eventId || !url) { alert('Select event and enter URL'); return; }
+  status.textContent = 'Launching...';
+  const res = await fetch('/api/admin/stream/replay', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ event_id: parseInt(eventId), url })
+  });
+  const d = await res.json();
+  status.textContent = res.ok ? (d.message || 'Started') : (d.error || 'Error');
+  status.style.color = res.ok ? 'var(--ok)' : 'var(--bad)';
+}
 async function launchStream() {
   const eventId = document.getElementById('stream-event-select').value;
   const urlOverride = document.getElementById('stream-url-override').value.trim();
