@@ -432,6 +432,7 @@ def run_verdict_engine(limit=10, depth=None):
         JOIN articles a ON c.article_id = a.id
         WHERE c.verdict IS NULL
         AND c.priority_score >= 30
+        AND COALESCE(c.verification_attempts, 0) < 3
         ORDER BY c.priority_score DESC
         LIMIT %s;
     """, (limit,))
@@ -550,6 +551,7 @@ def verify_debate_claims_sync(event_id, limit=10):
           AND c.verdict IS NULL
           AND c.claim_text IS NOT NULL
           AND LENGTH(c.claim_text) > 20
+          AND COALESCE(c.verification_attempts, 0) < 3
         ORDER BY c.id ASC
         LIMIT %s
     """, (event_id, limit))
@@ -590,7 +592,21 @@ def verify_debate_claims_sync(event_id, limit=10):
                     print(f"    [surge] Parse failed, retrying ({_attempt+1}/3)...")
                     time.sleep(5 * (_attempt + 1))
             if not result:
-                print(f"    [surge] Could not parse verdict for claim {claim_id} after 3 attempts")
+                # Increment attempt counter
+                cursor.execute("""
+                    UPDATE claims SET verification_attempts = COALESCE(verification_attempts, 0) + 1,
+                        verdict = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN 'not_verifiable' ELSE verdict END,
+                        verdict_summary = CASE WHEN COALESCE(verification_attempts, 0) >= 2
+                            THEN 'Automated verification failed to parse API response after 3 attempts.'
+                            ELSE verdict_summary END,
+                        last_checked = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN NOW() ELSE last_checked END
+                    WHERE id = %s
+                """, (claim_id,))
+                conn.commit()
+                if (cursor.execute("SELECT verification_attempts FROM claims WHERE id = %s", (claim_id,)) or True) and cursor.fetchone()[0] >= 3:
+                    print(f"    [surge] claim {claim_id}: auto-marked not_verifiable after 3 attempts")
+                else:
+                    print(f"    [surge] Could not parse verdict for claim {claim_id} — will retry")
                 continue
 
             verdict = result.get('verdict', 'not_verifiable')
