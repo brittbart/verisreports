@@ -653,7 +653,7 @@ def get_live_event_id():
             offset = TZ_OFFSETS.get(event_tz or 'CT', -5)
             event_tz_obj = tz(timedelta(hours=offset))
             event_start = datetime.combine(event_date, start_time).replace(tzinfo=event_tz_obj)
-            if (event_start - timedelta(minutes=30)) <= now_utc <= (event_start + timedelta(hours=3)):
+            if (event_start - timedelta(minutes=45)) <= now_utc <= (event_start + timedelta(hours=3)):
                 return eid
         return None
     except Exception:
