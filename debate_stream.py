@@ -329,6 +329,11 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             misspellings = {
                 'turek': ['turk', 'terk', 'turek'],
                 'wahls': ['walz', 'walls', 'wals', 'wahls'],
+                'kirkmeyer': ['kirkmeier', 'kirkmyer', 'kirkmeyer', 'kirk meyer'],
+                'bottoms': ['bottom', 'bottoms'],
+                'bennet': ['bennett', 'benet', 'bennet'],
+                'weiser': ['wiser', 'wyser', 'weiser'],
+                'marx': ['marks', 'marx'],
             }
             for correct, variants in misspellings.items():
                 if correct in name_map:
