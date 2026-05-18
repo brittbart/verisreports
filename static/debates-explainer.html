@@ -102,111 +102,86 @@ h1, h2, h3, h4, p { margin: 0; }
 /* ============================================================
    NAV — inlined from production /static/styles.css
    ============================================================ */
-.nav {
-  position: sticky;
-  top: 0;
+nav.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
   z-index: 100;
-  background: rgba(10,10,15,0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  background: transparent;
+  border-bottom: 0.5px solid transparent;
+  transition: background .3s ease, border-color .3s ease, backdrop-filter .3s ease;
+}
+nav.nav.scrolled {
+  background: rgba(10,10,15,0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom-color: rgba(255,255,255,0.07);
 }
 .nav-inner {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0 32px;
-  height: 60px;
+  padding: 14px 32px;
   display: flex;
   align-items: center;
-  gap: 40px;
+  justify-content: space-between;
 }
-.nav-logo {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-  flex-shrink: 0;
-}
+.nav-logo { display: flex; align-items: center; }
+.nav-logo svg { display: block; height: 40px; width: auto; }
 .nav-toggle {
   display: none;
+  background: transparent;
+  border: 0;
+  padding: 8px;
+  cursor: pointer;
   flex-direction: column;
   gap: 5px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
 }
 .nav-toggle span {
   display: block;
-  width: 22px;
+  width: 18px;
   height: 1.5px;
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.78);
   border-radius: 2px;
-  transition: all .2s;
+  transition: transform 0.25s ease, opacity 0.2s ease;
 }
+.nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 32px;
-  margin-left: auto;
-  list-style: none;
+  gap: 4px;
 }
 .nav-links a {
-  font-family: "DM Sans", system-ui, sans-serif;
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255,255,255,0.55);
-  text-decoration: none;
-  letter-spacing: 0.01em;
-  transition: color .15s;
-  white-space: nowrap;
-}
-.nav-links a:hover { color: rgba(255,255,255,0.92); }
-.nav-links a.nav-active { color: rgba(255,255,255,0.92); }
-.nav-cta {
-  font-family: "DM Sans", system-ui, sans-serif;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  color: rgba(255,255,255,0.92) !important;
-  background: rgba(168,85,247,0.15);
-  border: 0.5px solid rgba(168,85,247,0.35);
+  color: var(--text-2);
+  padding: 8px 14px;
   border-radius: 6px;
-  padding: 6px 14px;
-  transition: background .15s, border-color .15s;
+  transition: color .15s, background .15s;
+  letter-spacing: -0.005em;
 }
-.nav-cta:hover {
-  background: rgba(168,85,247,0.25) !important;
-  border-color: rgba(168,85,247,0.6) !important;
-  color: rgba(255,255,255,0.92) !important;
+.nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-links a.active, .nav-links a.nav-active { color: var(--text); }
+.nav-cta {
+  margin-left: 8px;
+  background: var(--violet);
+  color: #fff !important;
+  padding: 9px 16px !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  transition: background .15s !important;
 }
-@media (max-width: 768px) {
-  .nav-toggle { display: flex; }
-  .nav-links {
-    display: none;
-    position: absolute;
-    top: 60px;
-    left: 0;
-    right: 0;
-    background: rgba(10,10,15,0.97);
-    backdrop-filter: blur(12px);
-    border-bottom: 0.5px solid rgba(255,255,255,0.08);
-    flex-direction: column;
-    gap: 0;
-    padding: 8px 0;
-  }
-  .nav-links.open { display: flex; }
-  .nav-links a {
-    padding: 12px 24px;
-    width: 100%;
-  }
-}
-
+.nav-cta:hover { background: #6d28d9 !important; }
 /* ============================================================
    HERO
    ============================================================ */
 .hero {
   position: relative;
-  padding: 96px 0 56px;
+  padding: 136px 0 56px;
   overflow: hidden;
   text-align: center;
 }
@@ -1062,7 +1037,7 @@ h1, h2, h3, h4, p { margin: 0; }
       <a href="/pricing">Pricing</a>
       <a href="/leaderboard">Leaderboard</a>
       <a href="/methodology">Methodology</a>
-      <a href="/debates" class="nav-active">Debates</a>
+      <a href="/debates/list" class="nav-active">Debates</a>
       <a href="/#" class="nav-cta">Get the extension</a>
     </div>
   </div>
@@ -1082,7 +1057,7 @@ h1, h2, h3, h4, p { margin: 0; }
       No opinion. <em>No score.</em> Just the evidence, claim by claim.
     </p>
     <div class="hero-cta-row">
-      <a href="/debates" class="btn-primary">
+      <a href="/debates/list" class="btn-primary">
         See the debates
         <span class="arrow">→</span>
       </a>
@@ -1322,11 +1297,11 @@ h1, h2, h3, h4, p { margin: 0; }
       <h2 class="cta-title">See every debate<br><span class="accent">we've covered.</span></h2>
       <p class="cta-sub">Every claim from every candidate, held to the same standard — on the record, with sources.</p>
       <div class="cta-actions">
-        <a href="/debates" class="btn-primary">
+        <a href="/debates/list" class="btn-primary">
           View all debates
           <span class="arrow">→</span>
         </a>
-        <a href="/how-it-works" class="btn-ghost">Read the methodology</a>
+        <a href="/methodology" class="btn-ghost">Read the methodology</a>
       </div>
       <div class="cta-foot">
         Methodology <strong>v1.6</strong> · Automated · Auditable
@@ -1351,7 +1326,7 @@ h1, h2, h3, h4, p { margin: 0; }
       <a href="/how-it-works">How it works</a>
       <a href="/leaderboard">Leaderboard</a>
       <a href="/pricing">Pricing</a>
-      <a href="/debates">Debates</a>
+      <a href="/debates/list">Debates</a>
     </nav>
     <div class="site-footer-meta">Methodology v1.6 · Automated · Auditable</div>
   </div>
