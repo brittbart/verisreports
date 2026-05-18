@@ -439,16 +439,6 @@ def _color_class(speaker_id, speaker_order_map=None):
 # ---------------------------------------------------------------------------
 
 def register_debate_routes(app, get_db_conn):
-
-@app.route("/debates/about")
-    def debates_about():
-        from flask import send_from_directory
-        import os
-        return send_from_directory(
-            os.path.join(os.path.dirname(__file__), 'static'),
-            'debates-explainer.html'
-        )
-
     @app.route("/debates")
     def debates_about():
         from flask import send_from_directory
