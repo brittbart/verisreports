@@ -283,6 +283,35 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     seen_speaker_ids = {}       # Rev AI ID -> DB speaker_id (order-based fallback)
     confirmed_speaker_ids = {}  # Rev AI ID -> DB speaker_id (name-confirmed, authoritative)
     pending_speaker_id = [None] # next speaker assigned this DB speaker_id
+    # Calibration phase — first 3 minutes, aggressive name detection
+    calibration_start = [time.time()]
+    CALIBRATION_SECS = 180  # 3 minutes
+    calibration_done = [False]
+    def is_calibrating():
+        if calibration_done[0]:
+            return False
+        elapsed = time.time() - calibration_start[0]
+        if elapsed > CALIBRATION_SECS:
+            # Time's up — check if we got both speakers
+            missing = [sid for sid in (speaker_order or [])
+                       if sid not in confirmed_speaker_ids.values()]
+            if missing:
+                print(f"  [CALIBRATION] 3min elapsed. Missing speakers: {missing}")
+                # Fall back to order-based for unconfirmed speakers
+                unconfirmed_rev_ids = [rid for rid in seen_speaker_ids
+                                        if rid not in confirmed_speaker_ids]
+                for i, rid in enumerate(sorted(unconfirmed_rev_ids)):
+                    for sid in missing:
+                        if sid not in confirmed_speaker_ids.values():
+                            confirmed_speaker_ids[rid] = sid
+                            seen_speaker_ids[rid] = sid
+                            print(f"  [CALIBRATION] Fallback: Rev AI {rid} = DB speaker {sid}")
+                            break
+            else:
+                print(f"  [CALIBRATION] Complete — all speakers confirmed")
+            calibration_done[0] = True
+            return False
+        return True
 
     # Build name detection map from speaker_order
     name_map = {}
@@ -362,9 +391,12 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                     any(f in tl_check for f in ['turk', 'turek', 'josh t']) and
                     any(f in tl_check for f in ['walz', 'wahls', 'walls', 'zach w'])
                 )
-                if both_present:
+                if both_present and not is_calibrating():
                     print(f"  [NAME CUE] skipped (both names in utterance): {text[:60]}")
                 else:
+                    # During calibration, use first name mentioned
+                    if both_present and is_calibrating():
+                        print(f"  [CALIBRATION] Both names present — using first match: {detected}")
                     pending_speaker_id[0] = detected
                     print(f"  [NAME CUE] speaker={detected}: {text[:60]}")
 
