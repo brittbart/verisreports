@@ -216,7 +216,7 @@ nav.nav.scrolled {
 .hero-headline {
   font-family: var(--font-display);
   font-weight: 400;
-  font-style: italic;
+  font-style: normal;
   font-size: clamp(36px, 5vw, 72px);
   line-height: 0.98;
   letter-spacing: -2px;
@@ -324,6 +324,7 @@ nav.nav.scrolled {
 .hero-meta {
   margin-top: 40px;
   padding-top: 20px;
+  gap: 24px;
   border-top: 0.5px solid rgba(255,255,255,0.06);
   display: inline-flex;
   align-items: center;
@@ -1046,10 +1047,10 @@ nav.nav.scrolled {
 <!-- ============= HERO ============= -->
 <section class="hero">
   <div class="container">
-    <div class="hero-eyebrow">
+    <a href="/debates/list" class="hero-eyebrow" style="text-decoration:none;">
       <span class="dot"></span>
       <span>Live debate analysis</span>
-    </div>
+    </a>
     <h1 class="hero-headline">
       Claims made. Evidence checked. <span class="accent">You decide.<span class="qmark"></span></span>
     </h1>
