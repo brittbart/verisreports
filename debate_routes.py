@@ -458,6 +458,15 @@ def register_debate_routes(app, get_db_conn):
             'debates-explainer.html'
         )
 
+    @app.route("/debates/about")
+    def debates_about():
+        from flask import send_from_directory
+        import os
+        return send_from_directory(
+            os.path.join(os.path.dirname(__file__), 'static'),
+            'debates-explainer.html'
+        )
+
     @app.route("/debates")
     def debates_index():
         events = _get_all_public_events(get_db_conn)
