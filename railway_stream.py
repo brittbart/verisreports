@@ -31,7 +31,7 @@ def get_live_event():
         conn = get_connection()
         cur = conn.cursor()
         cur.execute("""
-            SELECT e.slug, e.stream_url,
+            SELECT e.slug, e.stream_url, e.search_query,
                    string_agg(es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_order,
                    string_agg(s.name || ':' || es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_map
             FROM events e
@@ -45,7 +45,23 @@ def get_live_event():
         conn.close()
         if not row:
             return None
-        slug, stream_url, speaker_order, speaker_map = row
+        slug, stream_url, search_query, speaker_order, speaker_map = row
+        # If no stream_url, try to resolve via yt-dlp search query
+        if not stream_url and search_query:
+            log(f"No stream_url — searching YouTube: {search_query}")
+            if True:
+                try:
+                    import subprocess as _sp
+                    result = _sp.run(
+                        ['yt-dlp', '--get-url', '--format', 'bestaudio/best',
+                         f'ytsearch1:{search_query} live'],
+                        capture_output=True, text=True, timeout=30
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        stream_url = result.stdout.strip().split('\n')[0]
+                        log(f"Resolved stream URL via search: {stream_url[:80]}")
+                except Exception as e:
+                    log(f"yt-dlp search failed: {e}")
         return event_id, slug, stream_url, speaker_order, speaker_map
     except Exception as e:
         log(f"Error checking live event: {e}")
