@@ -49,14 +49,8 @@ def is_api_host():
     return request.host.split(':')[0] == API_HOST
 
 
-@api_public.before_app_request
-def enforce_api_host():
-    """Return 404 for anything on api.verumsignal.com outside allowed paths."""
-    if not is_api_host():
-        return  # Let the main app handle it
-    path = request.path
-    if not any(path == p or path.startswith(p + '/') for p in ALLOWED_API_PATHS):
-        return jsonify({'error': 'Not found'}), 404
+# Host enforcement disabled until api.verumsignal.com routing is stable.
+# Auth (require_api_key) is the primary access control on all /v1 endpoints.
 
 
 # ---------------------------------------------------------------------------
