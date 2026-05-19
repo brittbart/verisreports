@@ -77,11 +77,16 @@
      ========================================================= */
   .nav {
     position: fixed; top: 0; left: 0; right: 0;
-    z-index: 50;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    background: rgba(10,10,15,0.65);
-    border-bottom: 0.5px solid var(--border);
+    z-index: 100;
+    background: transparent;
+    border-bottom: 0.5px solid transparent;
+    transition: background .3s ease, border-color .3s ease, backdrop-filter .3s ease;
+  }
+  .nav.scrolled {
+    background: rgba(10,10,15,0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom-color: rgba(255,255,255,0.07);
   }
   .nav-inner {
     max-width: var(--max);
@@ -1614,6 +1619,17 @@
 <script>
 (function(){
   // Nav toggle (mobile)
+  // Nav scroll effect
+  (function() {
+    var nav = document.querySelector('nav.nav');
+    if (!nav) return;
+    function onScroll() {
+      nav.classList.toggle('scrolled', window.scrollY > 20);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+
   var toggle = document.querySelector('.nav-toggle');
   var menu = document.getElementById('nav-menu');
   if (toggle && menu) {
