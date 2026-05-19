@@ -2740,7 +2740,6 @@ _OPS_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <h1>Veris pipeline — last 24h</h1>
-<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none">Insights →</a></div>
 <div class="subtitle" id="subtitle">loading…</div>
 
 <h2>Corpus</h2>
