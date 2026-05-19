@@ -840,6 +840,66 @@ def pricing_clean():
 def privacy_html():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'privacy.html')
 
+
+
+def send_beta_request_notification(request_id, name, email, org, use_case, volume):
+    """Log new beta request. Replace with real SMTP when api@verumsignal.com is configured."""
+    import datetime
+    line = (
+        f"[{datetime.datetime.utcnow().isoformat()}] "
+        f"NEW BETA REQUEST #{request_id}: {name} <{email}> from {org}\n"
+        f"  Volume: {volume or 'not specified'}\n"
+        f"  Use case: {use_case[:200]}\n"
+        '---\n'
+    )
+    try:
+        with open('/tmp/beta_requests.log', 'a') as f: f.write(line)
+    except Exception: pass
+
+
+@app.route('/api', methods=['GET'])
+def api_landing():
+    return send_from_directory(
+        os.path.join(app.root_path, 'static', 'api'),
+        'index.html'
+    )
+
+
+@app.route('/api/beta-request', methods=['POST'])
+def api_beta_request_submit():
+    """Submit a beta access request from the API landing page form."""
+    import re as _re
+    data = request.get_json(silent=True) or request.form
+    name             = (data.get('name') or '').strip()
+    email            = (data.get('email') or '').strip()
+    organization     = (data.get('organization') or '').strip()
+    use_case         = (data.get('use_case') or '').strip()
+    estimated_volume = (data.get('estimated_volume') or '').strip() or None
+    if not name or not email or not organization or not use_case:
+        return jsonify({'success': False, 'error': 'missing_required_fields'}), 400
+    if not _re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+        return jsonify({'success': False, 'error': 'invalid_email'}), 400
+    if len(name) > 200 or len(email) > 200 or len(organization) > 300 or len(use_case) > 5000:
+        return jsonify({'success': False, 'error': 'field_too_long'}), 400
+    ip         = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    user_agent = request.headers.get('User-Agent', '')[:500]
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO api_beta_requests
+              (name, email, organization, use_case, estimated_volume, ip, user_agent)
+            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+        """, (name, email, organization, use_case, estimated_volume, ip, user_agent))
+        request_id = cur.fetchone()[0]; conn.commit()
+    except Exception:
+        conn.rollback(); return jsonify({'success': False, 'error': 'server_error'}), 500
+    finally:
+        cur.close(); conn.close()
+    try: send_beta_request_notification(request_id, name, email, organization, use_case, estimated_volume)
+    except Exception: pass
+    return jsonify({'success': True, 'request_id': request_id}), 200
+
+
 @app.route('/terms', methods=['GET'])
 def terms_clean():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'terms.html')
