@@ -11,6 +11,19 @@ from datetime import datetime
 
 
 app = Flask(__name__)
+
+@app.before_request
+def redirect_api_paths():
+    """Redirect /v1/* and /openapi.yaml from main domain to api subdomain."""
+    from flask import request, redirect
+    host = request.host.split(':')[0]
+    if host == 'verumsignal.com':
+        if request.path.startswith('/v1') or request.path == '/openapi.yaml':
+            new_url = f'https://api.verumsignal.com{request.path}'
+            if request.query_string:
+                new_url += f'?{request.query_string.decode()}'
+            return redirect(new_url, code=301)
+
 app.config['THREADED'] = True
 CORS(app)
 
