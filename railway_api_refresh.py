@@ -329,6 +329,7 @@ def refresh_debate_claims(cur) -> int:
         LEFT JOIN speakers s ON s.id = su.speaker_id
         WHERE c.claim_origin = 'debate_claim'
           AND c.verdict IS NOT NULL
+          AND e.is_public = TRUE
           AND c.last_checked > %s
         ORDER BY c.last_checked
         LIMIT 5000

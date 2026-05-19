@@ -44,3 +44,8 @@
 ## Announcement
 - [ ] Email design partners with v1.7 release notes
 - [ ] Document in next session brief
+
+## Debate event gating
+- [ ] Decide whether to flip Trump/Harris 2024 (event_id=1) is_public=TRUE post-attorney review
+  - If yes: UPDATE events SET is_public = TRUE WHERE id = 1;
+  - Next refresh cycle will add the event to /v1/debates automatically

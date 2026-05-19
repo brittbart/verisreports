@@ -304,6 +304,7 @@ def backfill_debate_claims(cur, dry_run=False) -> int:
         WHERE c.claim_origin = 'debate_claim'
           AND c.verdict IS NOT NULL
           AND c.last_checked IS NOT NULL
+          AND e.is_public = TRUE
     """)
     total_eligible = cur.fetchone()[0]
     log.info(f"  Eligible debate claims: {total_eligible}")
@@ -337,8 +338,8 @@ def backfill_debate_claims(cur, dry_run=False) -> int:
             LEFT JOIN speakers s ON s.id = su.speaker_id
             WHERE c.claim_origin = 'debate_claim'
               AND c.verdict IS NOT NULL
-          AND c.last_checked IS NOT NULL
               AND c.last_checked IS NOT NULL
+              AND e.is_public = TRUE
             ORDER BY c.id
             LIMIT %s OFFSET %s
         """, (BATCH_SIZE, offset))
@@ -418,6 +419,7 @@ def validate(cur):
         WHERE c.claim_origin = 'debate_claim'
           AND c.verdict IS NOT NULL
           AND c.last_checked IS NOT NULL
+          AND e.is_public = TRUE
     """)
     source_debate_n = cur.fetchone()[0]
 

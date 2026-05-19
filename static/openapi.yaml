@@ -190,8 +190,10 @@ paths:
       operationId: listDebates
       summary: List debate events
       description: |
-        Returns debate events with claim counts.
-        Use the `claims_url` field to retrieve claims for a specific event.
+        Returns debate events that have been approved for public display and have
+        at least one verified claim under the documented methodology. Upcoming
+        events without verified claims and events not yet approved for public
+        display are not exposed.
       tags: [Debates]
       security:
         - BearerAuth: []
