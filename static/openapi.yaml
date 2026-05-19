@@ -1,0 +1,659 @@
+openapi: 3.1.0
+
+info:
+  title: Verum Signal API
+  version: "1.0"
+  description: |
+    The Verum Signal API provides programmatic access to verdict-labeled
+    factual claims extracted from news articles and political debates,
+    along with outlet-level credibility scores.
+
+    All claims are evaluated under a documented methodology:
+    **[verumsignal.com/methodology](https://verumsignal.com/methodology)**
+
+    ### Authentication
+    All endpoints require an API key passed as a Bearer token:
+    ```
+    Authorization: Bearer vs_live_<your_key>
+    ```
+
+    ### Pagination
+    All list endpoints use cursor-based pagination. Pass the `next_cursor`
+    value from one response as the `cursor` parameter in the next request.
+    An empty `data` array or `has_more: false` means you have reached the end.
+
+    ### Rate limits
+    Rate limit headers are returned on every response:
+    - `X-RateLimit-Limit`: calls allowed per minute
+    - `X-RateLimit-Remaining`: calls remaining this minute
+    - `X-Quota-Limit`: calls allowed this month
+    - `X-Quota-Remaining`: calls remaining this month
+
+    ### Methodology versions
+    The `methodology_version` field on every claim and outlet indicates
+    which version of the scoring methodology produced that verdict.
+    Only publicly documented versions are served via the API.
+    Current version: **v1.6**
+
+  contact:
+    name: Verum Signal
+    url: https://verumsignal.com
+    email: api@verumsignal.com
+
+  license:
+    name: Commercial — see Terms of Service
+    url: https://verumsignal.com/terms
+
+servers:
+  - url: https://api.verumsignal.com
+    description: Production
+
+tags:
+  - name: Meta
+    description: API status and corpus statistics
+  - name: Claims
+    description: Verdict-labeled factual claims from news articles
+  - name: Outlets
+    description: Outlet-level credibility scores
+  - name: Debates
+    description: Claims extracted from political debates
+
+paths:
+
+  /v1/meta:
+    get:
+      operationId: getMeta
+      summary: API status and corpus statistics
+      tags: [Meta]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Corpus statistics and methodology metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/claims:
+    get:
+      operationId: listClaims
+      summary: List verdict-labeled claims
+      description: |
+        Returns verdict-labeled factual claims from news articles,
+        ordered by cursor key (insertion order).
+
+        Use `claim_origin=outlet_claim` to retrieve only claims made by
+        the publication itself — these are the claims that count toward
+        outlet scoring. See the methodology for the full distinction between
+        `outlet_claim` and `attributed_claim`.
+      tags: [Claims]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+        - name: outlet
+          in: query
+          description: Filter by outlet domain (e.g. `nytimes.com`)
+          schema:
+            type: string
+            example: nytimes.com
+        - name: verdict
+          in: query
+          description: Filter by verdict label
+          schema:
+            $ref: "#/components/schemas/VerdictLabel"
+        - name: claim_origin
+          in: query
+          description: |
+            Filter by claim origin.
+            - `outlet_claim`: claims made by the publication itself. These count toward outlet scoring.
+            - `attributed_claim`: claims quoted from a named source. These do not count toward outlet scoring.
+
+            See [verumsignal.com/methodology](https://verumsignal.com/methodology) for the full explanation.
+          schema:
+            $ref: "#/components/schemas/ClaimOrigin"
+      responses:
+        "200":
+          description: Paginated list of claims
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/outlets:
+    get:
+      operationId: listOutlets
+      summary: List outlet credibility scores
+      tags: [Outlets]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+        - name: tier
+          in: query
+          description: Filter by scoring tier
+          schema:
+            $ref: "#/components/schemas/OutletTier"
+      responses:
+        "200":
+          description: Paginated list of outlets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutletsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/outlets/{outlet_id}:
+    get:
+      operationId: getOutlet
+      summary: Get a single outlet by domain
+      tags: [Outlets]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: outlet_id
+          in: path
+          required: true
+          description: Outlet domain identifier (e.g. `nytimes.com`)
+          schema:
+            type: string
+            format: domain
+            example: nytimes.com
+      responses:
+        "200":
+          description: Outlet credibility data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outlet"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/debates:
+    get:
+      operationId: listDebates
+      summary: List debate events
+      description: |
+        Returns debate events with claim counts.
+        Use the `claims_url` field to retrieve claims for a specific event.
+      tags: [Debates]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Paginated list of debate events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebatesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /v1/debates/{slug}/claims:
+    get:
+      operationId: listDebateClaims
+      summary: List claims from a debate event
+      tags: [Debates]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Debate event slug (e.g. `iowa-senate-dem-2026-r2`)
+          schema:
+            type: string
+            example: iowa-senate-dem-2026-r2
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+        - name: speaker
+          in: query
+          description: Filter by speaker name (case-insensitive)
+          schema:
+            type: string
+            example: Joe Wahls
+        - name: verdict
+          in: query
+          description: Filter by verdict label
+          schema:
+            $ref: "#/components/schemas/VerdictLabel"
+      responses:
+        "200":
+          description: Paginated list of debate claims
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebateClaimsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: vs_live_<key>
+      description: |
+        API key issued by Verum Signal. Pass as:
+        `Authorization: Bearer vs_live_<your_key>`
+
+  parameters:
+    cursor:
+      name: cursor
+      in: query
+      description: Pagination cursor from the previous response's `next_cursor` field
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    limit:
+      name: limit
+      in: query
+      description: Number of results to return (max 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Invalid API key
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Rate limit or monthly quota exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the rate limit window resets (per-minute limit only)
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    Pagination:
+      type: object
+      properties:
+        next_cursor:
+          type: integer
+          nullable: true
+          description: Pass as `cursor` in the next request. Null when no more results.
+        has_more:
+          type: boolean
+      required: [next_cursor, has_more]
+
+    VerdictLabel:
+      type: string
+      enum:
+        - supported
+        - plausible
+        - corroborated
+        - overstated
+        - disputed
+        - not_supported
+        - not_verifiable
+        - opinion
+      description: |
+        Verdict assigned to a claim after independent verification:
+        - `supported`: claim is accurate and independently confirmed
+        - `plausible`: claim is reasonable but not fully confirmed
+        - `corroborated`: claim is confirmed by 5+ independent outlets
+        - `overstated`: claim is technically accurate but exaggerated or missing material context
+        - `disputed`: credible sources actively contradict the claim
+        - `not_supported`: evidence actively contradicts the claim
+        - `not_verifiable`: insufficient independent information to evaluate
+        - `opinion`: claim is a statement of opinion, not a verifiable fact
+
+    ClaimOrigin:
+      type: string
+      enum:
+        - outlet_claim
+        - attributed_claim
+      description: |
+        Indicates who made the claim:
+
+        - `outlet_claim`: A factual assertion made by the publication itself —
+          in the headline, lede, or body copy written by the journalist or editorial staff.
+          These claims reflect the outlet's own editorial judgment and **count toward outlet scoring**.
+
+        - `attributed_claim`: A factual claim quoted or paraphrased from a named source
+          (a politician, expert, spokesperson, or other third party).
+          These claims reflect what the source said, not what the outlet asserts.
+          They **do not count toward outlet scoring**.
+
+        This distinction is the methodological core of Verum Signal. Holding an outlet
+        accountable for what it asserts is different from holding it accountable for what
+        it accurately quotes others saying. See [verumsignal.com/methodology](https://verumsignal.com/methodology).
+
+    OutletTier:
+      type: string
+      enum:
+        - published
+        - stabilizing
+        - limited_data
+        - tracked
+      description: |
+        Scoring tier based on number of evaluated outlet_claims:
+        - `published`: 100+ claims — full score displayed
+        - `stabilizing`: 50–99 claims — score shown with caveat
+        - `limited_data`: 20–49 claims — score shown with caveat
+        - `tracked`: fewer than 20 claims — score not yet displayed
+
+    OutletRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: domain
+          description: Outlet domain identifier (e.g. `nytimes.com`)
+          example: nytimes.com
+        name:
+          type: string
+          example: The New York Times
+      required: [id, name]
+
+    ArticleRef:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        url:
+          type: string
+          format: uri
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+      required: [url]
+
+    Claim:
+      type: object
+      properties:
+        id:
+          type: integer
+        claim_text:
+          type: string
+          description: The factual assertion as extracted from the article
+        claim_origin:
+          $ref: "#/components/schemas/ClaimOrigin"
+        verdict:
+          $ref: "#/components/schemas/VerdictLabel"
+        outlet:
+          $ref: "#/components/schemas/OutletRef"
+        article:
+          $ref: "#/components/schemas/ArticleRef"
+        evaluated_at:
+          type: string
+          format: date-time
+        methodology_version:
+          type: string
+          example: v1.6
+        report_url:
+          type: string
+          format: uri
+          description: Full report for this article on verumsignal.com
+      required:
+        - id
+        - claim_text
+        - claim_origin
+        - verdict
+        - outlet
+        - article
+        - evaluated_at
+        - methodology_version
+        - report_url
+
+    Outlet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: domain
+          description: Outlet domain identifier
+          example: nytimes.com
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: |
+            Credibility score 0–100. Null for outlets in the `tracked` tier
+            (fewer than 20 evaluated outlet_claims).
+        tier:
+          $ref: "#/components/schemas/OutletTier"
+        total_evaluated_claims:
+          type: integer
+        verdict_counts:
+          type: object
+          description: Count of each verdict type across all evaluated claims
+          properties:
+            supported:     { type: integer }
+            plausible:     { type: integer }
+            corroborated:  { type: integer }
+            overstated:    { type: integer }
+            disputed:      { type: integer }
+            not_supported: { type: integer }
+            not_verifiable: { type: integer }
+        methodology_version:
+          type: string
+          example: v1.6
+        last_evaluated_at:
+          type: string
+          format: date-time
+          nullable: true
+        leaderboard_url:
+          type: string
+          format: uri
+      required:
+        - id
+        - name
+        - score
+        - tier
+        - total_evaluated_claims
+        - verdict_counts
+        - methodology_version
+        - leaderboard_url
+
+    DebateEvent:
+      type: object
+      properties:
+        event_id:
+          type: integer
+        slug:
+          type: string
+          example: iowa-senate-dem-2026-r2
+        name:
+          type: string
+          example: Iowa Senate Democratic Primary — Round 2
+        date:
+          type: string
+          format: date
+          nullable: true
+        claim_count:
+          type: integer
+        claims_url:
+          type: string
+          format: uri
+          description: URL to retrieve claims for this event
+        event_url:
+          type: string
+          format: uri
+          description: Event page on verumsignal.com
+      required: [event_id, slug, name, claim_count, claims_url, event_url]
+
+    SpeakerRef:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        party:
+          type: string
+          nullable: true
+
+    DebateClaim:
+      type: object
+      properties:
+        id:
+          type: integer
+        claim_text:
+          type: string
+        verdict:
+          $ref: "#/components/schemas/VerdictLabel"
+        speaker:
+          $ref: "#/components/schemas/SpeakerRef"
+        event:
+          type: object
+          properties:
+            slug:  { type: string }
+            name:  { type: string }
+            date:  { type: string, format: date, nullable: true }
+        evaluated_at:
+          type: string
+          format: date-time
+          nullable: true
+        methodology_version:
+          type: string
+          example: v1.6
+        event_url:
+          type: string
+          format: uri
+      required:
+        - id
+        - claim_text
+        - verdict
+        - speaker
+        - event
+        - methodology_version
+        - event_url
+
+    MetaResponse:
+      type: object
+      properties:
+        methodology_versions_served:
+          type: array
+          items: { type: string }
+          example: ["v1.6"]
+        methodology_url:
+          type: string
+          format: uri
+        outlets_count:
+          type: integer
+        claims_count:
+          type: integer
+        debate_events_count:
+          type: integer
+        last_refresh:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - methodology_versions_served
+        - methodology_url
+        - outlets_count
+        - claims_count
+        - debate_events_count
+
+    ClaimsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Claim"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required: [data, pagination]
+
+    OutletsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Outlet"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required: [data, pagination]
+
+    DebatesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DebateEvent"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required: [data, pagination]
+
+    DebateClaimsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DebateClaim"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required: [data, pagination]
