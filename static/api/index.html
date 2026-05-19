@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
 
 <style>
   /* =========================================================
@@ -75,55 +76,6 @@
   /* =========================================================
      Nav
      ========================================================= */
-  .nav {
-    position: fixed; top: 0; left: 0; right: 0;
-    z-index: 100;
-    background: transparent;
-    border-bottom: 0.5px solid transparent;
-  }
-  .nav-inner {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 14px var(--pad);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .nav-logo { display: flex; align-items: center; }
-  .nav-logo svg { display: block; height: 40px; width: auto; }
-  .nav-toggle {
-    display: none; background: transparent; border: 0;
-    padding: 8px; cursor: pointer; flex-direction: column;
-    gap: 5px; width: 36px; height: 36px;
-    align-items: center; justify-content: center;
-  }
-  .nav-toggle span {
-    display: block; width: 18px; height: 1.5px;
-    background: rgba(255,255,255,0.78); border-radius: 2px;
-    transition: transform 0.25s ease, opacity 0.2s ease;
-  }
-  .nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
-  .nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
-  .nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
-  .nav-links { display: flex; align-items: center; gap: 4px; }
-  .nav-links a {
-    font-size: 13px; font-weight: 400;
-    color: var(--text-2);
-    padding: 8px 14px;
-    border-radius: 6px;
-    transition: color .15s, background .15s;
-    letter-spacing: -0.005em;
-  }
-  .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-  .nav-links a.active { color: var(--text); }
-  .nav-cta {
-    margin-left: 8px;
-    background: var(--violet);
-    color: #fff !important;
-    padding: 9px 16px !important;
-    border-radius: 8px !important;
-    font-weight: 500 !important;
-    transition: background .15s !important;
-  }
-  .nav-cta:hover { background: #6d28d9 !important; }
 
   /* =========================================================
      Hero (Section 1)
@@ -1033,9 +985,6 @@
   }
 
   @media (max-width: 900px) {
-    .nav-toggle { display: flex; }
-    .nav-inner { padding: 14px 24px; }
-    .nav-logo svg { height: 32px; }
     .nav-links {
       position: absolute;
       top: 100%; left: 0; right: 0;
@@ -1057,18 +1006,7 @@
       transform: translateY(0);
       pointer-events: auto;
     }
-    .nav-links a {
-      padding: 14px 8px;
-      border-bottom: 0.5px solid rgba(255,255,255,0.05);
-      font-size: 16px;
-      color: rgba(255,255,255,0.85);
-    }
     .nav-links a:last-child { border-bottom: 0; }
-    .nav-cta {
-      margin-top: 12px;
-      text-align: center;
-      padding: 14px 18px !important;
-    }
   }
 
   /* prefers-reduced-motion */
@@ -1084,7 +1022,7 @@
      ========================================================= -->
 <nav class="nav" aria-label="Site">
   <div class="nav-inner">
-    <a href="/" class="nav-logo" aria-label="Verum Signal home">
+    <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
       <svg width="230" height="32" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
         <circle cx="25" cy="14" r="2.5" fill="#ec4899"></circle>
