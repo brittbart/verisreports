@@ -93,17 +93,16 @@ def refresh_claims(cur) -> int:
             a.title                     AS article_title,
             a.published_at              AS article_published_at,
             c.last_checked              AS evaluated_at,
-            COALESCE(c.methodology_version, %s)  AS methodology_version,
+            'v1.6'  AS methodology_version,
             'https://verumsignal.com/report?url=' || a.url  AS report_url
         FROM claims c
         JOIN articles a ON a.id = c.article_id
         WHERE c.claim_origin IN ('outlet_claim', 'attributed_claim')
           AND c.verdict IS NOT NULL
           AND c.last_checked > %s
-          AND COALESCE(c.methodology_version, %s) = ANY(%s)
         ORDER BY c.last_checked
         LIMIT 5000
-    """, (METHODOLOGY_VERSION, since, METHODOLOGY_VERSION, list(versions_tuple)))
+    """, (since,))
 
     rows = cur.fetchall()
     if not rows:
@@ -209,10 +208,9 @@ def refresh_outlets(cur) -> int:
         JOIN articles a ON a.id = c.article_id
         WHERE c.claim_origin = 'outlet_claim'
           AND c.verdict IS NOT NULL
-          AND COALESCE(c.methodology_version, %s) = ANY(%s)
         GROUP BY LOWER(a.source_name), a.source_name
         HAVING COUNT(*) >= %s
-    """, (METHODOLOGY_VERSION, versions_list, INCLUSION_THRESHOLD))
+    """, (INCLUSION_THRESHOLD,))
 
     rows = cur.fetchall()
     if not rows:
@@ -312,7 +310,7 @@ def refresh_debate_claims(cur) -> int:
             c.claim_text,
             c.verdict                   AS verdict_label,
             c.last_checked              AS evaluated_at,
-            COALESCE(c.methodology_version, %s)  AS methodology_version,
+            'v1.6'  AS methodology_version,
             'https://verumsignal.com/debates/' || e.slug  AS event_url
         FROM claims c
         JOIN events e ON e.id = c.event_id
@@ -321,10 +319,9 @@ def refresh_debate_claims(cur) -> int:
         WHERE c.claim_origin = 'debate_claim'
           AND c.verdict IS NOT NULL
           AND c.last_checked > %s
-          AND COALESCE(c.methodology_version, %s) = ANY(%s)
         ORDER BY c.last_checked
         LIMIT 5000
-    """, (METHODOLOGY_VERSION, since, METHODOLOGY_VERSION, versions_list))
+    """, (since,))
 
     rows = cur.fetchall()
     if not rows:
