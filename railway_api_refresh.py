@@ -45,6 +45,17 @@ log = logging.getLogger(__name__)
 # METHODOLOGY GATE — hard exclusion at the refresh layer.
 # Update ONLY when a new version is publicly documented + attorney-reviewed.
 # ---------------------------------------------------------------------------
+# PUBLIC_METHODOLOGY_VERSIONS controls which methodology versions the API serves.
+#
+# IMPORTANT: Do not add a new version to this list until:
+#   1. Attorney review of that methodology version has completed
+#   2. The methodology page at verumsignal.com/methodology has been updated
+#   3. The landing page at verumsignal.com/api references the new version
+#
+# Adding a version here exposes verdicts to all API customers immediately.
+# There is no rollback path for already-served records.
+#
+# When v1.7 launches: PUBLIC_METHODOLOGY_VERSIONS = ['v1.6', 'v1.7']
 PUBLIC_METHODOLOGY_VERSIONS = ['v1.6']
 
 METHODOLOGY_VERSION = 'v1.6'   # stamp on api_outlets (outlet scoring uses leaderboard formula)

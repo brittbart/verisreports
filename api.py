@@ -827,6 +827,14 @@ def pricing_clean():
 def privacy_html():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'privacy.html')
 
+@app.route('/terms', methods=['GET'])
+def terms_clean():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'terms.html')
+
+@app.route('/terms.html', methods=['GET'])
+def terms_html():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'terms.html')
+
 @app.route('/privacy', methods=['GET'])
 def privacy_clean():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'privacy.html')
