@@ -28,8 +28,10 @@ def get_db():
 from api_leaderboard import register_leaderboard_routes
 from api_leaderboard import compute_score, compute_score_band, compute_tier, WEIGHTS, SCOREABLE_VERDICTS, INCLUSION_THRESHOLD
 from outlet_routes import register_outlet_routes
+from api_public import api_public
 register_leaderboard_routes(app, get_db)
 register_outlet_routes(app, get_db)
+app.register_blueprint(api_public)
 from speaker_routes import register_speaker_routes
 register_speaker_routes(app, get_db)
 from debate_routes import register_debate_routes
