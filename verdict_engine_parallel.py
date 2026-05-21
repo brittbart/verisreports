@@ -106,7 +106,7 @@ def _verify_claim_worker(claim_row, depth=None):
 
     Returns dict with claim_id, result, error, duration_ms.
     """
-    claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score = claim_row
+    claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score, claim_origin, attribution_context = claim_row
     t0 = time.time()
     conn = None
 
@@ -116,7 +116,9 @@ def _verify_claim_worker(claim_row, depth=None):
 
         result = analyse_claim(
             claim_text, speaker, claim_type,
-            article_title, source_name, cursor
+            article_title, source_name, cursor,
+            claim_origin=claim_origin,
+            attribution_context=attribution_context,
         )
 
         cursor.close()
@@ -235,11 +237,13 @@ def run_parallel_verdict_engine(limit=10, depth=None, shadow_compare=None):
     fetch_cursor = fetch_conn.cursor()
     fetch_cursor.execute("""
         SELECT c.id, c.claim_text, c.speaker, c.claim_type,
-               a.title, a.source_name, c.priority_score
+               a.title, a.source_name, c.priority_score,
+               c.claim_origin, COALESCE(c.attribution_context, '')
         FROM claims c
         JOIN articles a ON c.article_id = a.id
         WHERE c.verdict IS NULL
           AND c.priority_score >= 30
+          AND COALESCE(c.verification_attempts, 0) < 3
         ORDER BY c.priority_score DESC
         LIMIT %s;
     """, (limit,))
@@ -315,6 +319,7 @@ def run_parallel_verdict_engine(limit=10, depth=None, shadow_compare=None):
                             full_analysis = %s,
                             sources_used = %s,
                             verification_depth = COALESCE(%s, verification_depth),
+                            verification_attempts = COALESCE(verification_attempts, 0) + 1,
                             last_checked = NOW()
                         WHERE id = %s;
                     """, (
