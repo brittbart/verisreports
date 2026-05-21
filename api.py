@@ -4423,6 +4423,39 @@ def ops_outlets():
         scored_count = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM api_outlets")
         total_count = cur.fetchone()[0]
+        # Tracked outlets (below threshold, in api_outlets)
+        cur.execute("""
+            SELECT outlet_id, outlet_name, total_scoreable_claims, last_evaluated_at
+            FROM api_outlets WHERE score IS NULL
+            ORDER BY total_scoreable_claims DESC LIMIT 40
+        """)
+        tracked_rows = [{"outlet_id": r[0], "outlet_name": r[1],
+                          "claims": r[2], "needed": max(0, 20 - r[2]),
+                          "last_evaluated_at": r[3].isoformat() if r[3] else None}
+                         for r in cur.fetchall()]
+        # Outlets with articles in DB but not in api_outlets
+        EXCLUDED = ["gao.gov","justice.gov","war.gov","whitehouse.gov","federalreserve.gov",
+                    "sec.gov","tools.cdc.gov","fda.gov","blogs.loc.gov",
+                    "health.harvard.edu","news.mit.edu","prnewswire.com"]
+        cur.execute("""
+            SELECT a.source_name,
+                   COUNT(*) FILTER (WHERE c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim') AS verdicted,
+                   COUNT(*) FILTER (WHERE c.claim_origin = 'outlet_claim') AS total_claims,
+                   COUNT(DISTINCT a.id) AS articles
+            FROM articles a
+            LEFT JOIN claims c ON c.article_id = a.id
+            WHERE a.source_name NOT IN (SELECT outlet_id FROM api_outlets)
+              AND a.source_name NOT LIKE '%%news.google.com%%'
+              AND a.source_name NOT IN (SELECT unnest(%s::text[]))
+            GROUP BY a.source_name
+            HAVING COUNT(*) FILTER (WHERE c.claim_origin = 'outlet_claim') > 0
+            ORDER BY verdicted DESC
+            LIMIT 30
+        """, (EXCLUDED,))
+        absent_rows = [{"outlet": r[0], "verdicted": r[1],
+                         "total_claims": r[2], "articles": r[3],
+                         "needed": max(0, 20 - r[1])}
+                        for r in cur.fetchall()]
     finally:
         cur.close()
         conn.close()
@@ -4486,6 +4519,41 @@ input#search{background:var(--card);border:1px solid var(--border);color:var(--f
 </tr>
 {% endfor %}
 </tbody></table>
+
+<h2>Tracked — approaching threshold</h2>
+{% if tracked %}
+<table>
+<thead><tr><th>Outlet</th><th>Verdicted claims</th><th>Needed to score</th><th>Last evaluated</th></tr></thead>
+<tbody>
+{% for r in tracked %}
+<tr>
+  <td>{{ r.outlet_name or r.outlet_id }}</td>
+  <td class="mono">{{ r.claims }}</td>
+  <td class="mono" style="color:{% if r.needed == 0 %}var(--ok){% elif r.needed <= 3 %}var(--yellow){% else %}var(--fg-dim){% endif %}">{{ r.needed }} more</td>
+  <td class="mono" style="color:var(--fg-dim);font-size:11px">{{ r.last_evaluated_at[:10] if r.last_evaluated_at else '—' }}</td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% else %}<div style="color:var(--fg-dim)">No tracked outlets.</div>{% endif %}
+
+<h2>In pipeline — not yet scored</h2>
+<div style="color:var(--fg-dim);font-size:12px;margin-bottom:12px">Outlets with articles and claims in the DB but not yet in the leaderboard. Includes outlets removed in v1.7 purge.</div>
+{% if absent %}
+<table>
+<thead><tr><th>Outlet</th><th>Verdicted</th><th>Outlet claims</th><th>Articles</th><th>Needed</th></tr></thead>
+<tbody>
+{% for r in absent %}
+<tr>
+  <td>{{ r.outlet }}</td>
+  <td class="mono">{{ r.verdicted }}</td>
+  <td class="mono" style="color:var(--fg-dim)">{{ r.total_claims }}</td>
+  <td class="mono" style="color:var(--fg-dim)">{{ r.articles }}</td>
+  <td class="mono" style="color:{% if r.needed <= 5 %}var(--yellow){% else %}var(--fg-dim){% endif %}">{{ r.needed }} more</td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% else %}<div style="color:var(--fg-dim)">No absent outlets found.</div>{% endif %}
+
 <script>
 function filterTable(q) {
   q = q.toLowerCase();
@@ -4496,7 +4564,8 @@ function filterTable(q) {
 </script>
 </body></html>"""
     return render_template_string(_OPS_OUTLETS_HTML,
-        outlets=rows, scored_count=scored_count, total_count=total_count)
+        outlets=rows, scored_count=scored_count, total_count=total_count,
+        tracked=tracked_rows, absent=absent_rows)
 
 
 # ── /ops/queue ────────────────────────────────────────────────────────────────
