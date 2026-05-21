@@ -46,6 +46,7 @@ def _get_all_public_events(get_db_conn):
                 FROM event_speakers es
                 JOIN speakers s ON s.id = es.speaker_id
                 WHERE es.event_id = ANY(%s)
+                  AND s.speaker_type IN ('politician', 'official')
                 ORDER BY es.event_id, es.speaker_order
             """, (eid_list,))
             order_counters = {}

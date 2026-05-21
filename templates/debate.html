@@ -1041,16 +1041,25 @@
             <div class="dt-p-role">{{ p.role }}</div>
           </div>
           <div class="dt-p-counts" data-speaker-id="{{ p.id }}">
+            {% set final_ct = breakdown[p.id].final_count if p.id in breakdown else 0 %}
+            {% set prov_ct = breakdown[p.id].provisional_count if p.id in breakdown else 0 %}
+            {% if final_ct > 0 or prov_ct > 0 %}
             <span class="dt-p-count-final">
-              <strong class="dt-p-final-num">{{ breakdown[p.id].final_count if p.id in breakdown else 0 }}</strong>
+              <strong class="dt-p-final-num">{{ final_ct }}</strong>
               <span>Final</span>
             </span>
-            <span class="dt-p-count-provisional" style="display:none;">
+            {% else %}
+            <span class="dt-p-count-final" style="opacity:0.35;">
+              <strong class="dt-p-final-num">0</strong>
+              <span>Claims</span>
+            </span>
+            {% endif %}
+            <span class="dt-p-count-provisional"{% if prov_ct == 0 %} style="display:none;"{% endif %}>
               <span class="vs-badge-provisional" style="font-size:9px;padding:1px 5px;"
                     title="Reliability assessments in the 60-minute review window"
                     tabindex="0" aria-label="Provisional assessments pending review">
                 <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <strong class="dt-p-provisional-num">0</strong> provisional
+                <strong class="dt-p-provisional-num">{{ prov_ct }}</strong> provisional
               </span>
             </span>
           </div>
