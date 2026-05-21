@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 """
+REFERENCE ONLY — NOT CALLED IN PRODUCTION
+
+Production transcription uses debate_stream.py (Rev AI), called by
+railway_stream.py. This file is the Deepgram-based implementation
+pattern, retained as reference for:
+- Comparative architecture review
+- AssemblyAI evaluation (post-May-26) — the Deepgram pattern is closer
+  to AssemblyAI's API conventions than Rev AI's
+
+DO NOT PATCH THIS FILE FOR PRODUCTION CHANGES. All production-bound
+work goes to debate_stream.py.
+
+Archived: May 23, 2026 (per SONNET_EXECUTION_BRIEF_MAY23_PART5.md)
+"""
+"""
 debate_stream_deepgram.py — Verum Signal v1.7
 Live debate transcription via Deepgram nova-3 with per-word speaker diarization.
 Replaces Rev AI streaming with cleaner speaker attribution.
