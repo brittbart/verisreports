@@ -60,11 +60,7 @@ FEEDS = [
     "https://www.theatlantic.com/feed/all/",
     "https://thedispatch.com/feed/",
 
-    # ── Wire services via Google News (roadmap: replace with direct) ──────────
-    "https://news.google.com/rss/search?q=site:reuters.com&hl=en-US&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=site:apnews.com&hl=en-US&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=site:washingtonpost.com&hl=en-US&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=site:newsmax.com&hl=en-US&gl=US&ceid=US:en",
+    # ── Wire services: now fetched via NewsAPI (see NEWSAPI_WIRE_DOMAINS) ──────
 
     # ── Conservative US (direct) ──────────────────────────────────────────────
     "https://feeds.feedburner.com/breitbart",
@@ -373,8 +369,17 @@ def fetch_rss():
         except Exception as e:
             print(f'  skip: {str(e)[:40]}')
     return articles
+# Wire services with no direct RSS — fetched via NewsAPI domains parameter
+NEWSAPI_WIRE_DOMAINS = [
+    'reuters.com',
+    'apnews.com',
+    'washingtonpost.com',
+    'newsmax.com',
+]
+
 def fetch_newsapi():
     articles = []
+    # Keyword queries (existing)
     for kw in KEYWORDS:
         try:
             r = newsapi.get_everything(
@@ -390,6 +395,22 @@ def fetch_newsapi():
                 print(f"  ok {kw}: {len(r['articles'])}")
         except Exception as e:
             print(f"  skip {kw}: {str(e)[:40]}")
+    # Wire service domain queries — replaces Google News feeds for these outlets
+    for domain in NEWSAPI_WIRE_DOMAINS:
+        try:
+            r = newsapi.get_everything(
+                domains=domain,
+                language="en",
+                sort_by="publishedAt",
+                page_size=20
+            )
+            if r["status"] == "ok":
+                for a in r["articles"]:
+                    a["fetch_source"] = "newsapi"
+                articles.extend(r["articles"])
+                print(f"  ok newsapi:{domain}: {len(r['articles'])}")
+        except Exception as e:
+            print(f"  skip newsapi:{domain}: {str(e)[:40]}")
     return articles
 
 def fetch_articles():
