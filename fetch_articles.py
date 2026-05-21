@@ -251,6 +251,52 @@ FEEDS = [
     # ── US Local — Investigative / nonprofit ─────────────────────────────────
     "https://washingtonian.com/feed/",
 
+
+    # ── International — Australia / New Zealand ───────────────────────────────
+    "https://www.abc.net.au/news/feed/51120/rss.xml",
+    "https://www.rnz.co.nz/rss/national.xml",
+    "https://www.rnz.co.nz/rss/political.xml",
+
+    # ── International — Africa (additional) ──────────────────────────────────
+    "https://www.africanews.com/feed/",
+    "https://punchng.com/feed/",
+
+    # ── International — Latin America ─────────────────────────────────────────
+    "https://mexiconewsdaily.com/feed/",
+    "https://buenosairesherald.com/feed/",
+
+    # ── International — India (additional) ───────────────────────────────────
+    "https://indianexpress.com/feed/",
+    "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
+    "https://economictimes.indiatimes.com/rssfeedsdefault.cms",
+    "https://www.thehindubusinessline.com/feeder/default.rss",
+
+    # ── International — UK (additional) ──────────────────────────────────────
+    "https://www.dailymail.co.uk/news/index.rss",
+
+    # ── US Public media ───────────────────────────────────────────────────────
+    "https://www.pbs.org/newshour/feeds/rss/headlines",
+    "https://www.kqed.org/news/feed",
+    "https://wamu.org/feed/",
+
+    # ── Heterodox / center ────────────────────────────────────────────────────
+    "https://www.thefp.com/feed",
+    "https://www.mediaite.com/feed/",
+
+    # ── Climate / environment ─────────────────────────────────────────────────
+    "https://insideclimatenews.org/feed/",
+
+    # ── Analysis / policy ─────────────────────────────────────────────────────
+    "https://theconversation.com/us/articles.atom",
+    "https://stateline.org/feed/",
+
+    # ── US Local — investigative / nonprofit ──────────────────────────────────
+    "https://thecity.nyc/feed",
+    "https://gothamist.com/feed",
+    "https://denverite.com/feed/",
+    "https://chicagoreader.com/feed/",
+    "https://www.mississippifreepress.org/feed/",
+
     # ── Crypto / Web3 ────────────────────────────────────────────────────────
     "https://cointelegraph.com/rss",
     "https://bitcoinmagazine.com/.rss/full/",
