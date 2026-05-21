@@ -2581,11 +2581,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 </style>
 </head>
 <body>
-<div class="nav-links">
-  <a href="/ops">← Pipeline</a>
-  <a href="/ops/history">History</a>
-  <a href="/ops/insights">Insights</a>
-</div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
 <h1>Changelog</h1>
 <div class="subtitle">Curated deployments and full git history &nbsp;·&nbsp; ops-auth protected</div>
 
@@ -2751,7 +2747,7 @@ h1{font-size:18px;margin:0 0 4px;letter-spacing:-0.01em}.subtitle{color:var(--fg
 </style>
 </head>
 <body>
-<a class="nav-back" href="/ops">← Back to pipeline</a>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
 <h1>Veris pipeline — history</h1>
 <div class="subtitle" id="subtitle">loading…</div>
 <div class="stat-row">
@@ -3969,7 +3965,7 @@ tr:last-child td{border-bottom:0}
 <div class="top-bar">
   <div>
     <h1>Ops Insights</h1>
-    <div class="refresh-note">Data as of {{ generated_at }} &nbsp;·&nbsp; <a href="/ops/insights?refresh=1">Refresh now</a> &nbsp;·&nbsp; <a href="/ops">← Pipeline</a> &nbsp;·&nbsp; <a href="/ops/history">History</a></div>
+    <div class="refresh-note">Data as of {{ generated_at }}  ·  <a href="/ops/insights?refresh=1">Refresh now</a>  ·  <a href="/ops">← Pipeline</a>  ·  <a href="/ops/history">History</a>  ·  <a href="/ops/changelog">Changelog</a>  ·  <a href="/ops/outlets">Outlets</a>  ·  <a href="/ops/queue">Queue</a>  ·  <a href="/ops/disputes">Disputes</a>  ·  <a href="/ops/api-usage">API</a></div>
   </div>
 </div>
 
@@ -4654,7 +4650,7 @@ td{padding:7px 10px;border-bottom:1px solid var(--border)}
 tr:hover td{background:rgba(168,85,247,0.04)}
 .mono{font-family:var(--mono);font-size:12px}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/outlets">Outlets</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
 <h1>Verdict Queue</h1>
 <div class="subtitle">Claims awaiting verdict assignment</div>
 
@@ -4750,7 +4746,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-d
 .dispute-text{color:var(--fg-dim);font-size:13px;margin-top:8px;line-height:1.6}
 .empty{color:var(--fg-dim);padding:32px 0;text-align:center}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
 <h1>Verdict Disputes</h1>
 <div class="subtitle">Submitted via report page correction links</div>
 
@@ -4877,7 +4873,7 @@ td{padding:6px 10px;border-bottom:1px solid var(--border);font-family:var(--mono
 tr:hover td{background:rgba(168,85,247,0.04)}
 .ok{color:var(--ok)}.bad{color:var(--bad)}.dim{color:var(--fg-dim)}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
 <h1>API Usage</h1>
 <div class="subtitle">{{ total_this_month }} calls this month across all keys</div>
 
