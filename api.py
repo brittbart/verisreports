@@ -2541,6 +2541,190 @@ def api_corpus_totals():
         return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
 
 
+_OPS_CHANGELOG_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Veris Changelog</title>
+<style>
+:root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5}
+h1{font-size:18px;margin:0 0 4px;letter-spacing:-0.01em}
+.subtitle{color:var(--fg-dim);font-size:12px;margin-bottom:24px}
+.nav-links{font-size:12px;margin-bottom:20px}
+.nav-links a{color:var(--accent);text-decoration:none;margin-right:16px}
+.nav-links a:hover{color:#c084fc}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);font-weight:500;margin:40px 0 16px}
+h2:first-of-type{margin-top:24px}
+.deploy-entry{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:12px}
+.deploy-header{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+.deploy-date{font-family:var(--mono);font-size:11px;color:var(--fg-dim)}
+.deploy-label{font-size:13px;font-weight:600;color:var(--fg)}
+.deploy-commit{font-family:var(--mono);font-size:11px;color:var(--accent);text-decoration:none}
+.deploy-commit:hover{color:#c084fc}
+.deploy-items{margin:0;padding:0 0 0 16px;color:var(--fg-dim);font-size:13px}
+.deploy-items li{margin-bottom:4px}
+.deploy-items li strong{color:var(--fg)}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+th{text-align:left;padding:6px 10px;color:var(--fg-dim);font-weight:500;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.08em}
+td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+td:first-child{white-space:nowrap;color:var(--fg-dim)}
+td:nth-child(2){white-space:nowrap;color:var(--fg-dim)}
+td:nth-child(3){color:var(--fg)}
+a.commit-hash{color:var(--accent);text-decoration:none}
+a.commit-hash:hover{color:#c084fc}
+tr:hover td{background:rgba(168,85,247,0.04)}
+.refresh-info{color:var(--fg-dim);font-size:11px;margin-top:32px}
+</style>
+</head>
+<body>
+<div class="nav-links">
+  <a href="/ops">← Pipeline</a>
+  <a href="/ops/history">History</a>
+  <a href="/ops/insights">Insights</a>
+</div>
+<h1>Changelog</h1>
+<div class="subtitle">Curated deployments and full git history &nbsp;·&nbsp; ops-auth protected</div>
+
+<h2>Deployments</h2>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">May 21, 2026</span>
+    <span class="deploy-label">v1.7 — Methodology refinement + data quality</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/1fa40af" target="_blank">1fa40af</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Google News purge:</strong> 787 contaminated outlet_claims removed. 8 leaderboard outlets below threshold post-purge.</li>
+    <li><strong>Non-news exclusion:</strong> 12 domains excluded from leaderboard (gao.gov, .gov, .edu, PR wires). EXCLUDED_DOMAINS frozenset in api_leaderboard.py.</li>
+    <li><strong>Content quality gate:</strong> Google News redirect URLs blocked at ingestion in fetch_articles.py.</li>
+    <li><strong>methodology_version stamping:</strong> All four article verdict write locations + debate verdict path now stamp v1.7. Column added to claims table (NOT NULL, DEFAULT v1.6, backfilled).</li>
+    <li><strong>verdict_status:</strong> New column on claims. Existing verdicts set to final. Debate verdicts now write provisional; auto-promote to final at 60-minute mark.</li>
+    <li><strong>Auto-promotion job:</strong> promote_provisional_verdicts() added to railway_api_refresh.py cron (every 5 min).</li>
+    <li><strong>Parallel verifier bugs fixed:</strong> verification_attempts filter, claim_origin passthrough, attempts increment.</li>
+    <li><strong>Leaderboard post-purge:</strong> 18 clean outlets. All contaminated outlets correctly absent.</li>
+  </ul>
+</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">May 19, 2026</span>
+    <span class="deploy-label">API v1 + Ops Insights</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/c8c650b" target="_blank">c8c650b</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Public API launched:</strong> api.verumsignal.com — /v1/claims, /v1/outlets, /v1/debates, /v1/meta. Bearer token auth. OpenAPI spec at /docs.</li>
+    <li><strong>API tables:</strong> api_claims, api_outlets, api_debate_claims, api_keys, api_usage, api_monthly_usage, api_beta_requests.</li>
+    <li><strong>veris-api-refresh cron:</strong> 5-minute refresh of all API tables from source claims.</li>
+    <li><strong>API landing page:</strong> verumsignal.com/api with beta request form.</li>
+    <li><strong>/ops/insights:</strong> Analytical dashboard with 7 sections (corpus, verdict distribution, outlet health, cost, outliers, debates, score trajectory).</li>
+    <li><strong>Terms page:</strong> verumsignal.com/terms (design partner placeholder).</li>
+    <li><strong>301 redirect:</strong> verumsignal.com/v1/* → api.verumsignal.com/v1/*</li>
+  </ul>
+</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">May 14, 2026</span>
+    <span class="deploy-label">Iowa Senate R2 debate coverage</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/ba2c599" target="_blank">ba2c599</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Live debate coverage:</strong> Iowa Senate Dem R2 — 106 verdicts assigned in near-real-time.</li>
+    <li><strong>Debate routes:</strong> /debates, /debates/&lt;slug&gt;, /debates/&lt;slug&gt;/speakers, /debates/&lt;slug&gt;/speakers/&lt;speaker&gt;.</li>
+    <li><strong>Debate admin:</strong> /admin dashboard with event/speaker CRUD and stream launch.</li>
+    <li><strong>veris-stream service:</strong> Always-on debate stream handler.</li>
+    <li><strong>is_public gate:</strong> Events must be is_public=TRUE to appear in API and consumer surfaces.</li>
+  </ul>
+</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">May 5, 2026</span>
+    <span class="deploy-label">v1.6 — Methodology consolidation</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/860bc94" target="_blank">860bc94</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Single source of truth:</strong> All scoring constants consolidated into api_leaderboard.py.</li>
+    <li><strong>Breaking-news gate:</strong> 6-hour gate applied uniformly across all scoring surfaces.</li>
+    <li><strong>Unscored display:</strong> Articles with no scoreable claims render as Unscored instead of 0/100.</li>
+    <li><strong>Extraction prompt rewritten:</strong> Opinion-genre articles now yield embedded factual claims.</li>
+    <li><strong>Paid depth raised:</strong> Up to 7 claims per paid report (was 3).</li>
+    <li><strong>Source attribution cleanup:</strong> 65 verdicts redistributed from news.google.com to actual outlets.</li>
+    <li><strong>Ops dashboard:</strong> /ops with pipeline health, corpus stats, cost tracking, debates panel.</li>
+    <li><strong>/ops/history:</strong> Ingestion, corpus, verdict, cost, and outlet charts.</li>
+  </ul>
+</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">April 25, 2026</span>
+    <span class="deploy-label">v1.5 — Initial public methodology + leaderboard launch</span>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Public leaderboard:</strong> verumsignal.com/leaderboard.html — outlets ranked by reliability score.</li>
+    <li><strong>Eight verdict types:</strong> supported, plausible, corroborated, overstated, disputed, not_supported, not_verifiable, opinion.</li>
+    <li><strong>Scoring formula:</strong> (weighted_sum / scoreable + 1.5) / 2.5 × 100, normalized 0–100.</li>
+    <li><strong>Free/paid reports:</strong> Free = top 2 claims, paid = full depth. Short shareable URLs via /r/&lt;hash&gt;.</li>
+    <li><strong>Chrome extension v1.3:</strong> Popup + badge, dark aesthetic.</li>
+    <li><strong>Outlet detail pages:</strong> Five outlet states (Published, Stabilizing, Limited Data, Tracked, stub).</li>
+  </ul>
+</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">April 18, 2026</span>
+    <span class="deploy-label">Initial build — core pipeline</span>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Core pipeline:</strong> RSS ingestion (115+ feeds), claim extraction via Claude Sonnet, web-search verification, PostgreSQL scoring.</li>
+    <li><strong>Railway deployment:</strong> Auto-deploy on git push to master. Postgres managed service.</li>
+    <li><strong>Scheduler:</strong> veris.service — ingestion every 15 minutes, extraction hourly, verdicts every 6 hours.</li>
+  </ul>
+</div>
+
+<h2>Git history</h2>
+<table>
+  <thead><tr><th>Commit</th><th>Date</th><th>Message</th></tr></thead>
+  <tbody id="git-log">
+    <tr><td colspan="3" style="color:var(--fg-dim);padding:16px 10px">Loading git log…</td></tr>
+  </tbody>
+</table>
+
+<div class="refresh-info" id="refresh-info">Git log loads on page visit</div>
+
+<script>
+async function loadGitLog() {
+  try {
+    const res = await fetch('/api/ops/git-log', {credentials: 'same-origin'});
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    const tbody = document.getElementById('git-log');
+    if (!data.commits || !data.commits.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--fg-dim)">No commits found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.commits.map(c => `
+      <tr>
+        <td><a class="commit-hash" href="https://github.com/brittbart/verisreports/commit/${c.hash}" target="_blank">${c.short}</a></td>
+        <td>${c.date}</td>
+        <td>${c.message}</td>
+      </tr>
+    `).join('');
+    document.getElementById('refresh-info').textContent = `${data.commits.length} commits loaded · ${new Date().toLocaleTimeString()}`;
+  } catch(e) {
+    document.getElementById('git-log').innerHTML = '<tr><td colspan="3" style="color:var(--bad)">Failed to load git log</td></tr>';
+  }
+}
+loadGitLog();
+</script>
+</body>
+</html>
+"""
+
 _OPS_HISTORY_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2741,7 +2925,7 @@ _OPS_HTML = """<!DOCTYPE html>
 <body>
 <h1>Veris pipeline — last 24h</h1>
 <div class="subtitle" id="subtitle">loading…</div>
-<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none">Insights →</a></div>
+<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none">Insights →</a><a href="/ops/changelog" style="color:#a855f7;text-decoration:none">Changelog →</a></div>
 
 <h2>Corpus</h2>
 <div id="corpus" class="corpus-grid">
@@ -4164,6 +4348,50 @@ def ops_insights():
     ctx = build_insights_context()
     from flask import render_template_string
     return render_template_string(_OPS_INSIGHTS_HTML, **ctx)
+
+
+@app.route('/ops/changelog', methods=['GET'])
+def ops_changelog():
+    """Render the ops changelog. Basic-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import Response
+    return Response(_OPS_CHANGELOG_HTML, mimetype='text/html')
+
+
+@app.route('/api/ops/git-log', methods=['GET'])
+def api_ops_git_log():
+    """Return recent git commits as JSON. Basic-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    import subprocess
+    from flask import jsonify
+    try:
+        result = subprocess.run(
+            ['git', 'log', '--pretty=format:%H|%as|%s', '-n', '50'],
+            capture_output=True, text=True, cwd='/app',
+            timeout=5
+        )
+        if result.returncode != 0:
+            # Try local path as fallback (development)
+            result = subprocess.run(
+                ['git', 'log', '--pretty=format:%H|%as|%s', '-n', '50'],
+                capture_output=True, text=True,
+                timeout=5
+            )
+        commits = []
+        for line in result.stdout.strip().split('\n'):
+            if '|' not in line:
+                continue
+            parts = line.split('|', 2)
+            if len(parts) == 3:
+                h, date, msg = parts
+                commits.append({'hash': h, 'short': h[:7], 'date': date, 'message': msg})
+        return jsonify({'commits': commits})
+    except Exception as e:
+        return jsonify({'error': str(e), 'commits': []}), 500
 
 
 @app.route('/ops/history', methods=['GET'])
