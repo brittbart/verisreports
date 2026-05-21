@@ -2925,7 +2925,7 @@ _OPS_HTML = """<!DOCTYPE html>
 <body>
 <h1>Veris pipeline — last 24h</h1>
 <div class="subtitle" id="subtitle">loading…</div>
-<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none">Insights →</a><a href="/ops/changelog" style="color:#a855f7;text-decoration:none">Changelog →</a></div>
+<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none">Insights →</a><a href="/ops/changelog" style="color:#a855f7;text-decoration:none">Changelog →</a><a href="/ops/outlets" style="color:#a855f7;text-decoration:none;margin-right:16px">Outlets →</a><a href="/ops/queue" style="color:#a855f7;text-decoration:none;margin-right:16px">Queue →</a><a href="/ops/disputes" style="color:#a855f7;text-decoration:none;margin-right:16px">Disputes →</a><a href="/ops/api-usage" style="color:#a855f7;text-decoration:none">API →</a></div>
 
 <h2>Corpus</h2>
 <div id="corpus" class="corpus-grid">
@@ -4392,6 +4392,473 @@ def api_ops_git_log():
         return jsonify({'commits': commits})
     except Exception as e:
         return jsonify({'error': str(e), 'commits': []}), 500
+
+
+# ── /ops/outlets ──────────────────────────────────────────────────────────────
+
+@app.route('/ops/outlets', methods=['GET'])
+def ops_outlets():
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import render_template_string
+    import json
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT outlet_id, outlet_name, score, tier, total_scoreable_claims,
+                   total_evaluated_claims, verdict_counts, last_evaluated_at, updated_at
+            FROM api_outlets
+            ORDER BY COALESCE(score, -1) DESC
+        """)
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        # Convert decimals and datetimes for JSON
+        for r in rows:
+            r['score'] = float(r['score']) if r['score'] is not None else None
+            r['last_evaluated_at'] = r['last_evaluated_at'].isoformat() if r['last_evaluated_at'] else None
+            r['updated_at'] = r['updated_at'].isoformat() if r['updated_at'] else None
+        cur.execute("SELECT COUNT(*) FROM api_outlets WHERE score IS NOT NULL")
+        scored_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM api_outlets")
+        total_count = cur.fetchone()[0]
+    finally:
+        cur.close()
+        conn.close()
+    _OPS_OUTLETS_HTML = """<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Ops — Outlets</title>
+<style>
+:root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--yellow:#fbbf24;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5}
+h1{font-size:18px;margin:0 0 4px}.subtitle{color:var(--fg-dim);font-size:12px;margin-bottom:24px}
+.nav-links{font-size:12px;margin-bottom:20px}.nav-links a{color:var(--accent);text-decoration:none;margin-right:16px}.nav-links a:hover{color:#c084fc}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);font-weight:500;margin:32px 0 12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:7px 10px;color:var(--fg-dim);font-weight:500;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:rgba(168,85,247,0.04)}
+.score{font-weight:600;font-family:var(--mono)}
+.score.high{color:var(--ok)}.score.mid{color:var(--yellow)}.score.low{color:var(--bad)}.score.none{color:var(--fg-dim)}
+.tier{font-size:11px;padding:2px 7px;border-radius:3px;font-family:var(--mono)}
+.tier.published{background:rgba(74,222,128,0.12);color:var(--ok)}
+.tier.stabilizing{background:rgba(96,165,250,0.12);color:#60a5fa}
+.tier.limited_data{background:rgba(251,191,36,0.12);color:var(--yellow)}
+.tier.tracked{background:rgba(136,136,136,0.12);color:var(--fg-dim)}
+.mono{font-family:var(--mono);font-size:12px}
+.bar-wrap{display:flex;gap:2px;height:8px;border-radius:2px;overflow:hidden;min-width:80px}
+.bar-seg{height:100%}
+input#search{background:var(--card);border:1px solid var(--border);color:var(--fg);padding:6px 10px;border-radius:4px;font-size:12px;width:220px;margin-bottom:16px}
+</style></head><body>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/queue">Queue</a></div>
+<h1>Outlets</h1>
+<div class="subtitle">{{ scored_count }} scored · {{ total_count }} total tracked</div>
+<input id="search" placeholder="Filter outlets…" oninput="filterTable(this.value)">
+<table id="outlet-table">
+<thead><tr>
+  <th>Outlet</th><th>Score</th><th>Tier</th><th>Claims</th><th>Verdicts</th><th>Last evaluated</th>
+</tr></thead>
+<tbody>
+{% for r in outlets %}
+<tr>
+  <td><a href="{{ r.leaderboard_url or '#' }}" style="color:var(--accent);text-decoration:none" target="_blank">{{ r.outlet_name or r.outlet_id }}</a></td>
+  <td class="score {% if r.score is none %}none{% elif r.score >= 85 %}high{% elif r.score >= 70 %}mid{% else %}low{% endif %}">
+    {{ '%.1f'|format(r.score) if r.score is not none else '—' }}
+  </td>
+  <td><span class="tier {{ r.tier }}">{{ r.tier }}</span></td>
+  <td class="mono">{{ r.total_scoreable_claims }}</td>
+  <td>
+    {% if r.verdict_counts %}
+    <div class="bar-wrap" title="{{ r.verdict_counts }}">
+      {% set vc = r.verdict_counts %}
+      {% set total = (vc.get('supported',0) + vc.get('plausible',0) + vc.get('corroborated',0) + vc.get('overstated',0) + vc.get('disputed',0) + vc.get('not_supported',0)) %}
+      {% if total > 0 %}
+        <div class="bar-seg" style="width:{{ (vc.get('supported',0)+vc.get('plausible',0)+vc.get('corroborated',0))/total*100 }}%;background:var(--ok)"></div>
+        <div class="bar-seg" style="width:{{ vc.get('overstated',0)/total*100 }}%;background:var(--yellow)"></div>
+        <div class="bar-seg" style="width:{{ (vc.get('disputed',0)+vc.get('not_supported',0))/total*100 }}%;background:var(--bad)"></div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </td>
+  <td class="mono" style="color:var(--fg-dim);font-size:11px">{{ r.last_evaluated_at[:10] if r.last_evaluated_at else '—' }}</td>
+</tr>
+{% endfor %}
+</tbody></table>
+<script>
+function filterTable(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#outlet-table tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+</script>
+</body></html>"""
+    return render_template_string(_OPS_OUTLETS_HTML,
+        outlets=rows, scored_count=scored_count, total_count=total_count)
+
+
+# ── /ops/queue ────────────────────────────────────────────────────────────────
+
+@app.route('/ops/queue', methods=['GET'])
+def ops_queue():
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import render_template_string
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Overall queue stats
+        cur.execute("""
+            SELECT
+              COUNT(*) FILTER (WHERE verdict IS NULL AND priority_score >= 30 AND COALESCE(verification_attempts,0) < 3) AS eligible,
+              COUNT(*) FILTER (WHERE verdict IS NULL AND priority_score < 30) AS below_threshold,
+              COUNT(*) FILTER (WHERE verdict IS NULL AND COALESCE(verification_attempts,0) >= 3) AS capped,
+              COUNT(*) FILTER (WHERE verdict IS NOT NULL) AS verdicted,
+              COUNT(*) AS total
+            FROM claims
+        """)
+        q = cur.fetchone()
+        queue_stats = dict(eligible=q[0], below_threshold=q[1], capped=q[2], verdicted=q[3], total=q[4])
+
+        # Eligible claims by outlet (top 20)
+        cur.execute("""
+            SELECT a.source_name, COUNT(*) AS n,
+                   AVG(c.priority_score)::int AS avg_priority,
+                   MAX(c.first_seen) AS newest
+            FROM claims c
+            JOIN articles a ON c.article_id = a.id
+            WHERE c.verdict IS NULL
+              AND c.priority_score >= 30
+              AND COALESCE(c.verification_attempts, 0) < 3
+            GROUP BY a.source_name
+            ORDER BY n DESC
+            LIMIT 20
+        """)
+        by_outlet = [{'outlet': r[0], 'count': r[1], 'avg_priority': r[2],
+                      'newest': r[3].strftime('%Y-%m-%d %H:%M') if r[3] else None}
+                     for r in cur.fetchall()]
+
+        # Priority distribution of eligible claims
+        cur.execute("""
+            SELECT
+              COUNT(*) FILTER (WHERE priority_score >= 70) AS high,
+              COUNT(*) FILTER (WHERE priority_score >= 50 AND priority_score < 70) AS mid,
+              COUNT(*) FILTER (WHERE priority_score >= 30 AND priority_score < 50) AS low
+            FROM claims
+            WHERE verdict IS NULL AND priority_score >= 30 AND COALESCE(verification_attempts,0) < 3
+        """)
+        pq = cur.fetchone()
+        priority_dist = dict(high=pq[0], mid=pq[1], low=pq[2])
+
+        # Oldest unverified eligible claim
+        cur.execute("""
+            SELECT MIN(first_seen) FROM claims
+            WHERE verdict IS NULL AND priority_score >= 30 AND COALESCE(verification_attempts,0) < 3
+        """)
+        oldest = cur.fetchone()[0]
+
+    finally:
+        cur.close()
+        conn.close()
+
+    _OPS_QUEUE_HTML = """<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Ops — Queue</title>
+<style>
+:root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--yellow:#fbbf24;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5}
+h1{font-size:18px;margin:0 0 4px}.subtitle{color:var(--fg-dim);font-size:12px;margin-bottom:24px}
+.nav-links{font-size:12px;margin-bottom:20px}.nav-links a{color:var(--accent);text-decoration:none;margin-right:16px}.nav-links a:hover{color:#c084fc}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);font-weight:500;margin:32px 0 12px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:8px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 18px}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);margin-bottom:6px}
+.stat-value{font-family:var(--mono);font-size:24px;font-weight:600;line-height:1}
+.stat-value.ok{color:var(--ok)}.stat-value.warn{color:var(--yellow)}.stat-value.bad{color:var(--bad)}.stat-value.dim{color:var(--fg-dim)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:7px 10px;color:var(--fg-dim);font-weight:500;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.08em}
+td{padding:7px 10px;border-bottom:1px solid var(--border)}
+tr:hover td{background:rgba(168,85,247,0.04)}
+.mono{font-family:var(--mono);font-size:12px}
+</style></head><body>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/outlets">Outlets</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a></div>
+<h1>Verdict Queue</h1>
+<div class="subtitle">Claims awaiting verdict assignment</div>
+
+<h2>Overview</h2>
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-label">Eligible for verdict</div><div class="stat-value {% if queue_stats.eligible > 500 %}warn{% elif queue_stats.eligible > 0 %}ok{% else %}dim{% endif %}">{{ queue_stats.eligible }}</div></div>
+  <div class="stat-card"><div class="stat-label">Below priority threshold</div><div class="stat-value dim">{{ queue_stats.below_threshold }}</div></div>
+  <div class="stat-card"><div class="stat-label">Capped (3 attempts)</div><div class="stat-value {% if queue_stats.capped > 0 %}warn{% else %}dim{% endif %}">{{ queue_stats.capped }}</div></div>
+  <div class="stat-card"><div class="stat-label">Verdicted (total)</div><div class="stat-value ok">{{ queue_stats.verdicted }}</div></div>
+</div>
+{% if oldest %}<div style="font-size:12px;color:var(--fg-dim);margin-top:8px">Oldest eligible claim: {{ oldest.strftime('%Y-%m-%d %H:%M') }}</div>{% endif %}
+
+<h2>Priority distribution (eligible claims)</h2>
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-label">High priority (70+)</div><div class="stat-value ok">{{ priority_dist.high }}</div></div>
+  <div class="stat-card"><div class="stat-label">Mid priority (50–69)</div><div class="stat-value">{{ priority_dist.mid }}</div></div>
+  <div class="stat-card"><div class="stat-label">Low priority (30–49)</div><div class="stat-value dim">{{ priority_dist.low }}</div></div>
+</div>
+
+<h2>By outlet (top 20 eligible)</h2>
+{% if by_outlet %}
+<table>
+<thead><tr><th>Outlet</th><th>Eligible claims</th><th>Avg priority</th><th>Newest claim</th></tr></thead>
+<tbody>
+{% for r in by_outlet %}
+<tr>
+  <td>{{ r.outlet }}</td>
+  <td class="mono">{{ r.count }}</td>
+  <td class="mono">{{ r.avg_priority }}</td>
+  <td class="mono" style="color:var(--fg-dim);font-size:11px">{{ r.newest or '—' }}</td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% else %}
+<div style="color:var(--fg-dim);padding:16px 0">Queue is empty — all eligible claims have been processed.</div>
+{% endif %}
+</body></html>"""
+    return render_template_string(_OPS_QUEUE_HTML,
+        queue_stats=queue_stats, by_outlet=by_outlet,
+        priority_dist=priority_dist, oldest=oldest)
+
+
+# ── /ops/disputes ─────────────────────────────────────────────────────────────
+
+@app.route('/ops/disputes', methods=['GET'])
+def ops_disputes():
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import render_template_string
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, domain, claim_id, contact_email, dispute_text,
+                   outlet_response, status, submitted_at, reviewed_at, resolution
+            FROM outlet_disputes
+            ORDER BY submitted_at DESC
+        """)
+        cols = [d[0] for d in cur.description]
+        disputes = [dict(zip(cols, r)) for r in cur.fetchall()]
+        for d in disputes:
+            d['submitted_at'] = d['submitted_at'].strftime('%Y-%m-%d %H:%M') if d['submitted_at'] else None
+            d['reviewed_at'] = d['reviewed_at'].strftime('%Y-%m-%d %H:%M') if d['reviewed_at'] else None
+        cur.execute("SELECT status, COUNT(*) FROM outlet_disputes GROUP BY status")
+        status_counts = dict(cur.fetchall())
+    finally:
+        cur.close()
+        conn.close()
+
+    _OPS_DISPUTES_HTML = """<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Ops — Disputes</title>
+<style>
+:root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--yellow:#fbbf24;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5}
+h1{font-size:18px;margin:0 0 4px}.subtitle{color:var(--fg-dim);font-size:12px;margin-bottom:24px}
+.nav-links{font-size:12px;margin-bottom:20px}.nav-links a{color:var(--accent);text-decoration:none;margin-right:16px}.nav-links a:hover{color:#c084fc}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);font-weight:500;margin:32px 0 12px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);margin-bottom:6px}
+.stat-value{font-family:var(--mono);font-size:22px;font-weight:600}
+.dispute-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:12px}
+.dispute-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.dispute-domain{font-weight:600;font-size:14px}
+.dispute-meta{font-size:11px;color:var(--fg-dim);font-family:var(--mono)}
+.status-badge{font-size:11px;padding:2px 8px;border-radius:3px;font-family:var(--mono)}
+.status-badge.pending{background:rgba(251,191,36,0.15);color:var(--yellow)}
+.status-badge.resolved{background:rgba(74,222,128,0.12);color:var(--ok)}
+.status-badge.rejected{background:rgba(248,113,113,0.12);color:var(--bad)}
+.dispute-text{color:var(--fg-dim);font-size:13px;margin-top:8px;line-height:1.6}
+.empty{color:var(--fg-dim);padding:32px 0;text-align:center}
+</style></head><body>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a></div>
+<h1>Verdict Disputes</h1>
+<div class="subtitle">Submitted via report page correction links</div>
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">{{ disputes|length }}</div></div>
+  <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:var(--yellow)">{{ status_counts.get('pending', 0) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Resolved</div><div class="stat-value" style="color:var(--ok)">{{ status_counts.get('resolved', 0) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Rejected</div><div class="stat-value" style="color:var(--bad)">{{ status_counts.get('rejected', 0) }}</div></div>
+</div>
+
+{% if disputes %}
+{% for d in disputes %}
+<div class="dispute-card">
+  <div class="dispute-header">
+    <div>
+      <span class="dispute-domain">{{ d.domain }}</span>
+      {% if d.claim_id %}<span class="dispute-meta" style="margin-left:10px">claim #{{ d.claim_id }}</span>{% endif %}
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="dispute-meta">{{ d.submitted_at }}</span>
+      <span class="status-badge {{ d.status or 'pending' }}">{{ d.status or 'pending' }}</span>
+    </div>
+  </div>
+  {% if d.contact_email %}<div class="dispute-meta" style="margin-bottom:6px">From: {{ d.contact_email }}</div>{% endif %}
+  <div class="dispute-text">{{ d.dispute_text }}</div>
+  {% if d.resolution %}<div class="dispute-text" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px"><strong style="color:var(--fg)">Resolution:</strong> {{ d.resolution }}</div>{% endif %}
+</div>
+{% endfor %}
+{% else %}
+<div class="empty">No disputes submitted yet.</div>
+{% endif %}
+</body></html>"""
+    return render_template_string(_OPS_DISPUTES_HTML,
+        disputes=disputes, status_counts=status_counts)
+
+
+# ── /ops/api-usage ────────────────────────────────────────────────────────────
+
+@app.route('/ops/api-usage', methods=['GET'])
+def ops_api_usage():
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import render_template_string
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Keys with usage
+        cur.execute("""
+            SELECT k.id, k.key_prefix, k.tier, k.monthly_quota,
+                   k.created_at, k.last_used_at, k.revoked_at,
+                   COALESCE(m.call_count, 0) AS calls_this_month
+            FROM api_keys k
+            LEFT JOIN api_monthly_usage m
+              ON m.key_id = k.id AND m.year_month = TO_CHAR(NOW(), 'YYYY-MM')
+            ORDER BY k.id
+        """)
+        cols = [d[0] for d in cur.description]
+        keys = [dict(zip(cols, r)) for r in cur.fetchall()]
+        for k in keys:
+            k['created_at'] = k['created_at'].strftime('%Y-%m-%d') if k['created_at'] else None
+            k['last_used_at'] = k['last_used_at'].strftime('%Y-%m-%d %H:%M') if k['last_used_at'] else None
+            k['revoked_at'] = k['revoked_at'].strftime('%Y-%m-%d') if k['revoked_at'] else None
+            k['active'] = k['revoked_at'] is None
+            k['pct'] = round(k['calls_this_month'] / k['monthly_quota'] * 100, 1) if k['monthly_quota'] else 0
+
+        # Recent calls
+        cur.execute("""
+            SELECT u.created_at, k.key_prefix, u.endpoint, u.status_code, u.response_time_ms, u.ip
+            FROM api_usage u
+            JOIN api_keys k ON k.id = u.key_id
+            ORDER BY u.created_at DESC
+            LIMIT 50
+        """)
+        cols = [d[0] for d in cur.description]
+        calls = [dict(zip(cols, r)) for r in cur.fetchall()]
+        for c in calls:
+            c['created_at'] = c['created_at'].strftime('%Y-%m-%d %H:%M:%S') if c['created_at'] else None
+
+        # Endpoint breakdown (last 30 days)
+        cur.execute("""
+            SELECT endpoint, COUNT(*) AS n,
+                   ROUND(AVG(response_time_ms)) AS avg_ms,
+                   COUNT(*) FILTER (WHERE status_code >= 400) AS errors
+            FROM api_usage
+            WHERE created_at > NOW() - INTERVAL '30 days'
+            GROUP BY endpoint ORDER BY n DESC
+        """)
+        endpoints = [{'endpoint': r[0], 'calls': r[1], 'avg_ms': r[2], 'errors': r[3]}
+                     for r in cur.fetchall()]
+
+        # Total calls this month
+        cur.execute("""
+            SELECT COALESCE(SUM(call_count), 0) FROM api_monthly_usage
+            WHERE year_month = TO_CHAR(NOW(), 'YYYY-MM')
+        """)
+        total_this_month = cur.fetchone()[0]
+
+    finally:
+        cur.close()
+        conn.close()
+
+    _OPS_API_HTML = """<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Ops — API Usage</title>
+<style>
+:root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--yellow:#fbbf24;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5}
+h1{font-size:18px;margin:0 0 4px}.subtitle{color:var(--fg-dim);font-size:12px;margin-bottom:24px}
+.nav-links{font-size:12px;margin-bottom:20px}.nav-links a{color:var(--accent);text-decoration:none;margin-right:16px}.nav-links a:hover{color:#c084fc}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-dim);font-weight:500;margin:32px 0 12px}
+.key-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.key-prefix{font-family:var(--mono);font-size:13px;font-weight:600}
+.key-meta{font-size:11px;color:var(--fg-dim)}
+.key-status{font-size:11px;padding:2px 8px;border-radius:3px;font-family:var(--mono)}
+.key-status.active{background:rgba(74,222,128,0.12);color:var(--ok)}
+.key-status.revoked{background:rgba(248,113,113,0.12);color:var(--bad)}
+.quota-bar{height:6px;border-radius:3px;background:var(--border);width:120px;overflow:hidden}
+.quota-fill{height:100%;border-radius:3px;background:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 10px;color:var(--fg-dim);font-weight:500;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap}
+td{padding:6px 10px;border-bottom:1px solid var(--border);font-family:var(--mono)}
+tr:hover td{background:rgba(168,85,247,0.04)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.dim{color:var(--fg-dim)}
+</style></head><body>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a></div>
+<h1>API Usage</h1>
+<div class="subtitle">{{ total_this_month }} calls this month across all keys</div>
+
+<h2>Keys</h2>
+{% for k in keys %}
+<div class="key-card">
+  <div>
+    <div class="key-prefix">{{ k.key_prefix }}… <span class="key-status {{ 'active' if k.active else 'revoked' }}">{{ 'active' if k.active else 'revoked' }}</span></div>
+    <div class="key-meta">{{ k.tier }} · created {{ k.created_at }} · last used {{ k.last_used_at or 'never' }}</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-family:var(--mono);font-size:13px">{{ k.calls_this_month }} / {{ k.monthly_quota }} this month</div>
+    <div class="quota-bar" style="margin-top:6px;margin-left:auto"><div class="quota-fill" style="width:{{ [k.pct, 100]|min }}%"></div></div>
+    <div class="key-meta">{{ k.pct }}% of quota</div>
+  </div>
+</div>
+{% endfor %}
+
+<h2>Endpoints (last 30 days)</h2>
+<table>
+<thead><tr><th>Endpoint</th><th>Calls</th><th>Avg ms</th><th>Errors</th></tr></thead>
+<tbody>
+{% for e in endpoints %}
+<tr>
+  <td style="color:var(--fg)">{{ e.endpoint }}</td>
+  <td>{{ e.calls }}</td>
+  <td class="{{ 'bad' if e.avg_ms and e.avg_ms > 2000 else '' }}">{{ e.avg_ms or '—' }}</td>
+  <td class="{{ 'bad' if e.errors > 0 else 'dim' }}">{{ e.errors }}</td>
+</tr>
+{% endfor %}
+</tbody></table>
+
+<h2>Recent calls</h2>
+<table>
+<thead><tr><th>Time</th><th>Key</th><th>Endpoint</th><th>Status</th><th>ms</th><th>IP</th></tr></thead>
+<tbody>
+{% for c in calls %}
+<tr>
+  <td class="dim" style="font-size:11px">{{ c.created_at }}</td>
+  <td>{{ c.key_prefix }}…</td>
+  <td style="color:var(--fg)">{{ c.endpoint }}</td>
+  <td class="{{ 'bad' if c.status_code >= 400 else 'ok' }}">{{ c.status_code }}</td>
+  <td>{{ c.response_time_ms }}</td>
+  <td class="dim" style="font-size:11px">{{ c.ip }}</td>
+</tr>
+{% endfor %}
+</tbody></table>
+</body></html>"""
+    return render_template_string(_OPS_API_HTML,
+        keys=keys, calls=calls, endpoints=endpoints, total_this_month=total_this_month)
 
 
 @app.route('/ops/history', methods=['GET'])
