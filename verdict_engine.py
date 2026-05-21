@@ -601,9 +601,11 @@ def verify_debate_claims_sync(event_id, limit=10):
                         verdict_summary = CASE WHEN COALESCE(verification_attempts, 0) >= 2
                             THEN 'Automated verification failed to parse API response after 3 attempts.'
                             ELSE verdict_summary END,
+                        verdict_status = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN 'final' ELSE verdict_status END,
+                        methodology_version = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN %s ELSE methodology_version END,
                         last_checked = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN NOW() ELSE last_checked END
                     WHERE id = %s
-                """, (claim_id,))
+                """, (METHODOLOGY_VERSION, claim_id,))
                 conn.commit()
                 if (cursor.execute("SELECT verification_attempts FROM claims WHERE id = %s", (claim_id,)) or True) and cursor.fetchone()[0] >= 3:
                     print(f"    [surge] claim {claim_id}: auto-marked not_verifiable after 3 attempts")
@@ -622,10 +624,12 @@ def verify_debate_claims_sync(event_id, limit=10):
                     confidence_score = %s,
                     verdict_summary = %s,
                     full_analysis = %s,
+                    verdict_status = 'provisional',
+                    methodology_version = %s,
                     last_checked = NOW()
                 WHERE id = %s
                   AND claim_origin = 'debate_claim'
-            """, (verdict, confidence, summary, full_analysis[:2000], claim_id))
+            """, (verdict, confidence, summary, full_analysis[:2000], METHODOLOGY_VERSION, claim_id))
             conn.commit()
             verified += 1
             print(f"    [surge] claim {claim_id}: {verdict} — {summary[:60]}")
