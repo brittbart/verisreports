@@ -4,6 +4,7 @@ import re
 import psycopg2
 import anthropic
 from dotenv import load_dotenv
+from api_leaderboard import METHODOLOGY_VERSION
 
 if os.path.exists(".env"):
     load_dotenv(override=False)
