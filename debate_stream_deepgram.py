@@ -126,6 +126,7 @@ def build_name_map(event_speakers):
         'bottoms': {'variants': ['bottoms', 'bottom'], 'whole_word_only': False},
         'kirkmeyer': {'variants': ['kirkmeyer', 'kirkmeier', 'kirkmyer', 'kirk meyer'], 'whole_word_only': False},
         'marx': {'variants': ['marx'], 'whole_word_only': True},  # <=4 chars — whole-word only
+        'moderator': {'variants': ['moderator', 'the moderator'], 'whole_word_only': False},
     }
     for correct, entry in misspellings.items():
         if isinstance(entry, list):

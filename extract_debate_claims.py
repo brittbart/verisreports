@@ -69,6 +69,7 @@ from extract_claims import extract_claims_from_article
 
 CLAIM_ORIGIN = 'debate_claim'
 SCOREABLE_SPEAKER_TYPES = {'politician', 'official'}
+GENERIC_MODERATOR_ID = 3  # Reserved ID for generic moderator — see speakers table
 
 
 # ---------------------------------------------------------------------------
