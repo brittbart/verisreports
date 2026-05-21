@@ -14,7 +14,7 @@ if os.path.exists(".env"):
     from dotenv import load_dotenv
     load_dotenv(override=False)
 
-POLL_INTERVAL = 60  # seconds between checks when idle
+POLL_INTERVAL = 15  # seconds between checks when idle (reduced from 60s for faster restart recovery)
 STREAM_SCRIPT = os.path.join(os.path.dirname(__file__), "debate_stream.py")
 PYTHON = sys.executable
 
@@ -72,6 +72,10 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
     if not stream_url:
         log(f"No stream URL for event {event_id} ({slug}) — skipping")
         return
+    # Circuit breaker: max 5 restarts in 10 minutes
+    restart_times = []
+    CIRCUIT_BREAKER_WINDOW = 600  # 10 minutes
+    CIRCUIT_BREAKER_MAX = 5
     cmd = [
         PYTHON, '-u', STREAM_SCRIPT,
         '--mode', 'live',
@@ -86,10 +90,16 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
     log(f"Command: {' '.join(cmd)}")
     try:
         proc = subprocess.Popen(cmd, cwd=os.path.dirname(__file__))
+        restart_times.append(time.time())
+        # Prune old restart times outside the circuit breaker window
+        restart_times = [t for t in restart_times if time.time() - t < CIRCUIT_BREAKER_WINDOW]
+        if len(restart_times) > CIRCUIT_BREAKER_MAX:
+            log(f"CIRCUIT BREAKER: {len(restart_times)} restarts in {CIRCUIT_BREAKER_WINDOW}s — stopping stream service")
+            return
         while True:
             ret = proc.poll()
             if ret is not None:
-                log(f"Stream process exited with code {ret}")
+                log(f"Stream process exited with code {ret} — will attempt restart if event still live")
                 break
             # Check if event is still live
             event = get_live_event()
