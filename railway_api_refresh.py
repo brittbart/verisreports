@@ -395,6 +395,30 @@ def prune_usage(cur) -> int:
 # MAIN
 # ---------------------------------------------------------------------------
 
+def promote_provisional_verdicts(cur) -> int:
+    """
+    Auto-promote provisional debate verdicts to final after the 60-minute window.
+
+    The 60-minute clock starts from claims.first_seen — when Verum Signal
+    extracts the claim from the live transcript (typically 1-5 minutes after
+    utterance). Verdicts still marked provisional after 60 minutes from
+    first_seen are promoted to final automatically.
+
+    Safe for non-debate claims: regular article claims have verdict_status=NULL
+    and are never touched by this query.
+    """
+    cur.execute("""
+        UPDATE claims
+        SET verdict_status = 'final'
+        WHERE verdict_status = 'provisional'
+          AND first_seen < NOW() - INTERVAL '60 minutes'
+    """)
+    promoted = cur.rowcount
+    if promoted > 0:
+        log.info(f"promote_provisional_verdicts: {promoted} promoted to final")
+    return promoted
+
+
 def main():
     start = datetime.now(timezone.utc)
     log.info("=== api_refresh start ===")
@@ -415,6 +439,8 @@ def main():
         conn.commit()
         log.info(f"refresh_debate_claims: {debate_n} rows upserted")
 
+        promoted_n      = promote_provisional_verdicts(cur)
+        conn.commit()
         prune_usage(cur)
         conn.commit()
 
