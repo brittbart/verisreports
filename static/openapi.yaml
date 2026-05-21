@@ -580,6 +580,18 @@ components:
         event_url:
           type: string
           format: uri
+        verdict_status:
+          type: string
+          enum: [provisional, final]
+          nullable: true
+          description: >
+            Status of the reliability assessment in the review lifecycle.
+            "provisional" indicates an assessment produced during live debate
+            coverage that may be revised within 60 minutes of first appearing.
+            "final" indicates a stable assessment. Null values indicate the
+            claim is not subject to the provisional/final lifecycle (e.g.,
+            assessments produced outside live coverage) and should be treated
+            as final for display purposes.
       required:
         - id
         - claim_text
