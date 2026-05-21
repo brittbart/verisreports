@@ -554,3 +554,74 @@ def register_debate_routes(app, get_db_conn):
             return jsonify({'featured': featured})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+    @app.route("/api/debates/<slug>/stats")
+    def api_debate_stats(slug):
+        """Real-time pipeline stats for a debate event. Operator monitoring during live coverage."""
+        slug = slug.lower()
+        if not SLUG_RE.match(slug):
+            return jsonify({'error': 'Invalid slug'}), 400
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+            # Get event_id from slug
+            cur.execute("SELECT id, is_public FROM events WHERE slug = %s", (slug,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({'error': 'Event not found'}), 404
+            event_id, is_public = row
+            # Utterance stats
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(CASE WHEN processed_at IS NOT NULL THEN 1 END) AS processed,
+                    MAX(created_at) AS latest_at
+                FROM speaker_utterances
+                WHERE event_id = %s
+            """, (event_id,))
+            urow = cur.fetchone()
+            utterances_total = urow[0] or 0
+            utterances_processed = urow[1] or 0
+            last_utterance_at = urow[2].isoformat() if urow[2] else None
+            # Claim stats
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(CASE WHEN verdict IS NOT NULL THEN 1 END) AS with_verdict,
+                    COUNT(CASE WHEN verdict_status = 'provisional' THEN 1 END) AS provisional,
+                    COUNT(CASE WHEN verdict_status = 'final' OR (verdict IS NOT NULL AND verdict_status IS NULL) THEN 1 END) AS final,
+                    COUNT(CASE WHEN verdict IS NULL THEN 1 END) AS pending_verification
+                FROM claims
+                WHERE event_id = %s AND claim_origin = 'debate_claim'
+            """, (event_id,))
+            crow = cur.fetchone()
+            claims_total = crow[0] or 0
+            claims_with_verdict = crow[1] or 0
+            claims_provisional = crow[2] or 0
+            claims_final = crow[3] or 0
+            verification_pending = crow[4] or 0
+            # Stream active: any utterance in last 3 minutes
+            cur.execute("""
+                SELECT COUNT(*) FROM speaker_utterances
+                WHERE event_id = %s AND created_at > NOW() - INTERVAL '3 minutes'
+            """, (event_id,))
+            stream_active = (cur.fetchone()[0] or 0) > 0
+            cur.close()
+            conn.close()
+            return jsonify({
+                'event_id': event_id,
+                'slug': slug,
+                'is_public': is_public,
+                'stream_active': stream_active,
+                'utterances_captured': utterances_total,
+                'utterances_processed': utterances_processed,
+                'extraction_pending': utterances_total - utterances_processed,
+                'claims_extracted': claims_total,
+                'claims_with_verdict': claims_with_verdict,
+                'claims_provisional': claims_provisional,
+                'claims_final': claims_final,
+                'verification_pending': verification_pending,
+                'last_utterance_at': last_utterance_at,
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
