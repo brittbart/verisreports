@@ -654,6 +654,26 @@
     letter-spacing: -0.005em;
   }
 
+  /* Provisional badge */
+  .vs-badge-provisional {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: #d97706;
+    background: rgba(217, 119, 6, 0.1);
+    border: 0.5px solid rgba(217, 119, 6, 0.35);
+    border-radius: 4px;
+    padding: 2px 7px;
+    cursor: help;
+  }
+  .vs-badge-provisional svg {
+    flex-shrink: 0;
+  }
+
   .dt-claim-aside {
     text-align: right;
   }
@@ -1115,7 +1135,8 @@
             <article class="dt-claim {{ c.color_class }}"
                      data-row="claim"
                      data-speaker="{{ c.speaker_slug or c.speaker_name|lower|replace(' ', '-') }}"
-                     data-verdict="{{ c.verdict }}">
+                     data-verdict="{{ c.verdict }}"
+                     data-provisional="{{ 'true' if c.verdict_status == 'provisional' else 'false' }}">
               <div class="dt-claim-row">
                 <div class="dt-claim-mono">{{ c.initials }}</div>
                 <div class="dt-claim-body">
@@ -1124,8 +1145,17 @@
                     <span class="time">{{ c.first_seen }}</span>
                   </div>
                   <p class="dt-claim-quote">&ldquo;{{ c.claim_text }}&rdquo;</p>
-                  <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span class="v-pill v-pill--{{ c.verdict|replace('_', '-') }}">{{ c.verdict_label }}</span>
+                    {% if c.verdict_status == 'provisional' %}
+                    <span class="vs-badge-provisional"
+                          title="This reliability assessment was produced during live coverage and may be revised within 60 minutes as additional sources are reviewed."
+                          tabindex="0"
+                          aria-label="Provisional: this reliability assessment may be revised within 60 minutes">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      PROVISIONAL
+                    </span>
+                    {% endif %}
                     <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">Click to expand</span>
                   </div>
                 </div>
@@ -1333,6 +1363,13 @@
           var current = feed ? feed.querySelectorAll('[data-row="claim"]').length : 0;
           var incoming = (data.claims || []).filter(function(c) { return c.verdict; }).length;
           if (incoming > current) {
+            window.location.reload();
+            return;
+          }
+          // If provisional count changed (verdicts promoted to final), reload
+          var currentProvisional = feed ? feed.querySelectorAll('[data-provisional="true"]').length : 0;
+          var incomingProvisional = (data.claims || []).filter(function(c) { return c.verdict_status === 'provisional'; }).length;
+          if (incomingProvisional !== currentProvisional) {
             window.location.reload();
           }
         })

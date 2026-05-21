@@ -184,6 +184,7 @@ def _get_event_by_slug(get_db_conn, slug):
             SELECT
                 c.id, c.claim_text, c.verdict, c.verdict_summary,
                 c.confidence_score, c.first_seen,
+                c.verdict_status,
                 s.name AS speaker_name, s.slug AS speaker_slug,
                 s.id AS speaker_id,
                 a.url AS article_url
@@ -198,7 +199,7 @@ def _get_event_by_slug(get_db_conn, slug):
         claims = []
         for c in cur.fetchall():
             (cid, claim_text, verdict, verdict_summary, confidence,
-             first_seen, speaker_name, speaker_slug, speaker_id, article_url) = c
+             first_seen, raw_status, speaker_name, speaker_slug, speaker_id, article_url) = c
             claims.append({
                 'id':              cid,
                 'claim_text':      claim_text,
@@ -207,6 +208,7 @@ def _get_event_by_slug(get_db_conn, slug):
                 'verdict_summary': verdict_summary or '',
                 'confidence':      confidence,
                 'first_seen':      first_seen.strftime('%Y-%m-%d') if first_seen else '',
+                'verdict_status':  raw_status if raw_status else 'final',
                 'speaker_name':    speaker_name or '',
                 'speaker_slug':    speaker_slug or '',
                 'speaker_id':      speaker_id,
