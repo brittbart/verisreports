@@ -2741,6 +2741,7 @@ _OPS_HTML = """<!DOCTYPE html>
 <body>
 <h1>Veris pipeline — last 24h</h1>
 <div class="subtitle" id="subtitle">loading…</div>
+<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none">Insights →</a></div>
 
 <h2>Corpus</h2>
 <div id="corpus" class="corpus-grid">
