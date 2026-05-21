@@ -59,9 +59,31 @@ Content: {content}
 """
     
     # The prompt that tells Claude what to do
-    prompt = f"""You are the claim detection engine for Verum Signal, an independent claim analysis platform.
+    is_debate_utterance = bool(article.get('_utterance_id'))
+    content_type_instruction = """
+IMPORTANT — THIS IS A LIVE DEBATE UTTERANCE, NOT A WRITTEN ARTICLE:
+The content below is a verbatim transcript of a single spoken statement from a live political debate.
+Apply the following adjustments:
+- HEDGE NORMALIZATION: Treat "I think X", "I believe X", "I feel X" as asserting X. The hedge does not
+  insulate the speaker from factual accountability — extract the underlying claim.
+- FILLER NORMALIZATION: Read through filler words (um, uh, well, you know) and self-corrections
+  ("the economy is — uh — has been struggling") to extract the intended claim.
+- FALSE STARTS: Ignore incomplete sentence fragments before a speaker restarts ("We need to — what
+  we really need is to cut taxes") — extract the completed assertion.
+- SPOKEN SCOPE: A single utterance rarely contains more than 1-2 extractable claims. Returning 0 or 1
+  claims is normal and correct. Do not pad.
 
-Read the following article and identify up to 7 of the most check-worthy factual claims.
+DO NOT EXTRACT:
+- Personal biographical statements ("I grew up in Denver", "my wife passed away in 2019")
+- Location pleasantries ("it's wonderful to be here in Colorado Springs")
+- Statements of personal preference ("I love this state", "Colorado is the greatest")
+- Non-falsifiable opinions ("we deserve better leadership", "we need to do more")
+- Greetings or well-wishes to opponents or the audience
+""" if is_debate_utterance else """"""
+
+    prompt = f"""You are the claim detection engine for Verum Signal, an independent claim analysis platform.
+{content_type_instruction}
+Read the following {'statement' if is_debate_utterance else 'article'} and identify up to {'2' if is_debate_utterance else '7'} of the most check-worthy factual claims.
 
 A check-worthy claim is:
 - A specific factual assertion that could be checked against evidence
