@@ -142,7 +142,7 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False):
         cur = conn.cursor()
 
         # Use speaker_id=1 (unknown) if not resolved
-        effective_speaker_id = speaker_id if speaker_id else 1
+        effective_speaker_id = speaker_id if speaker_id else None  # None = truly unknown; don't attribute to arbitrary speaker
 
         cur.execute("""
             INSERT INTO speaker_utterances
@@ -283,6 +283,35 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     seen_speaker_ids = {}       # Rev AI ID -> DB speaker_id (order-based fallback)
     confirmed_speaker_ids = {}  # Rev AI ID -> DB speaker_id (name-confirmed, authoritative)
     pending_speaker_id = [None] # next speaker assigned this DB speaker_id
+
+    # Load persisted speaker mappings from DB (survive stream restarts)
+    # Note: column named dg_speaker_map for historical reasons (Deepgram era); now stores Rev AI mappings
+    try:
+        _mc = get_db_conn(); _mu = _mc.cursor()
+        _mu.execute("SELECT dg_speaker_map FROM events WHERE id = %s", (event_id,))
+        _mr = _mu.fetchone()
+        if _mr and _mr[0]:
+            for k, v in _mr[0].items():
+                confirmed_speaker_ids[int(k)] = v
+                seen_speaker_ids[int(k)] = v
+            print(f"  [PERSIST] Loaded {len(confirmed_speaker_ids)} mapping(s) from DB: {confirmed_speaker_ids}")
+        else:
+            print("  [PERSIST] No prior mappings — starting fresh")
+        _mu.close(); _mc.close()
+    except Exception as _pe:
+        print(f"  [PERSIST] WARNING: Could not load mappings: {_pe} — proceeding with empty map")
+
+    def persist_mapping(rev_idx, speaker_id):
+        """Write Rev AI idx -> speaker_id mapping to DB. Non-fatal on failure."""
+        try:
+            _pc = get_db_conn(); _pu = _pc.cursor()
+            _pu.execute(
+                "UPDATE events SET dg_speaker_map = jsonb_set(COALESCE(dg_speaker_map, '{}'::jsonb), %s, %s::jsonb) WHERE id = %s",
+                ([str(rev_idx)], str(speaker_id), event_id)
+            )
+            _pc.commit(); _pu.close(); _pc.close()
+        except Exception as _we:
+            print(f"  [PERSIST] WARNING: Could not persist mapping {rev_idx}->{speaker_id}: {_we}")
     # Calibration phase — first 3 minutes, aggressive name detection
     calibration_start = [time.time()]
     CALIBRATION_SECS = 180  # 3 minutes
@@ -326,32 +355,55 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                     if len(part) > 3:
                         name_map[part] = sid
             # Add common Rev AI misspellings
+            # Dict format: {'variants': [...], 'whole_word_only': bool}
+            # whole_word_only=True uses word-boundary regex to prevent substring collisions
+            # Heuristic: variants <=4 chars OR collision-prone words get whole_word_only=True
             misspellings = {
-                'turek': ['turk', 'terk', 'turek'],
-                'wahls': ['walz', 'walls', 'wals', 'wahls'],
-                'kirkmeyer': ['kirkmeier', 'kirkmyer', 'kirkmeyer', 'kirk meyer'],
-                'bottoms': ['bottom', 'bottoms'],
-                'bennet': ['bennett', 'benet', 'bennet'],
-                'weiser': ['wiser', 'wyser', 'weiser'],
-                'marx': ['marks', 'marx'],
+                'turek':    {'variants': ['turk', 'terk', 'turek'], 'whole_word_only': False},
+                'wahls':    {'variants': ['walz', 'walls', 'wals', 'wahls'], 'whole_word_only': False},
+                'kirkmeyer':{'variants': ['kirkmeier', 'kirkmyer', 'kirkmeyer', 'kirk meyer'], 'whole_word_only': False},
+                'bottoms':  {'variants': ['bottom', 'bottoms'], 'whole_word_only': False},
+                'bennet':   {'variants': ['bennett', 'benet', 'bennet'], 'whole_word_only': False},
+                'weiser':   {'variants': ['wiser', 'wyser', 'weiser'], 'whole_word_only': False},
+                'marx':     {'variants': ['marx'], 'whole_word_only': True},   # 4 chars, whole-word prevents 'Marxist'/'Marxism'
+                'marks':    {'variants': ['marks'], 'whole_word_only': True},  # 5 chars but collides with 'remarkable'/'marksman'
+                'moderator':{'variants': ['moderator', 'the moderator'], 'whole_word_only': False},
             }
-            for correct, variants in misspellings.items():
+            whole_word_set = set()
+            for correct, entry in misspellings.items():
+                if isinstance(entry, list):
+                    entry = {'variants': entry, 'whole_word_only': False}
                 if correct in name_map:
-                    for v in variants:
+                    for v in entry['variants']:
                         name_map[v] = name_map[correct]
+                        if entry['whole_word_only']:
+                            whole_word_set.add(v)
             cur.close(); conn.close()
             print(f"  Name detection active: {list(name_map.keys())}")
         except Exception as e:
             print(f"  [WARNING] Could not build name map: {e}")
 
     def detect_name_cue(text):
+        import re
         tl = text.lower()
         best_match, best_len = None, 0
         for frag, sid in name_map.items():
-            # Require minimum 4 chars AND prefer longer matches
-            # This prevents single common names from firing falsely
-            if frag in tl and len(frag) > best_len and len(frag) >= 5:
-                best_match, best_len = sid, len(frag)
+            # Auto-fragmented names: require >=5 chars to prevent short-fragment collisions
+            # Explicit misspellings dict entries: allow >=4 chars (deliberately curated)
+            is_dict_entry = frag in whole_word_set or any(
+                frag in entry['variants']
+                for entry in misspellings.values()
+                if isinstance(entry, dict)
+            )
+            min_len = 4 if is_dict_entry else 5
+            if len(frag) < min_len or len(frag) <= best_len:
+                continue
+            if frag in whole_word_set:
+                if re.search(r'\b' + re.escape(frag) + r'\b', tl, re.IGNORECASE):
+                    best_match, best_len = sid, len(frag)
+            else:
+                if frag in tl:
+                    best_match, best_len = sid, len(frag)
         return best_match
 
     def on_partial(response):
@@ -418,6 +470,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 seen_speaker_ids[rev_speaker_idx] = speaker_id
                 pending_speaker_id[0] = None
                 print(f"  [CONFIRMED] Rev AI {rev_speaker_idx} = DB speaker {speaker_id}")
+                persist_mapping(rev_speaker_idx, speaker_id)
             elif rev_speaker_idx not in seen_speaker_ids:
                 # Try order-based mapping first if speaker_order provided
                 if speaker_order and rev_speaker_idx < len(speaker_order):
@@ -425,6 +478,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                     seen_speaker_ids[rev_speaker_idx] = mapped
                     confirmed_speaker_ids[rev_speaker_idx] = mapped
                     print(f"  [ORDER MAP] Rev AI {rev_speaker_idx} = DB speaker {mapped}")
+                    persist_mapping(rev_speaker_idx, mapped)
                 elif confirmed_speaker_ids:
                     last_known = list(confirmed_speaker_ids.values())[-1]
                     seen_speaker_ids[rev_speaker_idx] = last_known
