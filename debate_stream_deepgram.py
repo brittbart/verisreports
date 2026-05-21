@@ -102,39 +102,59 @@ def get_event_speakers(event_id):
 
 def build_name_map(event_speakers):
     """
-    Build a map from name fragment (lower) -> DB speaker_id.
-    e.g. {'josh': 185, 'turek': 185, 'zach': 186, 'wahls': 186, ...}
+    Build a map from name fragment (lower) -> DB speaker_id, plus a set of
+    fragments that require whole-word matching (to prevent substring collisions).
+    Returns: (name_map, whole_word_set)
+    Heuristic: any variant <=4 chars uses whole_word_only=True (e.g. 'marx'
+    must not match 'Marxist', 'Marxism', etc.)
     """
     name_map = {}
+    whole_word_set = set()
     for sid, sname in event_speakers:
         for part in sname.lower().split():
             if len(part) > 3:
                 name_map[part] = sid
+                if len(part) <= 4:
+                    whole_word_set.add(part)
     # Rev AI misspelling variants (retained — harmless if not in event_speakers)
     # May 26 Colorado Gov GOP R2: Bottoms, Kirkmeyer, Marx
+    # Dict format: {'variants': [...], 'whole_word_only': bool}
+    # List format (legacy): treated as {'variants': [...], 'whole_word_only': False}
     misspellings = {
-        'turek': ['turk', 'terk', 'turek'],
-        'wahls': ['walz', 'walls', 'wals', 'wahls'],
-        'bottoms': ['bottoms', 'bottom'],
-        'kirkmeyer': ['kirkmeyer', 'kirkmeier', 'kirkmyer', 'kirk meyer'],
-        'marx': ['marx'],  # Explicit entry — log every match during dry run for false-positive audit
+        'turek': {'variants': ['turk', 'terk', 'turek'], 'whole_word_only': False},
+        'wahls': {'variants': ['walz', 'walls', 'wals', 'wahls'], 'whole_word_only': False},
+        'bottoms': {'variants': ['bottoms', 'bottom'], 'whole_word_only': False},
+        'kirkmeyer': {'variants': ['kirkmeyer', 'kirkmeier', 'kirkmyer', 'kirk meyer'], 'whole_word_only': False},
+        'marx': {'variants': ['marx'], 'whole_word_only': True},  # <=4 chars — whole-word only
     }
-    for correct, variants in misspellings.items():
+    for correct, entry in misspellings.items():
+        if isinstance(entry, list):
+            entry = {'variants': entry, 'whole_word_only': False}
         if correct in name_map:
-            for v in variants:
+            for v in entry['variants']:
                 name_map[v] = name_map[correct]
-    return name_map
+                if entry['whole_word_only']:
+                    whole_word_set.add(v)
+    return name_map, whole_word_set
 
-def detect_name_cue(text, name_map):
+def detect_name_cue(text, name_map, whole_word_set=None):
     """
     Return DB speaker_id if a single candidate name is mentioned.
     Return None if both names mentioned (moderator bio section) or no match.
+    Fragments in whole_word_set use word-boundary regex instead of substring match.
     """
+    import re
+    if whole_word_set is None:
+        whole_word_set = set()
     tl = text.lower()
     detected = {}
     for fragment, sid in name_map.items():
-        if fragment in tl:
-            detected[sid] = True
+        if fragment in whole_word_set:
+            if re.search(r'\b' + re.escape(fragment) + r'\b', tl, re.IGNORECASE):
+                detected[sid] = True
+        else:
+            if fragment in tl:
+                detected[sid] = True
     if len(detected) == 1:
         return list(detected.keys())[0]
     return None  # 0 or 2+ matches
@@ -230,7 +250,7 @@ def run_live(args, event_id, speaker_order, event_speakers, dry_run):
         "&endpointing=500"
     )
 
-    name_map = build_name_map(event_speakers)
+    name_map, whole_word_set = build_name_map(event_speakers)
     print(f"  Name detection active: {sorted(name_map.keys())}")
 
     # Speaker tracking
@@ -281,7 +301,7 @@ def run_live(args, event_id, speaker_order, event_speakers, dry_run):
         Priority: confirmed > pending name cue > order-based fallback
         """
         # Check name cue in this transcript
-        detected = detect_name_cue(transcript, name_map)
+        detected = detect_name_cue(transcript, name_map, whole_word_set)
         if detected is not None:
             # Name cue detected — always set pending, never confirm current
             pending_speaker[0] = detected
