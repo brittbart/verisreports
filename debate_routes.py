@@ -614,8 +614,6 @@ def register_debate_routes(app, get_db_conn):
                 WHERE event_id = %s AND created_at > NOW() - INTERVAL '3 minutes'
             """, (event_id,))
             stream_active = (cur.fetchone()[0] or 0) > 0
-            cur.close()
-            conn.close()
             # Per-speaker provisional/final breakdown
             cur.execute("""
                 SELECT c.speaker_id, s.name,
