@@ -549,7 +549,7 @@ def debate_claims(slug):
                    speaker_name, speaker_party,
                    event_slug, event_name, event_date,
                    evaluated_at, methodology_version, event_url,
-                   cursor_key
+                   verdict_status, cursor_key
             FROM api_debate_claims
             WHERE {where}
             ORDER BY cursor_key
@@ -563,11 +563,12 @@ def debate_claims(slug):
              speaker_name, speaker_party,
              event_slug, event_name, event_date,
              evaluated_at, methodology_version, event_url,
-             cursor_key) = row
+             raw_status, cursor_key) = row
             data.append({
                 'id': rid,
                 'claim_text': claim_text,
                 'verdict': verdict_label,
+                'verdict_status': raw_status if raw_status else 'final',
                 'speaker': {
                     'name': speaker_name,
                     'party': speaker_party,
@@ -582,7 +583,7 @@ def debate_claims(slug):
                 'event_url': event_url,
             })
 
-        next_cursor = rows[-1][11] if rows else None
+        next_cursor = rows[-1][12] if rows else None
         return jsonify({
             'data': data,
             'pagination': {
