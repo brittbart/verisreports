@@ -329,6 +329,12 @@ Return ONLY this JSON:
             result['verdict'] = corrected
 
         return result
+    except anthropic.APIStatusError as e:
+        if e.status_code == 529:
+            print(f"    [API overload] 529 received — re-raising for retry with backoff")
+            raise  # Let caller handle with appropriate backoff
+        print(f"    Error: {str(e)}")
+        return None
     except Exception as e:
         print(f"    Error: {str(e)}")
         return None
@@ -578,16 +584,26 @@ def verify_debate_claims_sync(event_id, limit=10):
             )
 
             # Use existing analyse_claim() with retry on failure
+            # 529 overload errors get longer exponential backoff (5s, 10s, 20s)
+            # Parse failures get shorter backoff (5s, 10s, 15s)
             result = None
             for _attempt in range(3):
-                result = analyse_claim(
-                    claim_text,
-                    speaker or 'Debate participant',
-                    claim_type or 'factual',
-                    event_name,
-                    'Debate transcript',
-                    stage='verdicts-debate'
-                )
+                try:
+                    result = analyse_claim(
+                        claim_text,
+                        speaker or 'Debate participant',
+                        claim_type or 'factual',
+                        event_name,
+                        'Debate transcript',
+                        stage='verdicts-debate'
+                    )
+                except anthropic.APIStatusError as _api_err:
+                    if _api_err.status_code == 529 and _attempt < 2:
+                        _wait = 5 * (2 ** _attempt)  # 5s, 10s, 20s
+                        print(f"    [surge] 529 overload, retry {_attempt+1}/3 in {_wait}s...")
+                        time.sleep(_wait)
+                        continue
+                    result = None
                 if result:
                     break
                 if _attempt < 2:

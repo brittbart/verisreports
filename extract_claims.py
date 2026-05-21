@@ -201,6 +201,12 @@ Return only the JSON, no other text."""
 
         return deduplicate_claims(raw_claims)
         
+    except anthropic.APIStatusError as e:
+        if e.status_code == 529:
+            print(f"    [API overload] 529 on extraction — caller should retry with backoff")
+        else:
+            print(f"    Error extracting claims: {str(e)}")
+        return []
     except Exception as e:
         print(f"    Error extracting claims: {str(e)}")
         return []
