@@ -377,8 +377,12 @@ def fetch_rss():
                     'source': {'name': name},
                     'fetch_source': 'rss'
                 }
-                if a['title'] and a['url'] and is_english(a['title'] + ' ' + a['description']):
+                # Content quality gate: skip aggregator redirect URLs (v1.7)
+                is_aggregator = a['url'].startswith('https://news.google.com') or 'news.google.com' in a['url']
+                if a['title'] and a['url'] and is_english(a['title'] + ' ' + a['description']) and not is_aggregator:
                     articles.append(a)
+                elif is_aggregator:
+                    pass  # silently skip aggregator redirects
             print(f'  ok {name}')
         except Exception as e:
             print(f'  skip: {str(e)[:40]}')

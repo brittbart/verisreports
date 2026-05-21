@@ -8,7 +8,25 @@ import threading
 from datetime import datetime, timezone
 from flask import jsonify
 
-METHODOLOGY_VERSION = "v1.6"
+METHODOLOGY_VERSION = "v1.7"
+
+# Non-news entities excluded from leaderboard (v1.7)
+# Articles from these domains remain in the DB and may be cited as verdict sources.
+# They do not appear on the leaderboard in any tier.
+EXCLUDED_DOMAINS = frozenset({
+    'gao.gov',
+    'justice.gov',
+    'war.gov',
+    'whitehouse.gov',
+    'federalreserve.gov',
+    'sec.gov',
+    'tools.cdc.gov',
+    'fda.gov',
+    'blogs.loc.gov',
+    'health.harvard.edu',
+    'news.mit.edu',
+    'prnewswire.com',
+})
 CACHE_TTL_SECONDS = 300
 INCLUSION_THRESHOLD = 20
 
@@ -115,6 +133,7 @@ WHERE c.verdict IS NOT NULL
   AND c.claim_origin = 'outlet_claim'
   AND a.published_at IS NOT NULL
   AND a.published_at < NOW() - INTERVAL '6 hours'
+  AND LOWER(a.source_name) != ALL(%s)
 GROUP BY a.source_name
 HAVING COUNT(*) >= %s
 ORDER BY a.source_name;
@@ -261,6 +280,7 @@ SELECT COUNT(*) FROM (
     JOIN claims c ON c.article_id = a.id
     WHERE c.verdict IS NOT NULL
       AND c.claim_origin = 'outlet_claim'
+      AND LOWER(a.source_name) != ALL(%s)
     GROUP BY a.source_name
     HAVING COUNT(*) > 0 AND COUNT(*) < %s
 ) sub;
@@ -408,7 +428,7 @@ def _compute_leaderboard_from_db(get_db_conn):
         except Exception:
             cur = conn.cursor()
 
-        cur.execute(LEADERBOARD_SQL, (INCLUSION_THRESHOLD,))
+        cur.execute(LEADERBOARD_SQL, (list(EXCLUDED_DOMAINS), INCLUSION_THRESHOLD,))
         rows = cur.fetchall()
 
         if rows and not isinstance(rows[0], dict):
@@ -417,7 +437,7 @@ def _compute_leaderboard_from_db(get_db_conn):
 
         outlets = [_row_to_outlet(r) for r in rows]
 
-        cur.execute(EXCLUDED_OUTLET_COUNT_SQL, (INCLUSION_THRESHOLD,))
+        cur.execute(EXCLUDED_OUTLET_COUNT_SQL, (list(EXCLUDED_DOMAINS), INCLUSION_THRESHOLD,))
         excluded_row = cur.fetchone()
         if isinstance(excluded_row, dict):
             outlets_excluded = list(excluded_row.values())[0]

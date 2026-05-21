@@ -60,6 +60,7 @@ PUBLIC_METHODOLOGY_VERSIONS = ['v1.6']
 
 METHODOLOGY_VERSION = 'v1.6'   # stamp on api_outlets (outlet scoring uses leaderboard formula)
 
+from api_leaderboard import EXCLUDED_DOMAINS
 # Tiers (from api_leaderboard.py — single source of truth for scoring)
 INCLUSION_THRESHOLD = 20
 TIER_PUBLISHED       = 100
@@ -219,9 +220,10 @@ def refresh_outlets(cur) -> int:
         JOIN articles a ON a.id = c.article_id
         WHERE c.claim_origin = 'outlet_claim'
           AND c.verdict IS NOT NULL
+          AND LOWER(a.source_name) != ALL(%s)
         GROUP BY LOWER(a.source_name), a.source_name
         HAVING COUNT(*) >= %s
-    """, (INCLUSION_THRESHOLD,))
+    """, (list(EXCLUDED_DOMAINS), INCLUSION_THRESHOLD,))
 
     rows = cur.fetchall()
     if not rows:
