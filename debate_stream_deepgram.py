@@ -110,10 +110,14 @@ def build_name_map(event_speakers):
         for part in sname.lower().split():
             if len(part) > 3:
                 name_map[part] = sid
-    # Rev AI misspelling variants
+    # Rev AI misspelling variants (retained — harmless if not in event_speakers)
+    # May 26 Colorado Gov GOP R2: Bottoms, Kirkmeyer, Marx
     misspellings = {
         'turek': ['turk', 'terk', 'turek'],
         'wahls': ['walz', 'walls', 'wals', 'wahls'],
+        'bottoms': ['bottoms', 'bottom'],
+        'kirkmeyer': ['kirkmeyer', 'kirkmeier', 'kirkmyer', 'kirk meyer'],
+        'marx': ['marx'],  # Explicit entry — log every match during dry run for false-positive audit
     }
     for correct, variants in misspellings.items():
         if correct in name_map:
@@ -239,6 +243,38 @@ def run_live(args, event_id, speaker_order, event_speakers, dry_run):
 
     utterance_count = [0]
 
+    # Load persisted speaker mappings from DB (survive stream restarts)
+    try:
+        _map_conn = get_db_conn()
+        _map_cur = _map_conn.cursor()
+        _map_cur.execute("SELECT dg_speaker_map FROM events WHERE id = %s", (event_id,))
+        _map_row = _map_cur.fetchone()
+        if _map_row and _map_row[0]:
+            for dg_idx_str, sid in _map_row[0].items():
+                dg_to_db[int(dg_idx_str)] = sid
+            print(f"  [PERSIST] Loaded {len(dg_to_db)} speaker mapping(s) from DB: {dg_to_db}")
+        else:
+            print("  [PERSIST] No prior speaker mappings found — starting fresh")
+        _map_cur.close()
+        _map_conn.close()
+    except Exception as _e:
+        print(f"  [PERSIST] WARNING: Could not load speaker mappings from DB: {_e} — proceeding with empty map")
+
+    def persist_mapping(dg_idx, speaker_id):
+        """Write confirmed dg_idx -> speaker_id mapping to DB. Non-fatal on failure."""
+        try:
+            _pc = get_db_conn()
+            _pu = _pc.cursor()
+            _pu.execute(
+                "UPDATE events SET dg_speaker_map = jsonb_set(COALESCE(dg_speaker_map, '{}'::jsonb), %s, %s::jsonb) WHERE id = %s",
+                ([str(dg_idx)], str(speaker_id), event_id)
+            )
+            _pc.commit()
+            _pu.close()
+            _pc.close()
+        except Exception as _pe:
+            print(f"  [PERSIST] WARNING: Could not persist mapping dg={dg_idx}->sid={speaker_id}: {_pe} — stream continues")
+
     def resolve_speaker(dg_idx, transcript):
         """
         Resolve Deepgram speaker index to DB speaker_id.
@@ -263,6 +299,7 @@ def run_live(args, event_id, speaker_order, event_speakers, dry_run):
             if dg_idx not in order_assigned:
                 order_assigned.append(dg_idx)
             print(f"  [CONFIRMED] Deepgram spk {dg_idx} = DB speaker {sid}")
+            persist_mapping(dg_idx, sid)
             return sid
 
         # Order-based fallback
@@ -273,6 +310,7 @@ def run_live(args, event_id, speaker_order, event_speakers, dry_run):
                 sid = speaker_order[idx]
                 dg_to_db[dg_idx] = sid
                 print(f"  [ORDER] Deepgram spk {dg_idx} = DB speaker {sid} (slot {idx})")
+                persist_mapping(dg_idx, sid)
                 return sid
 
         return dg_to_db.get(dg_idx)
