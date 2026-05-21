@@ -145,6 +145,7 @@ def _get_event_by_slug(get_db_conn, slug):
             FROM event_speakers es
             JOIN speakers s ON s.id = es.speaker_id
             WHERE es.event_id = %s
+              AND s.speaker_type IN ('politician', 'official')
             ORDER BY es.speaker_order
         """, (eid,))
         rows = cur.fetchall()
@@ -501,6 +502,8 @@ def register_debate_routes(app, get_db_conn):
             pid = p['id']
             breakdown[pid] = {v: 0 for v in VERDICT_LABELS}
             breakdown[pid]['total'] = 0
+            breakdown[pid]['provisional_count'] = 0
+            breakdown[pid]['final_count'] = 0
         for c in claims:
             pid = c['speaker_id']
             if pid and pid in breakdown:
@@ -508,6 +511,10 @@ def register_debate_routes(app, get_db_conn):
                 if v in breakdown[pid]:
                     breakdown[pid][v] += 1
                 breakdown[pid]['total'] += 1
+                if c.get('verdict_status') == 'provisional':
+                    breakdown[pid]['provisional_count'] += 1
+                else:
+                    breakdown[pid]['final_count'] += 1
 
         return render_template(
             "debate.html",
@@ -608,6 +615,32 @@ def register_debate_routes(app, get_db_conn):
             stream_active = (cur.fetchone()[0] or 0) > 0
             cur.close()
             conn.close()
+            # Per-speaker provisional/final breakdown
+            cur.execute("""
+                SELECT c.speaker_id, s.name,
+                       COUNT(CASE WHEN c.verdict_status = 'provisional' THEN 1 END) AS provisional,
+                       COUNT(CASE WHEN c.verdict_status = 'final'
+                                   OR (c.verdict IS NOT NULL AND c.verdict_status IS NULL) THEN 1 END) AS final
+                FROM claims c
+                JOIN speakers s ON s.id = c.speaker_id
+                WHERE c.event_id = %s
+                  AND c.claim_origin = 'debate_claim'
+                  AND c.verdict IS NOT NULL
+                  AND s.speaker_type IN ('politician', 'official')
+                GROUP BY c.speaker_id, s.name
+            """, (event_id,))
+            speaker_rows = cur.fetchall()
+            speakers_breakdown = [
+                {
+                    'speaker_id': row[0],
+                    'name': row[1],
+                    'claims_provisional': row[2],
+                    'claims_final': row[3],
+                }
+                for row in speaker_rows
+            ]
+            cur.close()
+            conn.close()
             return jsonify({
                 'event_id': event_id,
                 'slug': slug,
@@ -622,6 +655,7 @@ def register_debate_routes(app, get_db_conn):
                 'claims_final': claims_final,
                 'verification_pending': verification_pending,
                 'last_utterance_at': last_utterance_at,
+                'speakers': speakers_breakdown,
             })
         except Exception as e:
             return jsonify({'error': str(e)}), 500

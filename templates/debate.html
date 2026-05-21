@@ -1040,9 +1040,19 @@
             <h3 class="dt-p-name">{{ p.name }}</h3>
             <div class="dt-p-role">{{ p.role }}</div>
           </div>
-          <div class="dt-p-counts">
-            <strong>{{ breakdown[p.id].total if p.id in breakdown else 0 }}</strong>
-            <span>Claims verified</span>
+          <div class="dt-p-counts" data-speaker-id="{{ p.id }}">
+            <span class="dt-p-count-final">
+              <strong class="dt-p-final-num">{{ breakdown[p.id].final_count if p.id in breakdown else 0 }}</strong>
+              <span>Final</span>
+            </span>
+            <span class="dt-p-count-provisional" style="display:none;">
+              <span class="vs-badge-provisional" style="font-size:9px;padding:1px 5px;"
+                    title="Reliability assessments in the 60-minute review window"
+                    tabindex="0" aria-label="Provisional assessments pending review">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <strong class="dt-p-provisional-num">0</strong> provisional
+              </span>
+            </span>
           </div>
         </div>
         {% if not loop.last %}<div class="dt-versus">vs.</div>{% endif %}
@@ -1337,6 +1347,37 @@
         card.classList.toggle("is-expanded");
       });
     });
+  })();
+
+  // ============= Per-speaker count updates from stats endpoint =============
+  (function() {
+    var bodyClass = document.body.className;
+    var isLive = bodyClass.indexOf('is-live') !== -1;
+    if (!isLive) return;
+    var slug = window.location.pathname.split('/').pop();
+    var STATS_INTERVAL = 20000; // 20 seconds
+    function updateSpeakerCounts() {
+      fetch('/api/debates/' + slug + '/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.speakers) return;
+          data.speakers.forEach(function(spk) {
+            var card = document.querySelector('[data-speaker-id="' + spk.speaker_id + '"]');
+            if (!card) return;
+            var finalNum = card.querySelector('.dt-p-final-num');
+            var provNum = card.querySelector('.dt-p-provisional-num');
+            var provBadge = card.querySelector('.dt-p-count-provisional');
+            if (finalNum) finalNum.textContent = spk.claims_final;
+            if (provNum) provNum.textContent = spk.claims_provisional;
+            if (provBadge) {
+              provBadge.style.display = spk.claims_provisional > 0 ? 'inline-flex' : 'none';
+            }
+          });
+        })
+        .catch(function() {});
+    }
+    updateSpeakerCounts();
+    setInterval(updateSpeakerCounts, STATS_INTERVAL);
   })();
 
   // ============= Live auto-refresh (upcoming + live states) =============
