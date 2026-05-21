@@ -1023,6 +1023,14 @@
       {% if event.transcript_source %}<span class="dt-meta-chip"><span class="dot"></span>Transcript source: <strong>{{ event.transcript_source }}</strong></span>{% endif %}
       <span class="dt-meta-chip"><span class="dot"></span>Methodology <a href="/methodology">{{ event.methodology_version }} &rarr;</a></span>
     </div>
+    {% if event.transcript_url and (event.is_live or event.is_upcoming) %}
+    <div style="margin-top:14px;">
+      <span class="dt-meta-chip--watch">
+        <span class="live-dot"></span>
+        <a href="{{ event.transcript_url }}" target="_blank" rel="noopener">Watch live on {{ event.transcript_source or 'official broadcast' }} &rarr;</a>
+      </span>
+    </div>
+    {% endif %}
   </div>
 </section>
 
