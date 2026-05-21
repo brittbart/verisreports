@@ -312,6 +312,12 @@ def fetch_rss():
                     'fetch_source': 'rss'
                 }
                 # Content quality gate: skip aggregator redirect URLs (v1.7)
+                # news.google.com URLs produce degraded redirect HTML, not article bodies.
+                # These articles are NOT inserted into the DB at all (Option A per brief).
+                # Articles already in the DB from before this gate are flagged via
+                # excluded_from_extraction column. If future requirements need us to
+                # preserve aggregator URLs (vs skipping), update this to insert with
+                # excluded_from_extraction=TRUE instead.
                 is_aggregator = a['url'].startswith('https://news.google.com') or 'news.google.com' in a['url']
                 if a['title'] and a['url'] and is_english(a['title'] + ' ' + a['description']) and not is_aggregator:
                     articles.append(a)

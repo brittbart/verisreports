@@ -261,7 +261,8 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
         WHERE content IS NOT NULL
           AND LENGTH(content) >= %s
           AND fetched_at > NOW() - (%s || ' days')::interval
-          AND source_name != 'news.google.com'
+          AND source_name != 'news.google.com'  -- URL pattern check (defense-in-depth)
+          AND excluded_from_extraction = FALSE   -- v1.7 content quality gate flag
           AND id NOT IN (
               SELECT DISTINCT article_id
               FROM claims
