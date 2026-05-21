@@ -134,6 +134,7 @@ OPINION_SIGNALS = (
 BIOGRAPHICAL_PATTERNS_PRE = (
     r'\bis from\b',
     r'\blives in\b',
+    r'\bhave lived in\b',
     r'\bgrew up in\b',
     r'\brain in\b.*\bdistrict\b',
     r'\bborn in\b',
@@ -144,6 +145,12 @@ BIOGRAPHICAL_PATTERNS_PRE = (
 # Relationship statements
 RELATIONSHIP_PATTERNS = (
     r'\bmarried to\b',
+    r'\bmy wife\b',
+    r'\bmy husband\b',
+    r'\bmy son\b',
+    r'\bmy daughter\b',
+    r'\bmy father\b',
+    r'\bmy mother\b',
     r'\bson of\b',
     r'\bdaughter of\b',
     r'\bfather of\b',
@@ -204,21 +211,26 @@ def pre_filter_utterance(text: str) -> tuple:
     tl = t.lower()
     words = t.split()
 
-    # Minimum word count
-    if len(words) < 15:
+    # Minimum word count (debate utterances are shorter than articles — 8 word minimum)
+    if len(words) < 8:
         return True, 'too short'
 
     # Ends with question mark = rhetorical question
     if t.rstrip().endswith('?'):
         return True, 'question'
 
-    # Strip leading filler words then check prefixes
-    STRIP_LEADING = ('uh ', 'um ', 'uh, ', 'um, ', 'and ', 'but ', 'so ', 'well, ', 'well ')
+    # Strip leading filler words then check prefixes (multi-pass until stable)
+    # 'represent/representing/represented' = Rev AI transcription artifact for sentence starters
+    STRIP_LEADING = ('uh ', 'um ', 'uh, ', 'um, ', 'and ', 'but ', 'so ', 'well, ', 'well ',
+                     'represent ', 'representing ', 'represented ', 'look, ', 'look ')
     cleaned = tl
-    for strip in STRIP_LEADING:
-        if cleaned.startswith(strip):
-            cleaned = cleaned[len(strip):].strip()
-            break
+    prev = None
+    while cleaned != prev:
+        prev = cleaned
+        for strip in STRIP_LEADING:
+            if cleaned.startswith(strip):
+                cleaned = cleaned[len(strip):].strip()
+                break
     for prefix in SKIP_PREFIXES:
         if cleaned.startswith(prefix):
             return True, f'filler prefix: {prefix}'
@@ -266,7 +278,6 @@ def pre_filter_utterance(text: str) -> tuple:
     # e.g. "Represent Trump won..." — "Represent" is a fragment
     first_word = t.split()[0].rstrip('.,;:').lower()
     INVALID_OPENERS = {
-        'represent', 'representing', 'represented',
         'because', 'or', 'nor', 'yet',
         'although', 'though', 'however', 'therefore',
         'whereas', 'which', 'that', 'who', 'whom',
