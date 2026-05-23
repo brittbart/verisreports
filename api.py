@@ -5030,12 +5030,6 @@ def ops_dashboard():
 
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # /ops/mobile — Mobile app operational dashboard
 # Paste this block into api.py after the last @app.route('/ops/...') block.
@@ -5596,3 +5590,10 @@ function showTab(name) {{
 </html>'''
 
     return html
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
+
+
