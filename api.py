@@ -49,6 +49,8 @@ from speaker_routes import register_speaker_routes
 register_speaker_routes(app, get_db)
 from debate_routes import register_debate_routes
 register_debate_routes(app, get_db)
+from mobile_routes import register_mobile_routes
+register_mobile_routes(app, get_db)
 from admin_routes import register_admin_routes
 register_admin_routes(app, get_db)
 # ---------- Short URL helpers (Phase 2) ----------
