@@ -5041,6 +5041,13 @@ def ops_mobile():
     auth_err = _ops_auth()
     if auth_err:
         return auth_err
+    try:
+        return _ops_mobile_inner()
+    except Exception as e:
+        import traceback
+        return f"<pre style='color:red;background:#111;padding:20px'>{traceback.format_exc()}</pre>", 500
+
+def _ops_mobile_inner():
 
     import datetime as _dt
     generated_at = _dt.datetime.now(_dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
