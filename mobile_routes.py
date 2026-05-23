@@ -45,11 +45,30 @@ try:
 except ImportError:
     VS_SUMMARY_ENABLED = False
 
-try:
-    from api import get_or_create_short_hash
-    SHORT_URL_ENABLED = True
-except ImportError:
-    SHORT_URL_ENABLED = False
+# get_or_create_short_hash is inlined here to avoid circular import with api.py
+SHORT_URL_ENABLED = True
+def get_or_create_short_hash(article_id):
+    """Inline copy to avoid circular import from api.py."""
+    import hashlib, random, string
+    db = mobile_bp.get_db()
+    cur = db.cursor()
+    cur.execute("SELECT hash FROM report_links WHERE article_id = %s LIMIT 1", (article_id,))
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    # Generate new hash
+    while True:
+        h = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
+        cur.execute("SELECT 1 FROM report_links WHERE hash = %s", (h,))
+        if not cur.fetchone():
+            break
+    cur.execute(
+        "INSERT INTO report_links (article_id, hash, created_at) VALUES (%s, %s, NOW()) ON CONFLICT DO NOTHING RETURNING hash",
+        (article_id, h)
+    )
+    result = cur.fetchone()
+    db.commit()
+    return result[0] if result else h
 
 try:
     from mobile_sse import register_sse_routes
