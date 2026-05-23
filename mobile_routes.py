@@ -387,7 +387,7 @@ def article_report(article_id):
                 "vs_summary":    vs_summary,
                 "claim_count":   len(claims_out),
                 "claims":        claims_out,
-                "methodology_version": "v1.7",  # TODO: read from PUBLIC_METHODOLOGY_VERSIONS
+                "methodology_version": ast.literal_eval(os.environ.get("PUBLIC_METHODOLOGY_VERSIONS", "['v1.6']"))[-1],
             },
         })
 
