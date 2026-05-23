@@ -5113,7 +5113,7 @@ def _ops_mobile_inner():
 
     # Speaker config for May 26
     cur.execute("""
-        SELECT s.id, s.speaker_name, s.speaker_order, s.title
+        SELECT s.id, s.name, s.speaker_order, s.title
         FROM speakers s
         WHERE s.id IN (187, 188, 189, 3)
         ORDER BY s.speaker_order
