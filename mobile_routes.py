@@ -181,14 +181,14 @@ def articles():
                 a.byline,
                 a.published_at,
                 a.lead_image_url,
-                o.domain        AS outlet_domain,
-                o.name          AS outlet_name,
+                o.outlet_id     AS outlet_domain,
+                o.outlet_name   AS outlet_name,
                 o.score         AS outlet_score,
                 o.tier          AS outlet_tier,
                 COUNT(c.id)     AS claim_count,
                 COUNT(c.id) FILTER (WHERE c.verdict IS NOT NULL AND c.verdict != 'opinion' AND c.verdict != 'not_verifiable') AS scoreable_count
             FROM articles a
-            LEFT JOIN api_outlets o ON o.domain = a.source_domain
+            LEFT JOIN api_outlets o ON o.outlet_id = a.source_domain
             LEFT JOIN claims c ON c.article_id = a.id
               AND c.claim_origin = 'outlet_claim'
             WHERE {where_sql}
@@ -279,7 +279,7 @@ def article_report(article_id):
                    o.domain, o.name, o.score, o.tier,
                    rl.hash AS report_hash
             FROM articles a
-            LEFT JOIN api_outlets o ON o.domain = a.source_domain
+            LEFT JOIN api_outlets o ON o.outlet_id = a.source_domain
             LEFT JOIN report_links rl ON rl.article_id = a.id
             WHERE a.id = %s
         """, (article_id,))
@@ -388,8 +388,8 @@ def outlets_leaderboard():
 
         cur.execute("""
             SELECT
-                domain, name, score, tier, category,
-                claim_count, verdict_counts, last_evaluated_at,
+                outlet_id, outlet_name, score, tier,
+                total_scoreable_claims, verdict_counts, last_evaluated_at,
                 rank() OVER (ORDER BY score DESC NULLS LAST) AS rank
             FROM api_outlets
             WHERE score IS NOT NULL
@@ -404,12 +404,12 @@ def outlets_leaderboard():
         for row in rows:
             r = dict(zip(cols, row))
             outlets_out.append({
-                "domain":      r['domain'],
-                "name":        r['name'],
+                "domain":      r['outlet_id'],
+                "name":        r['outlet_name'],
                 "score":       float(r['score']) if r['score'] is not None else None,
                 "tier":        r['tier'],
-                "category":    r['category'],
-                "claim_count": r['claim_count'],
+                "category":    None,
+                "claim_count": r['total_scoreable_claims'],
                 "rank":        r['rank'],
                 "verdict_counts": r['verdict_counts'] if r['verdict_counts'] else {},
                 "last_evaluated_at": r['last_evaluated_at'].isoformat() if r['last_evaluated_at'] else None,
@@ -439,10 +439,10 @@ def outlet_detail(domain):
 
     try:
         cur.execute("""
-            SELECT domain, name, score, tier, category,
-                   claim_count, verdict_counts, last_evaluated_at
+            SELECT outlet_id, outlet_name, score, tier,
+                   total_scoreable_claims, verdict_counts, last_evaluated_at
             FROM api_outlets
-            WHERE domain = %s
+            WHERE outlet_id = %s
         """, (domain,))
         row = cur.fetchone()
 
@@ -485,12 +485,12 @@ def outlet_detail(domain):
 
         return ok({
             "outlet": {
-                "domain":      o['domain'],
-                "name":        o['name'],
+                "domain":      o['outlet_id'],
+                "name":        o['outlet_name'],
                 "score":       float(o['score']) if o['score'] is not None else None,
                 "tier":        o['tier'],
-                "category":    o['category'],
-                "claim_count": o['claim_count'],
+                "category":    None,
+                "claim_count": o['total_scoreable_claims'],
                 "verdict_counts": o['verdict_counts'] if o['verdict_counts'] else {},
                 "last_evaluated_at": o['last_evaluated_at'].isoformat() if o['last_evaluated_at'] else None,
             },
@@ -518,47 +518,43 @@ def debates_list():
     try:
         cur.execute("""
             SELECT
-                e.id, e.slug, e.title, e.description,
-                e.start_time, e.end_time, e.status,
-                e.location, e.stream_url,
+                e.id, e.slug, e.event_name, e.event_subtitle,
+                e.event_date, e.venue, e.stream_url, e.notes,
                 COUNT(DISTINCT su.id) AS utterance_count,
                 COUNT(DISTINCT c.id)  AS claim_count
             FROM events e
             LEFT JOIN speaker_utterances su ON su.event_id = e.id
-            LEFT JOIN claims c ON c.debate_id = e.id
+            LEFT JOIN claims c ON c.event_id = e.id
               AND c.verdict IS NOT NULL
-            GROUP BY e.id, e.slug, e.title, e.description,
-                     e.start_time, e.end_time, e.status,
-                     e.location, e.stream_url
-            ORDER BY e.start_time DESC
+            GROUP BY e.id, e.slug, e.event_name, e.event_subtitle,
+                     e.event_date, e.venue, e.stream_url, e.notes
+            ORDER BY e.event_date DESC NULLS LAST
             LIMIT 50
         """)
 
         rows = cur.fetchall()
         cols = [d[0] for d in cur.description]
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).date()
         debates_out = []
         for row in rows:
             e = dict(zip(cols, row))
-            start = e['start_time']
-            if start and start.tzinfo is None:
-                start = start.replace(tzinfo=timezone.utc)
+            event_date = e['event_date']
 
-            is_live = e['status'] == 'live'
-            is_upcoming = start and start > now and not is_live
+            is_upcoming = event_date and event_date > now
+            is_live = False
 
             debates_out.append({
                 "id":          e['id'],
                 "slug":        e['slug'],
-                "title":       e['title'],
-                "description": e['description'],
-                "start_time":  e['start_time'].isoformat() if e['start_time'] else None,
-                "end_time":    e['end_time'].isoformat() if e['end_time'] else None,
-                "status":      e['status'],
+                "title":       e['event_name'],
+                "description": e['event_subtitle'],
+                "event_date":  event_date.isoformat() if event_date else None,
+                "venue":       e['venue'],
+                "notes":       e['notes'],
+                "stream_url":  e['stream_url'],
                 "is_live":     is_live,
                 "is_upcoming": is_upcoming,
-                "location":    e['location'],
                 "claim_count": int(e['claim_count']),
                 "utterance_count": int(e['utterance_count']),
             })
@@ -592,8 +588,8 @@ def debate_detail(slug):
 
     try:
         cur.execute("""
-            SELECT id, slug, title, description, start_time, end_time,
-                   status, location, stream_url
+            SELECT id, slug, event_name, event_subtitle,
+                   event_date, venue, stream_url, notes
             FROM events
             WHERE slug = %s
         """, (slug,))
@@ -627,8 +623,8 @@ def debate_detail(slug):
                 c.verdict_status, c.first_seen,
                 s.id AS speaker_id, s.name AS speaker_name
             FROM claims c
-            LEFT JOIN speakers s ON s.name = c.attribution_context
-            WHERE c.debate_id = %s
+            LEFT JOIN speakers s ON s.id = c.speaker_id
+            WHERE c.event_id = %s
               AND c.verdict IS NOT NULL
             ORDER BY c.first_seen ASC NULLS LAST
         """, (event_id,))
@@ -655,13 +651,12 @@ def debate_detail(slug):
             "debate": {
                 "id":          event_id,
                 "slug":        e['slug'],
-                "title":       e['title'],
-                "description": e['description'],
-                "start_time":  e['start_time'].isoformat() if e['start_time'] else None,
-                "end_time":    e['end_time'].isoformat() if e['end_time'] else None,
-                "status":      e['status'],
-                "is_live":     e['status'] == 'live',
-                "location":    e['location'],
+                "title":       e['event_name'],
+                "description": e['event_subtitle'],
+                "event_date":  e['event_date'].isoformat() if e['event_date'] else None,
+                "venue":       e['venue'],
+                "notes":       e['notes'],
+                "is_live":     False,
             },
             "speakers": speakers,
             "claims":   claims_out,
