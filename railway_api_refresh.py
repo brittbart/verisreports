@@ -462,3 +462,21 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # Mobile push notification jobs — run after main refresh, non-fatal
+    try:
+        from notification_jobs import (
+            run_debate_start_alerts,
+            run_verdict_alerts,
+            run_daily_digest,
+        )
+        from datetime import datetime as _dt, timezone as _tz, time as _time
+        _hour = _dt.now(_tz.utc).hour
+        run_debate_start_alerts(get_db)
+        run_verdict_alerts(get_db)
+        # Daily digest: only run between 12:00-13:00 UTC (~6-7am MT)
+        if _hour == 12:
+            run_daily_digest(get_db)
+    except Exception:
+        import traceback as _tb
+        log.warning("notification_jobs failed (non-fatal)")
+        _tb.print_exc()
