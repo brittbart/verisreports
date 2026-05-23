@@ -44,6 +44,12 @@ try:
     VS_SUMMARY_ENABLED = True
 except ImportError:
     VS_SUMMARY_ENABLED = False
+
+try:
+    from mobile_sse import register_sse_routes
+    SSE_ENABLED = True
+except ImportError:
+    SSE_ENABLED = False
 from datetime import datetime, timezone
 import traceback
 
@@ -774,5 +780,13 @@ def register_mobile_routes(app, get_db_fn):
     """
     # Attach get_db to blueprint so endpoints can call mobile_bp.get_db()
     mobile_bp.get_db = get_db_fn
+
+    # Wire SSE stream routes
+    if SSE_ENABLED:
+        register_sse_routes(mobile_bp, get_db_fn)
+        print("[mobile_routes] registered /mobile/v1/debates/<slug>/stream (SSE)")
+    else:
+        print("[mobile_routes] WARNING: mobile_sse.py not found — SSE stream unavailable")
+
     app.register_blueprint(mobile_bp)
     print("[mobile_routes] registered /mobile/v1/* endpoints")
