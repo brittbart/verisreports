@@ -2583,7 +2583,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 </style>
 </head>
 <body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
+<a href="/ops" style="text-decoration:none;display:inline-block;margin-bottom:12px"><svg width="160" height="22" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text></svg></a><br><div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Changelog</h1>
 <div class="subtitle">Curated deployments and full git history &nbsp;·&nbsp; ops-auth protected</div>
 
@@ -2749,7 +2749,7 @@ h1{font-size:18px;margin:0 0 4px;letter-spacing:-0.01em}.subtitle{color:var(--fg
 </style>
 </head>
 <body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
+<a href="/ops" style="text-decoration:none;display:inline-block;margin-bottom:12px"><svg width="160" height="22" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text></svg></a><br><div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Veris pipeline — history</h1>
 <div class="subtitle" id="subtitle">loading…</div>
 <div class="stat-row">
@@ -4483,7 +4483,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 .bar-seg{height:100%}
 input#search{background:var(--card);border:1px solid var(--border);color:var(--fg);padding:6px 10px;border-radius:4px;font-size:12px;width:220px;margin-bottom:16px}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
+<a href="/ops" style="text-decoration:none;display:inline-block;margin-bottom:12px"><svg width="160" height="22" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text></svg></a><br><div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Outlets</h1>
 <div class="subtitle">{{ scored_count }} scored · {{ total_count }} total tracked</div>
 <input id="search" placeholder="Filter outlets…" oninput="filterTable(this.value)">
@@ -4652,7 +4652,7 @@ td{padding:7px 10px;border-bottom:1px solid var(--border)}
 tr:hover td{background:rgba(168,85,247,0.04)}
 .mono{font-family:var(--mono);font-size:12px}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
+<a href="/ops" style="text-decoration:none;display:inline-block;margin-bottom:12px"><svg width="160" height="22" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text></svg></a><br><div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Verdict Queue</h1>
 <div class="subtitle">Claims awaiting verdict assignment</div>
 
@@ -4748,7 +4748,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-d
 .dispute-text{color:var(--fg-dim);font-size:13px;margin-top:8px;line-height:1.6}
 .empty{color:var(--fg-dim);padding:32px 0;text-align:center}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
+<a href="/ops" style="text-decoration:none;display:inline-block;margin-bottom:12px"><svg width="160" height="22" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text></svg></a><br><div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Verdict Disputes</h1>
 <div class="subtitle">Submitted via report page correction links</div>
 
@@ -4875,7 +4875,7 @@ td{padding:6px 10px;border-bottom:1px solid var(--border);font-family:var(--mono
 tr:hover td{background:rgba(168,85,247,0.04)}
 .ok{color:var(--ok)}.bad{color:var(--bad)}.dim{color:var(--fg-dim)}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
+<a href="/ops" style="text-decoration:none;display:inline-block;margin-bottom:12px"><svg width="160" height="22" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text></svg></a><br><div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>API Usage</h1>
 <div class="subtitle">{{ total_this_month }} calls this month across all keys</div>
 
@@ -5193,7 +5193,7 @@ def ops_mobile():
 </head>
 <body>
 <div class="nav">
-  <span class="wordmark">VERUM SIGNAL</span>
+  <a href="/ops" style="text-decoration:none;display:inline-block"><svg width="160" height="22" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text></svg></a>
   {NAV}
 </div>
 <div class="container">
