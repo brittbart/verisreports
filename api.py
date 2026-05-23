@@ -2923,7 +2923,7 @@ _OPS_HTML = """<!DOCTYPE html>
 <body>
 <h1>Veris pipeline — last 24h</h1>
 <div class="subtitle" id="subtitle">loading…</div>
-<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none;margin-right:16px">Insights →</a><a href="/ops/changelog" style="color:#a855f7;text-decoration:none;margin-right:16px">Changelog →</a><a href="/ops/outlets" style="color:#a855f7;text-decoration:none;margin-right:16px">Outlets →</a><a href="/ops/queue" style="color:#a855f7;text-decoration:none;margin-right:16px">Queue →</a><a href="/ops/disputes" style="color:#a855f7;text-decoration:none;margin-right:16px">Disputes →</a><a href="/ops/api-usage" style="color:#a855f7;text-decoration:none">API →</a></div>
+<div style="margin-bottom:12px;font-size:12px;"><a href="/ops/history" style="color:#a855f7;text-decoration:none;margin-right:16px">History →</a><a href="/ops/insights" style="color:#a855f7;text-decoration:none;margin-right:16px">Insights →</a><a href="/ops/changelog" style="color:#a855f7;text-decoration:none;margin-right:16px">Changelog →</a><a href="/ops/outlets" style="color:#a855f7;text-decoration:none;margin-right:16px">Outlets →</a><a href="/ops/queue" style="color:#a855f7;text-decoration:none;margin-right:16px">Queue →</a><a href="/ops/disputes" style="color:#a855f7;text-decoration:none;margin-right:16px">Disputes →</a><a href="/ops/api-usage" style="color:#a855f7;text-decoration:none;margin-right:16px">API →</a><a href="/ops/mobile" style="color:#a855f7;text-decoration:none">Mobile →</a></div>
 
 <h2>Corpus</h2>
 <div id="corpus" class="corpus-grid">
@@ -4483,7 +4483,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 .bar-seg{height:100%}
 input#search{background:var(--card);border:1px solid var(--border);color:var(--fg);padding:6px 10px;border-radius:4px;font-size:12px;width:220px;margin-bottom:16px}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/queue">Queue</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Outlets</h1>
 <div class="subtitle">{{ scored_count }} scored · {{ total_count }} total tracked</div>
 <input id="search" placeholder="Filter outlets…" oninput="filterTable(this.value)">
