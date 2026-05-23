@@ -5515,7 +5515,9 @@ def ops_mobile():
         <tr><td>82485029</td><td>preview</td><td>1.0.0</td><td>1.0.0</td><td style="font-size:9px">0bcfc025</td><td><span class="badge badge-red">Failed</span></td><td>OTA runtime version mismatch (1.0.0 vs exposdk:56.0.0)</td></tr>
         <tr><td>dfed8b16</td><td>development</td><td>1.0.0</td><td>1.0.0</td><td style="font-size:9px">ff6310bc</td><td><span class="badge badge-red">Failed</span></td><td>Font loading black screen + WSL2 tunnel unreachable</td></tr>
         <tr><td>00e658e0</td><td>development</td><td>1.0.2</td><td>exposdk:56.0.0</td><td style="font-size:9px">b33e88d1</td><td><span class="badge badge-red">Failed</span></td><td>expo-updates checked development OTA channel — download failed</td></tr>
-        <tr><td>d325ddcd</td><td>preview</td><td>1.0.3</td><td>exposdk:56.0.0</td><td>pending</td><td><span class="badge badge-violet">Building</span></td><td>expo-updates removed · non-blocking fonts · standalone JS bundle</td></tr>
+        <tr><td>d325ddcd</td><td>preview</td><td>1.0.3</td><td>exposdk:56.0.0</td><td style="font-size:9px">88133b16</td><td><span class="badge badge-red">Failed</span></td><td>Crashed on launch — useCallback in JSX (hooks violation)</td></tr>
+        <tr><td>7e903cdf</td><td>preview</td><td>1.0.3</td><td>exposdk:56.0.0</td><td style="font-size:9px">88133b16</td><td><span class="badge badge-red">Failed</span></td><td>Error boundary build — confirmed hooks violation in leaderboard + debates</td></tr>
+        <tr><td>current</td><td>preview</td><td>1.0.3</td><td>—</td><td>—</td><td><span class="badge badge-violet">Building</span></td><td>useCallback extracted from JSX in leaderboard.tsx + debates.tsx</td></tr>
       </table>
     </div>
 
@@ -5530,6 +5532,8 @@ def ops_mobile():
         <tr><td>5</td><td>Font loading black screen — return null/View when fonts pending</td><td>3-second timeout fallback via expo-splash-screen</td></tr>
         <tr><td>6</td><td>useCallback in JSX — hooks rules violation in index.tsx</td><td>Extracted to const onRefresh before return</td></tr>
         <tr><td>7</td><td>Circular import api.py ↔ mobile_routes.py + missing ast/os imports</td><td>Inlined get_or_create_short_hash + global imports</td></tr>
+        <tr><td>8</td><td>useCallback called inline in JSX props (leaderboard.tsx, debates.tsx) — hooks rules violation</td><td>Extracted to const onRefresh before return statement</td></tr>
+        <tr><td>9</td><td>ops_mobile route defined after app.run() — never registered under python api.py</td><td>Moved route before if __name__ == '__main__' block</td></tr>
       </table>
     </div>
   </div>
