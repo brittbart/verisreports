@@ -148,6 +148,7 @@ def articles():
         # Build query
         where_clauses = [
             "a.excluded_from_extraction = FALSE",
+            "o.outlet_id IS NOT NULL",
             "a.published_at IS NOT NULL",
         ]
         params = []
