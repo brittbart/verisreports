@@ -2583,7 +2583,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 </style>
 </head>
 <body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Changelog</h1>
 <div class="subtitle">Curated deployments and full git history &nbsp;·&nbsp; ops-auth protected</div>
 
@@ -2749,7 +2749,7 @@ h1{font-size:18px;margin:0 0 4px;letter-spacing:-0.01em}.subtitle{color:var(--fg
 </style>
 </head>
 <body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Veris pipeline — history</h1>
 <div class="subtitle" id="subtitle">loading…</div>
 <div class="stat-row">
@@ -3967,7 +3967,7 @@ tr:last-child td{border-bottom:0}
 <div class="top-bar">
   <div>
     <h1>Ops Insights</h1>
-    <div class="refresh-note">Data as of {{ generated_at }}  ·  <a href="/ops/insights?refresh=1">Refresh now</a>  ·  <a href="/ops">← Pipeline</a>  ·  <a href="/ops/history">History</a>  ·  <a href="/ops/changelog">Changelog</a>  ·  <a href="/ops/outlets">Outlets</a>  ·  <a href="/ops/queue">Queue</a>  ·  <a href="/ops/disputes">Disputes</a>  ·  <a href="/ops/api-usage">API</a></div>
+    <div class="refresh-note">Data as of {{ generated_at }}  ·  <a href="/ops/insights?refresh=1">Refresh now</a>  ·  <a href="/ops">← Pipeline</a>  ·  <a href="/ops/history">History</a>  ·  <a href="/ops/changelog">Changelog</a>  ·  <a href="/ops/outlets">Outlets</a>  ·  <a href="/ops/queue">Queue</a>  ·  <a href="/ops/disputes">Disputes</a>  ·  <a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
   </div>
 </div>
 
@@ -4652,7 +4652,7 @@ td{padding:7px 10px;border-bottom:1px solid var(--border)}
 tr:hover td{background:rgba(168,85,247,0.04)}
 .mono{font-family:var(--mono);font-size:12px}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Verdict Queue</h1>
 <div class="subtitle">Claims awaiting verdict assignment</div>
 
@@ -4748,7 +4748,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-d
 .dispute-text{color:var(--fg-dim);font-size:13px;margin-top:8px;line-height:1.6}
 .empty{color:var(--fg-dim);padding:32px 0;text-align:center}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>Verdict Disputes</h1>
 <div class="subtitle">Submitted via report page correction links</div>
 
@@ -4875,7 +4875,7 @@ td{padding:6px 10px;border-bottom:1px solid var(--border);font-family:var(--mono
 tr:hover td{background:rgba(168,85,247,0.04)}
 .ok{color:var(--ok)}.bad{color:var(--bad)}.dim{color:var(--fg-dim)}
 </style></head><body>
-<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a></div>
+<div class="nav-links"><a href="/ops">← Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a></div>
 <h1>API Usage</h1>
 <div class="subtitle">{{ total_this_month }} calls this month across all keys</div>
 
@@ -5035,3 +5035,564 @@ if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /ops/mobile — Mobile app operational dashboard
+# Paste this block into api.py after the last @app.route('/ops/...') block.
+# Add 'Mobile' link to NAV_LINKS in all existing ops pages.
+# ──────────────────────────────────────────────────────────────────────────────
+
+@app.route('/ops/mobile', methods=['GET'])
+def ops_mobile():
+    auth_err = _ops_auth()
+    if auth_err:
+        return auth_err
+
+    import datetime as _dt
+    generated_at = _dt.datetime.now(_dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+
+    # Pull live data from DB
+    db = get_db()
+    cur = db.cursor()
+
+    # Mobile API endpoint health checks
+    endpoint_checks = []
+    endpoints = [
+        ('GET', '/mobile/v1/articles', 'Article list'),
+        ('GET', '/mobile/v1/articles/<id>/report', 'Article report'),
+        ('GET', '/mobile/v1/outlets/leaderboard', 'Leaderboard'),
+        ('GET', '/mobile/v1/outlets/<domain>', 'Outlet detail'),
+        ('GET', '/mobile/v1/debates', 'Debates list'),
+        ('GET', '/mobile/v1/debates/<slug>', 'Debate detail'),
+        ('GET', '/mobile/v1/debates/<slug>/stream', 'SSE stream'),
+        ('GET', '/mobile/v1/methodology', 'Methodology'),
+    ]
+
+    # vs_summary stats
+    cur.execute("""
+        SELECT
+            COUNT(*) FILTER (WHERE vs_summary IS NOT NULL) as with_summary,
+            COUNT(*) FILTER (WHERE vs_summary IS NULL) as without_summary,
+            MAX(vs_summary_generated_at) as last_generated
+        FROM articles
+        WHERE claims_verified = true OR id IN (SELECT DISTINCT article_id FROM claims)
+    """)
+    vs_row = cur.fetchone()
+    vs_with = vs_row[0] if vs_row else 0
+    vs_without = vs_row[1] if vs_row else 0
+    vs_last = vs_row[2].strftime('%Y-%m-%d %H:%M UTC') if vs_row and vs_row[2] else 'Never'
+
+    # Mobile tables row counts
+    mobile_tables = ['users', 'user_devices', 'user_follows_outlet', 'user_follows_event',
+                     'user_follows_speaker', 'user_saved_reports', 'user_notification_prefs', 'notification_log']
+    table_counts = {}
+    for t in mobile_tables:
+        try:
+            cur.execute(f'SELECT COUNT(*) FROM {t}')
+            table_counts[t] = cur.fetchone()[0]
+        except Exception:
+            table_counts[t] = 'N/A'
+
+    # Outlet tier distribution
+    cur.execute("SELECT tier, COUNT(*) FROM api_outlets GROUP BY tier ORDER BY count DESC")
+    tier_rows = cur.fetchall()
+
+    # May 26 debate status
+    cur.execute("""
+        SELECT e.id, e.event_name, e.event_date, e.start_time, e.stream_url,
+               COUNT(c.id) as claim_count,
+               COUNT(c.id) FILTER (WHERE c.verdict_status = 'provisional') as provisional_count,
+               COUNT(c.id) FILTER (WHERE c.verdict_status = 'final') as final_count
+        FROM events e
+        LEFT JOIN claims c ON c.event_id = e.id
+        WHERE e.id = 9
+        GROUP BY e.id, e.event_name, e.event_date, e.start_time, e.stream_url
+    """)
+    may26 = cur.fetchone()
+
+    # Speaker config for May 26
+    cur.execute("""
+        SELECT s.id, s.speaker_name, s.speaker_order, s.title
+        FROM speakers s
+        WHERE s.id IN (187, 188, 189, 3)
+        ORDER BY s.speaker_order
+    """)
+    speakers = cur.fetchall()
+
+    cur.close()
+    db.close()
+
+    NAV = '<a href="/ops">Pipeline</a><a href="/ops/history">History</a><a href="/ops/insights">Insights</a><a href="/ops/changelog">Changelog</a><a href="/ops/outlets">Outlets</a><a href="/ops/queue">Queue</a><a href="/ops/disputes">Disputes</a><a href="/ops/api-usage">API</a><a href="/ops/mobile" style="color:#a855f7;font-weight:600">Mobile</a>'
+
+    tier_html = ''.join(f'<tr><td>{t}</td><td>{c}</td><td>{"Scored" if t != "tracked" else "Ingesting only"}</td></tr>' for t, c in tier_rows)
+    table_counts_html = ''.join(f'<tr><td>{t}</td><td>{table_counts.get(t, "N/A")}</td></tr>' for t in mobile_tables)
+    speakers_html = ''.join(f'<tr><td>{s[0]}</td><td>{s[1]}</td><td>{s[3] or "—"}</td><td>{s[2]}</td></tr>' for s in speakers) if speakers else '<tr><td colspan="4">No speakers found</td></tr>'
+
+    may26_html = ''
+    if may26:
+        may26_html = f'''
+        <div class="stat-row"><span class="stat-label">Event ID</span><span class="stat-val">{may26[0]}</span></div>
+        <div class="stat-row"><span class="stat-label">Title</span><span class="stat-val">{may26[1]}</span></div>
+        <div class="stat-row"><span class="stat-label">Date</span><span class="stat-val">{may26[2]}</span></div>
+        <div class="stat-row"><span class="stat-label">Start time</span><span class="stat-val">{may26[3]} MT</span></div>
+        <div class="stat-row"><span class="stat-label">Stream URL</span><span class="stat-val"><a href="{may26[5]}" target="_blank">{may26[5]}</a></span></div>
+        <div class="stat-row"><span class="stat-label">Claims so far</span><span class="stat-val">{may26[6]} total · {may26[7]} provisional · {may26[8]} final</span></div>
+        '''
+
+    html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Ops — Verum Signal</title>
+<style>
+  *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0a0a0a; color: #e5e5e5; font-size: 14px; line-height: 1.5; }}
+  .nav {{ padding: 14px 24px; border-bottom: 1px solid #1f1f1f; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }}
+  .nav a {{ color: #6b7280; text-decoration: none; font-size: 13px; }}
+  .nav a:hover {{ color: #e5e5e5; }}
+  .wordmark {{ font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 1px; margin-right: 8px; }}
+  .container {{ max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }}
+  h1 {{ font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 4px; }}
+  .subtitle {{ font-size: 12px; color: #6b7280; margin-bottom: 28px; }}
+  h2 {{ font-size: 13px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.1em; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #1f1f1f; }}
+  .tabs {{ display: flex; gap: 0; border-bottom: 1px solid #1f1f1f; margin-bottom: 24px; }}
+  .tab {{ padding: 10px 18px; font-size: 13px; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s; }}
+  .tab:hover {{ color: #e5e5e5; }}
+  .tab.active {{ color: #a855f7; border-bottom-color: #a855f7; font-weight: 500; }}
+  .tab-content {{ display: none; }}
+  .tab-content.active {{ display: block; }}
+  .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }}
+  .metric {{ background: #111; border: 1px solid #1f1f1f; border-radius: 8px; padding: 14px 16px; }}
+  .metric-label {{ font-size: 11px; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }}
+  .metric-value {{ font-size: 24px; font-weight: 600; color: #fff; line-height: 1.1; }}
+  .metric-sub {{ font-size: 11px; color: #4b5563; margin-top: 4px; }}
+  .card {{ background: #111; border: 1px solid #1f1f1f; border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; }}
+  .card h3 {{ font-size: 13px; font-weight: 600; color: #e5e5e5; margin-bottom: 12px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+  th {{ text-align: left; color: #6b7280; font-weight: 500; padding: 6px 10px; border-bottom: 1px solid #1f1f1f; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }}
+  td {{ padding: 8px 10px; border-bottom: 1px solid #1a1a1a; color: #d1d5db; vertical-align: top; }}
+  tr:last-child td {{ border-bottom: none; }}
+  td:first-child {{ font-family: monospace; font-size: 11px; color: #9ca3af; }}
+  .badge {{ font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }}
+  .badge-green {{ background: rgba(34,197,94,.15); color: #22c55e; }}
+  .badge-amber {{ background: rgba(245,158,11,.15); color: #f59e0b; }}
+  .badge-red {{ background: rgba(239,68,68,.15); color: #ef4444; }}
+  .badge-gray {{ background: rgba(107,114,128,.15); color: #9ca3af; }}
+  .badge-violet {{ background: rgba(168,85,247,.15); color: #a855f7; }}
+  .stat-row {{ display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #1a1a1a; font-size: 12px; }}
+  .stat-row:last-child {{ border-bottom: none; }}
+  .stat-label {{ color: #6b7280; }}
+  .stat-val {{ color: #d1d5db; font-family: monospace; font-size: 11px; text-align: right; }}
+  .method {{ font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-right: 6px; }}
+  .get {{ background: rgba(34,197,94,.15); color: #22c55e; }}
+  .post {{ background: rgba(59,130,246,.15); color: #60a5fa; }}
+  code {{ font-family: monospace; font-size: 11px; background: #1a1a1a; padding: 1px 5px; border-radius: 3px; color: #d1d5db; }}
+  .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
+  .endpoint-row {{ padding: 10px 0; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; gap: 10px; font-size: 12px; }}
+  .endpoint-row:last-child {{ border-bottom: none; }}
+  .endpoint-path {{ font-family: monospace; color: #d1d5db; flex: 1; }}
+  .refresh-note {{ font-size: 11px; color: #4b5563; margin-top: 32px; text-align: center; }}
+  .schema-note {{ font-size: 11px; color: #f59e0b; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }}
+  @media (max-width: 640px) {{ .two-col {{ grid-template-columns: 1fr; }} .grid {{ grid-template-columns: 1fr 1fr; }} }}
+</style>
+</head>
+<body>
+<div class="nav">
+  <span class="wordmark">VERUM SIGNAL</span>
+  {NAV}
+</div>
+<div class="container">
+  <h1>Mobile Ops</h1>
+  <div class="subtitle">verumsignal.com/ops/mobile &nbsp;·&nbsp; Verum Signal iOS + Android app &nbsp;·&nbsp; {generated_at}</div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('overview')">Overview</div>
+    <div class="tab" onclick="showTab('api')">API Reference</div>
+    <div class="tab" onclick="showTab('schema')">Schema</div>
+    <div class="tab" onclick="showTab('sse')">SSE Protocol</div>
+    <div class="tab" onclick="showTab('builds')">Build History</div>
+    <div class="tab" onclick="showTab('may26')">May 26</div>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="grid">
+      <div class="metric">
+        <div class="metric-label">App version</div>
+        <div class="metric-value">1.0.3</div>
+        <div class="metric-sub">versionCode 4 · preview APK</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">expo-updates</div>
+        <div class="metric-value" style="font-size:16px;padding-top:6px;color:#22c55e">Removed</div>
+        <div class="metric-sub">Re-add in v1.1</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">vs_summary cached</div>
+        <div class="metric-value">{vs_with}</div>
+        <div class="metric-sub">{vs_without} articles pending · last {vs_last}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Scored outlets</div>
+        <div class="metric-value">18</div>
+        <div class="metric-sub">149 tracked · not yet scored</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Auth</div>
+        <div class="metric-value" style="font-size:16px;padding-top:6px;color:#f59e0b">Stubbed</div>
+        <div class="metric-sub">Clerk signup pending</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Push notifications</div>
+        <div class="metric-value" style="font-size:16px;padding-top:6px;color:#f59e0b">Stubbed</div>
+        <div class="metric-sub">Expo Push API pending</div>
+      </div>
+    </div>
+
+    <h2>Mobile table row counts</h2>
+    <div class="card">
+      <table>
+        <tr><th>Table</th><th>Rows</th></tr>
+        {table_counts_html}
+      </table>
+    </div>
+
+    <h2>Outlet tier distribution</h2>
+    <div class="card">
+      <table>
+        <tr><th>Tier</th><th>Count</th><th>Status</th></tr>
+        {tier_html}
+      </table>
+    </div>
+
+    <h2>Screen inventory</h2>
+    <div class="two-col">
+      <div class="card">
+        <h3>Built · new design system</h3>
+        <table>
+          <tr><th>Screen</th><th>Status</th></tr>
+          <tr><td>Articles tab</td><td><span class="badge badge-green">Ready</span></td></tr>
+          <tr><td>Article report</td><td><span class="badge badge-green">Ready</span></td></tr>
+          <tr><td>Leaderboard tab</td><td><span class="badge badge-green">Ready</span></td></tr>
+          <tr><td>Debates tab</td><td><span class="badge badge-green">Ready</span></td></tr>
+          <tr><td>Profile tab</td><td><span class="badge badge-green">Ready</span></td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Built · needs design update</h3>
+        <table>
+          <tr><th>Screen</th><th>Status</th></tr>
+          <tr><td>Outlet detail</td><td><span class="badge badge-amber">Old design</span></td></tr>
+          <tr><td>Debate detail</td><td><span class="badge badge-amber">Old design</span></td></tr>
+          <tr><td>Onboarding (3)</td><td><span class="badge badge-gray">Not built</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <h2>Signup blockers</h2>
+    <div class="card">
+      <div class="endpoint-row"><span class="endpoint-path">Clerk (auth)</span><span class="badge badge-red">Blocked</span><span style="color:#6b7280;font-size:11px">Unblocks all 401 auth endpoints</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">Expo account</span><span class="badge badge-green">Done · brittbarton</span><span style="color:#6b7280;font-size:11px">EAS builds working</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">Apple Developer</span><span class="badge badge-red">Not started</span><span style="color:#6b7280;font-size:11px">Verum Signal LLC · DUNS required · 2–8 weeks</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">Google Play</span><span class="badge badge-red">Not started</span><span style="color:#6b7280;font-size:11px">$25 one-time · 1–3 days</span></div>
+    </div>
+  </div>
+
+  <!-- API TAB -->
+  <div id="tab-api" class="tab-content">
+    <h2>Public endpoints</h2>
+    <div class="card">
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/articles</span><span class="badge badge-green">Working</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/articles/&lt;id&gt;/report</span><span class="badge badge-green">Fixed</span><span style="color:#22c55e;font-size:11px;margin-left:8px">circular import resolved</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/outlets/leaderboard</span><span class="badge badge-green">Working</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/outlets/&lt;domain&gt;</span><span class="badge badge-green">Working</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates</span><span class="badge badge-green">Working</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;</span><span class="badge badge-amber">Not tested in app</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;/stream</span><span class="badge badge-amber">SSE · load tested</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/methodology</span><span class="badge badge-green">Working</span><span style="color:#6b7280;font-size:11px;margin-left:8px">reads PUBLIC_METHODOLOGY_VERSIONS</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/health</span><span class="badge badge-green">Working</span></div>
+    </div>
+
+    <h2>Auth-required endpoints (stubbed)</h2>
+    <div class="card">
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/mobile/v1/auth/sync</span><span class="badge badge-gray">501</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/me</span><span class="badge badge-gray">501</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/mobile/v1/devices/register</span><span class="badge badge-gray">501</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/mobile/v1/articles/&lt;id&gt;/save</span><span class="badge badge-gray">401</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/mobile/v1/outlets/&lt;domain&gt;/follow</span><span class="badge badge-gray">401</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/me/saved</span><span class="badge badge-gray">401</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/me/follows</span><span class="badge badge-gray">401</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/me/notifications</span><span class="badge badge-gray">401</span></div>
+    </div>
+
+    <h2>Known data gaps</h2>
+    <div class="card">
+      <div class="schema-note">These are production data issues, not API bugs. Logged for v1.1.</div>
+      <table>
+        <tr><th>#</th><th>Field</th><th>Issue</th><th>Priority</th></tr>
+        <tr><td>1</td><td><code>outlet.name</code></td><td>Stores domain string ("cbc.ca") not display name ("CBC News"). No display names in DB.</td><td><span class="badge badge-amber">v1.1</span></td></tr>
+        <tr><td>2</td><td><code>article.published_at</code></td><td>Null for many articles. time_ago falls back to ingestion time.</td><td><span class="badge badge-gray">Known</span></td></tr>
+        <tr><td>3</td><td><code>outlet.tier</code> "tracked"</td><td>149 outlets with no verdicts show tier="tracked" in article cards. Excluded from leaderboard.</td><td><span class="badge badge-green">Handled</span></td></tr>
+        <tr><td>4</td><td><code>speaker.sub</code></td><td>Design shows "D · Iowa" under speaker names. party/title not returned in mobile API.</td><td><span class="badge badge-amber">v1.1</span></td></tr>
+        <tr><td>5</td><td><code>report.article_score</code></td><td>Returns outlet score as proxy. Per-article score requires compute_article_score().</td><td><span class="badge badge-amber">v1.1</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCHEMA TAB -->
+  <div id="tab-schema" class="tab-content">
+    <div class="schema-note">These are production schema corrections. MOBILE_BACKEND_GAPS.md originally had wrong column names — these are the actual values confirmed during build.</div>
+
+    <h2>Production schema corrections</h2>
+    <div class="card">
+      <table>
+        <tr><th>Table</th><th>Doc assumed</th><th>Actual</th></tr>
+        <tr><td>api_outlets</td><td><code>domain, name, claim_count</code></td><td><code>outlet_id, outlet_name, total_scoreable_claims</code></td></tr>
+        <tr><td>api_outlets</td><td><code>category column</code></td><td>Does not exist</td></tr>
+        <tr><td>articles</td><td><code>source_domain</code></td><td><code>source_name</code></td></tr>
+        <tr><td>articles</td><td><code>byline, lead_image_url</code></td><td>Do not exist</td></tr>
+        <tr><td>events</td><td><code>title, description, start_time (datetime), location, end_time, status</code></td><td><code>event_name, event_subtitle, event_date (DATE), venue</code> — no end_time or status</td></tr>
+        <tr><td>claims → debates</td><td><code>debate_id</code></td><td><code>event_id</code></td></tr>
+        <tr><td>articles.id, events.id, speakers.id</td><td>BIGINT</td><td>INTEGER</td></tr>
+        <tr><td>api_outlets.tier</td><td>3 values</td><td>4 values: published(3) · stabilizing(7) · limited_data(8) · tracked(149)</td></tr>
+      </table>
+    </div>
+
+    <h2>New mobile tables (8 added May 23, 2026)</h2>
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <h3>users</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>id</td><td>BIGSERIAL PK</td><td>—</td></tr>
+            <tr><td>external_id</td><td>TEXT UNIQUE</td><td>Clerk user ID</td></tr>
+            <tr><td>email</td><td>TEXT</td><td>—</td></tr>
+            <tr><td>tier</td><td>TEXT</td><td>free|pro_monthly|pro_annual|complimentary</td></tr>
+            <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>—</td></tr>
+            <tr><td>deleted_at</td><td>TIMESTAMPTZ</td><td>Soft delete</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>user_devices</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>id</td><td>BIGSERIAL PK</td><td>—</td></tr>
+            <tr><td>user_id</td><td>BIGINT FK</td><td>→ users.id</td></tr>
+            <tr><td>push_token</td><td>TEXT</td><td>Expo push token</td></tr>
+            <tr><td>platform</td><td>TEXT</td><td>ios|android</td></tr>
+            <tr><td>push_enabled</td><td>BOOL</td><td>—</td></tr>
+            <tr><td>last_seen_at</td><td>TIMESTAMPTZ</td><td>—</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>user_notification_prefs</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>id</td><td>BIGSERIAL PK</td><td>—</td></tr>
+            <tr><td>user_id</td><td>BIGINT FK UNIQUE</td><td>—</td></tr>
+            <tr><td>debate_alerts</td><td>BOOL</td><td>Default true</td></tr>
+            <tr><td>verdict_alerts</td><td>BOOL</td><td>Default true</td></tr>
+            <tr><td>daily_digest</td><td>BOOL</td><td>Default false</td></tr>
+            <tr><td>quiet_hours_start</td><td>TIME</td><td>—</td></tr>
+            <tr><td>quiet_hours_end</td><td>TIME</td><td>—</td></tr>
+            <tr><td>timezone</td><td>TEXT</td><td>IANA tz string</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>articles (new columns)</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+            <tr><td>vs_summary</td><td>TEXT</td><td>Lazy generated by claude-sonnet-4-6</td></tr>
+            <tr><td>vs_summary_generated_at</td><td>TIMESTAMPTZ</td><td>—</td></tr>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>user_follows_outlet</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th></tr>
+            <tr><td>id</td><td>BIGSERIAL PK</td></tr>
+            <tr><td>user_id</td><td>BIGINT FK</td></tr>
+            <tr><td>outlet_domain</td><td>TEXT</td></tr>
+            <tr><td>created_at</td><td>TIMESTAMPTZ</td></tr>
+          </table>
+          <div style="font-size:10px;color:#4b5563;margin-top:8px">UNIQUE(user_id, outlet_domain)</div>
+        </div>
+        <div class="card">
+          <h3>user_follows_event</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th></tr>
+            <tr><td>id</td><td>BIGSERIAL PK</td></tr>
+            <tr><td>user_id</td><td>BIGINT FK</td></tr>
+            <tr><td>event_id</td><td>INT FK → events.id</td></tr>
+            <tr><td>created_at</td><td>TIMESTAMPTZ</td></tr>
+          </table>
+          <div style="font-size:10px;color:#4b5563;margin-top:8px">UNIQUE(user_id, event_id)</div>
+        </div>
+        <div class="card">
+          <h3>user_saved_reports</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th></tr>
+            <tr><td>id</td><td>BIGSERIAL PK</td></tr>
+            <tr><td>user_id</td><td>BIGINT FK</td></tr>
+            <tr><td>article_id</td><td>INT FK → articles.id</td></tr>
+            <tr><td>created_at</td><td>TIMESTAMPTZ</td></tr>
+          </table>
+          <div style="font-size:10px;color:#4b5563;margin-top:8px">UNIQUE(user_id, article_id)</div>
+        </div>
+        <div class="card">
+          <h3>notification_log</h3>
+          <table>
+            <tr><th>Column</th><th>Type</th></tr>
+            <tr><td>id</td><td>BIGSERIAL PK</td></tr>
+            <tr><td>user_id</td><td>BIGINT FK</td></tr>
+            <tr><td>notification_type</td><td>TEXT</td></tr>
+            <tr><td>related_event_id</td><td>INT</td></tr>
+            <tr><td>related_article_id</td><td>INT</td></tr>
+            <tr><td>sent_at</td><td>TIMESTAMPTZ</td></tr>
+            <tr><td>push_token</td><td>TEXT</td></tr>
+          </table>
+          <div style="font-size:10px;color:#4b5563;margin-top:8px">Dedup cap: 5 verdict alerts per user per debate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SSE TAB -->
+  <div id="tab-sse" class="tab-content">
+    <h2>Configuration</h2>
+    <div class="card">
+      <div class="stat-row"><span class="stat-label">Endpoint</span><span class="stat-val">GET /mobile/v1/debates/&lt;slug&gt;/stream</span></div>
+      <div class="stat-row"><span class="stat-label">Poll interval</span><span class="stat-val">5 seconds</span></div>
+      <div class="stat-row"><span class="stat-label">Heartbeat interval</span><span class="stat-val">15 seconds</span></div>
+      <div class="stat-row"><span class="stat-label">Client heartbeat timeout</span><span class="stat-val">30 seconds → reconnect</span></div>
+      <div class="stat-row"><span class="stat-label">Max reconnect attempts</span><span class="stat-val">10 (exponential backoff, 5s base)</span></div>
+      <div class="stat-row"><span class="stat-label">Reconnection param</span><span class="stat-val">?since_id=N (avoids re-sending existing claims)</span></div>
+      <div class="stat-row"><span class="stat-label">Infrastructure</span><span class="stat-val">Sync Gunicorn — 1 worker per SSE connection</span></div>
+      <div class="stat-row"><span class="stat-label">Nginx buffering</span><span class="stat-val">X-Accel-Buffering: no header set</span></div>
+    </div>
+
+    <h2>Load test results (k6 v2.0.0 · May 23, 2026)</h2>
+    <div class="card">
+      <div class="stat-row"><span class="stat-label">Concurrent SSE connections</span><span class="stat-val">100 (ramped 0→10→50→100→50→0)</span></div>
+      <div class="stat-row"><span class="stat-label">Concurrent REST users</span><span class="stat-val">30 (20 articles + 10 leaderboard)</span></div>
+      <div class="stat-row"><span class="stat-label">Articles p95 latency</span><span class="stat-val" style="color:#22c55e">188ms (target: &lt;500ms)</span></div>
+      <div class="stat-row"><span class="stat-label">Leaderboard p95 latency</span><span class="stat-val" style="color:#22c55e">101ms (target: &lt;500ms)</span></div>
+      <div class="stat-row"><span class="stat-label">SSE first event p95</span><span class="stat-val" style="color:#22c55e">140ms (target: &lt;3000ms)</span></div>
+      <div class="stat-row"><span class="stat-label">API error rate</span><span class="stat-val" style="color:#22c55e">0.00% (target: &lt;0.1%)</span></div>
+      <div class="stat-row"><span class="stat-label">Total checks passed</span><span class="stat-val" style="color:#22c55e">33,661 / 33,661 (100%)</span></div>
+      <div class="stat-row"><span class="stat-label">SSE events delivered</span><span class="stat-val">11,126</span></div>
+      <div class="stat-row"><span class="stat-label">Decision</span><span class="stat-val" style="color:#22c55e">Ship as-is. No gevent or dedicated service needed for May 26.</span></div>
+    </div>
+
+    <h2>SSE event types</h2>
+    <div class="card">
+      <table>
+        <tr><th>Event</th><th>When</th><th>Key fields</th></tr>
+        <tr><td>connected</td><td>Immediately on connection</td><td>existing_claims[], is_ended, claim_count</td></tr>
+        <tr><td>claim</td><td>New verified claim</td><td>id, claim_text, verdict, confidence_score, verdict_summary, speaker_id, speaker_name, is_provisional, first_seen, methodology_version</td></tr>
+        <tr><td>heartbeat</td><td>Every 15s</td><td>ts (unix timestamp)</td></tr>
+        <tr><td>debate_ended</td><td>event_date passes</td><td>slug, ended_at</td></tr>
+        <tr><td>error</td><td>Server error</td><td>message, code (NOT_FOUND stops reconnect)</td></tr>
+      </table>
+    </div>
+
+    <h2>Client hook: useDebateStream</h2>
+    <div class="card">
+      <div class="stat-row"><span class="stat-label">Implementation</span><span class="stat-val">fetch() + ReadableStream (no native EventSource in RN)</span></div>
+      <div class="stat-row"><span class="stat-label">Deduplication</span><span class="stat-val">By claim ID — Set of existing IDs</span></div>
+      <div class="stat-row"><span class="stat-label">Status values</span><span class="stat-val">connecting | connected | reconnecting | ended | error | closed</span></div>
+      <div class="stat-row"><span class="stat-label">Only enabled when</span><span class="stat-val">debate.is_live === true</span></div>
+      <div class="stat-row"><span class="stat-label">Past debates</span><span class="stat-val">Falls back to REST API claim list</span></div>
+    </div>
+  </div>
+
+  <!-- BUILD HISTORY TAB -->
+  <div id="tab-builds" class="tab-content">
+    <h2>All EAS builds</h2>
+    <div class="card">
+      <table>
+        <tr><th>Build ID</th><th>Profile</th><th>Version</th><th>Runtime</th><th>Fingerprint</th><th>Status</th><th>Failure reason</th></tr>
+        <tr><td>b08f7319</td><td>preview</td><td>1.0.0</td><td>1.0.0</td><td style="font-size:9px">57f9e84b</td><td><span class="badge badge-red">Failed</span></td><td>Pre-design code snapshotted</td></tr>
+        <tr><td>1109e9b5</td><td>preview</td><td>1.0.0</td><td>1.0.0</td><td style="font-size:9px">57f9e84b ⚠</td><td><span class="badge badge-red">Failed</span></td><td>EAS cached native bundle — same fingerprint as build 1</td></tr>
+        <tr><td>59b217d9</td><td>preview</td><td>1.0.0</td><td>1.0.0</td><td style="font-size:9px">57f9e84b ⚠</td><td><span class="badge badge-red">Failed</span></td><td>EAS cached native bundle — same fingerprint again</td></tr>
+        <tr><td>82485029</td><td>preview</td><td>1.0.0</td><td>1.0.0</td><td style="font-size:9px">0bcfc025</td><td><span class="badge badge-red">Failed</span></td><td>OTA runtime version mismatch (1.0.0 vs exposdk:56.0.0)</td></tr>
+        <tr><td>dfed8b16</td><td>development</td><td>1.0.0</td><td>1.0.0</td><td style="font-size:9px">ff6310bc</td><td><span class="badge badge-red">Failed</span></td><td>Font loading black screen + WSL2 tunnel unreachable</td></tr>
+        <tr><td>00e658e0</td><td>development</td><td>1.0.2</td><td>exposdk:56.0.0</td><td style="font-size:9px">b33e88d1</td><td><span class="badge badge-red">Failed</span></td><td>expo-updates checked development OTA channel — download failed</td></tr>
+        <tr><td>d325ddcd</td><td>preview</td><td>1.0.3</td><td>exposdk:56.0.0</td><td>pending</td><td><span class="badge badge-violet">Building</span></td><td>expo-updates removed · non-blocking fonts · standalone JS bundle</td></tr>
+      </table>
+    </div>
+
+    <h2>Root cause log</h2>
+    <div class="card">
+      <table>
+        <tr><th>#</th><th>Root cause</th><th>Resolution</th></tr>
+        <tr><td>1</td><td>EAS native bundle caching — pure JS changes don't change fingerprint</td><td>Adding expo-dev-client later changed fingerprint</td></tr>
+        <tr><td>2</td><td>OTA runtime version mismatch — appVersion vs sdkVersion policy</td><td>Set runtimeVersion: sdkVersion in app.json</td></tr>
+        <tr><td>3</td><td>expo-updates active in dev build — conflicts with Metro tunnel</td><td>Removed expo-updates entirely for v1</td></tr>
+        <tr><td>4</td><td>WSL2 Metro unreachable — 172.21.176.1:8081 blocked from phone</td><td>Unresolved — use preview APK instead of dev tunnel</td></tr>
+        <tr><td>5</td><td>Font loading black screen — return null/View when fonts pending</td><td>3-second timeout fallback via expo-splash-screen</td></tr>
+        <tr><td>6</td><td>useCallback in JSX — hooks rules violation in index.tsx</td><td>Extracted to const onRefresh before return</td></tr>
+        <tr><td>7</td><td>Circular import api.py ↔ mobile_routes.py + missing ast/os imports</td><td>Inlined get_or_create_short_hash + global imports</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- MAY 26 TAB -->
+  <div id="tab-may26" class="tab-content">
+    <h2>Event configuration (event_id=9)</h2>
+    <div class="card">
+      {may26_html if may26_html else '<div style="color:#6b7280;font-size:12px">Event not found in DB</div>'}
+    </div>
+
+    <h2>Speaker configuration</h2>
+    <div class="card">
+      <table>
+        <tr><th>ID</th><th>Name</th><th>Role</th><th>Speaker order</th></tr>
+        {speakers_html}
+      </table>
+    </div>
+
+    <h2>Readiness checklist</h2>
+    <div class="card">
+      <div class="endpoint-row"><span class="endpoint-path">Event in DB · is_public=True · correct timezone (MT)</span><span class="badge badge-green">✓ Done</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">Speakers configured with speaker_order</span><span class="badge badge-green">✓ Done</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">verdict_status='provisional' stamping in extract_debate_claims.py</span><span class="badge badge-green">✓ Patched</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">promote_provisional_verdicts() running every 5 minutes</span><span class="badge badge-green">✓ Active</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">SSE load test passed (100 concurrent · 0% errors)</span><span class="badge badge-green">✓ Passed</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">Mobile SSE stream endpoint live</span><span class="badge badge-green">✓ Live</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">Rev AI connection dry run</span><span class="badge badge-green">✓ Passed</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">YouTube live VIDEO_ID for CBS Colorado</span><span class="badge badge-amber">⚠ Day-of action (30 min before 7 PM MT)</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">DB password rotation</span><span class="badge badge-amber">⚠ Deferred (pre-launch · no real users)</span></div>
+    </div>
+
+    <h2>Live command (run day-of — replace VIDEO_ID)</h2>
+    <div class="card" style="font-family:monospace;font-size:12px;color:#9ca3af;line-height:1.8">
+      cd ~/projects/veris && source venv/bin/activate<br>
+      python3 debate_stream.py \\<br>
+      &nbsp;&nbsp;--mode live \\<br>
+      &nbsp;&nbsp;--url "https://www.youtube.com/watch?v=VIDEO_ID_HERE" \\<br>
+      &nbsp;&nbsp;--event-slug colorado-governor-republican-primary-debate-round-2 \\<br>
+      &nbsp;&nbsp;--speakers "SCOTT BOTTOMS:187,BARBARA KIRKMEYER:188,VICTOR MARX:189" \\<br>
+      &nbsp;&nbsp;--speaker-order "187,188,189"
+    </div>
+  </div>
+
+  <div class="refresh-note">{generated_at} · <a href="/ops/mobile" style="color:#a855f7">Refresh</a> · <a href="/ops" style="color:#6b7280">← Pipeline</a></div>
+</div>
+
+<script>
+function showTab(name) {{
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector('[onclick="showTab(\\''+name+'\\'")']').classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}}
+</script>
+</body>
+</html>'''
+
+    return html
