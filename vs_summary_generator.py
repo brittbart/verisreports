@@ -17,7 +17,7 @@ import anthropic
 from datetime import datetime, timezone
 
 # Use Haiku for summaries — fast, cheap, adequate for 3-5 sentence summaries
-MODEL = "claude-haiku-4-5"
+MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 256
 SUMMARY_MAX_CHARS = 800  # truncate cached summary if somehow over
 
