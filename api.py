@@ -5113,10 +5113,11 @@ def _ops_mobile_inner():
 
     # Speaker config for May 26
     cur.execute("""
-        SELECT s.id, s.name, s.speaker_order, s.title
+        SELECT s.id, s.name, es.speaker_order, s.role
         FROM speakers s
+        JOIN event_speakers es ON es.speaker_id = s.id AND es.event_id = 9
         WHERE s.id IN (187, 188, 189, 3)
-        ORDER BY s.speaker_order
+        ORDER BY es.speaker_order
     """)
     speakers = cur.fetchall()
 
