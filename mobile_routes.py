@@ -411,8 +411,9 @@ def article_report(article_id):
         })
 
     except Exception as e:
-        traceback.print_exc()
-        return err("Failed to fetch report", 500, "SERVER_ERROR")
+        import sys
+        tb = traceback.format_exc()
+        return err(f"Failed to fetch report: {str(e)} | {tb[-500:]}", 500, "SERVER_ERROR")
     finally:
         cur.close()
         db.close()
