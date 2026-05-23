@@ -5129,8 +5129,8 @@ def ops_mobile():
         <div class="stat-row"><span class="stat-label">Title</span><span class="stat-val">{may26[1]}</span></div>
         <div class="stat-row"><span class="stat-label">Date</span><span class="stat-val">{may26[2]}</span></div>
         <div class="stat-row"><span class="stat-label">Start time</span><span class="stat-val">{may26[3]} MT</span></div>
-        <div class="stat-row"><span class="stat-label">Stream URL</span><span class="stat-val"><a href="{may26[5]}" target="_blank">{may26[5]}</a></span></div>
-        <div class="stat-row"><span class="stat-label">Claims so far</span><span class="stat-val">{may26[6]} total · {may26[7]} provisional · {may26[8]} final</span></div>
+        <div class="stat-row"><span class="stat-label">Stream URL</span><span class="stat-val"><a href="{may26[4]}" target="_blank">{may26[4]}</a></span></div>
+        <div class="stat-row"><span class="stat-label">Claims so far</span><span class="stat-val">{may26[5]} total · {may26[6]} provisional · {may26[7]} final</span></div>
         '''
 
     html = f'''<!DOCTYPE html>
