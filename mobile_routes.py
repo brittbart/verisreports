@@ -161,7 +161,8 @@ def articles():
                 pass
 
         if filter_cat:
-            where_clauses.append("o.category ILIKE %s")
+            # api_outlets has no category column; filter by source_name prefix
+            where_clauses.append("a.source_name ILIKE %s")
             params.append(f"%{filter_cat}%")
 
         where_sql = " AND ".join(where_clauses)
@@ -178,9 +179,8 @@ def articles():
                 a.id,
                 a.url,
                 a.title,
-                a.byline,
+                a.source_name,
                 a.published_at,
-                a.lead_image_url,
                 o.outlet_id     AS outlet_domain,
                 o.outlet_name   AS outlet_name,
                 o.score         AS outlet_score,
@@ -188,12 +188,12 @@ def articles():
                 COUNT(c.id)     AS claim_count,
                 COUNT(c.id) FILTER (WHERE c.verdict IS NOT NULL AND c.verdict != 'opinion' AND c.verdict != 'not_verifiable') AS scoreable_count
             FROM articles a
-            LEFT JOIN api_outlets o ON o.outlet_id = a.source_domain
+            LEFT JOIN api_outlets o ON o.outlet_id = a.source_name
             LEFT JOIN claims c ON c.article_id = a.id
               AND c.claim_origin = 'outlet_claim'
             WHERE {where_sql}
-            GROUP BY a.id, a.url, a.title, a.byline, a.published_at,
-                     a.lead_image_url, o.domain, o.name, o.score, o.tier
+            GROUP BY a.id, a.url, a.title, a.source_name, a.published_at,
+                     o.outlet_id, o.outlet_name, o.score, o.tier
             ORDER BY {order_sql}
             LIMIT %s
         """, params)
@@ -226,10 +226,10 @@ def articles():
                 "id":           art_id,
                 "url":          r['url'],
                 "headline":     r['title'],
-                "byline":       r['byline'],
+                "byline":       None,
                 "published_at": r['published_at'].isoformat() if r['published_at'] else None,
                 "time_ago":     format_time_ago(r['published_at']),
-                "lead_image_url": r['lead_image_url'],
+                "lead_image_url": None,
                 "outlet": {
                     "domain": r['outlet_domain'],
                     "name":   r['outlet_name'],
@@ -274,12 +274,12 @@ def article_report(article_id):
     try:
         # Article
         cur.execute("""
-            SELECT a.id, a.url, a.title, a.byline, a.published_at,
-                   a.lead_image_url, a.source_domain, a.vs_summary,
-                   o.domain, o.name, o.score, o.tier,
+            SELECT a.id, a.url, a.title, a.published_at,
+                   a.source_name, a.vs_summary,
+                   o.outlet_id, o.outlet_name, o.score, o.tier,
                    rl.hash AS report_hash
             FROM articles a
-            LEFT JOIN api_outlets o ON o.outlet_id = a.source_domain
+            LEFT JOIN api_outlets o ON o.outlet_id = a.source_name
             LEFT JOIN report_links rl ON rl.article_id = a.id
             WHERE a.id = %s
         """, (article_id,))
@@ -288,8 +288,8 @@ def article_report(article_id):
         if not row:
             return err("Article not found", 404, "NOT_FOUND")
 
-        (art_id, url, title, byline, published_at, lead_image_url,
-         source_domain, vs_summary, outlet_domain, outlet_name,
+        (art_id, url, title, published_at,
+         source_name, vs_summary, outlet_domain, outlet_name,
          outlet_score, outlet_tier, report_hash) = row
 
         # Claims
@@ -339,14 +339,14 @@ def article_report(article_id):
                 "id":             art_id,
                 "url":            url,
                 "headline":       title,
-                "byline":         byline,
+                "byline":         None,
                 "published_at":   published_at.isoformat() if published_at else None,
-                "lead_image_url": lead_image_url,
+                "lead_image_url": None,
                 "report_hash":    report_hash,
                 "share_url":      f"https://verumsignal.com/r/{report_hash}" if report_hash else None,
             },
             "outlet": {
-                "domain": outlet_domain or source_domain,
+                "domain": outlet_domain or source_name,
                 "name":   outlet_name,
                 "score":  float(outlet_score) if outlet_score is not None else None,
                 "tier":   outlet_tier,
