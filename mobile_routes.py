@@ -77,6 +77,8 @@ except ImportError:
     SSE_ENABLED = False
 from datetime import datetime, timezone
 import traceback
+import ast
+import os
 
 MOBILE_API_VERSION = "1.0.0"
 MOBILE_FORCE_DEEP_TIER = True  # v1 override — everyone sees deep reports
@@ -411,9 +413,8 @@ def article_report(article_id):
         })
 
     except Exception as e:
-        import sys
-        tb = traceback.format_exc()
-        return err(f"Failed to fetch report: {str(e)} | {tb[-500:]}", 500, "SERVER_ERROR")
+        traceback.print_exc()
+        return err("Failed to fetch report", 500, "SERVER_ERROR")
     finally:
         cur.close()
         db.close()
