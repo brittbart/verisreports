@@ -68,6 +68,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from extract_claims import extract_claims_from_article
 
 CLAIM_ORIGIN = 'debate_claim'
+METHODOLOGY_VERSION = 'v1.7'
 SCOREABLE_SPEAKER_TYPES = {'politician', 'official'}
 GENERIC_MODERATOR_ID = 3  # Reserved ID for generic moderator — see speakers table
 
@@ -460,10 +461,12 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
                 article_id, claim_text, speaker, claim_type,
                 why_checkworthy, claim_origin, attribution_context,
                 speaker_id, utterance_id, event_id,
-                first_seen, last_seen, priority_score
+                first_seen, last_seen, priority_score,
+                verdict_status, methodology_version
             ) VALUES (
                 NULL, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, NOW(), NOW(), 70
+                %s, %s, %s, NOW(), NOW(), 70,
+                'provisional', %s
             ) RETURNING id
         """, (
             claim_text,
@@ -475,6 +478,7 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
             speaker_id,
             utterance_id,
             event_id,
+            METHODOLOGY_VERSION,
         ))
         row = cur.fetchone()
     conn.commit()
