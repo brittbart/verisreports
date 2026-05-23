@@ -5209,12 +5209,11 @@ def _ops_mobile_inner():
   <div class="subtitle">verumsignal.com/ops/mobile &nbsp;·&nbsp; Verum Signal iOS + Android app &nbsp;·&nbsp; {generated_at}</div>
 
   <div class="tabs">
-    <div class="tab active" onclick="showTab('overview')">Overview</div>
-    <div class="tab" onclick="showTab('api')">API Reference</div>
-    <div class="tab" onclick="showTab('schema')">Schema</div>
-    <div class="tab" onclick="showTab('sse')">SSE Protocol</div>
-    <div class="tab" onclick="showTab('builds')">Build History</div>
-    <div class="tab" onclick="showTab('may26')">May 26</div>
+    <div class="tab active" onclick="showTab(this,'overview')">Overview</div>
+    <div class="tab" onclick="showTab(this,'api')">API Reference</div>
+    <div class="tab" onclick="showTab(this,'schema')">Schema</div>
+    <div class="tab" onclick="showTab(this,'sse')">SSE Protocol</div>
+    <div class="tab" onclick="showTab(this,'builds')">Build History</div>
   </div>
 
   <!-- OVERVIEW TAB -->
@@ -5587,10 +5586,9 @@ def _ops_mobile_inner():
 </div>
 
 <script>
-function showTab(name) {{
+function showTab(el, name) {{
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelector('[onclick="showTab(\\''+name+'\\'")']').classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
 }}
 </script>
