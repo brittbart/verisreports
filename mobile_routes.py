@@ -46,6 +46,12 @@ except ImportError:
     VS_SUMMARY_ENABLED = False
 
 try:
+    from api import get_or_create_short_hash
+    SHORT_URL_ENABLED = True
+except ImportError:
+    SHORT_URL_ENABLED = False
+
+try:
     from mobile_sse import register_sse_routes
     SSE_ENABLED = True
 except ImportError:
@@ -307,6 +313,13 @@ def article_report(article_id):
         # Lazy vs_summary generation — only fires if not already cached
         if not vs_summary and VS_SUMMARY_ENABLED:
             vs_summary = get_or_generate_vs_summary(article_id, db)
+
+        # Lazy short URL generation — only fires if no hash exists yet
+        if not report_hash and SHORT_URL_ENABLED:
+            try:
+                report_hash = get_or_create_short_hash(article_id)
+            except Exception:
+                pass  # non-fatal — share URL just won't work this request
 
         # Claims
         cur.execute("""
