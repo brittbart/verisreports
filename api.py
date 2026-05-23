@@ -5043,6 +5043,7 @@ if __name__ == '__main__':
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.route('/ops/mobile', methods=['GET'])
+@app.route('/ops/mobile', methods=['GET'])
 def ops_mobile():
     auth_err = _ops_auth()
     if auth_err:
