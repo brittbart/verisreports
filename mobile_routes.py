@@ -39,6 +39,11 @@ Auth-required (stubs — return 401 until Clerk wired):
 """
 
 from flask import Blueprint, jsonify, request, g
+try:
+    from vs_summary_generator import get_or_generate_vs_summary
+    VS_SUMMARY_ENABLED = True
+except ImportError:
+    VS_SUMMARY_ENABLED = False
 from datetime import datetime, timezone
 import traceback
 
@@ -292,6 +297,10 @@ def article_report(article_id):
         (art_id, url, title, published_at,
          source_name, vs_summary, outlet_domain, outlet_name,
          outlet_score, outlet_tier, report_hash) = row
+
+        # Lazy vs_summary generation — only fires if not already cached
+        if not vs_summary and VS_SUMMARY_ENABLED:
+            vs_summary = get_or_generate_vs_summary(article_id, db)
 
         # Claims
         cur.execute("""
