@@ -135,6 +135,8 @@ select option { background: var(--surface2); }
 .btn-danger:hover { background: rgba(248,113,113,0.2); }
 .btn-green { background: rgba(74,222,128,0.1); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
 .btn-green:hover { background: rgba(74,222,128,0.2); }
+.btn-violet { background: rgba(168,85,247,0.1); color: #a855f7; border: 1px solid rgba(168,85,247,0.2); }
+.btn-violet:hover { background: rgba(168,85,247,0.2); }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
 
 /* Table */
@@ -497,6 +499,35 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   </div>
 </div>
 
+<div id="speaker-mgmt-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-size:16px;font-weight:500;">Speaker Management &mdash; <span id="smgmt-event-name"></span></div>
+      <button onclick="closeSpeakerMgmt()" style="background:none;border:none;color:var(--text-2);cursor:pointer;font-size:20px;line-height:1;">&times;</button>
+    </div>
+    <div id="smgmt-alert" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px;"></div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-3);margin-bottom:10px;">Active Speakers</div>
+    <div id="smgmt-active-list"></div>
+    <div id="smgmt-inactive-section" style="display:none;margin-top:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-3);margin-bottom:10px;">Inactive Speakers</div>
+      <div id="smgmt-inactive-list"></div>
+    </div>
+    <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-3);margin-bottom:10px;">Add Speaker</div>
+      <div style="display:flex;gap:10px;align-items:flex-end;">
+        <div style="flex:1;"><label style="font-size:12px;color:var(--text-2);display:block;margin-bottom:4px;">Speaker ID</label>
+          <input type="number" id="smgmt-add-id" placeholder="Speaker ID" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--fg);font-size:13px;"></div>
+        <div style="width:100px;"><label style="font-size:12px;color:var(--text-2);display:block;margin-bottom:4px;">Order</label>
+          <input type="number" id="smgmt-add-order" value="99" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--fg);font-size:13px;"></div>
+        <button class="btn btn-primary" onclick="smgmtAddSpeaker()">Add</button>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeSpeakerMgmt()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const STATIONS = {
   'kcci':         'https://www.kcci.com/live',
@@ -557,6 +588,7 @@ async function loadEvents() {
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" onclick="editEvent(${e.id})">Edit</button>
+          <button class="btn btn-violet btn-sm" onclick="openSpeakerMgmt(${e.id}, '${e.event_name.replace(/'/g,"\\'")}')">🎙 Speakers</button>
           <button class="btn btn-green btn-sm" onclick="quickStream(${e.id})">▶ Stream</button>
           <button class="btn btn-danger btn-sm" onclick="deleteEvent(${e.id}, '${e.event_name.replace(/'/g,"\\'")}')">Delete</button>
         </div>
@@ -870,6 +902,105 @@ async function submitEdit() {
 document.getElementById('edit-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditModal();
 });
+
+// Speaker Management Modal
+let smgmtEventId = null;
+
+async function openSpeakerMgmt(eventId, eventName) {
+  smgmtEventId = eventId;
+  document.getElementById('smgmt-event-name').textContent = eventName;
+  document.getElementById('smgmt-alert').style.display = 'none';
+  document.getElementById('speaker-mgmt-modal').style.display = 'flex';
+  await smgmtRefresh();
+}
+
+function closeSpeakerMgmt() {
+  document.getElementById('speaker-mgmt-modal').style.display = 'none';
+  smgmtEventId = null;
+  loadEvents();
+}
+
+async function smgmtRefresh() {
+  const res = await fetch('/api/admin/events', {headers: {'X-Admin-Key': ADMIN_KEY}});
+  const data = await res.json();
+  const event = (data.events || []).find(e => e.id === smgmtEventId);
+  const active = (event?.speakers || []);
+
+  // fetch inactive from deactivate endpoint via all-speakers route
+  const res2 = await fetch('/api/admin/events/' + smgmtEventId + '/speakers/inactive', {headers: {'X-Admin-Key': ADMIN_KEY}});
+  let inactive = [];
+  if (res2.ok) { const d2 = await res2.json(); inactive = d2.speakers || []; }
+
+  document.getElementById('smgmt-active-list').innerHTML = active.length ? active.map(s => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text-3);width:30px">#${s.id}</span>
+      <span style="flex:1;font-weight:500;">${s.name}</span>
+      <span style="font-size:11px;color:var(--text-3)">order=${s.speaker_order ?? '?'}</span>
+      ${s.id === 3 ? '<span style="font-size:11px;color:var(--text-3)">[moderator]</span>' :
+        `<button class="btn btn-danger btn-sm" onclick="smgmtDeactivate(${s.id}, '${s.name.replace(/'/g, "\\'")}')">Remove</button>`}
+    </div>`).join('') : '<div style="color:var(--text-3);font-size:13px;padding:12px 0;">No active speakers.</div>';
+
+  const sec = document.getElementById('smgmt-inactive-section');
+  if (inactive.length) {
+    sec.style.display = 'block';
+    document.getElementById('smgmt-inactive-list').innerHTML = inactive.map(s => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;opacity:0.65;">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text-3);width:30px">#${s.id}</span>
+        <span style="flex:1;font-weight:500;">${s.name}</span>
+        <span style="font-size:11px;color:var(--text-3)">${s.deactivation_reason || 'Deactivated'}</span>
+        <button class="btn btn-secondary btn-sm" onclick="smgmtReactivate(${s.id})">Reactivate</button>
+      </div>`).join('');
+  } else { sec.style.display = 'none'; }
+}
+
+async function smgmtDeactivate(speakerId, speakerName) {
+  const reason = prompt('Reason for removing ' + speakerName + ' from this event:');
+  if (!reason) return;
+  const res = await fetch('/api/admin/events/' + smgmtEventId + '/speakers/' + speakerId + '/deactivate', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY},
+    body: JSON.stringify({reason})
+  });
+  const data = await res.json();
+  if (data.ok) { smgmtShowAlert(data.warning || 'Speaker removed.', data.warning ? 'warning' : 'success'); await smgmtRefresh(); }
+  else { smgmtShowAlert(data.error || 'Error', 'error'); }
+}
+
+async function smgmtReactivate(speakerId) {
+  const res = await fetch('/api/admin/events/' + smgmtEventId + '/speakers/' + speakerId + '/reactivate', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY}
+  });
+  const data = await res.json();
+  if (data.ok) { smgmtShowAlert('Speaker reactivated.', 'success'); await smgmtRefresh(); }
+  else { smgmtShowAlert(data.error || 'Error', 'error'); }
+}
+
+async function smgmtAddSpeaker() {
+  const speakerId = parseInt(document.getElementById('smgmt-add-id').value);
+  const speakerOrder = parseInt(document.getElementById('smgmt-add-order').value || '99');
+  if (!speakerId) { smgmtShowAlert('Speaker ID required', 'error'); return; }
+  const res = await fetch('/api/admin/events/' + smgmtEventId + '/speakers/add', {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY},
+    body: JSON.stringify({speaker_id: speakerId, speaker_order: speakerOrder})
+  });
+  const data = await res.json();
+  if (data.ok) { smgmtShowAlert(data.message, 'success'); document.getElementById('smgmt-add-id').value = ''; await smgmtRefresh(); }
+  else { smgmtShowAlert(data.error || 'Error', 'error'); }
+}
+
+function smgmtShowAlert(msg, type) {
+  const el = document.getElementById('smgmt-alert');
+  const colors = {success: '#22c55e', error: '#ef4444', warning: '#f59e0b'};
+  el.style.display = 'block';
+  el.style.color = colors[type] || colors.success;
+  el.style.border = '1px solid ' + (colors[type] || colors.success);
+  el.style.background = 'rgba(0,0,0,0.3)';
+  el.textContent = msg;
+}
+
+document.getElementById('speaker-mgmt-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSpeakerMgmt();
+});
+
 </script>
 </body>
 </html>
@@ -1299,6 +1430,29 @@ def register_admin_routes(app, get_db_conn):
             capture_output=True
         )
         return jsonify({'message': 'Stream stop signal sent'})
+
+    @app.route('/api/admin/events/<int:event_id>/speakers/inactive', methods=['GET'])
+    def admin_get_inactive_speakers(event_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT s.id, s.name, es.speaker_order, es.deactivation_reason
+                FROM event_speakers es
+                JOIN speakers s ON s.id = es.speaker_id
+                WHERE es.event_id = %s AND es.is_active = FALSE
+                ORDER BY es.speaker_order
+            """, (event_id,))
+            rows = cur.fetchall()
+            cur.close()
+        finally:
+            conn.close()
+        return jsonify({'speakers': [
+            {'id': r[0], 'name': r[1], 'speaker_order': r[2], 'deactivation_reason': r[3]}
+            for r in rows
+        ]})
 
     @app.route('/api/admin/events/<int:event_id>/speakers/<int:speaker_id>/deactivate', methods=['POST'])
     def admin_deactivate_event_speaker(event_id, speaker_id):
