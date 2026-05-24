@@ -528,6 +528,51 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   </div>
 </div>
 
+<div id="speaker-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1100;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-size:16px;font-weight:500;">Edit Speaker</div>
+      <button onclick="closeSpeakerEdit()" style="background:none;border:none;color:var(--text-2);cursor:pointer;font-size:20px;line-height:1;">&times;</button>
+    </div>
+    <div id="speaker-edit-alert" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px;"></div>
+    <input type="hidden" id="se-id">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Full Name</label>
+        <input type="text" id="se-name">
+      </div>
+      <div class="form-group full">
+        <label>Role / Title</label>
+        <input type="text" id="se-role">
+      </div>
+      <div class="form-group">
+        <label>Party</label>
+        <select id="se-party">
+          <option value="Democrat">Democrat</option>
+          <option value="Republican">Republican</option>
+          <option value="Independent">Independent</option>
+          <option value="">Other / None</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="se-type">
+          <option value="politician">Politician</option>
+          <option value="official">Official</option>
+          <option value="moderator">Moderator</option>
+          <option value="pundit">Pundit</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div id="se-event-count" style="font-size:12px;color:var(--text-3);margin-top:12px;"></div>
+    <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeSpeakerEdit()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSpeakerEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const STATIONS = {
   'kcci':         'https://www.kcci.com/live',
@@ -589,6 +634,7 @@ async function loadEvents() {
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" onclick="editEvent(${e.id})">Edit</button>
           <button class="btn btn-violet btn-sm" onclick="openSpeakerMgmt(${e.id}, '${e.event_name.replace(/'/g,"\\'")}')">🎙 Speakers</button>
+          <button class="btn btn-secondary btn-sm" onclick="validateEvent(${e.id})">✓ Validate</button>
           <button class="btn btn-green btn-sm" onclick="quickStream(${e.id})">▶ Stream</button>
           <button class="btn btn-danger btn-sm" onclick="deleteEvent(${e.id}, '${e.event_name.replace(/'/g,"\\'")}')">Delete</button>
         </div>
@@ -936,6 +982,7 @@ async function smgmtRefresh() {
       <span style="font-family:var(--mono);font-size:11px;color:var(--text-3);width:30px">#${s.id}</span>
       <span style="flex:1;font-weight:500;">${s.name}</span>
       <span style="font-size:11px;color:var(--text-3)">order=${s.speaker_order ?? '?'}</span>
+      <button class="btn btn-secondary btn-sm" onclick="smgmtEditSpeaker(${s.id})">Edit</button>
       ${s.id === 3 ? '<span style="font-size:11px;color:var(--text-3)">[moderator]</span>' :
         `<button class="btn btn-danger btn-sm" onclick="smgmtDeactivate(${s.id}, '${s.name.replace(/'/g, "\\'")}')">Remove</button>`}
     </div>`).join('') : '<div style="color:var(--text-3);font-size:13px;padding:12px 0;">No active speakers.</div>';
@@ -987,6 +1034,20 @@ async function smgmtAddSpeaker() {
   else { smgmtShowAlert(data.error || 'Error', 'error'); }
 }
 
+async function validateEvent(eventId) {
+  showAlert('Running validation...', 'info');
+  const res = await fetch('/api/admin/events/' + eventId + '/validate', {
+    method: 'POST', headers: {'X-Admin-Key': ADMIN_KEY}
+  });
+  const data = await res.json();
+  const lines = (data.output || '').split('\n').filter(l => l.trim());
+  const passed = data.ok;
+  showAlert(
+    (passed ? '✓ Validation passed' : '✗ Validation failed') + ' — ' + lines.filter(l => l.includes('PASS') || l.includes('FAIL') || l.includes('WARN')).join(' | '),
+    passed ? 'success' : 'error'
+  );
+}
+
 function smgmtShowAlert(msg, type) {
   const el = document.getElementById('smgmt-alert');
   const colors = {success: '#22c55e', error: '#ef4444', warning: '#f59e0b'};
@@ -1000,6 +1061,57 @@ function smgmtShowAlert(msg, type) {
 document.getElementById('speaker-mgmt-modal').addEventListener('click', function(e) {
   if (e.target === this) closeSpeakerMgmt();
 });
+
+async function smgmtEditSpeaker(speakerId) {
+  const res = await fetch('/api/admin/speakers?id=' + speakerId, {headers: {'X-Admin-Key': ADMIN_KEY}});
+  const data = await res.json();
+  const s = (data.speakers || []).find(sp => sp.id === speakerId);
+  if (!s) { smgmtShowAlert('Speaker not found', 'error'); return; }
+  document.getElementById('se-id').value = s.id;
+  document.getElementById('se-name').value = s.name || '';
+  document.getElementById('se-role').value = s.role || '';
+  document.getElementById('se-party').value = s.party || '';
+  document.getElementById('se-type').value = s.speaker_type || 'politician';
+  document.getElementById('speaker-edit-alert').style.display = 'none';
+  document.getElementById('speaker-edit-modal').style.display = 'flex';
+}
+
+function closeSpeakerEdit() {
+  document.getElementById('speaker-edit-modal').style.display = 'none';
+}
+
+async function submitSpeakerEdit() {
+  const id = parseInt(document.getElementById('se-id').value);
+  const payload = {
+    name: document.getElementById('se-name').value.trim(),
+    role: document.getElementById('se-role').value.trim(),
+    party: document.getElementById('se-party').value,
+    speaker_type: document.getElementById('se-type').value,
+  };
+  const res = await fetch('/api/admin/speakers/' + id, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (data.ok || data.id) {
+    closeSpeakerEdit();
+    smgmtShowAlert('Speaker updated.', 'success');
+    await smgmtRefresh();
+  } else {
+    const el = document.getElementById('speaker-edit-alert');
+    el.style.display = 'block';
+    el.style.color = '#ef4444';
+    el.style.border = '1px solid #ef4444';
+    el.style.background = 'rgba(239,68,68,0.1)';
+    el.textContent = data.error || 'Error saving speaker.';
+  }
+}
+
+document.getElementById('speaker-edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSpeakerEdit();
+});
+
 
 </script>
 </body>
@@ -1251,10 +1363,17 @@ def register_admin_routes(app, get_db_conn):
         conn = get_db_conn()
         try:
             cur = conn.cursor()
-            cur.execute("""
-                SELECT id, name, slug, role, party, speaker_type
-                FROM speakers ORDER BY name
-            """)
+            id_filter = request.args.get('id')
+            if id_filter:
+                cur.execute("""
+                    SELECT id, name, slug, role, party, speaker_type
+                    FROM speakers WHERE id = %s
+                """, (int(id_filter),))
+            else:
+                cur.execute("""
+                    SELECT id, name, slug, role, party, speaker_type
+                    FROM speakers ORDER BY name
+                """)
             rows = cur.fetchall()
             cur.close()
             return jsonify({'speakers': [
@@ -1264,6 +1383,37 @@ def register_admin_routes(app, get_db_conn):
             ]})
         finally:
             conn.close()
+
+    @app.route('/api/admin/speakers/<int:speaker_id>', methods=['PATCH'])
+    def admin_update_speaker(speaker_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        data = request.get_json() or {}
+        fields = {}
+        if 'name' in data and data['name'].strip():
+            fields['name'] = data['name'].strip()
+        if 'role' in data:
+            fields['role'] = data['role'].strip() or None
+        if 'party' in data:
+            fields['party'] = data['party'].strip() or None
+        if 'speaker_type' in data:
+            fields['speaker_type'] = data['speaker_type'].strip() or None
+        if not fields:
+            return jsonify({'error': 'No fields to update'}), 400
+        set_clause = ', '.join(f'{k} = %s' for k in fields)
+        values = list(fields.values()) + [speaker_id]
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute(f'UPDATE speakers SET {set_clause} WHERE id = %s RETURNING id, name', values)
+            row = cur.fetchone()
+            conn.commit()
+            cur.close()
+        finally:
+            conn.close()
+        if not row:
+            return jsonify({'error': 'Speaker not found'}), 404
+        return jsonify({'ok': True, 'id': row[0], 'name': row[1]})
 
     @app.route('/api/admin/speakers', methods=['POST'])
     def admin_create_speaker():
@@ -1430,6 +1580,20 @@ def register_admin_routes(app, get_db_conn):
             capture_output=True
         )
         return jsonify({'message': 'Stream stop signal sent'})
+
+    @app.route('/api/admin/events/<int:event_id>/validate', methods=['POST'])
+    def admin_validate_event(event_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        import subprocess, sys
+        venv_python = sys.executable
+        result = subprocess.run(
+            [venv_python, 'prepare_debate.py', '--event-id', str(event_id), '--dry-run'],
+            capture_output=True, text=True, cwd='/home/veris/projects/veris'
+        )
+        output = result.stdout + result.stderr
+        passed = result.returncode == 0
+        return jsonify({'ok': passed, 'output': output})
 
     @app.route('/api/admin/events/<int:event_id>/speakers/inactive', methods=['GET'])
     def admin_get_inactive_speakers(event_id):
