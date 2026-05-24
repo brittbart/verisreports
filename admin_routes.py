@@ -913,6 +913,7 @@ def register_admin_routes(app, get_db_conn):
                 SELECT es.event_id, s.id, s.name, s.slug, es.speaker_order
                 FROM event_speakers es
                 JOIN speakers s ON s.id = es.speaker_id
+                WHERE es.is_active = TRUE
                 ORDER BY es.event_id, es.speaker_order
             """)
             speaker_rows = cur.fetchall()
@@ -1182,7 +1183,7 @@ def register_admin_routes(app, get_db_conn):
                 SELECT e.slug, e.stream_url, e.search_query,
                        string_agg(es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_order
                 FROM events e
-                LEFT JOIN event_speakers es ON es.event_id = e.id
+                LEFT JOIN event_speakers es ON es.event_id = e.id AND es.is_active = TRUE
                 WHERE e.id = %s
                 GROUP BY e.id
             """, (event_id,))
@@ -1247,7 +1248,7 @@ def register_admin_routes(app, get_db_conn):
                        string_agg(es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_order,
                        string_agg(s.name || ':' || es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_map
                 FROM events e
-                LEFT JOIN event_speakers es ON es.event_id = e.id
+                LEFT JOIN event_speakers es ON es.event_id = e.id AND es.is_active = TRUE
                 LEFT JOIN speakers s ON s.id = es.speaker_id
                 WHERE e.id = %s
                 GROUP BY e.id
@@ -1298,3 +1299,128 @@ def register_admin_routes(app, get_db_conn):
             capture_output=True
         )
         return jsonify({'message': 'Stream stop signal sent'})
+
+    @app.route('/api/admin/events/<int:event_id>/speakers/<int:speaker_id>/deactivate', methods=['POST'])
+    def admin_deactivate_event_speaker(event_id, speaker_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        data = request.get_json() or {}
+        reason = data.get('reason', '').strip()
+        if not reason:
+            return jsonify({'error': 'Deactivation reason is required (audit trail).'}), 400
+        if speaker_id == 3:
+            return jsonify({'error': 'Cannot deactivate the moderator.'}), 400
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE event_speakers
+                SET is_active = FALSE,
+                    deactivated_at = NOW(),
+                    deactivation_reason = %s
+                WHERE event_id = %s AND speaker_id = %s
+            """, (reason, event_id, speaker_id))
+            updated = cur.rowcount
+            cur.execute("""
+                SELECT COUNT(*) FROM event_speakers
+                WHERE event_id = %s AND is_active = TRUE AND speaker_id != 3
+            """, (event_id,))
+            active_candidates = cur.fetchone()[0]
+            conn.commit()
+            cur.close()
+        finally:
+            conn.close()
+        if updated == 0:
+            return jsonify({'error': 'Speaker not found in this event.'}), 404
+        return jsonify({
+            'ok': True,
+            'active_candidates': active_candidates,
+            'warning': f'Only {active_candidates} active candidate(s) remain.' if active_candidates < 2 else None
+        })
+
+    @app.route('/api/admin/events/<int:event_id>/speakers/<int:speaker_id>/reactivate', methods=['POST'])
+    def admin_reactivate_event_speaker(event_id, speaker_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE event_speakers
+                SET is_active = TRUE,
+                    deactivated_at = NULL,
+                    deactivation_reason = NULL
+                WHERE event_id = %s AND speaker_id = %s
+            """, (event_id, speaker_id))
+            updated = cur.rowcount
+            conn.commit()
+            cur.close()
+        finally:
+            conn.close()
+        if updated == 0:
+            return jsonify({'error': 'Speaker not found in this event.'}), 404
+        return jsonify({'ok': True})
+
+    @app.route('/api/admin/events/<int:event_id>/speakers/reorder', methods=['POST'])
+    def admin_reorder_event_speakers(event_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        data = request.get_json() or {}
+        new_order = data.get('order', [])
+        for item in new_order:
+            if item.get('speaker_id') == 3 and item.get('speaker_order') != 0:
+                return jsonify({'error': 'Moderator must remain at speaker_order=0'}), 400
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            for item in new_order:
+                cur.execute("""
+                    UPDATE event_speakers
+                    SET speaker_order = %s
+                    WHERE event_id = %s AND speaker_id = %s
+                """, (item['speaker_order'], event_id, item['speaker_id']))
+            conn.commit()
+            cur.close()
+        finally:
+            conn.close()
+        return jsonify({'ok': True})
+
+    @app.route('/api/admin/events/<int:event_id>/speakers/add', methods=['POST'])
+    def admin_add_event_speaker(event_id):
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        data = request.get_json() or {}
+        speaker_id = int(data.get('speaker_id', 0))
+        speaker_order = int(data.get('speaker_order', 99))
+        if not speaker_id:
+            return jsonify({'error': 'speaker_id is required'}), 400
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT is_active FROM event_speakers
+                WHERE event_id = %s AND speaker_id = %s
+            """, (event_id, speaker_id))
+            existing = cur.fetchone()
+            if existing:
+                if not existing[0]:
+                    cur.execute("""
+                        UPDATE event_speakers
+                        SET is_active = TRUE, speaker_order = %s,
+                            deactivated_at = NULL, deactivation_reason = NULL
+                        WHERE event_id = %s AND speaker_id = %s
+                    """, (speaker_order, event_id, speaker_id))
+                    msg = 'Speaker reactivated.'
+                else:
+                    msg = 'Speaker is already active for this event.'
+            else:
+                cur.execute("""
+                    INSERT INTO event_speakers (event_id, speaker_id, speaker_order, is_active)
+                    VALUES (%s, %s, %s, TRUE)
+                """, (event_id, speaker_id, speaker_order))
+                msg = 'Speaker added.'
+            conn.commit()
+            cur.close()
+        finally:
+            conn.close()
+        return jsonify({'ok': True, 'message': msg})
