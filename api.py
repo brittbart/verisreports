@@ -5574,8 +5574,8 @@ def ops_mobile():
       &nbsp;&nbsp;--mode live \\<br>
       &nbsp;&nbsp;--url "https://www.youtube.com/watch?v=VIDEO_ID_HERE" \\<br>
       &nbsp;&nbsp;--event-slug colorado-governor-republican-primary-debate-round-2 \\<br>
-      &nbsp;&nbsp;--speakers "SCOTT BOTTOMS:187,BARBARA KIRKMEYER:188,VICTOR MARX:189" \\<br>
-      &nbsp;&nbsp;--speaker-order "187,188,189"
+      &nbsp;&nbsp;--speakers "SCOTT BOTTOMS:187,BARBARA KIRKMEYER:188" \\<br>
+      &nbsp;&nbsp;--speaker-order "187,188"
     </div>
   </div>
 

@@ -115,6 +115,7 @@ def validate_event(event_id, dry_run=False):
         FROM event_speakers es
         JOIN speakers s ON s.id = es.speaker_id
         WHERE es.event_id = %s
+          AND es.is_active = TRUE
         ORDER BY es.speaker_order
     """, (event_id,))
     speakers = cur.fetchall()

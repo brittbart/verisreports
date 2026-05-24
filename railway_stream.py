@@ -35,7 +35,7 @@ def get_live_event():
                    string_agg(es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_order,
                    string_agg(s.name || ':' || es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_map
             FROM events e
-            LEFT JOIN event_speakers es ON es.event_id = e.id
+            LEFT JOIN event_speakers es ON es.event_id = e.id AND es.is_active = TRUE
             LEFT JOIN speakers s ON s.id = es.speaker_id
             WHERE e.id = %s
             GROUP BY e.id
