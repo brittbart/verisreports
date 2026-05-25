@@ -465,9 +465,14 @@ def outlets_leaderboard():
                 "last_evaluated_at": r['last_evaluated_at'].isoformat() if r['last_evaluated_at'] else None,
             })
 
+        cur.execute("SELECT COUNT(*) FROM api_outlets WHERE score IS NULL")
+        tracked_row = cur.fetchone()
+        tracked_count = int(tracked_row[0]) if tracked_row else 0
+
         return ok({
             "outlets": outlets_out,
             "count": len(outlets_out),
+            "tracked_count": tracked_count,
             "offset": offset,
         })
 
