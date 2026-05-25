@@ -372,7 +372,7 @@ def article_report(article_id):
                 "confidence_score": float(c['confidence_score']) if c['confidence_score'] else None,
                 "verdict_summary":  c['verdict_summary'],
                 "full_analysis":    c['full_analysis'],
-                "sources_used":     c['sources_used'] if c['sources_used'] else [],
+                "sources_used":     (c['sources_used'] if isinstance(c['sources_used'], list) else [c['sources_used']]) if c['sources_used'] else [],
                 "claim_origin":     c['claim_origin'],
                 "attribution_context": c['attribution_context'],
                 "is_provisional":   c['verdict_status'] == 'provisional',
