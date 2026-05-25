@@ -645,7 +645,7 @@ def debate_detail(slug):
     try:
         cur.execute("""
             SELECT id, slug, event_name, event_subtitle,
-                   event_date, venue, stream_url, notes
+                   event_date, start_time, timezone, venue, stream_url, notes
             FROM events
             WHERE slug = %s
         """, (slug,))
@@ -710,6 +710,8 @@ def debate_detail(slug):
                 "title":       e['event_name'],
                 "description": e['event_subtitle'],
                 "event_date":  e['event_date'].isoformat() if e['event_date'] else None,
+                "start_time":  e['start_time'].strftime('%H:%M') if e['start_time'] else None,
+                "timezone":    e['timezone'],
                 "venue":       e['venue'],
                 "notes":       e['notes'],
                 "is_live":     False,
