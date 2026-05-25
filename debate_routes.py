@@ -71,7 +71,7 @@ def _get_all_public_events(get_db_conn):
                 'slug':                slug,
                 'event_type':          event_type,
                 'event_name':          event_name,
-                'event_date':          event_date,
+                'event_date':          event_date.isoformat() if event_date else None,
                 'event_date_str':      event_date.strftime('%B %-d, %Y') if event_date else '',
                 'event_date_mo':       event_date.strftime('%b').upper() if event_date else '',
                 'event_date_day':      event_date.strftime('%-d') if event_date else '',
@@ -84,7 +84,7 @@ def _get_all_public_events(get_db_conn):
                 'methodology_version': methodology_version or METHODOLOGY_VERSION,
                 'claim_count':         claim_count or 0,
                 'status':              status,
-                'start_time':          start_time,
+                'start_time':          start_time.strftime('%H:%M') if start_time else None,
                 'timezone':            timezone or 'CT',
                 'participants':        participants_by_event.get(eid, []),
             })
