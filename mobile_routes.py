@@ -233,6 +233,7 @@ def articles():
             WHERE {where_sql}
             GROUP BY a.id, a.url, a.title, a.source_name, a.published_at,
                      o.outlet_id, o.outlet_name, o.score, o.tier
+            HAVING COUNT(c.id) FILTER (WHERE c.verdict IS NOT NULL) > 0
             ORDER BY {order_sql}
             LIMIT %s
         """, params)
