@@ -509,7 +509,7 @@ def outlet_detail(domain):
                    a.id AS article_id
             FROM claims c
             JOIN articles a ON a.id = c.article_id
-            WHERE a.source_domain = %s
+            WHERE a.source_name = %s
               AND c.claim_origin = 'outlet_claim'
               AND c.verdict IS NOT NULL
             ORDER BY c.first_seen DESC NULLS LAST
@@ -654,7 +654,7 @@ def debate_detail(slug):
 
         # Speakers
         cur.execute("""
-            SELECT s.id, s.name, s.title, s.party,
+            SELECT s.id, s.name, s.role, s.party,
                    es.speaker_order
             FROM event_speakers es
             JOIN speakers s ON s.id = es.speaker_id
