@@ -661,12 +661,16 @@ def debate_detail(slug):
         # Speakers
         cur.execute("""
             SELECT s.id, s.name, s.role, s.party,
-                   es.speaker_order
+                   es.speaker_order,
+                   COUNT(c.id) AS claim_count
             FROM event_speakers es
             JOIN speakers s ON s.id = es.speaker_id
+            LEFT JOIN claims c ON c.speaker_id = s.id AND c.event_id = %s
+                AND c.verdict IS NOT NULL
             WHERE es.event_id = %s
+            GROUP BY s.id, s.name, s.role, s.party, es.speaker_order
             ORDER BY es.speaker_order NULLS LAST, s.name
-        """, (event_id,))
+        """, (event_id, event_id))
         speaker_rows = cur.fetchall()
         speaker_cols = [d[0] for d in cur.description]
         speakers = [dict(zip(speaker_cols, sr)) for sr in speaker_rows]
