@@ -472,6 +472,11 @@ def register_debate_routes(app, get_db_conn):
                 return False
             offset = TZ_OFFSETS.get(etz, -5)
             event_tz_obj = tz(timedelta(hours=offset))
+            # ed and st may be strings after JSON serialization fix — parse if needed
+            if isinstance(ed, str):
+                ed = datetime.strptime(ed, '%Y-%m-%d').date()
+            if isinstance(st, str):
+                st = datetime.strptime(st, '%H:%M').time()
             event_start = datetime.combine(ed, st).replace(tzinfo=event_tz_obj)
             delta = (event_start - now_utc).total_seconds()
             return 0 < delta <= 86400
