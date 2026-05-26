@@ -5090,6 +5090,8 @@ def ops_mobile():
     # Outlet tier distribution
     cur.execute("SELECT tier, COUNT(*) FROM api_outlets GROUP BY tier ORDER BY count DESC")
     tier_rows = cur.fetchall()
+    scored_count = sum(c for t, c in tier_rows if t != 'tracked')
+    tracked_count = sum(c for t, c in tier_rows if t == 'tracked')
 
     # May 26 debate status
     cur.execute("""
@@ -5139,6 +5141,7 @@ def ops_mobile():
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="60">
 <title>Mobile Ops — Verum Signal</title>
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -5229,8 +5232,8 @@ def ops_mobile():
       </div>
       <div class="metric">
         <div class="metric-label">Scored outlets</div>
-        <div class="metric-value">18</div>
-        <div class="metric-sub">149 tracked · not yet scored</div>
+        <div class="metric-value">{scored_count}</div>
+        <div class="metric-sub">{tracked_count} tracked · not yet scored</div>
       </div>
       <div class="metric">
         <div class="metric-label">Auth</div>
