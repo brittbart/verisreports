@@ -541,15 +541,98 @@ Return ONLY this JSON:
 # Completely separate from outlet_claim batch pipeline.
 # Never touches leaderboard scoring or source profiles.
 # ---------------------------------------------------------------------------
+def _verify_single_claim(claim, event_id):
+    """Verify one debate claim in its own DB connection. Thread-safe."""
+    claim_id, claim_text, speaker, claim_type, event_name = claim
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        result = None
+        for _attempt in range(3):
+            try:
+                result = analyse_claim(
+                    claim_text,
+                    speaker or 'Debate participant',
+                    claim_type or 'factual',
+                    event_name,
+                    'Debate transcript',
+                    stage='verdicts-debate'
+                )
+            except anthropic.APIStatusError as _api_err:
+                if _api_err.status_code == 529 and _attempt < 2:
+                    _wait = 5 * (2 ** _attempt)  # 5s, 10s, 20s
+                    print(f"    [surge] 529 overload, retry {_attempt+1}/3 in {_wait}s...")
+                    time.sleep(_wait)
+                    continue
+                result = None
+            if result:
+                break
+            if _attempt < 2:
+                print(f"    [surge] Parse failed, retrying ({_attempt+1}/3)...")
+                time.sleep(5 * (_attempt + 1))
+
+        if not result:
+            cursor.execute("""
+                UPDATE claims SET verification_attempts = COALESCE(verification_attempts, 0) + 1,
+                    verdict = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN 'not_verifiable' ELSE verdict END,
+                    verdict_summary = CASE WHEN COALESCE(verification_attempts, 0) >= 2
+                        THEN 'Automated verification failed to parse API response after 3 attempts.'
+                        ELSE verdict_summary END,
+                    verdict_status = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN 'final' ELSE verdict_status END,
+                    methodology_version = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN %s ELSE methodology_version END,
+                    last_checked = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN NOW() ELSE last_checked END
+                WHERE id = %s
+            """, (METHODOLOGY_VERSION, claim_id,))
+            conn.commit()
+            cursor.execute("SELECT verification_attempts FROM claims WHERE id = %s", (claim_id,))
+            attempts = cursor.fetchone()[0]
+            if attempts >= 3:
+                print(f"    [surge] claim {claim_id}: auto-marked not_verifiable after 3 attempts")
+            else:
+                print(f"    [surge] Could not parse verdict for claim {claim_id} — will retry")
+            return 0
+
+        verdict = result.get('verdict', 'not_verifiable')
+        confidence = result.get('confidence', 2)
+        summary = result.get('verdict_summary', '')
+        full_analysis = result.get('full_analysis', '')
+
+        cursor.execute("""
+            UPDATE claims SET
+                verdict = %s,
+                confidence_score = %s,
+                verdict_summary = %s,
+                full_analysis = %s,
+                verdict_status = 'provisional',
+                methodology_version = %s,
+                last_checked = NOW()
+            WHERE id = %s
+              AND claim_origin = 'debate_claim'
+        """, (verdict, confidence, summary, full_analysis[:2000], METHODOLOGY_VERSION, claim_id))
+        conn.commit()
+        print(f"    [surge] claim {claim_id}: {verdict} — {summary[:60]}")
+        return 1
+
+    except Exception as e:
+        print(f"    [surge] Error on claim {claim_id}: {e}")
+        conn.rollback()
+        return 0
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def verify_debate_claims_sync(event_id, limit=10):
     """
     Verify up to `limit` unverified debate_claim rows for event_id.
-    Uses synchronous Anthropic API with web search.
+    Uses 3-worker thread pool for parallel verification (max_workers=3
+    to stay within Anthropic rate limits).
     Returns number of claims verified.
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     conn = get_connection()
     cursor = conn.cursor()
-
     cursor.execute("""
         SELECT c.id, c.claim_text, c.speaker, c.claim_type, e.event_name
         FROM claims c
@@ -563,100 +646,22 @@ def verify_debate_claims_sync(event_id, limit=10):
         ORDER BY c.id ASC
         LIMIT %s
     """, (event_id, limit))
-
     claims = cursor.fetchall()
-    if not claims:
-        cursor.close()
-        conn.close()
-        return 0
-
-    print(f"  [surge] Verifying {len(claims)} debate claims for event_id={event_id}")
-    verified = 0
-
-    for claim_id, claim_text, speaker, claim_type, event_name in claims:
-        try:
-            prompt = build_prompt(
-                claim_text,
-                speaker or 'Debate participant',
-                claim_type or 'factual',
-                event_name,
-                'Debate transcript'
-            )
-
-            # Use existing analyse_claim() with retry on failure
-            # 529 overload errors get longer exponential backoff (5s, 10s, 20s)
-            # Parse failures get shorter backoff (5s, 10s, 15s)
-            result = None
-            for _attempt in range(3):
-                try:
-                    result = analyse_claim(
-                        claim_text,
-                        speaker or 'Debate participant',
-                        claim_type or 'factual',
-                        event_name,
-                        'Debate transcript',
-                        stage='verdicts-debate'
-                    )
-                except anthropic.APIStatusError as _api_err:
-                    if _api_err.status_code == 529 and _attempt < 2:
-                        _wait = 5 * (2 ** _attempt)  # 5s, 10s, 20s
-                        print(f"    [surge] 529 overload, retry {_attempt+1}/3 in {_wait}s...")
-                        time.sleep(_wait)
-                        continue
-                    result = None
-                if result:
-                    break
-                if _attempt < 2:
-                    print(f"    [surge] Parse failed, retrying ({_attempt+1}/3)...")
-                    time.sleep(5 * (_attempt + 1))
-            if not result:
-                # Increment attempt counter
-                cursor.execute("""
-                    UPDATE claims SET verification_attempts = COALESCE(verification_attempts, 0) + 1,
-                        verdict = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN 'not_verifiable' ELSE verdict END,
-                        verdict_summary = CASE WHEN COALESCE(verification_attempts, 0) >= 2
-                            THEN 'Automated verification failed to parse API response after 3 attempts.'
-                            ELSE verdict_summary END,
-                        verdict_status = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN 'final' ELSE verdict_status END,
-                        methodology_version = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN %s ELSE methodology_version END,
-                        last_checked = CASE WHEN COALESCE(verification_attempts, 0) >= 2 THEN NOW() ELSE last_checked END
-                    WHERE id = %s
-                """, (METHODOLOGY_VERSION, claim_id,))
-                conn.commit()
-                if (cursor.execute("SELECT verification_attempts FROM claims WHERE id = %s", (claim_id,)) or True) and cursor.fetchone()[0] >= 3:
-                    print(f"    [surge] claim {claim_id}: auto-marked not_verifiable after 3 attempts")
-                else:
-                    print(f"    [surge] Could not parse verdict for claim {claim_id} — will retry")
-                continue
-
-            verdict = result.get('verdict', 'not_verifiable')
-            confidence = result.get('confidence', 2)
-            summary = result.get('verdict_summary', '')
-            full_analysis = result.get('full_analysis', '')
-
-            cursor.execute("""
-                UPDATE claims SET
-                    verdict = %s,
-                    confidence_score = %s,
-                    verdict_summary = %s,
-                    full_analysis = %s,
-                    verdict_status = 'provisional',
-                    methodology_version = %s,
-                    last_checked = NOW()
-                WHERE id = %s
-                  AND claim_origin = 'debate_claim'
-            """, (verdict, confidence, summary, full_analysis[:2000], METHODOLOGY_VERSION, claim_id))
-            conn.commit()
-            verified += 1
-            print(f"    [surge] claim {claim_id}: {verdict} — {summary[:60]}")
-
-        except Exception as e:
-            print(f"    [surge] Error on claim {claim_id}: {e}")
-            conn.rollback()
-            continue
-
     cursor.close()
     conn.close()
+
+    if not claims:
+        return 0
+
+    print(f"  [surge] Verifying {len(claims)} debate claims for event_id={event_id} (parallel, max_workers=3)")
+    verified = 0
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {executor.submit(_verify_single_claim, claim, event_id): claim for claim in claims}
+        for future in as_completed(futures):
+            try:
+                verified += future.result()
+            except Exception as e:
+                print(f"    [surge] Future error: {e}")
     return verified
 
 
