@@ -543,6 +543,7 @@ Return ONLY this JSON:
 # ---------------------------------------------------------------------------
 def _verify_single_claim(claim, event_id):
     """Verify one debate claim in its own DB connection. Thread-safe."""
+    import time
     claim_id, claim_text, speaker, claim_type, event_name = claim
     conn = get_connection()
     cursor = conn.cursor()
