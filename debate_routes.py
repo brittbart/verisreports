@@ -382,22 +382,24 @@ def _get_featured_event(get_db_conn):
 def _derive_status(event_date, today, start_time=None, timezone=None):
     if event_date is None:
         return 'complete'
-    if event_date < today:
+    from datetime import datetime, timedelta, timezone as tz
+    # UTC offsets for event timezone
+    tz_offsets = {
+        'ET': -4, 'EST': -5, 'EDT': -4,
+        'CT': -5, 'CST': -6, 'CDT': -5,
+        'MT': -6, 'MST': -7, 'MDT': -6,
+        'PT': -7, 'PST': -8, 'PDT': -7,
+    }
+    offset_hours = tz_offsets.get(timezone or 'CT', -5)
+    event_tz = tz(timedelta(hours=offset_hours))
+    now_utc = datetime.now(tz.utc)
+    # Derive today in the event's local timezone (not server UTC)
+    today_local = now_utc.astimezone(event_tz).date()
+    if event_date < today_local:
         return 'complete'
-    if event_date == today:
+    if event_date == today_local:
         # Only mark as live if within the debate window (30min before to 3hrs after start)
         if start_time is not None:
-            from datetime import datetime, timedelta, timezone as tz
-            # UTC offsets for event timezone
-            tz_offsets = {
-                'ET': -4, 'EST': -5, 'EDT': -4,
-                'CT': -5, 'CST': -6, 'CDT': -5,
-                'MT': -6, 'MST': -7, 'MDT': -6,
-                'PT': -7, 'PST': -8, 'PDT': -7,
-            }
-            offset_hours = tz_offsets.get(timezone or 'CT', -5)
-            event_tz = tz(timedelta(hours=offset_hours))
-            now_utc = datetime.now(tz.utc)
             event_start = datetime.combine(event_date, start_time).replace(tzinfo=event_tz)
             window_start = event_start - timedelta(minutes=30)
             window_end   = event_start + timedelta(hours=3)
