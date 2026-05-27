@@ -379,7 +379,7 @@ def _get_featured_event(get_db_conn):
 # Utilities
 # ---------------------------------------------------------------------------
 
-def _derive_status(event_date, today, start_time=None, timezone=None):
+def _derive_status(event_date, today, start_time=None, timezone=None, _now=None):
     if event_date is None:
         return 'complete'
     from datetime import datetime, timedelta, timezone as tz
@@ -392,7 +392,7 @@ def _derive_status(event_date, today, start_time=None, timezone=None):
     }
     offset_hours = tz_offsets.get(timezone or 'CT', -5)
     event_tz = tz(timedelta(hours=offset_hours))
-    now_utc = datetime.now(tz.utc)
+    now_utc = _now if _now is not None else datetime.now(tz.utc)
     # Derive today in the event's local timezone (not server UTC)
     today_local = now_utc.astimezone(event_tz).date()
     if event_date < today_local:
