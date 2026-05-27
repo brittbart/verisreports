@@ -28,10 +28,10 @@ def main() -> int:
             with run_stage("verdicts") as ctx:
                 n = verify_debate_claims_sync(live_event_id, limit=10)
                 ctx.record(items_processed=n)
-                # If no debate claims pending, run normal outlet batch
-                # so leaderboard verdicts keep processing during debate day
+                # During surge mode, skip Batch API entirely — wastes spend
+                # and overwrites pending_batch.txt. Outlet verdicts can wait.
                 if n == 0:
-                    run_batch_verdict_engine(limit=VERDICTS_PER_RUN)
+                    pass  # no debate claims pending — wait for next cycle
 
             # Re-check if event is still live
             live_event_id = get_live_event_id()
