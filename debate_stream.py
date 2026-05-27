@@ -520,18 +520,18 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         # Final extraction trigger
         trigger_extraction(event_id, args.dry_run)
 
-    # Get audio stream URL via yt-dlp
+    # Get audio stream URL via yt_dlp Python library (handles JS challenge on Railway)
     print("Resolving stream URL...")
-    result = subprocess.run(
-        ['yt-dlp', '-g', '--format', 'bestaudio', args.url],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        print(f"ERROR: yt-dlp failed: {result.stderr}")
+    from stream_utils import resolve_stream_url, PreLiveError
+    try:
+        stream_url = resolve_stream_url(args.url)
+        print(f"  Stream URL resolved ✓")
+    except PreLiveError as e:
+        print(f"ERROR: {e}")
+        sys.exit(2)  # exit code 2 = pre-live (not a real failure)
+    except Exception as e:
+        print(f"ERROR: yt_dlp resolution failed: {e}")
         sys.exit(1)
-
-    stream_url = result.stdout.strip().split('\n')[0]
-    print(f"  Stream URL resolved ✓")
 
     # Configure Rev AI streaming
     config = MediaConfig(

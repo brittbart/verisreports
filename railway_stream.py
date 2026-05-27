@@ -46,22 +46,17 @@ def get_live_event():
         if not row:
             return None
         slug, stream_url, search_query, speaker_order, speaker_map = row
-        # If no stream_url, try to resolve via yt-dlp search query
+        # If no stream_url, try to resolve via yt_dlp Python library
         if not stream_url and search_query:
             log(f"No stream_url — searching YouTube: {search_query}")
-            if True:
-                try:
-                    import subprocess as _sp
-                    result = _sp.run(
-                        ['yt-dlp', '--get-url', '--format', 'bestaudio/best',
-                         f'ytsearch1:{search_query} live'],
-                        capture_output=True, text=True, timeout=30
-                    )
-                    if result.returncode == 0 and result.stdout.strip():
-                        stream_url = result.stdout.strip().split('\n')[0]
-                        log(f"Resolved stream URL via search: {stream_url[:80]}")
-                except Exception as e:
-                    log(f"yt-dlp search failed: {e}")
+            try:
+                from stream_utils import resolve_stream_url, PreLiveError
+                stream_url = resolve_stream_url(f'ytsearch1:{search_query} live')
+                log(f"Resolved stream URL via search: {stream_url[:80]}")
+            except PreLiveError as e:
+                log(f"Stream not yet live (search): {e}")
+            except Exception as e:
+                log(f"yt_dlp search failed: {e}")
         return event_id, slug, stream_url, speaker_order, speaker_map
     except Exception as e:
         log(f"Error checking live event: {e}")
@@ -86,29 +81,48 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
         cmd += ['--speakers', speaker_map.upper()]
     if speaker_order:
         cmd += ['--speaker-order', speaker_order]
+    original_youtube_url = stream_url  # preserve for re-resolution on HLS expiry
     log(f"Starting stream for event {event_id} ({slug}): {stream_url}")
     log(f"Command: {' '.join(cmd)}")
+    from stream_utils import resolve_stream_url, PreLiveError
     try:
-        proc = subprocess.Popen(cmd, cwd=os.path.dirname(__file__))
-        restart_times.append(time.time())
-        # Prune old restart times outside the circuit breaker window
-        restart_times = [t for t in restart_times if time.time() - t < CIRCUIT_BREAKER_WINDOW]
-        if len(restart_times) > CIRCUIT_BREAKER_MAX:
-            log(f"CIRCUIT BREAKER: {len(restart_times)} restarts in {CIRCUIT_BREAKER_WINDOW}s — stopping stream service")
-            return
         while True:
-            ret = proc.poll()
-            if ret is not None:
-                log(f"Stream process exited with code {ret} — will attempt restart if event still live")
-                break
-            # Check if event is still live
-            event = get_live_event()
-            if not event or event[0] != event_id:
-                log("Event no longer live — stopping stream")
-                proc.terminate()
-                proc.wait(timeout=10)
-                break
-            time.sleep(30)
+            proc = subprocess.Popen(cmd, cwd=os.path.dirname(__file__))
+            restart_times.append(time.time())
+            # Prune old restart times outside the circuit breaker window
+            restart_times = [t for t in restart_times if time.time() - t < CIRCUIT_BREAKER_WINDOW]
+            if len(restart_times) > CIRCUIT_BREAKER_MAX:
+                log(f"CIRCUIT BREAKER: {len(restart_times)} restarts in {CIRCUIT_BREAKER_WINDOW}s — stopping stream service")
+                return
+            while True:
+                ret = proc.poll()
+                if ret is not None:
+                    if ret == 2:
+                        # Pre-live exit — do not count as circuit breaker failure
+                        restart_times.pop()
+                        log(f"Stream exited pre-live (code 2) — sleeping 60s, not counting as failure")
+                        time.sleep(60)
+                    else:
+                        log(f"Stream process exited with code {ret} — re-resolving URL before restart")
+                        # Re-resolve to get fresh HLS URL (avoids expiry failures)
+                        try:
+                            fresh_url = resolve_stream_url(original_youtube_url)
+                            cmd[cmd.index('--url') + 1] = fresh_url
+                            log(f"Fresh stream URL resolved ✓")
+                        except PreLiveError:
+                            log("Stream ended (pre-live on re-resolve) — stopping")
+                            return
+                        except Exception as e:
+                            log(f"URL re-resolution failed: {e} — retrying with original")
+                    break
+                # Check if event is still live
+                event = get_live_event()
+                if not event or event[0] != event_id:
+                    log("Event no longer live — stopping stream")
+                    proc.terminate()
+                    proc.wait(timeout=10)
+                    return
+                time.sleep(30)
     except Exception as e:
         log(f"Stream error: {e}")
         try:
