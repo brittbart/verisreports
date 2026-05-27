@@ -447,7 +447,8 @@ def fetch_politician_utterances(conn, event_id, limit=None):
             SELECT
                 su.id, su.utterance_text, su.utterance_order,
                 su.speaker_id, s.name, s.speaker_type, s.party,
-                e.event_name, e.event_date, e.slug
+                e.event_name, e.event_date, e.slug,
+                su.timestamp_seconds
             FROM speaker_utterances su
             JOIN speakers s ON s.id = su.speaker_id
             JOIN events e ON e.id = su.event_id
@@ -471,7 +472,8 @@ def fetch_politician_utterances(conn, event_id, limit=None):
 
 def utterance_to_article_dict(row, event_id):
     (uid, utext, uorder, speaker_id, speaker_name,
-     speaker_type, party, event_name, event_date, event_slug) = row
+     speaker_type, party, event_name, event_date, event_slug,
+     timestamp_seconds) = row
     return {
         'title':       f"{speaker_name} at {event_name} ({event_date})",
         'description': f"Statement by {speaker_name} during {event_name}",
@@ -483,6 +485,7 @@ def utterance_to_article_dict(row, event_id):
         '_speaker_id':   speaker_id,
         '_speaker_name': speaker_name,
         '_event_id':     event_id,
+        'timestamp_seconds': timestamp_seconds,
     }
 
 
@@ -507,11 +510,11 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
                 why_checkworthy, claim_origin, attribution_context,
                 speaker_id, utterance_id, event_id,
                 first_seen, last_seen, priority_score,
-                verdict_status, methodology_version
+                verdict_status, methodology_version, timestamp_seconds
             ) VALUES (
                 NULL, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, NOW(), NOW(), 70,
-                'provisional', %s
+                'provisional', %s, %s
             ) RETURNING id
         """, (
             claim_text,
@@ -524,6 +527,7 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
             utterance_id,
             event_id,
             METHODOLOGY_VERSION,
+            claim.get('timestamp_seconds'),
         ))
         row = cur.fetchone()
     conn.commit()

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% if event.is_live %}<meta http-equiv="refresh" content="30">{% endif %}
 <title>{{ event.event_name }} — Verum Signal</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1023,7 +1024,15 @@
       {% if event.transcript_source %}<span class="dt-meta-chip"><span class="dot"></span>Transcript source: <strong>{{ event.transcript_source }}</strong></span>{% endif %}
       <span class="dt-meta-chip"><span class="dot"></span>Methodology <a href="/methodology">{{ event.methodology_version }} &rarr;</a></span>
     </div>
-    {% if event.transcript_url and (event.is_live or event.is_upcoming) %}
+    {% if event.stream_url and event.is_live %}
+    <div style="margin-top:14px;">
+      <a href="{{ event.stream_url }}" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:#9333ea;color:#fff;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.02em;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0;"></span>
+        Watch Live
+      </a>
+    </div>
+    {% elif event.transcript_url and (event.is_live or event.is_upcoming) %}
     <div style="margin-top:14px;">
       <span class="dt-meta-chip--watch">
         <span class="live-dot"></span>
@@ -1169,7 +1178,7 @@
                 <div class="dt-claim-body">
                   <div class="dt-claim-speaker">
                     <span class="name">{{ c.speaker_name }}</span>
-                    <span class="time">{{ c.first_seen }}</span>
+                    {% if c.timestamp_seconds is not none %}<span class="time" title="Time into debate">{{ (c.timestamp_seconds // 60)|int }}:{{"%.2d" % (c.timestamp_seconds % 60)}} in</span>{% else %}<span class="time">{{ c.first_seen }}</span>{% endif %}
                   </div>
                   <p class="dt-claim-quote">&ldquo;{{ c.claim_text }}&rdquo;</p>
                   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1179,8 +1188,8 @@
                           title="This reliability assessment was produced during live coverage and may be revised within 60 minutes as additional sources are reviewed."
                           tabindex="0"
                           aria-label="Provisional: this reliability assessment may be revised within 60 minutes">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                      PROVISIONAL
+                      <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block;animation:pulse 2s infinite;flex-shrink:0;"></span>
+                      verifying
                     </span>
                     {% endif %}
                     <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">Click to expand</span>

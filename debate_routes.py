@@ -104,7 +104,7 @@ def _get_event_by_slug(get_db_conn, slug):
         cur.execute("""
             SELECT id, slug, event_type, event_name, event_date, start_time, timezone, event_subtitle, venue,
                    transcript_url, transcript_source, is_public,
-                   methodology_version, notes
+                   methodology_version, notes, stream_url
             FROM events
             WHERE slug = %s AND is_public = TRUE
         """, (slug,))
@@ -114,7 +114,7 @@ def _get_event_by_slug(get_db_conn, slug):
             return None, []
         (eid, slug, event_type, event_name, event_date, start_time, timezone, event_subtitle, venue,
          transcript_url, transcript_source, is_public,
-         methodology_version, notes) = row
+         methodology_version, notes, stream_url) = row
 
         today = date.today()
         status = _derive_status(event_date, today, start_time, timezone)
@@ -138,6 +138,7 @@ def _get_event_by_slug(get_db_conn, slug):
             'is_live':             status == 'live',
             'is_upcoming':         status == 'upcoming',
             'is_complete':         status == 'complete',
+            'stream_url':          stream_url or '',
         }
 
         # Fetch participants — prefer event_speakers (pre-seeded), fall back to utterances
@@ -191,19 +192,21 @@ def _get_event_by_slug(get_db_conn, slug):
                 c.verdict_status,
                 s.name AS speaker_name, s.slug AS speaker_slug,
                 s.id AS speaker_id,
-                a.url AS article_url
+                a.url AS article_url,
+                c.timestamp_seconds
             FROM claims c
             LEFT JOIN speakers s ON s.id = c.speaker_id
             LEFT JOIN articles a ON a.id = c.article_id
             WHERE c.event_id = %s
               AND c.verdict IS NOT NULL
               AND c.claim_origin = 'debate_claim'
-            ORDER BY c.id ASC
+            ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) ASC
         """, (eid,))
         claims = []
         for c in cur.fetchall():
             (cid, claim_text, verdict, verdict_summary, confidence,
-             first_seen, raw_status, speaker_name, speaker_slug, speaker_id, article_url) = c
+             first_seen, raw_status, speaker_name, speaker_slug, speaker_id, article_url,
+             timestamp_seconds) = c
             claims.append({
                 'id':              cid,
                 'claim_text':      claim_text,
@@ -219,6 +222,7 @@ def _get_event_by_slug(get_db_conn, slug):
                 'report_url':      ('/report?url=' + article_url) if article_url else '#',
                 'initials':        _initials(speaker_name or ''),
                 'color_class':     _color_class(speaker_id, speaker_order_map),
+                'timestamp_seconds': timestamp_seconds,
             })
         cur.close()
         return event, claims
