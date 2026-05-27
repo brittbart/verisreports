@@ -405,6 +405,8 @@ def _derive_status(event_date, today, start_time=None, timezone=None):
             window_end   = event_start + timedelta(hours=3)
             if window_start <= now_utc <= window_end:
                 return 'live'
+            elif now_utc > window_end:
+                return 'complete'
             else:
                 return 'upcoming'
         return 'live'  # no start_time — treat as live all day
