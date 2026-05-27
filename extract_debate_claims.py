@@ -131,6 +131,19 @@ OPINION_SIGNALS = (
     'deserves to',
 )
 
+# DEBATE-SPECIFIC filter overrides — looser than article filters
+# Remove prefixes that are common in debate speech but precede real factual claims
+DEBATE_SKIP_PREFIXES = tuple(
+    p for p in SKIP_PREFIXES
+    if p not in ('i think ', 'i mean ', 'let me be clear ', 'so ', 'so,', 'well ', 'well,')
+)
+
+# Remove opinion signals that catch policy claims with specific numbers in debate context
+DEBATE_OPINION_SIGNALS = tuple(
+    s for s in OPINION_SIGNALS
+    if s not in ('should be', 'must be', 'deserves to', 'is expected to', 'will likely')
+)
+
 # Biographical identity — who someone IS, not what they've DONE
 BIOGRAPHICAL_PATTERNS_PRE = (
     r'\bis from\b',
@@ -203,7 +216,31 @@ MODERATOR_PATTERNS = (
 INVALID_STARTS = re.compile(r'^[a-z]')  # starts lowercase = fragment
 
 
-def pre_filter_utterance(text: str) -> tuple:
+def _log_filtered(utterance_id, event_id, speaker_id, stage, reason, text):
+    """Log a filtered utterance to filtered_utterances table. Never blocks extraction."""
+    if utterance_id is None or event_id is None:
+        return  # backtest / dry-run mode — skip DB insert
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            dbname=os.getenv('DB_NAME'), user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'), host=os.getenv('DB_HOST'),
+            port=os.getenv('DB_PORT', '5432'), connect_timeout=5,
+        )
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO filtered_utterances
+                   (utterance_id, event_id, speaker_id, filter_stage, filter_reason, utterance_text)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (utterance_id, event_id, speaker_id, stage, reason, text[:500])
+            )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass  # never block extraction for logging
+
+
+def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id=None, is_debate=False) -> tuple:
     """
     Return (should_skip: bool, reason: str).
     True = skip this utterance before API call.
@@ -214,10 +251,12 @@ def pre_filter_utterance(text: str) -> tuple:
 
     # Minimum word count (debate utterances are shorter than articles — 8 word minimum)
     if len(words) < 8:
+        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'too short', t)
         return True, 'too short'
 
     # Ends with question mark = rhetorical question
     if t.rstrip().endswith('?'):
+        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'question', t)
         return True, 'question'
 
     # Strip leading filler words then check prefixes (multi-pass until stable)
@@ -232,18 +271,23 @@ def pre_filter_utterance(text: str) -> tuple:
             if cleaned.startswith(strip):
                 cleaned = cleaned[len(strip):].strip()
                 break
-    for prefix in SKIP_PREFIXES:
+    _skip_prefixes = DEBATE_SKIP_PREFIXES if is_debate else SKIP_PREFIXES
+    _opinion_signals = DEBATE_OPINION_SIGNALS if is_debate else OPINION_SIGNALS
+    for prefix in _skip_prefixes:
         if cleaned.startswith(prefix):
+            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'filler prefix: {prefix}', t)
             return True, f'filler prefix: {prefix}'
 
     # Junk keywords anywhere
     for kw in SKIP_CONTAINS:
         if kw in tl:
+            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'skip keyword: {kw}', t)
             return True, f'skip keyword: {kw}'
 
     # Opinion signals
-    for signal in OPINION_SIGNALS:
+    for signal in _opinion_signals:
         if signal in tl:
+            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'opinion signal: {signal}', t)
             return True, f'opinion signal: {signal}'
 
     # Biographical identity patterns
@@ -297,6 +341,7 @@ def pre_filter_utterance(text: str) -> tuple:
     has_ranking = bool(re.search(r'\b(leads?|leading|ranked?|ranking|highest|lowest|most|least|first|last|worst|best|top|bottom|ahead|behind|surpass)\b', tl))
     has_policy  = bool(re.search(r'\b(tax|tariff|wage|medicare|medicaid|social security|insurance|subsid|foreclos|filibuster|immigration|healthcare|abortion|climate|energy|deficit|debt|budget|cut|reform|ban|mandate|repeal)\b', tl))
     if not any([has_number, has_dollar, has_year, has_bill, has_statistic, has_ranking, has_policy]):
+        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'no specificity markers', t)
         return True, 'no specificity markers'
 
     return False, ''
@@ -522,7 +567,7 @@ def run_extraction(event_id, limit=None, dry_run=False):
         print(f"[{i+1}/{len(utterances)}] {speaker_name}: {utext[:65]}...")
 
         # Layer 1: pre-filter
-        skip, reason = pre_filter_utterance(utext)
+        skip, reason = pre_filter_utterance(utext, utterance_id=uid, event_id=event_id, speaker_id=speaker_id, is_debate=True)
         if skip:
             print(f"  → pre-filtered: {reason}")
             stats['pre_filtered'] += 1
