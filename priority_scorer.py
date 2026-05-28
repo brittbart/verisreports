@@ -25,6 +25,17 @@ HIGH_PRIORITY_KEYWORDS = [
     # v1.6 Section 4.1: Public health
     'vaccine', 'mortality', 'disease', 'clinical trial',
     'outbreak', 'fda', 'cdc', 'who',
+    # v1.7 Section 4.2: Election cycle — candidate and race terms
+    'governor', 'gubernatorial', 'candidate', 'primary', 'ballot',
+    'polling', 'polls', 'campaign', 'fundraising', 'endorsement',
+    # v1.7 Section 4.2: Election cycle — Colorado ballot mechanics
+    'proposition', 'amendment', 'initiative', 'recall',
+    # v1.7 Section 4.2: Election cycle — electoral mechanics
+    'swing', 'turnout', 'registered voters', 'early voting',
+    'mail-in', 'absentee',
+    # v1.7 Section 4.2: Election cycle — candidate commitment signals
+    'promised', 'pledged', 'vowed', 'committed to',
+    'will cut', 'will ban', 'will sign',
 ]
 
 HIGH_PRIORITY_TYPES = ['statistical', 'legal', 'scientific']
@@ -50,7 +61,7 @@ def get_connection():
     conn.commit()
     return conn
 
-def calculate_priority(claim_text, claim_type, source_name):
+def calculate_priority(claim_text, claim_type, source_name, claim_origin=None):
     score = 0
     claim_lower = claim_text.lower()
 
@@ -60,6 +71,10 @@ def calculate_priority(claim_text, claim_type, source_name):
         score += 25  # Patch 24: was 20, raised to better catch v1.6 policy/economic factual claims
     else:
         score += 5
+
+    # v1.7: debate claims get a boost — live assertions under pressure are higher priority to verify
+    if claim_origin == 'debate':
+        score += 15
 
     keyword_hits = sum(
         1 for kw in HIGH_PRIORITY_KEYWORDS
@@ -83,7 +98,7 @@ def score_all_claims():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT c.id, c.claim_text, c.claim_type, a.source_name
+        SELECT c.id, c.claim_text, c.claim_type, a.source_name, c.claim_origin
         FROM claims c
         JOIN articles a ON c.article_id = a.id
         WHERE c.priority_score = 0;
@@ -92,9 +107,9 @@ def score_all_claims():
     claims = cursor.fetchall()
     print(f"Scoring priority for {len(claims)} claims...")
 
-    for claim_id, claim_text, claim_type, source_name in claims:
+    for claim_id, claim_text, claim_type, source_name, claim_origin in claims:
         score = calculate_priority(
-            claim_text, claim_type, source_name
+            claim_text, claim_type, source_name, claim_origin=claim_origin
         )
         cursor.execute(
             "UPDATE claims SET priority_score = %s WHERE id = %s;",
