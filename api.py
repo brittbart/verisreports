@@ -2795,6 +2795,37 @@ const oo=JSON.parse(JSON.stringify(D));oo.indexAxis='y';oo.scales.x.stacked=true
 new Chart(document.getElementById('c-out'),{type:'bar',data:{labels:d.outlets.map(r=>r.name),datasets:[{label:'Supported',data:d.outlets.map(r=>r.supported),backgroundColor:'rgba(74,222,128,0.7)',borderRadius:2},{label:'Negative',data:d.outlets.map(r=>r.negative),backgroundColor:'rgba(248,113,113,0.7)',borderRadius:2},{label:'Other',data:d.outlets.map(r=>r.scoreable-r.supported-r.negative),backgroundColor:'rgba(255,255,255,0.08)',borderRadius:2}]},options:oo});
 }
 load();
+
+async function loadStreamHealth() {
+  try {
+    const res = await fetch('/api/ops/stream-health', {credentials: 'same-origin'});
+    const d = await res.json();
+    let card = document.getElementById('stream-health-card');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'stream-health-card';
+      card.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:24px;';
+      const h2 = document.querySelector('h2');
+      if (h2) h2.parentNode.insertBefore(card, h2);
+    }
+    const age = d.age_seconds !== null && d.age_seconds !== undefined
+      ? (d.age_seconds < 60 ? d.age_seconds + 's ago' : Math.floor(d.age_seconds / 60) + 'm ago')
+      : '\u2014';
+    const stale = d.stale || d.status === 'unknown';
+    const dot = stale ? '<span style="color:#f87171;">&#9679;</span>' : '<span style="color:#4ade80;">&#9679;</span>';
+    const statusColor = d.status === 'running' ? '#4ade80' : d.status === 'unknown' ? '#888' : '#f87171';
+    card.innerHTML = `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--fg-dim);font-weight:500;margin-bottom:8px;">Stream heartbeat</div>
+      <div style="font-family:var(--mono);font-size:13px;line-height:1.8;">
+        <div>${dot} <span style="color:${statusColor};">${d.status || 'unknown'}</span></div>
+        <div style="color:var(--fg-dim);font-size:11px;">Last beat: ${age}</div>
+        ${d.event_id ? '<div style="color:var(--fg-dim);font-size:11px;">Event: ' + d.event_id + '</div>' : ''}
+        ${stale && d.status !== 'unknown' ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">\u26a0 stale \u2014 no heartbeat in 5m</div>' : ''}
+        ${d.error ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">' + d.error + '</div>' : ''}
+      </div>`;
+  } catch(e) { console.error('stream health error', e); }
+}
+loadStreamHealth();
+setInterval(loadStreamHealth, 30000);
 </script>
 </body>
 </html>"""
