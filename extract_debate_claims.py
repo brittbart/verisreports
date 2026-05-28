@@ -216,17 +216,20 @@ MODERATOR_PATTERNS = (
 INVALID_STARTS = re.compile(r'^[a-z]')  # starts lowercase = fragment
 
 
-def _log_filtered(utterance_id, event_id, speaker_id, stage, reason, text):
-    """Log a filtered utterance to filtered_utterances table. Never blocks extraction."""
+def _log_filtered(utterance_id, event_id, speaker_id, stage, reason, text, conn=None):
+    """Log a filtered utterance to filtered_utterances table. Never blocks extraction.
+    Pass conn to reuse an existing connection; omit to open a short-lived one."""
     if utterance_id is None or event_id is None:
         return  # backtest / dry-run mode — skip DB insert
     try:
         import psycopg2
-        conn = psycopg2.connect(
-            dbname=os.getenv('DB_NAME'), user=os.getenv('DB_USER'),
-            password=os.getenv('DB_PASSWORD'), host=os.getenv('DB_HOST'),
-            port=os.getenv('DB_PORT', '5432'), connect_timeout=5,
-        )
+        _own_conn = conn is None
+        if _own_conn:
+            conn = psycopg2.connect(
+                dbname=os.getenv('DB_NAME'), user=os.getenv('DB_USER'),
+                password=os.getenv('DB_PASSWORD'), host=os.getenv('DB_HOST'),
+                port=os.getenv('DB_PORT', '5432'), connect_timeout=5,
+            )
         with conn.cursor() as cur:
             cur.execute(
                 """INSERT INTO filtered_utterances
@@ -234,13 +237,16 @@ def _log_filtered(utterance_id, event_id, speaker_id, stage, reason, text):
                    VALUES (%s, %s, %s, %s, %s, %s)""",
                 (utterance_id, event_id, speaker_id, stage, reason, text[:500])
             )
-        conn.commit()
-        conn.close()
+        if _own_conn:
+            conn.commit()
+            conn.close()
+        else:
+            conn.commit()
     except Exception:
         pass  # never block extraction for logging
 
 
-def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id=None, is_debate=False) -> tuple:
+def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id=None, is_debate=False, conn=None) -> tuple:
     """
     Return (should_skip: bool, reason: str).
     True = skip this utterance before API call.
@@ -251,12 +257,12 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
 
     # Minimum word count (debate utterances are shorter than articles — 8 word minimum)
     if len(words) < 8:
-        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'too short', t)
+        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'too short', t, conn=conn)
         return True, 'too short'
 
     # Ends with question mark = rhetorical question
     if t.rstrip().endswith('?'):
-        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'question', t)
+        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'question', t, conn=conn)
         return True, 'question'
 
     # Strip leading filler words then check prefixes (multi-pass until stable)
@@ -275,19 +281,19 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
     _opinion_signals = DEBATE_OPINION_SIGNALS if is_debate else OPINION_SIGNALS
     for prefix in _skip_prefixes:
         if cleaned.startswith(prefix):
-            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'filler prefix: {prefix}', t)
+            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'filler prefix: {prefix}', t, conn=conn)
             return True, f'filler prefix: {prefix}'
 
     # Junk keywords anywhere
     for kw in SKIP_CONTAINS:
         if kw in tl:
-            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'skip keyword: {kw}', t)
+            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'skip keyword: {kw}', t, conn=conn)
             return True, f'skip keyword: {kw}'
 
     # Opinion signals
     for signal in _opinion_signals:
         if signal in tl:
-            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'opinion signal: {signal}', t)
+            _log_filtered(utterance_id, event_id, speaker_id, 'pre', f'opinion signal: {signal}', t, conn=conn)
             return True, f'opinion signal: {signal}'
 
     # Biographical identity patterns
@@ -343,7 +349,7 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
     has_legal   = bool(re.search(r'\b(indict|unconstitutional|fraud|corrupt|investigation|audit|lawsuit|sued|fired|prosecut|criminal|violat|illegal|felony|misdemeanor|perjur)\b', tl))
     has_agency  = bool(re.search(r'\b(cdot|fbi|cia|doj|epa|irs|fda|cdc|hhs|dhs|cms|gao|oig|inspector general|attorney general|department of|office of|nonpartisan|bipartisan)\b', tl))
     if not any([has_number, has_dollar, has_year, has_bill, has_statistic, has_ranking, has_policy, has_legal, has_agency]):
-        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'no specificity markers', t)
+        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'no specificity markers', t, conn=conn)
         return True, 'no specificity markers'
 
     return False, ''
@@ -584,7 +590,7 @@ def run_extraction(event_id, limit=None, dry_run=False):
         print(f"[{i+1}/{len(utterances)}] {speaker_name}: {utext[:65]}...")
 
         # Layer 1: pre-filter
-        skip, reason = pre_filter_utterance(utext, utterance_id=uid, event_id=event_id, speaker_id=speaker_id, is_debate=True)
+        skip, reason = pre_filter_utterance(utext, utterance_id=uid, event_id=event_id, speaker_id=speaker_id, is_debate=True, conn=conn)
         if skip:
             print(f"  → pre-filtered: {reason}")
             stats['pre_filtered'] += 1

@@ -3269,6 +3269,40 @@ async function loadDebates() {
 }
 loadDebates();
 setInterval(loadDebates, 30000);
+
+async function loadStreamHealth() {
+  try {
+    const res = await fetch('/api/ops/stream-health', {credentials: 'same-origin'});
+    const d = await res.json();
+    const grid = document.getElementById('debates-grid');
+    if (!grid) return;
+    let existing = document.getElementById('stream-health-card');
+    if (!existing) {
+      existing = document.createElement('div');
+      existing.id = 'stream-health-card';
+      existing.className = 'card';
+      grid.prepend(existing);
+    }
+    const age = d.age_seconds !== null && d.age_seconds !== undefined
+      ? (d.age_seconds < 60 ? d.age_seconds + 's ago' : Math.floor(d.age_seconds / 60) + 'm ago')
+      : '—';
+    const stale = d.stale || d.status === 'unknown';
+    const dot = stale ? '<span style="color:#f87171;">&#9679;</span>' : '<span style="color:#4ade80;">&#9679;</span>';
+    const statusColor = d.status === 'running' ? '#4ade80' : d.status === 'unknown' ? '#888' : '#f87171';
+    existing.innerHTML = \`
+      <h3>Stream heartbeat</h3>
+      <div style="font-family:var(--mono);font-size:13px;line-height:1.8;">
+        <div>\${dot} <span style="color:\${statusColor};">\${d.status || 'unknown'}</span></div>
+        <div style="color:var(--fg-dim);font-size:11px;">Last beat: \${age}</div>
+        \${d.event_id ? '<div style="color:var(--fg-dim);font-size:11px;">Event: ' + d.event_id + '</div>' : ''}
+        \${stale && d.status !== 'unknown' ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">⚠ stale &mdash; no heartbeat in 5m</div>' : ''}
+        \${d.error ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">' + d.error + '</div>' : ''}
+      </div>
+    \`;
+  } catch(e) { console.error('stream health error', e); }
+}
+loadStreamHealth();
+setInterval(loadStreamHealth, 30000);
 </script>
 </body>
 </html>"""
