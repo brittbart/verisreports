@@ -505,6 +505,17 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
         """, (claim_text, event_id))
         if cur.fetchone():
             return None, 'duplicate'
+        # Near-duplicate check via trigram similarity (pg_trgm)
+        cur.execute("""
+            SELECT id FROM claims
+            WHERE event_id = %s
+              AND claim_origin = 'debate_claim'
+              AND similarity(claim_text, %s) > 0.6
+            LIMIT 1
+        """, (event_id, claim_text))
+        sim_row = cur.fetchone()
+        if sim_row:
+            return None, f'near-duplicate of claim {sim_row[0]}'
 
         cur.execute("""
             INSERT INTO claims (
