@@ -157,7 +157,7 @@ def get_event_id(slug):
     finally:
         conn.close()
 
-def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False):
+def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False, timestamp_seconds=None):
     """Write a single utterance to speaker_utterances and queue for extraction."""
     text = text.strip()
     if not text or len(text) < 10:
@@ -177,11 +177,11 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False):
 
         cur.execute("""
             INSERT INTO speaker_utterances
-                (speaker_id, event_id, utterance_text, utterance_order, created_at)
-            VALUES (%s, %s, %s, %s, NOW())
+                (speaker_id, event_id, utterance_text, utterance_order, timestamp_seconds, created_at)
+            VALUES (%s, %s, %s, %s, %s, NOW())
             ON CONFLICT DO NOTHING
             RETURNING id
-        """, (effective_speaker_id, event_id, text, utterance_order))
+        """, (effective_speaker_id, event_id, text, utterance_order, timestamp_seconds))
 
         row = cur.fetchone()
         uid = row[0] if row else None
@@ -519,9 +519,15 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             else:
                 speaker_id = seen_speaker_ids.get(rev_speaker_idx)
 
+            # Grab timestamp from first text element (seconds from stream start)
+            ts_seconds = next(
+                (int(e['ts']) for e in elements if e.get('type') == 'text' and e.get('ts') is not None),
+                None
+            )
             uid = write_utterance(
                 event_id, speaker_id, text,
-                utterance_order[0], args.dry_run
+                utterance_order[0], args.dry_run,
+                timestamp_seconds=ts_seconds
             )
 
             if uid:
