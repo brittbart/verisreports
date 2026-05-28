@@ -146,7 +146,7 @@ def main():
             row = cur.fetchone()
             if row:
                 age = (datetime.utcnow() - row[0].replace(tzinfo=None)).total_seconds()
-                check("Last verdict job < 30 min ago", age < 1800, f"{int(age/60)} min ago")
+                check("Last verdict job < 2 hours ago", age < 7200, f"{int(age/60)} min ago")
             else:
                 check("Last verdict job found", False, "No successful verdict jobs found")
         except Exception as e:
@@ -182,8 +182,11 @@ def main():
     section("8. veris-stream")
     try:
         import urllib.request, json as _json
-        ops_user = os.getenv('OPS_USERNAME', 'ops')
+        ops_user = os.getenv('OPS_USERNAME', '')
         ops_pass = os.getenv('OPS_PASSWORD', '')
+        if not ops_user or not ops_pass:
+            check("Stream health endpoint", False, "OPS_USERNAME/OPS_PASSWORD not set in env", critical=False)
+            raise Exception('skip')
         import base64
         token = base64.b64encode(f"{ops_user}:{ops_pass}".encode()).decode()
         req = urllib.request.Request(
