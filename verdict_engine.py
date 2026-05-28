@@ -183,30 +183,9 @@ Return ONLY this JSON:
 def analyse_claim(claim_text, speaker, claim_type,
                   article_title, source_name, cursor=None, stage='verdicts', **kwargs):
 
-    if cursor:
-        db_result = check_database_first(cursor, claim_text)
-        if db_result:
-            verdict, confidence, summary = db_result
-            print(f"  -> Database match: {verdict}")
-            return {
-                "verdict": verdict,
-                "confidence_score": confidence,
-                "verdict_summary": summary,
-                "full_analysis": "Matched supported claim in Veris database.",
-                "sources_used": "Veris internal database"
-            }
-
-        consensus = check_source_consensus(cursor, claim_text)
-        if consensus and consensus[1] >= 5:
-            verdict, count = consensus
-            print(f"  -> Consensus: {verdict} ({count} sources)")
-            return {
-                "verdict": verdict,
-                "confidence_score": 2,
-                "verdict_summary": f"Corroborated across {count} sources.",
-                "full_analysis": f"{count} sources agree on this verdict.",
-                "sources_used": "Veris source consensus"
-            }
+    # Cache and consensus short-circuits removed (Option B, 2026-05-28):
+    # every scoreable verdict is its own fresh, evidence-based verification.
+    # No verdict is ever copied from a similar prior claim. See DECISIONS.md D-016.
 
     if pre_filter_claim(claim_text) == "opinion":
         print(f"  -> Pre-filter: opinion")
@@ -727,36 +706,8 @@ def run_batch_verdict_engine(limit=500, depth=None):
     print(f"Preparing batch of {len(claims)} claims...")
     requests = []
     for claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score, claim_origin, attribution_context in claims:
-        db_result = check_database_first(cursor, claim_text)
-        if db_result:
-            verdict, confidence, summary = db_result
-            cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
-                verdict_summary=%s, full_analysis=%s, sources_used=%s,
-                verification_depth=COALESCE(%s, verification_depth),
-                methodology_version=%s,
-                last_checked=NOW() WHERE id=%s""",
-                (verdict, confidence, summary, "Matched in Veris database.",
-                "Veris internal database", depth or 99, METHODOLOGY_VERSION, claim_id))
-            update_source_profile(cursor, source_name, verdict)
-            calculate_reliability_score(cursor, source_name, claim_id)
-            conn.commit()
-            print(f"  -> Database match: {verdict} (claim {claim_id})")
-            continue
-        consensus = check_source_consensus(cursor, claim_text)
-        if consensus and consensus[1] >= 5:
-            verdict, count = consensus
-            cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
-                verdict_summary=%s, full_analysis=%s, sources_used=%s,
-                verification_depth=COALESCE(%s, verification_depth),
-                methodology_version=%s,
-                last_checked=NOW() WHERE id=%s""",
-                (verdict, 2, f"Consensus from {count} sources.",
-                f"{count} sources agree.", "Veris source consensus", depth or 99, METHODOLOGY_VERSION, claim_id))
-            update_source_profile(cursor, source_name, verdict)
-            calculate_reliability_score(cursor, source_name, claim_id)
-            conn.commit()
-            print(f"  -> Consensus: {verdict} (claim {claim_id})")
-            continue
+        # Cache/consensus copying removed (Option B, 2026-05-28): every claim
+        # falls through to fresh batch verification. See DECISIONS.md D-016.
         prompt = build_prompt(claim_text, speaker, claim_type, article_title, source_name)
         requests.append({
             "custom_id": str(claim_id),
