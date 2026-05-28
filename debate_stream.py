@@ -85,13 +85,44 @@ def parse_speaker_map(speakers_str):
             result[name.strip().upper()] = int(sid.strip())
     return result
 
-def parse_speaker_order(order_str):
+def parse_speaker_order(order_str, conn=None):
     """
-    Parse "185,186" into [185, 186] — maps Rev AI speaker index to DB speaker_id
+    Parse speaker order string into list of DB speaker IDs.
+    Accepts either integer IDs ("185,186") or name strings ("Kirkmeyer,Bottoms").
+    Name strings are resolved via DB lookup (case-insensitive, partial match).
     """
     if not order_str:
         return []
-    return [int(x.strip()) for x in order_str.split(',')]
+    parts = [x.strip() for x in order_str.split(',')]
+    # If all parts are integers, treat as IDs directly
+    if all(p.isdigit() for p in parts):
+        return [int(p) for p in parts]
+    # Otherwise resolve names via DB
+    if conn is None:
+        try:
+            from verdict_engine import get_connection as _gc
+            conn = _gc()
+            _close = True
+        except Exception as e:
+            print(f"ERROR: cannot resolve speaker names without DB connection: {e}")
+            raise
+    else:
+        _close = False
+    ids = []
+    with conn.cursor() as cur:
+        for name in parts:
+            cur.execute(
+                "SELECT id, name FROM speakers WHERE name ILIKE %s ORDER BY id LIMIT 1",
+                (f'%{name}%',)
+            )
+            row = cur.fetchone()
+            if not row:
+                raise ValueError(f"Speaker not found: '{name}'. Check spelling or use integer ID.")
+            print(f"  Resolved speaker '{name}' -> id={row[0]} ({row[1]})")
+            ids.append(row[0])
+    if _close:
+        conn.close()
+    return ids
 
 def resolve_speaker_id(rev_speaker_idx, speaker_order, speaker_name=None, speaker_map=None):
     """
