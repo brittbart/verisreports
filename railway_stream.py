@@ -21,6 +21,21 @@ PYTHON = sys.executable
 def log(msg):
     print(f"[{datetime.utcnow().strftime('%H:%M:%S')}] {msg}", flush=True)
 
+def write_heartbeat(status, event_id=None, error_msg=None):
+    """Write stream status heartbeat to job_runs table."""
+    try:
+        from verdict_engine import get_connection
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO job_runs (stage, started_at, finished_at, duration_ms, status, items_processed, hostname, error_message)
+                VALUES ('stream_heartbeat', NOW(), NOW(), 0, %s, %s, %s, %s)
+            """, (status, event_id or 0, os.uname().nodename, error_msg or ''))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log(f"Heartbeat write failed: {e}")
+
 def get_live_event():
     """Return (event_id, slug, stream_url, speaker_order) or None."""
     try:
@@ -93,6 +108,7 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
             restart_times = [t for t in restart_times if time.time() - t < CIRCUIT_BREAKER_WINDOW]
             if len(restart_times) > CIRCUIT_BREAKER_MAX:
                 log(f"CIRCUIT BREAKER: {len(restart_times)} restarts in {CIRCUIT_BREAKER_WINDOW}s — stopping stream service")
+                write_heartbeat('circuit_broken', error_msg=f'{len(restart_times)} restarts in {CIRCUIT_BREAKER_WINDOW}s')
                 return
             while True:
                 ret = proc.poll()
@@ -138,9 +154,12 @@ def main():
         if event:
             event_id, slug, stream_url, speaker_order, speaker_map = event
             log(f"Live event detected: {event_id} ({slug})")
+            write_heartbeat('streaming', event_id=event_id)
             run_stream(event_id, slug, stream_url, speaker_order, speaker_map)
+            write_heartbeat('idle')
             log("Stream ended — resuming poll")
         else:
+            write_heartbeat('idle')
             log("No live event — sleeping")
         time.sleep(POLL_INTERVAL)
 

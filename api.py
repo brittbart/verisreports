@@ -4938,6 +4938,38 @@ def ops_history():
     return Response(_OPS_HISTORY_HTML, mimetype='text/html')
 
 
+@app.route('/api/ops/stream-health', methods=['GET'])
+def api_ops_stream_health():
+    """Return veris-stream heartbeat status. Basic-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT status, started_at, items_processed, error_message
+            FROM job_runs
+            WHERE stage = 'stream_heartbeat'
+            ORDER BY started_at DESC
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'status': 'unknown', 'last_heartbeat': None, 'event_id': None, 'error': None})
+        status, started_at, event_id, error_msg = row
+        age_seconds = (datetime.utcnow() - started_at.replace(tzinfo=None)).total_seconds()
+        return jsonify({
+            'status': status,
+            'last_heartbeat': started_at.isoformat(),
+            'age_seconds': int(age_seconds),
+            'event_id': event_id if event_id else None,
+            'error': error_msg or None,
+            'stale': age_seconds > 300,  # no heartbeat in 5 min = stale
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 @app.route('/api/ops/debates', methods=['GET'])
 def api_ops_debates():
     """Debate pipeline stats for ops dashboard. Basic-auth protected."""
