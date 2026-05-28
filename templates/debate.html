@@ -1215,6 +1215,12 @@
               </div>
               <div class="dt-claim-detail">
                 {% if c.verdict_summary %}<p class="dt-claim-summary">{{ c.verdict_summary }}</p>{% endif %}
+                {% if c.confidence is not none %}
+                <div style="margin:8px 0 4px;display:flex;align-items:center;gap:6px;">
+                  <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">CONFIDENCE</span>
+                  <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-2);">{{ c.confidence }}/3</span>
+                </div>
+                {% endif %}
                 <div class="dt-claim-detail-foot">
                   {% if c.report_url and c.report_url != '#' %}
                   <a href="{{ c.report_url }}" class="dt-claim-report">View full report &rarr;</a>
