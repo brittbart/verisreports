@@ -340,7 +340,9 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
 
     has_ranking = bool(re.search(r'\b(leads?|leading|ranked?|ranking|highest|lowest|most|least|first|last|worst|best|top|bottom|ahead|behind|surpass)\b', tl))
     has_policy  = bool(re.search(r'\b(tax|tariff|wage|medicare|medicaid|social security|insurance|subsid|foreclos|filibuster|immigration|healthcare|abortion|climate|energy|deficit|debt|budget|cut|reform|ban|mandate|repeal)\b', tl))
-    if not any([has_number, has_dollar, has_year, has_bill, has_statistic, has_ranking, has_policy]):
+    has_legal   = bool(re.search(r'\b(indict|unconstitutional|fraud|corrupt|investigation|audit|lawsuit|sued|fired|prosecut|criminal|violat|illegal|felony|misdemeanor|perjur)\b', tl))
+    has_agency  = bool(re.search(r'\b(cdot|fbi|cia|doj|epa|irs|fda|cdc|hhs|dhs|cms|gao|oig|inspector general|attorney general|department of|office of|nonpartisan|bipartisan)\b', tl))
+    if not any([has_number, has_dollar, has_year, has_bill, has_statistic, has_ranking, has_policy, has_legal, has_agency]):
         _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'no specificity markers', t)
         return True, 'no specificity markers'
 
