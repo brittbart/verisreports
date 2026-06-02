@@ -5104,6 +5104,117 @@ def api_ops_debates():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/status')
+def status_page():
+    """Public status page — no auth required."""
+    import datetime as _dt
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM articles")
+        articles = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM claims WHERE verdict IS NOT NULL")
+        claims = cur.fetchone()[0]
+        cur.execute("""
+            SELECT stage, MAX(finished_at) as last_ok, MAX(items_processed) as last_count
+            FROM job_runs WHERE status = 'ok'
+              AND started_at > NOW() - INTERVAL '48 hours'
+            GROUP BY stage ORDER BY stage
+        """)
+        stages = {row[0]: {"last_ok": row[1], "last_count": row[2]} for row in cur.fetchall()}
+        cur.execute("""
+            SELECT COUNT(*) FROM job_runs
+            WHERE status = 'failed' AND started_at > NOW() - INTERVAL '24 hours'
+        """)
+        error_count = cur.fetchone()[0]
+        cur.close(); conn.close()
+
+        now = _dt.datetime.now(_dt.timezone.utc)
+
+        def age_str(dt):
+            if not dt: return "never"
+            if dt.tzinfo is None: dt = dt.replace(tzinfo=_dt.timezone.utc)
+            mins = int((now - dt).total_seconds() / 60)
+            if mins < 2: return "just now"
+            if mins < 60: return f"{mins}m ago"
+            hrs = mins // 60
+            if hrs < 24: return f"{hrs}h ago"
+            return f"{hrs//24}d ago"
+
+        def stage_status(name, threshold_hours=4):
+            s = stages.get(name)
+            if not s or not s["last_ok"]: return "unknown", "#888"
+            dt = s["last_ok"]
+            if dt.tzinfo is None: dt = dt.replace(tzinfo=_dt.timezone.utc)
+            hrs = (now - dt).total_seconds() / 3600
+            if hrs < threshold_hours: return "operational", "#4ade80"
+            if hrs < threshold_hours * 2: return "degraded", "#fbbf24"
+            return "outage", "#f87171"
+
+        fs, fc = stage_status("fetch", 4)
+        es, ec = stage_status("extract", 2)
+        vs, vc = stage_status("verdicts", 8)
+        overall_ok = all(s == "operational" for s in [fs, es, vs])
+        oc = "#4ade80" if overall_ok else "#fbbf24"
+        ol = "All systems operational" if overall_ok else "Partial degradation"
+        fi = stages.get("fetch", {})
+        ei = stages.get("extract", {})
+        vi = stages.get("verdicts", {})
+        incident_msg = "No incidents in the last 24 hours." if not error_count else f"{error_count} pipeline errors in the last 24h."
+
+        html = f"""<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="60">
+<title>Verum Signal Status</title>
+<style>
+:root{{--bg:#0a0a0f;--fg:#e8e8f0;--dim:#888;--accent:#a855f7;--card:#111118;--border:#1e1e2e;--mono:ui-monospace,SF Mono,Menlo,monospace}}
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:14px;line-height:1.6}}
+.wrap{{max-width:720px;margin:0 auto;padding:48px 24px}}
+.logo{{margin-bottom:40px}}.logo a{{color:var(--fg);text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1.5px}}
+.logo em{{color:var(--accent);font-style:italic}}
+.overall{{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:32px}}
+.od{{width:14px;height:14px;border-radius:50%;background:{oc};flex-shrink:0}}
+.ol{{font-size:18px;font-weight:600}}.ot{{margin-left:auto;font-size:12px;color:var(--dim)}}
+h2{{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--dim);margin:28px 0 12px;font-weight:500}}
+.comp{{display:flex;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)}}.comp:last-child{{border-bottom:none}}
+.cn{{font-weight:500}}.cd{{font-size:12px;color:var(--dim);margin-top:2px}}
+.cs{{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}}
+.dot{{width:8px;height:8px;border-radius:50%;flex-shrink:0}}
+.stat-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px}}
+.sc{{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}}
+.sl{{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--dim);margin-bottom:4px}}
+.sv{{font-family:var(--mono);font-size:22px;font-weight:600}}
+.inc{{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13px;color:var(--dim)}}
+footer{{margin-top:48px;font-size:12px;color:var(--dim);display:flex;gap:24px}}
+footer a{{color:var(--dim);text-decoration:none}}footer a:hover{{color:var(--fg)}}
+</style></head><body>
+<div class="wrap">
+<div class="logo"><a href="/">VERUM <em>SIGNAL</em></a></div>
+<div class="overall"><div class="od"></div><div class="ol">{ol}</div><div class="ot">Updated {now.strftime("%H:%M UTC")}</div></div>
+<h2>Corpus</h2>
+<div class="stat-grid">
+<div class="sc"><div class="sl">Articles</div><div class="sv">{articles:,}</div></div>
+<div class="sc"><div class="sl">Verified claims</div><div class="sv">{claims:,}</div></div>
+<div class="sc"><div class="sl">Last ingested</div><div class="sv" style="font-size:14px;padding-top:4px">{age_str(fi.get("last_ok"))}</div></div>
+</div>
+<h2>Pipeline</h2>
+<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0 16px">
+<div class="comp"><div><div class="cn">Article ingestion</div><div class="cd">Last run: {age_str(fi.get("last_ok"))} &middot; {fi.get("last_count") or 0} articles</div></div><div class="cs"><div class="dot" style="background:{fc}"></div>{fs}</div></div>
+<div class="comp"><div><div class="cn">Claim extraction</div><div class="cd">Last run: {age_str(ei.get("last_ok"))} &middot; {ei.get("last_count") or 0} claims</div></div><div class="cs"><div class="dot" style="background:{ec}"></div>{es}</div></div>
+<div class="comp"><div><div class="cn">Claim verification</div><div class="cd">Last run: {age_str(vi.get("last_ok"))} &middot; {vi.get("last_count") or 0} verdicts</div></div><div class="cs"><div class="dot" style="background:{vc}"></div>{vs}</div></div>
+<div class="comp"><div><div class="cn">Public API</div><div class="cd">api.verumsignal.com/v1/*</div></div><div class="cs"><div class="dot" style="background:#4ade80"></div>operational</div></div>
+</div>
+<h2>Incidents</h2>
+<div class="inc">{incident_msg}</div>
+<footer><a href="/">Home</a><a href="/developers">API</a><a href="/methodology">Methodology</a><span>Auto-refreshes every 60s</span></footer>
+</div></body></html>"""
+        return html, 200, {"Content-Type": "text/html"}
+    except Exception as e:
+        return f"<h1>Status unavailable</h1><p>{e}</p>", 500, {"Content-Type": "text/html"}
+
 @app.route('/ops', methods=['GET'])
 def ops_dashboard():
     """Render the ops dashboard HTML. Basic-auth protected."""
