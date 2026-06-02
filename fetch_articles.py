@@ -349,7 +349,7 @@ def fetch_rss():
                     'description': e.get('summary', ''),
                     'content': e.get('summary', ''),
                     'url': e.get('link', ''),
-                    'publishedAt': e.get('published', ''),
+                    'publishedAt': _parse_rss_date(e.get('published', '')),
                     'source': {'name': name},
                     'fetch_source': 'rss'
                 }
@@ -412,6 +412,20 @@ def fetch_newsapi():
         except Exception as e:
             print(f"  skip newsapi:{domain}: {str(e)[:40]}")
     return articles
+
+def _parse_rss_date(raw):
+    """Parse RSS/Atom date string to ISO format. Returns None on failure."""
+    if not raw or not str(raw).strip():
+        return None
+    try:
+        from email.utils import parsedate_to_datetime
+        return parsedate_to_datetime(str(raw)).isoformat()
+    except Exception:
+        try:
+            from dateutil import parser as _dp
+            return _dp.parse(str(raw)).isoformat()
+        except Exception:
+            return None
 
 def fetch_articles():
     print("Fetching RSS...")

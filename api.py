@@ -110,47 +110,6 @@ def get_or_create_short_hash(article_id):
         raise RuntimeError("Could not generate unique short hash after 5 attempts")
     finally:
         cur.close()
-        conn.close()# ---------- Short URL helpers (Phase 2) ----------
-
-_HASH_ALPHABET = string.digits + string.ascii_lowercase  # base36
-_HASH_LENGTH = 12
-
-
-def _generate_hash():
-    return ''.join(secrets.choice(_HASH_ALPHABET) for _ in range(_HASH_LENGTH))
-
-
-def get_or_create_short_hash(article_id):
-    """Return the short URL hash for an article, creating one if needed.
-    Uses a collision-safe insert: tries up to 5 random hashes before raising.
-    """
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        # If a hash already exists for this article, return it
-        cur.execute(
-            "SELECT hash FROM report_links WHERE article_id = %s LIMIT 1",
-            (article_id,),
-        )
-        row = cur.fetchone()
-        if row:
-            return row[0]
-        # Otherwise generate a new one (with collision retry)
-        for _ in range(5):
-            candidate = _generate_hash()
-            try:
-                cur.execute(
-                    "INSERT INTO report_links (hash, article_id) VALUES (%s, %s)",
-                    (candidate, article_id),
-                )
-                conn.commit()
-                return candidate
-            except psycopg2.errors.UniqueViolation:
-                conn.rollback()
-                continue
-        raise RuntimeError("Could not generate unique short hash after 5 attempts")
-    finally:
-        cur.close()
         conn.close()
 
 
@@ -1035,7 +994,19 @@ def _clean_url_slug(url):
     except Exception:
         return ''
 
+# Outlets that consistently block direct scrape — skip straight to Jina/web search
+_DIRECT_SCRAPE_BLOCKED = {
+    'thehill.com', 'politico.com', 'bloomberg.com', 'wsj.com', 'ft.com',
+    'nytimes.com', 'washingtonpost.com', 'thedailybeast.com', 'wired.com',
+}
+
 def _try_direct_scrape(url):
+    from urllib.parse import urlparse as _up
+    _host = _up(url).hostname or ''
+    _host = _host.lower().replace('www.', '')
+    if _host in _DIRECT_SCRAPE_BLOCKED:
+        print(f"[direct] Skipping {_host} (known anti-bot)")
+        return None
     try:
         import requests as _rq; from bs4 import BeautifulSoup
         r = _rq.get(url, timeout=(8,15), headers={'User-Agent': _USER_AGENT})
