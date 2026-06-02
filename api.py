@@ -4408,8 +4408,12 @@ def ops_changelog():
     auth_err = _ops_auth()
     if auth_err is not None:
         return auth_err
+    import base64 as _b64
+    ops_pw = os.environ.get('OPS_PASSWORD', '')
+    ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
+    html = _OPS_CHANGELOG_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
     from flask import Response
-    return Response(_OPS_CHANGELOG_HTML, mimetype='text/html')
+    return Response(html, mimetype='text/html')
 
 
 @app.route('/api/ops/git-log', methods=['GET'])
