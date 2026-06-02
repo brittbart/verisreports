@@ -2697,7 +2697,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 <script>
 async function loadGitLog() {
   try {
-    const res = await fetch('/api/ops/git-log', {credentials: 'same-origin'});
+    const res = await fetch('/api/ops/git-log', {headers: {'Authorization': 'Basic ' + OPS_AUTH}});
     if (!res.ok) throw new Error('fetch failed');
     const data = await res.json();
     const tbody = document.getElementById('git-log');
@@ -2774,7 +2774,7 @@ const D={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:fals
 function fd(s){const d=new Date(s+'T00:00:00');return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});}
 function fn(n){return n===null||n===undefined?'—':Number(n).toLocaleString();}
 async function load(){
-const res=await fetch('/api/pipeline-history',{credentials:'same-origin'});
+const res=await fetch('/api/pipeline-history',{headers:{'Authorization':'Basic '+OPS_AUTH}});
 if(!res.ok){document.getElementById('subtitle').textContent='error';return;}
 const d=await res.json();
 document.getElementById('subtitle').textContent='Loaded '+new Date().toLocaleTimeString();
@@ -2798,7 +2798,7 @@ load();
 
 async function loadStreamHealth() {
   try {
-    const res = await fetch('/api/ops/stream-health', {credentials: 'same-origin'});
+    const res = await fetch('/api/ops/stream-health', {headers: {'Authorization': 'Basic ' + OPS_AUTH}});
     const d = await res.json();
     let card = document.getElementById('stream-health-card');
     if (!card) {
@@ -2837,6 +2837,7 @@ _OPS_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Veris Ops</title>
+<script>const OPS_AUTH = "__OPS_AUTH_PLACEHOLDER__";</script>
 <style>
   :root {
     --bg: #0a0a0a;
@@ -3096,7 +3097,7 @@ function renderCosts(data) {
 async function loadData() {
   // Corpus totals
   try {
-    const res = await fetch('/api/corpus-totals', { credentials: 'same-origin' });
+    const res = await fetch('/api/corpus-totals', { headers: { 'Authorization': 'Basic ' + OPS_AUTH } });
     if (res.ok) {
       renderCorpus(await res.json());
     }
@@ -3106,7 +3107,7 @@ async function loadData() {
 
   // Job runs
   try {
-    const res = await fetch('/api/job-runs', { credentials: 'same-origin' });
+    const res = await fetch('/api/job-runs', { headers: { 'Authorization': 'Basic ' + OPS_AUTH } });
     if (!res.ok) {
       document.getElementById('subtitle').textContent = 'error: ' + res.status + ' ' + res.statusText;
     } else {
@@ -3119,7 +3120,7 @@ async function loadData() {
 
   // Token usage / costs
   try {
-    const res = await fetch('/api/token-usage', { credentials: 'same-origin' });
+    const res = await fetch('/api/token-usage', { headers: { 'Authorization': 'Basic ' + OPS_AUTH } });
     if (res.ok) {
       const data = await res.json();
       renderCosts(data);
@@ -3271,7 +3272,7 @@ setInterval(loadData, 30000);
 
 async function loadDebates() {
   try {
-    const res = await fetch('/api/ops/debates', {credentials: 'same-origin'});
+    const res = await fetch('/api/ops/debates', {headers: {'Authorization': 'Basic ' + OPS_AUTH}});
     const d = await res.json();
     const badge = document.getElementById('surge-badge');
     if (badge) {
@@ -3303,7 +3304,7 @@ setInterval(loadDebates, 30000);
 
 async function loadStreamHealth() {
   try {
-    const res = await fetch('/api/ops/stream-health', {credentials: 'same-origin'});
+    const res = await fetch('/api/ops/stream-health', {headers: {'Authorization': 'Basic ' + OPS_AUTH}});
     const d = await res.json();
     const grid = document.getElementById('debates-grid');
     if (!grid) return;
@@ -5124,7 +5125,11 @@ def ops_dashboard():
         return auth_err
 
     from flask import Response
-    return Response(_OPS_HTML, mimetype='text/html')
+    import base64 as _b64
+    ops_pw = os.environ.get('OPS_PASSWORD', '')
+    ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
+    ops_html = _OPS_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
+    return Response(ops_html, mimetype='text/html')
 
 
 
