@@ -200,8 +200,8 @@ def _get_event_by_slug(get_db_conn, slug):
             WHERE c.event_id = %s
               AND c.verdict IS NOT NULL
               AND c.claim_origin = 'debate_claim'
-            ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) ASC
-        """, (eid,))
+            ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) {order}
+        """.format(order='DESC' if status == 'live' else 'ASC'), (eid,))
         claims = []
         for c in cur.fetchall():
             (cid, claim_text, verdict, verdict_summary, confidence,
