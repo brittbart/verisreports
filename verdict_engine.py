@@ -59,49 +59,6 @@ def get_connection():
     conn.commit()
     return conn
 
-def check_database_first(cursor, claim_text):
-    try:
-        cursor.execute('''
-            SELECT verdict, confidence_score, verdict_summary
-            FROM claims
-            WHERE verdict IS NOT NULL
-            AND similarity(claim_text, %s) > 0.85
-            AND last_checked > NOW() - INTERVAL '24 hours'
-            ORDER BY confidence_score DESC
-            LIMIT 1
-        ''', (claim_text,))
-        result = cursor.fetchone()
-        if result:
-            print(f"  -> Cache hit (24hr window)")
-            return result
-        cursor.execute('''
-            SELECT verdict, confidence_score, verdict_summary
-            FROM claims
-            WHERE verdict IS NOT NULL
-            AND similarity(claim_text, %s) > 0.6
-            ORDER BY confidence_score DESC
-            LIMIT 1
-        ''', (claim_text,))
-        return cursor.fetchone()
-    except Exception:
-        return None
-
-
-def check_source_consensus(cursor, claim_text):
-    try:
-        cursor.execute('''
-            SELECT verdict, COUNT(*) as count
-            FROM claims
-            WHERE verdict IS NOT NULL
-            AND similarity(claim_text, %s) > 0.5
-            GROUP BY verdict
-            ORDER BY count DESC
-            LIMIT 1
-        ''', (claim_text,))
-        return cursor.fetchone()
-    except Exception:
-        return None
-    
 def strip_attribution(claim_text, speaker):
     """Extract core factual assertion from attributed claim text."""
     if not claim_text:

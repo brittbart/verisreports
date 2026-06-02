@@ -18,3 +18,10 @@ gdelt_historical.log
 .idea/
 .DS_Store
 .env.*
+
+# One-off maintenance scripts and backups
+*.bak.*
+fix_*.py
+inspect_*.py
+reverify_*.py
+scripts/
