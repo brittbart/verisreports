@@ -1185,7 +1185,7 @@
             <button class="dt-filter-pill active" data-speaker="all">All</button>
             {% for p in event.participants %}
             <button class="dt-filter-pill" data-speaker="{{ p.slug or p.name|lower|replace(' ', '-') }}">
-              <span class="dot" style="background: var(--{{ 'cand-a' if loop.first else 'cand-b' }});"></span>
+              <span class="dot" style="background: var(--{{ ['cand-a','cand-b','cand-c','cand-d'][loop.index0] if loop.index0 < 4 else 'cand-a' }});"></span>
               {{ p.name.split()[-1] }}
             </button>
             {% endfor %}
@@ -1353,7 +1353,7 @@
 
           {% for p in event.participants %}
           {% set bd = breakdown.get(p.id, {}) %}
-          {% set cand = 'a' if loop.first else 'b' %}
+          {% set cand = ['a','b','c','d'][loop.index0] if loop.index0 < 4 else 'a' %}
           <div class="dt-side-card cand-{{ cand }}">
             <div class="dt-side-head">
               <div class="dt-side-mono">{{ p.initials }}</div>
