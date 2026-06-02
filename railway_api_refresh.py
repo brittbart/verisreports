@@ -176,7 +176,7 @@ def _compute_score(supported, plausible, corroborated,
     weighted_sum = (
         supported    * 1.0  +
         plausible    * 0.5  +
-        corroborated * 0.5  +
+        corroborated * 0.75 +
         overstated   * -0.5 +
         disputed     * -1.0 +
         not_supported * -1.5

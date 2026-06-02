@@ -47,7 +47,7 @@ def _get_outlet_aggregates(get_db_conn, domain_lc):
                 SUM(CASE c.verdict
                     WHEN 'supported'     THEN  1.0
                     WHEN 'plausible'     THEN  0.5
-                    WHEN 'corroborated'  THEN  0.5
+                    WHEN 'corroborated'  THEN  0.75
                     WHEN 'overstated'    THEN -0.5
                     WHEN 'disputed'      THEN -1.0
                     WHEN 'not_supported' THEN -1.5

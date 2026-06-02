@@ -491,7 +491,7 @@ def get_source():
                 SUM(CASE c.verdict
                     WHEN 'supported'     THEN  1.0
                     WHEN 'plausible'     THEN  0.5
-                    WHEN 'corroborated'  THEN  0.5
+                    WHEN 'corroborated'  THEN  0.75
                     WHEN 'overstated'    THEN -0.5
                     WHEN 'disputed'      THEN -1.0
                     WHEN 'not_supported' THEN -1.5
@@ -1793,7 +1793,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         'not_verifiable': 'Not verifiable', 'opinion': 'Opinion',
     }
     VERDICT_WEIGHT = {
-        'supported': '+1.0', 'plausible': '+0.5', 'corroborated': '+0.5',
+        'supported': '+1.0', 'plausible': '+0.5', 'corroborated': '+0.75',
         'overstated': '\u22120.5', 'disputed': '\u22121.0', 'not_supported': '\u22121.5',
         'not_verifiable': 'excluded', 'opinion': 'excluded',
     }
