@@ -3321,16 +3321,16 @@ async function loadStreamHealth() {
     const stale = d.stale || d.status === 'unknown';
     const dot = stale ? '<span style="color:#f87171;">&#9679;</span>' : '<span style="color:#4ade80;">&#9679;</span>';
     const statusColor = d.status === 'running' ? '#4ade80' : d.status === 'unknown' ? '#888' : '#f87171';
-    existing.innerHTML = \`
+    existing.innerHTML = `
       <h3>Stream heartbeat</h3>
       <div style="font-family:var(--mono);font-size:13px;line-height:1.8;">
-        <div>\${dot} <span style="color:\${statusColor};">\${d.status || 'unknown'}</span></div>
-        <div style="color:var(--fg-dim);font-size:11px;">Last beat: \${age}</div>
-        \${d.event_id ? '<div style="color:var(--fg-dim);font-size:11px;">Event: ' + d.event_id + '</div>' : ''}
-        \${stale && d.status !== 'unknown' ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">⚠ stale &mdash; no heartbeat in 5m</div>' : ''}
-        \${d.error ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">' + d.error + '</div>' : ''}
+        <div>${dot} <span style="color:${statusColor};">${d.status || 'unknown'}</span></div>
+        <div style="color:var(--fg-dim);font-size:11px;">Last beat: ${age}</div>
+        ${d.event_id ? '<div style="color:var(--fg-dim);font-size:11px;">Event: ' + d.event_id + '</div>' : ''}
+        ${stale && d.status !== 'unknown' ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">⚠ stale &mdash; no heartbeat in 5m</div>' : ''}
+        ${d.error ? '<div style="color:#f87171;font-size:11px;margin-top:4px;">' + d.error + '</div>' : ''}
       </div>
-    \`;
+    `;
   } catch(e) { console.error('stream health error', e); }
 }
 loadStreamHealth();
