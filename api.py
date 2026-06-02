@@ -5114,6 +5114,131 @@ def api_ops_debates():
         return jsonify({'error': str(e)}), 500
 
 
+
+@app.route('/disputes', methods=['GET', 'POST'])
+def public_disputes():
+    from flask import request as _req
+    submitted = False
+    error = None
+    if _req.method == 'POST':
+        try:
+            dtype = _req.form.get('dispute_type','').strip()
+            article_url = _req.form.get('article_url','').strip()
+            claim_text = _req.form.get('claim_text','').strip()
+            dispute_text = _req.form.get('dispute_text','').strip()
+            contact_email = _req.form.get('contact_email','').strip()
+            if not article_url or not dispute_text or not contact_email:
+                error = 'Please fill in all required fields.'
+            else:
+                from urllib.parse import urlparse as _up
+                domain = (_up(article_url).hostname or '').replace('www.','')
+                conn = get_db()
+                cur = conn.cursor()
+                full_text = f"[{dtype.upper()}] Article: {article_url}\n\nClaim: {claim_text}\n\nDispute: {dispute_text}"
+                cur.execute(
+                    "INSERT INTO outlet_disputes (domain, claim_id, contact_email, dispute_text, outlet_response, status, submitted_at) VALUES (%s, NULL, %s, %s, %s, 'pending', NOW())",
+                    (domain, contact_email, full_text, dtype))
+                conn.commit(); cur.close(); conn.close()
+                submitted = True
+        except Exception as e:
+            error = 'Submission failed — please email disputes@verumsignal.com directly.'
+
+    CSS = """:root{--bg:#0a0a0f;--fg:#e8e8f0;--dim:#888;--accent:#a855f7;--card:#111118;--border:#1e1e2e;--red:#f87171;--green:#4ade80}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;font-size:15px;line-height:1.6}
+.wrap{max-width:680px;margin:0 auto;padding:48px 24px}
+.logo{margin-bottom:40px}.logo a{color:var(--fg);text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1.5px}
+.logo em{color:var(--accent);font-style:italic}
+h1{font-size:26px;font-weight:700;margin-bottom:8px}
+.sub{color:var(--dim);font-size:14px;margin-bottom:32px;max-width:540px;line-height:1.6}
+.tier{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:12px;display:block;cursor:pointer;transition:border-color 0.2s}
+.tier:hover{border-color:var(--accent)}
+.tier h3{font-size:14px;font-weight:600;margin-bottom:2px}
+.tier p{font-size:13px;color:var(--dim)}
+.tier input[type=radio]{margin-right:10px;accent-color:var(--accent)}
+.form-section{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:28px;margin-top:24px}
+.field{margin-bottom:20px}
+.field label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);margin-bottom:6px}
+.field input,.field textarea{width:100%;background:#0a0a0f;border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--fg);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:120px}
+.field .hint{font-size:12px;color:var(--dim);margin-top:4px}
+.btn{display:inline-flex;align-items:center;padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+.btn:hover{opacity:0.85}
+.success{background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:10px;padding:28px;text-align:center}
+.success h2{color:var(--green);margin-bottom:8px}
+.error-msg{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--red)}
+.policy{font-size:12px;color:var(--dim);margin-top:24px;line-height:1.6}
+footer{margin-top:48px;font-size:12px;color:var(--dim);display:flex;gap:24px}
+footer a{color:var(--dim);text-decoration:none}footer a:hover{color:var(--fg)}"""
+
+    SUCCESS = """<div class="success">
+      <h2>Dispute received</h2>
+      <p style="color:#888;margin-top:8px">We will acknowledge within 48 hours and complete review within 14 days.<br>
+      Questions? Email <a href="mailto:disputes@verumsignal.com" style="color:#a855f7">disputes@verumsignal.com</a></p>
+    </div>"""
+
+    ERR = f'<div class="error-msg">{error}</div>' if error else ''
+
+    FORM = """
+    <p style="font-size:13px;color:#888;margin-bottom:16px">Select dispute type:</p>
+    <form method="POST">
+      <label class="tier">
+        <input type="radio" name="dispute_type" value="reader" required>
+        <h3>Reader correction</h3>
+        <p>I found a factual error. I am not affiliated with the outlet.</p>
+      </label>
+      <label class="tier">
+        <input type="radio" name="dispute_type" value="outlet_reply">
+        <h3>Outlet right-of-reply</h3>
+        <p>I represent the outlet whose content was scored and wish to formally challenge a verdict.</p>
+      </label>
+      <div class="form-section">
+        <div class="field">
+          <label>Article URL *</label>
+          <input type="url" name="article_url" placeholder="https://example.com/article" required>
+        </div>
+        <div class="field">
+          <label>Claim being disputed (optional but helpful)</label>
+          <textarea name="claim_text" placeholder="Paste the specific claim text you are disputing..." rows="3"></textarea>
+        </div>
+        <div class="field">
+          <label>Your dispute *</label>
+          <textarea name="dispute_text" placeholder="Explain what is incorrect and provide counter-evidence or sources..." required></textarea>
+          <div class="hint">Be specific. Include links to authoritative sources where possible.</div>
+        </div>
+        <div class="field">
+          <label>Your email address *</label>
+          <input type="email" name="contact_email" placeholder="you@example.com" required>
+          <div class="hint">We will respond to this address. Not published.</div>
+        </div>
+        <button type="submit" class="btn">Submit dispute</button>
+      </div>
+    </form>
+    <p class="policy">
+      <strong>Our process:</strong> All disputes are acknowledged within 48 hours and reviewed within 14 days.
+      If a verdict is incorrect, it will be updated with a public audit trail entry.
+      Outlet right-of-reply responses are published alongside the disputed verdict.
+      Disputes are never silently dismissed.
+      For urgent matters, email <a href="mailto:disputes@verumsignal.com" style="color:var(--accent)">disputes@verumsignal.com</a>.
+    </p>"""
+
+    body = SUCCESS if submitted else (ERR + FORM)
+
+    html = f"""<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dispute a Verdict — Verum Signal</title>
+<style>{CSS}</style></head>
+<body><div class="wrap">
+<div class="logo"><a href="/">VERUM <em>SIGNAL</em></a></div>
+<h1>Dispute a verdict</h1>
+<p class="sub">If you believe a verdict is factually incorrect, submit a dispute below. Reader corrections and outlet right-of-reply challenges are both accepted. Every dispute is reviewed — nothing is silently dismissed.</p>
+{body}
+<footer><a href="/">Home</a><a href="/methodology">Methodology</a><a href="/leaderboard">Leaderboard</a><a href="/status">Status</a></footer>
+</div></body></html>"""
+    return html, 200, {"Content-Type": "text/html"}
+
 @app.route('/status')
 def status_page():
     """Public status page — no auth required."""
