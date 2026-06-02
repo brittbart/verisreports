@@ -188,7 +188,7 @@ VERDICT DEFINITIONS — apply strictly:
 
 - not_verifiable: The claim cannot be confirmed or denied because primary sources are unavailable, access is restricted, or the event is too recent. Use sparingly — exhaust search options first.
 
-- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.5 (weaker than supported).
+- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.75 (weaker than supported).
 
 - opinion: A value judgement, prediction, or normative claim that cannot be true or false. Also use for analyst conclusions presented as facts.
 
@@ -314,7 +314,7 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
             SELECT
                 SUM(CASE WHEN verdict = 'supported'     THEN 1.0
                          WHEN verdict = 'plausible'    THEN 0.5
-                         WHEN verdict = 'corroborated' THEN 0.5
+                         WHEN verdict = 'corroborated' THEN 0.75
                          WHEN verdict = 'overstated'   THEN -0.5
                          WHEN verdict = 'disputed'     THEN -1.0
                          WHEN verdict = 'not_supported' THEN -1.5

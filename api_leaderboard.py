@@ -46,7 +46,7 @@ VERDICT_TYPES = (
 WEIGHTS = {
     'supported':     1.0,
     'plausible':     0.5,
-    'corroborated':  0.5,
+    'corroborated':  0.75,
     'overstated':   -0.5,
     'disputed':     -1.0,
     'not_supported':-1.5,
@@ -74,7 +74,7 @@ VERDICT_LABELS = {
 WEIGHT_DISPLAY = {
     'supported':     '+1.0',
     'plausible':     '+0.5',
-    'corroborated':  '+0.5',
+    'corroborated':  '+0.75',
     'overstated':    '-0.5',
     'disputed':      '-1.0',
     'not_supported': '-1.5',
@@ -117,7 +117,7 @@ SELECT
     SUM(CASE c.verdict
         WHEN 'supported'     THEN  1.0
         WHEN 'plausible'     THEN  0.5
-        WHEN 'corroborated'  THEN  0.5
+        WHEN 'corroborated'  THEN  0.75
         WHEN 'overstated'    THEN -0.5
         WHEN 'disputed'      THEN -1.0
         WHEN 'not_supported' THEN -1.5
@@ -165,7 +165,7 @@ SELECT
     SUM(CASE c.verdict
         WHEN 'supported'     THEN  1.0
         WHEN 'plausible'     THEN  0.5
-        WHEN 'corroborated'  THEN  0.5
+        WHEN 'corroborated'  THEN  0.75
         WHEN 'overstated'    THEN -0.5
         WHEN 'disputed'      THEN -1.0
         WHEN 'not_supported' THEN -1.5
@@ -213,7 +213,7 @@ SELECT
     SUM(CASE c.verdict
         WHEN 'supported'     THEN  1.0
         WHEN 'plausible'     THEN  0.5
-        WHEN 'corroborated'  THEN  0.5
+        WHEN 'corroborated'  THEN  0.75
         WHEN 'overstated'    THEN -0.5
         WHEN 'disputed'      THEN -1.0
         WHEN 'not_supported' THEN -1.5
