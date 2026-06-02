@@ -352,6 +352,63 @@
   /* ===== Claim feed ===== */
   .dt-feed { display: flex; flex-direction: column; gap: 8px; }
 
+  /* ── Live experience additions ── */
+  .live-now-card {
+    display: none;
+    background: linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.08));
+    border: 1px solid rgba(168,85,247,0.35);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    align-items: center;
+    gap: 14px;
+  }
+  body.is-live .live-now-card { display: flex; }
+  .live-now-card .pulse-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #4ade80; flex-shrink: 0;
+    animation: livePulse 1.4s ease-in-out infinite;
+  }
+  .live-now-card .speaker-label {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--c-dim); margin-bottom: 2px;
+  }
+  .live-now-card .speaker-name {
+    font-size: 15px; font-weight: 600; color: #fff;
+  }
+  .live-now-card .claim-count {
+    margin-left: auto; font-size: 11px; color: var(--c-dim);
+    text-align: right;
+  }
+  .verdict-bar {
+    display: none;
+    gap: 6px; flex-wrap: wrap;
+    margin-bottom: 14px; align-items: center;
+  }
+  body.is-live .verdict-bar { display: flex; }
+  .verdict-bar-label {
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--c-dim); margin-right: 4px;
+  }
+  .verdict-bar-pill {
+    font-size: 11px; padding: 2px 8px; border-radius: 100px;
+    font-weight: 500; display: flex; align-items: center; gap: 4px;
+  }
+  .vbp-supported { background: rgba(74,222,128,0.15); color: #4ade80; }
+  .vbp-plausible { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .vbp-corroborated { background: rgba(168,85,247,0.15); color: #a855f7; }
+  .vbp-overstated { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .vbp-disputed { background: rgba(248,113,113,0.15); color: #f87171; }
+  .vbp-not_supported { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .pause-scroll-btn {
+    display: none; margin-bottom: 12px;
+    font-size: 11px; padding: 4px 12px; border-radius: 100px;
+    border: 1px solid rgba(168,85,247,0.3); background: transparent;
+    color: var(--c-dim); cursor: pointer;
+  }
+  body.is-live .pause-scroll-btn { display: inline-flex; align-items: center; gap: 6px; }
+  body.is-live .dt-feed { display: flex; flex-direction: column-reverse; }
+
   /* Watch-live chip (live state only) */
   .dt-meta-chip--watch {
     background: rgba(74, 222, 128, 0.06);
@@ -1176,6 +1233,33 @@
           {% endif %}
         </div>
 
+        <!-- Live now card (live state only) -->
+        <div class="live-now-card" id="live-now-card">
+          <div class="pulse-dot"></div>
+          <div>
+            <div class="speaker-label">Last spoke</div>
+            <div class="speaker-name" id="live-speaker-name">—</div>
+          </div>
+          <div class="claim-count" id="live-claim-count"></div>
+        </div>
+
+        <!-- Verdict distribution bar (live state only) -->
+        <div class="verdict-bar" id="verdict-bar">
+          <span class="verdict-bar-label">Live verdicts</span>
+          <span class="verdict-bar-pill vbp-supported" id="vbp-supported" style="display:none"></span>
+          <span class="verdict-bar-pill vbp-plausible" id="vbp-plausible" style="display:none"></span>
+          <span class="verdict-bar-pill vbp-corroborated" id="vbp-corroborated" style="display:none"></span>
+          <span class="verdict-bar-pill vbp-overstated" id="vbp-overstated" style="display:none"></span>
+          <span class="verdict-bar-pill vbp-disputed" id="vbp-disputed" style="display:none"></span>
+          <span class="verdict-bar-pill vbp-not_supported" id="vbp-not_supported" style="display:none"></span>
+        </div>
+
+        <!-- Pause auto-scroll (live state only) -->
+        <button class="pause-scroll-btn" id="pause-scroll-btn" onclick="togglePauseScroll()">
+          <span id="pause-scroll-icon">⏸</span>
+          <span id="pause-scroll-label">Pause auto-scroll</span>
+        </button>
+
         <!-- Claim feed -->
         <div class="dt-feed" id="claim-feed">
           {% if claims %}
@@ -1393,6 +1477,24 @@
     });
   })();
 
+  // ============= Pause auto-scroll =============
+  var _pauseScroll = false;
+  function togglePauseScroll() {
+    _pauseScroll = !_pauseScroll;
+    var btn = document.getElementById('pause-scroll-btn');
+    var icon = document.getElementById('pause-scroll-icon');
+    var label = document.getElementById('pause-scroll-label');
+    if (_pauseScroll) {
+      icon.textContent = '▶';
+      label.textContent = 'Resume auto-scroll';
+      if (btn) btn.style.borderColor = 'rgba(251,191,36,0.5)';
+    } else {
+      icon.textContent = '⏸';
+      label.textContent = 'Pause auto-scroll';
+      if (btn) btn.style.borderColor = 'rgba(168,85,247,0.3)';
+    }
+  }
+
   // ============= Per-speaker count updates from stats endpoint =============
   (function() {
     var bodyClass = document.body.className;
@@ -1420,8 +1522,45 @@
         })
         .catch(function() {});
     }
+    function updateLiveExtras() {
+      fetch('/api/debates/' + slug + '/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          // Active speaker card
+          var nameEl = document.getElementById('live-speaker-name');
+          var countEl = document.getElementById('live-claim-count');
+          if (nameEl && data.most_recent_speaker) {
+            nameEl.textContent = data.most_recent_speaker.name;
+          }
+          if (countEl) {
+            var total = data.claims_with_verdict || 0;
+            var prov = data.claims_provisional || 0;
+            countEl.textContent = total + ' claim' + (total !== 1 ? 's' : '') +
+              (prov > 0 ? ' · ' + prov + ' provisional' : '');
+          }
+          // Verdict distribution bar
+          var dist = data.verdict_distribution || {};
+          var VERDICTS = ['supported','plausible','corroborated','overstated','disputed','not_supported'];
+          var LABELS = {'supported':'Supported','plausible':'Plausible','corroborated':'Corroborated',
+                        'overstated':'Overstated','disputed':'Disputed','not_supported':'Not supported'};
+          VERDICTS.forEach(function(v) {
+            var el = document.getElementById('vbp-' + v);
+            if (!el) return;
+            var n = dist[v] || 0;
+            if (n > 0) {
+              el.textContent = LABELS[v] + ' ' + n;
+              el.style.display = 'inline-flex';
+            } else {
+              el.style.display = 'none';
+            }
+          });
+        })
+        .catch(function() {});
+    }
     updateSpeakerCounts();
+    updateLiveExtras();
     setInterval(updateSpeakerCounts, STATS_INTERVAL);
+    setInterval(updateLiveExtras, STATS_INTERVAL);
   })();
 
   // ============= Live auto-refresh (upcoming + live states) =============
@@ -1448,7 +1587,7 @@
           var current = feed ? feed.querySelectorAll('[data-row="claim"]').length : 0;
           var incoming = (data.claims || []).filter(function(c) { return c.verdict; }).length;
           if (incoming > current) {
-            window.location.reload();
+            if (!_pauseScroll) { window.location.reload(); }
             return;
           }
           // If provisional count changed (verdicts promoted to final), reload

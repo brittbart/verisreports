@@ -623,6 +623,27 @@ def register_debate_routes(app, get_db_conn):
             claims_provisional = crow[2] or 0
             claims_final = crow[3] or 0
             verification_pending = crow[4] or 0
+            # Most recent speaker (candidate/official with latest utterance)
+            cur.execute(
+                """SELECT s.id, s.name
+                   FROM speaker_utterances su
+                   JOIN speakers s ON s.id = su.speaker_id
+                   WHERE su.event_id = %s
+                     AND s.speaker_type IN ('politician', 'official')
+                   ORDER BY su.created_at DESC LIMIT 1""",
+                (event_id,))
+            recent_spk = cur.fetchone()
+            most_recent_speaker = {'id': recent_spk[0], 'name': recent_spk[1]} if recent_spk else None
+
+            # Verdict distribution
+            cur.execute(
+                """SELECT verdict, COUNT(*) as cnt FROM claims
+                   WHERE event_id = %s AND claim_origin = 'debate_claim'
+                     AND verdict IS NOT NULL
+                   GROUP BY verdict""",
+                (event_id,))
+            verdict_dist = {row[0]: row[1] for row in cur.fetchall()}
+
             # Stream active: any utterance in last 3 minutes
             cur.execute("""
                 SELECT COUNT(*) FROM speaker_utterances
@@ -670,6 +691,8 @@ def register_debate_routes(app, get_db_conn):
                 'verification_pending': verification_pending,
                 'last_utterance_at': last_utterance_at,
                 'speakers': speakers_breakdown,
+                'most_recent_speaker': most_recent_speaker,
+                'verdict_distribution': verdict_dist,
             })
         except Exception as e:
             return jsonify({'error': str(e)}), 500
