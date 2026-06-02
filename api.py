@@ -2716,6 +2716,7 @@ _OPS_HISTORY_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Veris Pipeline History</title>
+<script>const OPS_AUTH = "__OPS_AUTH_PLACEHOLDER__";</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--yellow:#fbbf24;--blue:#60a5fa;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
@@ -4991,8 +4992,12 @@ def ops_history():
     auth_err = _ops_auth()
     if auth_err is not None:
         return auth_err
+    import base64 as _b64
+    ops_pw = os.environ.get('OPS_PASSWORD', '')
+    ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
+    html = _OPS_HISTORY_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
     from flask import Response
-    return Response(_OPS_HISTORY_HTML, mimetype='text/html')
+    return Response(html, mimetype='text/html')
 
 
 @app.route('/api/ops/stream-health', methods=['GET'])
