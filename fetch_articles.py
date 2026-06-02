@@ -52,6 +52,8 @@ FEEDS = [
 
     # ── US mainstream (now direct, was Google News) ───────────────────────────
     "https://api.axios.com/feed/",
+    "https://rss.upi.com/news/top_news.rss",
+    "https://news.yahoo.com/rss/world",
     "https://rss.politico.com/politics-news.xml",
     "https://feeds.bloomberg.com/politics/news.rss",
     "https://feeds.bloomberg.com/markets/news.rss",
@@ -371,7 +373,6 @@ def fetch_rss():
     return articles
 # Wire services with no direct RSS — fetched via NewsAPI domains parameter
 NEWSAPI_WIRE_DOMAINS = [
-    'reuters.com',
     'apnews.com',
     'washingtonpost.com',
     'newsmax.com',
