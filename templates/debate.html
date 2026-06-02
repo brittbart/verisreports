@@ -349,6 +349,21 @@
     background: var(--border);
   }
 
+  /* ===== WCAG: Focus styles ===== */
+  :focus-visible {
+    outline: 2px solid var(--violet);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+  .skip-nav {
+    position: absolute; top: -40px; left: 16px;
+    background: var(--violet); color: #fff;
+    padding: 8px 16px; border-radius: 0 0 6px 6px;
+    font-size: 13px; font-weight: 600; z-index: 9999;
+    text-decoration: none; transition: top 0.2s;
+  }
+  .skip-nav:focus { top: 0; }
+
   /* ===== Claim feed ===== */
   .dt-feed { display: flex; flex-direction: column; gap: 8px; }
 
@@ -1033,6 +1048,7 @@
   {% endif %}>
 
 <!-- ============= NAV ============= -->
+<a href="#claim-feed" class="skip-nav">Skip to claims</a>
 <nav class="nav" aria-label="Site">
   <div class="nav-inner">
     <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
@@ -1452,16 +1468,16 @@
 
     spkPills.forEach((p) => {
       p.addEventListener("click", () => {
-        spkPills.forEach((x) => x.classList.remove("active"));
-        p.classList.add("active");
+        spkPills.forEach((x) => { x.classList.remove("active"); x.setAttribute("aria-pressed","false"); });
+        p.classList.add("active"); p.setAttribute("aria-pressed","true");
         activeSpk = p.getAttribute("data-speaker");
         applyFilters();
       });
     });
     vdtPills.forEach((p) => {
       p.addEventListener("click", () => {
-        vdtPills.forEach((x) => x.classList.remove("active"));
-        p.classList.add("active");
+        vdtPills.forEach((x) => { x.classList.remove("active"); x.setAttribute("aria-pressed","false"); });
+        p.classList.add("active"); p.setAttribute("aria-pressed","true");
         activeVdt = p.getAttribute("data-verdict");
         applyFilters();
       });
