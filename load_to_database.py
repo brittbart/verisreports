@@ -27,11 +27,29 @@ def get_connection():
     return conn
 
 
+def _normalize_url(url):
+    """Normalize URL for deduplication: lowercase scheme+host, strip trailing slash,
+    strip common tracking params, force https."""
+    from urllib.parse import urlparse, urlunparse, urlencode, parse_qsl
+    try:
+        p = urlparse(url.strip())
+        scheme = 'https'
+        netloc = p.netloc.lower()
+        path = p.path.rstrip('/')  or '/'
+        # Strip common tracking params
+        STRIP_PARAMS = {'utm_source','utm_medium','utm_campaign','utm_term',
+                        'utm_content','ref','source','fbclid','gclid'}
+        params = [(k,v) for k,v in parse_qsl(p.query) if k.lower() not in STRIP_PARAMS]
+        query = urlencode(params)
+        return urlunparse((scheme, netloc, path, p.params, query, ''))
+    except Exception:
+        return url
+
 def load_single_article_with_claims(cursor, article, claims_list):
     """Day 24 refactor: shared per-article insert logic."""
     title = article.get('title', 'No title')
     raw_source = article.get('source', {}).get('name', 'Unknown')
-    url = article.get('url', '')
+    url = _normalize_url(article.get('url', ''))
     from urllib.parse import urlparse as _up
     _h = _up(url).hostname or ''
     _h = _h.replace('www.', '').replace('feeds.', '').replace('rss.', '')

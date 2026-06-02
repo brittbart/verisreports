@@ -37,6 +37,19 @@ def run_fetch():
         log.error(f"Fetch failed: {str(e)}")
         return False
 
+def _normalize_url(url):
+    from urllib.parse import urlparse, urlunparse, urlencode, parse_qsl
+    try:
+        p = urlparse(url.strip())
+        netloc = p.netloc.lower()
+        path = p.path.rstrip('/') or '/'
+        STRIP_PARAMS = {'utm_source','utm_medium','utm_campaign','utm_term',
+                        'utm_content','ref','source','fbclid','gclid'}
+        params = [(k,v) for k,v in parse_qsl(p.query) if k.lower() not in STRIP_PARAMS]
+        return urlunparse(('https', netloc, path, p.params, urlencode(params), ''))
+    except Exception:
+        return url
+
 def _derive_source_domain(url, fallback=''):
     """Extract a normalized hostname from a URL. Falls back to the provided
     string only if URL parsing fails or yields nothing."""
@@ -71,7 +84,7 @@ def run_gdelt():
             try:
                 cur.execute(
                     'INSERT INTO articles (title, source_name, url, published_at, description, content, processed) VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (url) DO NOTHING RETURNING id',
-                    (a.get('title',''), _derive_source_domain(a.get('url',''), fallback=a.get('source',{}).get('name','')), a.get('url',''), None, a.get('description',''), a.get('content',''), False)
+                    (a.get('title',''), _derive_source_domain(a.get('url',''), fallback=a.get('source',{}).get('name','')), _normalize_url(a.get('url','')), None, a.get('description',''), a.get('content',''), False)
                 )
                 if cur.fetchone():
                     added += 1

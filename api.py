@@ -27,6 +27,22 @@ def redirect_api_paths():
 app.config['THREADED'] = True
 CORS(app)
 
+def _normalize_url(url):
+    """Normalize URL for deduplication: lowercase scheme+host, strip trailing slash, force https."""
+    from urllib.parse import urlparse, urlunparse, urlencode, parse_qsl
+    try:
+        p = urlparse(url.strip())
+        scheme = 'https'
+        netloc = p.netloc.lower()
+        path = p.path.rstrip('/') or '/'
+        STRIP_PARAMS = {'utm_source','utm_medium','utm_campaign','utm_term',
+                        'utm_content','ref','source','fbclid','gclid'}
+        params = [(k,v) for k,v in parse_qsl(p.query) if k.lower() not in STRIP_PARAMS]
+        query = urlencode(params)
+        return urlunparse((scheme, netloc, path, p.params, query, ''))
+    except Exception:
+        return url
+
 def get_db():
     return psycopg2.connect(
         **(dict(dsn=os.environ['DATABASE_URL']) if os.environ.get('DATABASE_URL') else dict(
@@ -1570,11 +1586,11 @@ setTimeout(checkStatus, 3000);
                     else:
                         conn2 = get_db()
                         cur2 = conn2.cursor()
-                        cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) ON CONFLICT (url) DO NOTHING RETURNING id", (title_text, domain, url))
+                        cur2.execute("INSERT INTO articles (title, source_name, url, fetched_at, claims_verified) VALUES (%s, %s, %s, NOW(), FALSE) ON CONFLICT (url) DO NOTHING RETURNING id", (title_text, domain, _normalize_url(url)))
                         row2 = cur2.fetchone()
                         if row2 is None:
                             # Article already exists — fetch its id
-                            cur2.execute("SELECT id FROM articles WHERE url = %s LIMIT 1", (url,))
+                            cur2.execute("SELECT id FROM articles WHERE url = %s LIMIT 1", (_normalize_url(url),))
                             row2 = cur2.fetchone()
                         art_id = row2[0]
                         verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
