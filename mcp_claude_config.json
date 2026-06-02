@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "verum-signal": {
+      "command": "python3",
+      "args": ["/path/to/mcp_server.py"],
+      "env": {
+        "VS_API_KEY": "vs_live_your_key_here"
+      }
+    }
+  }
+}
