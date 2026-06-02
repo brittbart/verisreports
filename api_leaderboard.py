@@ -18,6 +18,7 @@ EXCLUDED_DOMAINS = frozenset({
     'justice.gov',
     'war.gov',
     'whitehouse.gov',
+    'defense.gov',
     'federalreserve.gov',
     'sec.gov',
     'tools.cdc.gov',
