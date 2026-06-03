@@ -612,6 +612,18 @@ def group_utterances_into_turns(utterances):
     return turns
 
 
+def get_fresh_connection():
+    """Always returns a fresh connection. Use when long-running jobs risk timeout."""
+    return psycopg2.connect(
+        dbname=os.getenv('DB_NAME'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        host=os.getenv('DB_HOST'),
+        port=os.getenv('DB_PORT', '5432'),
+        connect_timeout=10,
+    )
+
+
 def run_extraction(event_id, limit=None, dry_run=False):
     print("=" * 68)
     print(f"Verum Signal — Debate claim extraction (v1.7)")
@@ -687,6 +699,12 @@ def run_extraction(event_id, limit=None, dry_run=False):
             else:
                 print(f"  → {len(claims)} claim(s):")
                 for claim in claims:
+                    # Reconnect if connection was lost during API call
+                    try:
+                        conn.cursor().execute("SELECT 1")
+                    except Exception:
+                        print(f"  [reconnecting to DB...]")
+                        conn = get_fresh_connection()
                     claim_id, outcome = insert_debate_claim(
                         conn, claim, uid, speaker_id, event_id, speaker_name
                     )
@@ -701,17 +719,25 @@ def run_extraction(event_id, limit=None, dry_run=False):
                         stats['duplicates'] += 1
                         print(f"    ~ duplicate")
 
-            # Mark all utterances in this turn as processed
+        except Exception as e:
+            stats['errors'] += 1
+            print(f"  ERROR: {e}")
+
+        # Mark all utterances in this turn as processed — reconnect if needed
+        try:
+            conn.cursor().execute("SELECT 1")
+        except Exception:
+            print(f"  [reconnecting to DB for processed_at mark...]")
+            conn = get_fresh_connection()
+        try:
             with conn.cursor() as _cur:
                 _cur.execute(
                     "UPDATE speaker_utterances SET processed_at = NOW() WHERE id = ANY(%s)",
                     (all_uids,)
                 )
             conn.commit()
-
         except Exception as e:
-            stats['errors'] += 1
-            print(f"  ERROR: {e}")
+            print(f"  WARNING: could not mark utterances processed: {e}")
 
     conn.close()
 
