@@ -9,6 +9,16 @@ import re
 from datetime import date
 from flask import render_template, abort, jsonify
 from api_leaderboard import METHODOLOGY_VERSION, VERDICT_LABELS
+import ast as _ast, os as _os
+# Public-facing methodology version — gated by attorney approval.
+# Derived from PUBLIC_METHODOLOGY_VERSIONS env var (same source as mobile_routes.py).
+# Internal METHODOLOGY_VERSION may be ahead of what's publicly published.
+_raw_pmv = _os.environ.get('PUBLIC_METHODOLOGY_VERSIONS', "['v1.6']")
+try:
+    PUBLIC_METHODOLOGY_VERSION = _ast.literal_eval(_raw_pmv)[-1]
+except Exception:
+    PUBLIC_METHODOLOGY_VERSION = 'v1.6'
+del _ast, _os, _raw_pmv
 
 SLUG_RE = re.compile(r"^[a-z0-9-]+$")
 
@@ -500,7 +510,7 @@ def register_debate_routes(app, get_db_conn):
             upcoming_events=upcoming_events,
             complete_events=complete_events,
             stats=stats,
-            methodology_version=METHODOLOGY_VERSION,
+            methodology_version=PUBLIC_METHODOLOGY_VERSION,
         )
 
     @app.route("/debates/<slug>")
@@ -537,7 +547,7 @@ def register_debate_routes(app, get_db_conn):
             event=event,
             claims=claims,
             breakdown=breakdown,
-            methodology_version=METHODOLOGY_VERSION,
+            methodology_version=PUBLIC_METHODOLOGY_VERSION,
         )
 
     @app.route("/api/debates")
