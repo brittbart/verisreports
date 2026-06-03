@@ -157,14 +157,32 @@ def get_event_id(slug):
     finally:
         conn.close()
 
-def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False, timestamp_seconds=None):
-    """Write a single utterance to speaker_utterances and queue for extraction."""
+# Confidence threshold below which speaker attribution is flagged as uncertain
+ATTRIBUTION_CONFIDENCE_THRESHOLD = 0.60
+
+def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
+                    timestamp_seconds=None, attribution_confidence=None):
+    """Write a single utterance to speaker_utterances and queue for extraction.
+
+    If attribution_confidence is below ATTRIBUTION_CONFIDENCE_THRESHOLD,
+    the utterance is written with speaker_id=None and attribution_uncertain=True
+    so it can be re-attributed in a post-debate pass without polluting claims
+    with wrong speaker data.
+    """
     text = text.strip()
     if not text or len(text) < 10:
         return None
 
+    # Apply confidence gate
+    attribution_uncertain = False
+    if attribution_confidence is not None and attribution_confidence < ATTRIBUTION_CONFIDENCE_THRESHOLD:
+        print(f"  [UNCERTAIN] confidence={attribution_confidence:.2f} < {ATTRIBUTION_CONFIDENCE_THRESHOLD} — writing unattributed")
+        speaker_id = None
+        attribution_uncertain = True
+
     if dry_run:
-        print(f"  [DRY RUN] utterance: speaker_id={speaker_id} | {text[:80]}")
+        flag = ' [UNCERTAIN]' if attribution_uncertain else ''
+        print(f"  [DRY RUN]{flag} utterance: speaker_id={speaker_id} conf={attribution_confidence} | {text[:80]}")
         return -1
 
     conn = get_db_conn()
@@ -172,16 +190,17 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False, 
         conn.autocommit = True
         cur = conn.cursor()
 
-        # Use speaker_id=1 (unknown) if not resolved
-        effective_speaker_id = speaker_id if speaker_id else None  # None = truly unknown; don't attribute to arbitrary speaker
+        effective_speaker_id = speaker_id if speaker_id else None
 
         cur.execute("""
             INSERT INTO speaker_utterances
-                (speaker_id, event_id, utterance_text, utterance_order, timestamp_seconds, created_at)
-            VALUES (%s, %s, %s, %s, %s, NOW())
+                (speaker_id, event_id, utterance_text, utterance_order,
+                 timestamp_seconds, attribution_confidence, attribution_uncertain, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
             ON CONFLICT DO NOTHING
             RETURNING id
-        """, (effective_speaker_id, event_id, text, utterance_order, timestamp_seconds))
+        """, (effective_speaker_id, event_id, text, utterance_order,
+              timestamp_seconds, attribution_confidence, attribution_uncertain))
 
         row = cur.fetchone()
         uid = row[0] if row else None
@@ -524,10 +543,20 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 (int(e['ts']) for e in elements if e.get('type') == 'text' and e.get('ts') is not None),
                 None
             )
+
+            # Compute mean word-level confidence for this segment
+            # Rev AI returns confidence per text element (0.0–1.0)
+            conf_scores = [
+                float(e['confidence']) for e in elements
+                if e.get('type') == 'text' and e.get('confidence') is not None
+            ]
+            mean_confidence = (sum(conf_scores) / len(conf_scores)) if conf_scores else None
+
             uid = write_utterance(
                 event_id, speaker_id, text,
                 utterance_order[0], args.dry_run,
-                timestamp_seconds=ts_seconds
+                timestamp_seconds=ts_seconds,
+                attribution_confidence=mean_confidence,
             )
 
             if uid:
