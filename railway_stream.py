@@ -102,7 +102,11 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
     from stream_utils import resolve_stream_url, PreLiveError
     try:
         while True:
-            proc = subprocess.Popen(cmd, cwd=os.path.dirname(__file__))
+            proc = subprocess.Popen(
+                cmd,
+                cwd=os.path.dirname(__file__),
+                stderr=subprocess.PIPE
+            )
             restart_times.append(time.time())
             # Prune old restart times outside the circuit breaker window
             restart_times = [t for t in restart_times if time.time() - t < CIRCUIT_BREAKER_WINDOW]
@@ -113,6 +117,15 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
             while True:
                 ret = proc.poll()
                 if ret is not None:
+                    # Capture and log stderr before doing anything else
+                    try:
+                        stderr_output = proc.stderr.read().decode('utf-8', errors='replace').strip()
+                        if stderr_output:
+                            log(f"SUBPROCESS STDERR:\n{stderr_output}")
+                        else:
+                            log("SUBPROCESS STDERR: (empty)")
+                    except Exception as e:
+                        log(f"Could not read stderr: {e}")
                     if ret == 2:
                         # Pre-live exit — do not count as circuit breaker failure
                         restart_times.pop()
