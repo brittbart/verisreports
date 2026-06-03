@@ -48,7 +48,8 @@ def get_live_event():
         cur.execute("""
             SELECT e.slug, e.stream_url, e.search_query,
                    string_agg(es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_order,
-                   string_agg(s.name || ':' || es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_map
+                   string_agg(s.name || ':' || es.speaker_id::text, ',' ORDER BY es.speaker_order) as speaker_map,
+                   e.rev_ai_vocabulary_id
             FROM events e
             LEFT JOIN event_speakers es ON es.event_id = e.id AND es.is_active = TRUE
             LEFT JOIN speakers s ON s.id = es.speaker_id
@@ -60,7 +61,7 @@ def get_live_event():
         conn.close()
         if not row:
             return None
-        slug, stream_url, search_query, speaker_order, speaker_map = row
+        slug, stream_url, search_query, speaker_order, speaker_map, rev_ai_vocabulary_id = row
         # If no stream_url, try to resolve via yt_dlp Python library
         if not stream_url and search_query:
             log(f"No stream_url — searching YouTube: {search_query}")
@@ -72,12 +73,12 @@ def get_live_event():
                 log(f"Stream not yet live (search): {e}")
             except Exception as e:
                 log(f"yt_dlp search failed: {e}")
-        return event_id, slug, stream_url, speaker_order, speaker_map
+        return event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vocabulary_id
     except Exception as e:
         log(f"Error checking live event: {e}")
         return None
 
-def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
+def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vocabulary_id=None):
     """Run debate_stream.py for the live event. Returns when stream ends."""
     if not stream_url:
         log(f"No stream URL for event {event_id} ({slug}) — skipping")
@@ -96,6 +97,9 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
         cmd += ['--speakers', speaker_map.upper()]
     if speaker_order:
         cmd += ['--speaker-order', speaker_order]
+    if rev_ai_vocabulary_id:
+        cmd += ['--vocabulary-id', rev_ai_vocabulary_id]
+        log(f"Custom vocabulary: {rev_ai_vocabulary_id}")
     original_youtube_url = stream_url  # preserve for re-resolution on HLS expiry
     log(f"Starting stream for event {event_id} ({slug}): {stream_url}")
     log(f"Command: {' '.join(cmd)}")
@@ -166,10 +170,10 @@ def main():
     while True:
         event = get_live_event()
         if event:
-            event_id, slug, stream_url, speaker_order, speaker_map = event
+            event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vocabulary_id = event
             log(f"Live event detected: {event_id} ({slug})")
             write_heartbeat('streaming', event_id=event_id)
-            run_stream(event_id, slug, stream_url, speaker_order, speaker_map)
+            run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vocabulary_id)
             write_heartbeat('idle')
             log("Stream ended — resuming poll")
         else:

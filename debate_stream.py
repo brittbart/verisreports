@@ -644,7 +644,10 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             return _orig_connect(url, **kwargs)
         client.client.connect = _patched_connect
 
-        response_gen = client.start(audio_generator())
+        vocab_id = args.vocabulary_id if args.vocabulary_id else None
+        if vocab_id:
+            print(f"  Using custom vocabulary: {vocab_id}")
+        response_gen = client.start(audio_generator(), custom_vocabulary_id=vocab_id)
         for response in response_gen:
             if hasattr(response, 'type'):
                 if response.type == 'partial':
@@ -684,6 +687,8 @@ def main():
                         help='Speaker IDs in order of appearance e.g. "185,186"')
     parser.add_argument('--dry-run', action='store_true',
                         help='Parse and print without writing to DB')
+    parser.add_argument('--vocabulary-id', default='',
+                        help='Rev AI custom vocabulary ID to use for this stream')
     args = parser.parse_args()
 
     load_env()
