@@ -105,7 +105,8 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map):
             proc = subprocess.Popen(
                 cmd,
                 cwd=os.path.dirname(__file__),
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
+                env=os.environ.copy()  # explicitly pass Railway env vars to subprocess
             )
             restart_times.append(time.time())
             # Prune old restart times outside the circuit breaker window
