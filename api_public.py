@@ -634,11 +634,47 @@ def request_api_key():
         raw_key = "vs_live_" + secrets.token_urlsafe(32)
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
         key_prefix = raw_key[:16]
+        # Insert api_keys row
+        # monthly_quota=100 matches api.html free tier spec (was incorrectly 1000)
         cur.execute(
-            "INSERT INTO api_keys (user_email, key_hash, key_prefix, name, tier, monthly_quota, rate_limit_per_minute, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())",
-            (email, key_hash, key_prefix, name, "free", 1000, 10))
+            "INSERT INTO api_keys (user_email, key_hash, key_prefix, name, tier, monthly_quota, rate_limit_per_minute, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id",
+            (email, key_hash, key_prefix, name, "free", 100, 10))
+        api_key_id = cur.fetchone()[0]
+
+        # Upsert users row — create if new, touch last_seen_at if returning
+        cur.execute("""
+            INSERT INTO users (email, email_verified, updated_at, last_seen_at)
+            VALUES (%s, FALSE, NOW(), NOW())
+            ON CONFLICT (email) DO UPDATE
+                SET last_seen_at = NOW(),
+                    updated_at = NOW()
+            RETURNING id
+        """, (email,))
+        user_id = cur.fetchone()[0]
+
+        # Link api_keys.user_id to users.id
+        cur.execute(
+            "UPDATE api_keys SET user_id = %s WHERE id = %s",
+            (user_id, api_key_id))
+
+        # Insert free-tier API subscription row (idempotent — ignore if exists)
+        # quota_reset_at: first of next month
+        from datetime import date
+        today = date.today()
+        if today.month == 12:
+            reset = date(today.year + 1, 1, 1)
+        else:
+            reset = date(today.year, today.month + 1, 1)
+
+        cur.execute("""
+            INSERT INTO subscriptions
+                (user_id, product, tier, status, quota_used_this_month, quota_reset_at)
+            VALUES (%s, 'api', 'free', 'active', 0, %s)
+            ON CONFLICT (user_id, product) DO NOTHING
+        """, (user_id, reset))
+
         conn.commit(); cur.close(); conn.close()
-        return jsonify({"api_key": raw_key, "prefix": key_prefix, "tier": "free", "monthly_quota": 1000, "rate_limit_per_minute": 10, "message": "Store this key safely — it will not be shown again.", "docs": "https://verumsignal.com/developers", "email": email}), 201
+        return jsonify({"api_key": raw_key, "prefix": key_prefix, "tier": "free", "monthly_quota": 100, "rate_limit_per_minute": 10, "message": "Store this key safely — it will not be shown again.", "docs": "https://verumsignal.com/developers", "email": email}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
