@@ -100,7 +100,8 @@ VERIFICATION STANDARDS:
 
 INDEPENDENCE RULE: Two sources are only independent if they obtained the information through different means. Multiple outlets repeating the same wire = ONE source.
 
-CONSENSUS EXCEPTION: If 5+ outlets consistently report the same factual content without contradiction, assign corroborated at confidence 2/3.
+CONSENSUS EXCEPTION:
+If 5 or more outlets are consistently reporting the same claim without contradiction, assign corroborated at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
 
 VERDICT DEFINITIONS:
 - supported: Underlying fact confirmed by TWO genuinely independent primary sources
@@ -109,7 +110,7 @@ VERDICT DEFINITIONS:
 - overstated: Core fact is real but figure or scale is exaggerated
 - not_supported: Evidence actively contradicts the factual assertion
 - not_verifiable: Cannot confirm or deny — primary sources unavailable
-- corroborated: 5+ outlets consistently report same factual content
+- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.75 (weaker than supported).
 - opinion: Value judgement or prediction that cannot be empirically true or false
 
 CONFIDENCE SCORE:
@@ -443,7 +444,8 @@ SOURCE: {source_name}
 
 INDEPENDENCE RULE: Two sources are only independent if they obtained information through different means. Multiple outlets repeating the same wire = ONE source.
 
-CONSENSUS EXCEPTION: If 5+ outlets consistently report the same claim without contradiction, assign corroborated at confidence 2/3.
+CONSENSUS EXCEPTION:
+If 5 or more outlets are consistently reporting the same claim without contradiction, assign corroborated at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
 
 VERDICT DEFINITIONS:
 - supported: TWO genuinely independent sources confirm
@@ -452,6 +454,7 @@ VERDICT DEFINITIONS:
 - overstated: Core fact real but exaggerated
 - not_supported: Evidence contradicts the claim
 - not_verifiable: Cannot confirm - sources unavailable
+- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.75 (weaker than supported).
 - opinion: Value judgement or prediction
 
 CONFIDENCE: 3=two+ independent sources, 2=one credible source, 1=plausible/disputed
