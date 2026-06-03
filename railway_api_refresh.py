@@ -471,6 +471,20 @@ def main():
             traceback.print_exc()
 
         prune_usage(cur)
+
+        # Clean up expired/used magic_link_tokens older than 24 hours.
+        # Keeps the table from growing unbounded. Non-fatal.
+        try:
+            cur.execute("""
+                DELETE FROM magic_link_tokens
+                WHERE created_at < NOW() - INTERVAL '24 hours'
+            """)
+            deleted = cur.rowcount
+            if deleted:
+                log.info(f"token_cleanup: deleted {deleted} expired magic_link_tokens")
+        except Exception:
+            log.warning("token_cleanup failed — non-fatal")
+
         conn.commit()
 
     except Exception:
