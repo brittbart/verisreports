@@ -568,5 +568,39 @@
 </footer>
 
 <script src="/static/debate_site.js"></script>
+<script>
+  // ── stream_active gate for live rows on the listing page ──
+  // If a live event's stream is not actually producing utterances,
+  // demote its row to show "Scheduled" instead of "Live now"
+  (function() {
+    var liveRows = document.querySelectorAll('.dx-row.is-live');
+    if (!liveRows.length) return;
+    liveRows.forEach(function(row) {
+      var href = row.getAttribute('href') || '';
+      var slug = href.split('/').pop();
+      if (!slug) return;
+      fetch('/api/debates/' + slug + '/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.stream_active === false) {
+            // Stream not active — show as upcoming/scheduled, not live
+            row.classList.remove('is-live');
+            row.classList.add('is-upcoming');
+            var statusPill = row.querySelector('.dx-status');
+            if (statusPill) {
+              statusPill.classList.remove('is-live');
+              statusPill.classList.add('is-upcoming');
+              statusPill.textContent = 'Scheduled';
+            }
+            var dateDay = row.querySelector('.dx-date-day');
+            if (dateDay) {
+              dateDay.style.color = 'var(--c-overstated)';
+            }
+          }
+        })
+        .catch(function() {});
+    });
+  })();
+</script>
 </body>
 </html>

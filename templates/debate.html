@@ -1107,23 +1107,18 @@
       {% if event.venue %}<span class="dt-meta-chip"><span class="dot"></span>{{ event.venue }}</span>{% endif %}
       {% if event.transcript_source %}<span class="dt-meta-chip"><span class="dot"></span>Transcript source: <strong>{{ event.transcript_source }}</strong></span>{% endif %}
       <span class="dt-meta-chip"><span class="dot"></span>Methodology <a href="/methodology">{{ event.methodology_version }} &rarr;</a></span>
-    </div>
-    {% if event.stream_url and event.is_live %}
-    <div style="margin-top:14px;">
-      <a href="{{ event.stream_url }}" target="_blank" rel="noopener"
-         style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:#9333ea;color:#fff;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.02em;">
-        <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0;"></span>
-        Watch Live
+      {% if event.stream_url and event.is_live %}
+      <a href="{{ event.stream_url }}" target="_blank" rel="noopener" class="dt-meta-chip dt-meta-chip--watch" style="text-decoration:none;">
+        <span style="width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0;"></span>
+        <strong>Watch Live</strong>
       </a>
-    </div>
-    {% elif event.transcript_url and (event.is_live or event.is_upcoming) %}
-    <div style="margin-top:14px;">
-      <span class="dt-meta-chip--watch">
+      {% elif event.transcript_url and (event.is_live or event.is_upcoming) %}
+      <a href="{{ event.transcript_url }}" target="_blank" rel="noopener" class="dt-meta-chip dt-meta-chip--watch" style="text-decoration:none;">
         <span class="live-dot"></span>
-        <a href="{{ event.transcript_url }}" target="_blank" rel="noopener">Watch live on {{ event.transcript_source or 'official broadcast' }} &rarr;</a>
-      </span>
+        <strong>Watch on {{ event.transcript_source or 'official broadcast' }}</strong>
+      </a>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </section>
 
@@ -1511,6 +1506,33 @@
       if (btn) btn.style.borderColor = 'rgba(168,85,247,0.3)';
     }
   }
+
+  // ============= stream_active gate: demote is-live if stream not active =============
+  (function() {
+    var bodyClass = document.body.className;
+    var isLive = bodyClass.indexOf('is-live') !== -1;
+    if (!isLive) return;
+    var slug = window.location.pathname.split('/').pop();
+    function checkStreamActive() {
+      fetch('/api/debates/' + slug + '/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.stream_active === false) {
+            // Stream not producing utterances — show static UI, not live UI
+            document.body.classList.remove('is-live');
+            document.body.classList.add('is-static');
+          } else if (data.stream_active === true) {
+            // Stream is active — ensure live UI is shown
+            document.body.classList.remove('is-static');
+            document.body.classList.add('is-live');
+          }
+        })
+        .catch(function() {});
+    }
+    // Check immediately on load, then every 20s
+    checkStreamActive();
+    setInterval(checkStreamActive, 20000);
+  })();
 
   // ============= Per-speaker count updates from stats endpoint =============
   (function() {
