@@ -1564,7 +1564,33 @@ setTimeout(checkStatus, 3000);
                             cur2.execute("SELECT id FROM articles WHERE url = %s LIMIT 1", (_normalize_url(url),))
                             row2 = cur2.fetchone()
                         art_id = row2[0]
+
+                        # ── Quota gate (consumer product) ──────────────────
+                        # Checks session-based user quota before firing the
+                        # verification engine. Anonymous users get free-tier
+                        # limit (2/month). Over-quota requests redirect to
+                        # /pricing.html — no verification cost incurred.
+                        # depth param and all existing logic are unchanged.
+                        from auth_routes import get_current_user, check_quota, increment_quota
+                        _gate_user = get_current_user(get_db)
+                        if _gate_user:
+                            _quota = check_quota(get_db, _gate_user['id'], 'consumer')
+                            if not _quota['allowed']:
+                                conn2.close()
+                                conn.close()
+                                return redirect(
+                                    f'/pricing.html?reason=quota_exceeded'
+                                    f'&used={_quota["used"]}'
+                                    f'&limit={_quota["limit"]}'
+                                    f'&tier={_quota["tier"]}'
+                                )
+                        # ── End quota gate ─────────────────────────────────
+
                         verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
+
+                        # Increment quota on successful verification
+                        if _gate_user:
+                            increment_quota(get_db, _gate_user['id'], 'consumer')
                         conn2.commit()
                         conn2.close()
                         rows = verified_claims
