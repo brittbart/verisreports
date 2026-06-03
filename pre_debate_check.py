@@ -145,7 +145,7 @@ def main():
             """)
             row = cur.fetchone()
             if row:
-                age = (datetime.utcnow() - row[0].replace(tzinfo=None)).total_seconds()
+                age = (datetime.now(timezone.utc) - row[0].astimezone(timezone.utc)).total_seconds()
                 check("Last verdict job < 2 hours ago", age < 7200, f"{int(age/60)} min ago")
             else:
                 check("Last verdict job found", False, "No successful verdict jobs found")
@@ -156,7 +156,7 @@ def main():
             cur.execute("SELECT MAX(published_at) FROM articles WHERE published_at IS NOT NULL")
             row = cur.fetchone()
             if row and row[0]:
-                age = (datetime.utcnow() - row[0].replace(tzinfo=None)).total_seconds() / 3600
+                age = (datetime.now(timezone.utc) - row[0].astimezone(timezone.utc)).total_seconds() / 3600
                 check("Most recent article < 2 hours old", age < 2, f"{age:.1f}h ago")
             else:
                 check("Recent articles found", False, "No articles with published_at")
