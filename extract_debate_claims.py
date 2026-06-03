@@ -316,10 +316,11 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
         if re.search(pat, tl):
             return True, f'agreement/meta: {pat}'
 
-    # Moderator questions — not candidate claims
-    for pat in MODERATOR_PATTERNS:
-        if re.search(pat, tl):
-            return True, f'moderator pattern: {pat}'
+    # NOTE: MODERATOR_PATTERNS intentionally not applied here —
+    # fetch_politician_utterances already excludes moderator speaker_type,
+    # so these patterns only fire on candidate speech containing words like
+    # "your response" or "would you" when addressing opponents. Kept defined
+    # for reference but removed from pre-filter evaluation.
 
     # Fragment/garbled utterance — starts lowercase (Rev AI artifact)
     if INVALID_STARTS.match(t):
@@ -331,8 +332,10 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
     INVALID_OPENERS = {
         'because', 'or', 'nor', 'yet',
         'although', 'though', 'however', 'therefore',
-        'whereas', 'which', 'that', 'who', 'whom',
+        'whereas', 'which', 'who', 'whom',
         'whose', 'when', 'where', 'while',
+        # NOTE: 'that' removed — "That said, $350M..." is a valid claim opener
+        # 'who'/'whom'/'whose' retained — these are always relative clause fragments
     }
     if first_word in INVALID_OPENERS:
         return True, f'fragment: invalid opener ({first_word})'
@@ -557,6 +560,58 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
 # Main
 # ---------------------------------------------------------------------------
 
+def group_utterances_into_turns(utterances):
+    """
+    Group consecutive utterances from the same speaker into turns.
+    Each turn is a dict with:
+      - text: concatenated utterance text
+      - speaker_id, speaker_name: from first utterance in turn
+      - first_uid: utterance id of first utterance (used for logging/claim attribution)
+      - all_uids: list of all utterance ids in the turn (all marked processed_at)
+      - row: the first raw DB row (for utterance_to_article_dict compatibility)
+    Splits on speaker change only — no length cap.
+    """
+    if not utterances:
+        return []
+    turns = []
+    current_speaker_id = None
+    current_texts = []
+    current_uids = []
+    current_row = None
+
+    for row in utterances:
+        uid, utext, uorder, speaker_id, speaker_name = row[0], row[1], row[2], row[3], row[4]
+        if speaker_id != current_speaker_id:
+            if current_uids:
+                turns.append({
+                    'text': ' '.join(current_texts),
+                    'speaker_id': current_row[3],
+                    'speaker_name': current_row[4],
+                    'first_uid': current_uids[0],
+                    'all_uids': current_uids,
+                    'row': current_row,
+                })
+            current_speaker_id = speaker_id
+            current_texts = [utext]
+            current_uids = [uid]
+            current_row = row
+        else:
+            current_texts.append(utext)
+            current_uids.append(uid)
+
+    # Flush last turn
+    if current_uids:
+        turns.append({
+            'text': ' '.join(current_texts),
+            'speaker_id': current_row[3],
+            'speaker_name': current_row[4],
+            'first_uid': current_uids[0],
+            'all_uids': current_uids,
+            'row': current_row,
+        })
+    return turns
+
+
 def run_extraction(event_id, limit=None, dry_run=False):
     print("=" * 68)
     print(f"Verum Signal — Debate claim extraction (v1.7)")
@@ -574,8 +629,12 @@ def run_extraction(event_id, limit=None, dry_run=False):
         conn.close()
         return
 
+    turns = group_utterances_into_turns(utterances)
+    print(f"Grouped into {len(turns)} speaker turns\n")
+
     stats = {
         'utterances': len(utterances),
+        'turns': len(turns),
         'pre_filtered': 0,
         'api_calls': 0,
         'claims_extracted': 0,
@@ -585,18 +644,27 @@ def run_extraction(event_id, limit=None, dry_run=False):
         'errors': 0,
     }
 
-    for i, row in enumerate(utterances):
-        uid, utext, uorder, speaker_id, speaker_name = row[0], row[1], row[2], row[3], row[4]
-        print(f"[{i+1}/{len(utterances)}] {speaker_name}: {utext[:65]}...")
+    for i, turn in enumerate(turns):
+        uid = turn['first_uid']
+        all_uids = turn['all_uids']
+        speaker_id = turn['speaker_id']
+        speaker_name = turn['speaker_name']
+        turn_text = turn['text']
+        row = turn['row']
 
-        # Layer 1: pre-filter
-        skip, reason = pre_filter_utterance(utext, utterance_id=uid, event_id=event_id, speaker_id=speaker_id, is_debate=True, conn=conn)
+        print(f"[{i+1}/{len(turns)}] {speaker_name} ({len(all_uids)} utterance(s)): {turn_text[:65]}...")
+
+        # Layer 1: pre-filter on full turn text
+        skip, reason = pre_filter_utterance(turn_text, utterance_id=uid, event_id=event_id, speaker_id=speaker_id, is_debate=True, conn=conn)
         if skip:
             print(f"  → pre-filtered: {reason}")
             stats['pre_filtered'] += 1
-            # Mark as processed so it doesn't re-queue next batch
+            # Mark all utterances in this turn as processed
             with conn.cursor() as _cur:
-                _cur.execute("UPDATE speaker_utterances SET processed_at = NOW() WHERE id = %s", (uid,))
+                _cur.execute(
+                    "UPDATE speaker_utterances SET processed_at = NOW() WHERE id = ANY(%s)",
+                    (all_uids,)
+                )
             conn.commit()
             continue
 
@@ -605,32 +673,41 @@ def run_extraction(event_id, limit=None, dry_run=False):
             stats['api_calls'] += 1
             continue
 
-        # Layer 2: AI extraction
+        # Layer 2: AI extraction on full turn text
         try:
+            # Build article dict from first row but substitute full turn text as content
             article_dict = utterance_to_article_dict(row, event_id)
+            article_dict['content'] = turn_text
             claims = extract_claims_from_article(article_dict)
             stats['api_calls'] += 1
             stats['claims_extracted'] += len(claims)
 
             if not claims:
                 print(f"  → 0 claims extracted")
-                continue
+            else:
+                print(f"  → {len(claims)} claim(s):")
+                for claim in claims:
+                    claim_id, outcome = insert_debate_claim(
+                        conn, claim, uid, speaker_id, event_id, speaker_name
+                    )
+                    ct = claim.get('claim_text', '')[:70]
+                    if outcome == 'inserted':
+                        stats['inserted'] += 1
+                        print(f"    ✓ {ct}")
+                    elif outcome.startswith('post-filtered'):
+                        stats['post_filtered'] += 1
+                        print(f"    ✗ {outcome}: {ct}")
+                    elif outcome == 'duplicate':
+                        stats['duplicates'] += 1
+                        print(f"    ~ duplicate")
 
-            print(f"  → {len(claims)} claim(s):")
-            for claim in claims:
-                claim_id, outcome = insert_debate_claim(
-                    conn, claim, uid, speaker_id, event_id, speaker_name
+            # Mark all utterances in this turn as processed
+            with conn.cursor() as _cur:
+                _cur.execute(
+                    "UPDATE speaker_utterances SET processed_at = NOW() WHERE id = ANY(%s)",
+                    (all_uids,)
                 )
-                ct = claim.get('claim_text', '')[:70]
-                if outcome == 'inserted':
-                    stats['inserted'] += 1
-                    print(f"    ✓ {ct}")
-                elif outcome.startswith('post-filtered'):
-                    stats['post_filtered'] += 1
-                    print(f"    ✗ {outcome}: {ct}")
-                elif outcome == 'duplicate':
-                    stats['duplicates'] += 1
-                    print(f"    ~ duplicate")
+            conn.commit()
 
         except Exception as e:
             stats['errors'] += 1
@@ -641,7 +718,8 @@ def run_extraction(event_id, limit=None, dry_run=False):
     print("\n" + "=" * 68)
     print(f"Complete")
     print(f"  Utterances:     {stats['utterances']}")
-    print(f"  Pre-filtered:   {stats['pre_filtered']} (saved {stats['pre_filtered']} API calls)")
+    print(f"  Turns:          {stats['turns']}")
+    print(f"  Pre-filtered:   {stats['pre_filtered']} turns (saved {stats['pre_filtered']} API calls)")
     print(f"  API calls:      {stats['api_calls']}")
     print(f"  Claims found:   {stats['claims_extracted']}")
     print(f"  Post-filtered:  {stats['post_filtered']}")
