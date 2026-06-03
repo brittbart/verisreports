@@ -443,6 +443,33 @@ def main():
 
         promoted_n      = promote_provisional_verdicts(cur)
         conn.commit()
+
+        # Verify any unverified debate claims across all public events
+        # This handles claims extracted post-debate or missed during live surge
+        try:
+            from verdict_engine import verify_debate_claims_sync
+            cur.execute("""
+                SELECT DISTINCT c.event_id FROM claims c
+                JOIN events e ON e.id = c.event_id
+                WHERE c.claim_origin = 'debate_claim'
+                  AND c.verdict IS NULL
+                  AND c.claim_text IS NOT NULL
+                  AND LENGTH(c.claim_text) > 20
+                  AND COALESCE(c.verification_attempts, 0) < 3
+                  AND e.is_public = TRUE
+            """)
+            pending_events = [r[0] for r in cur.fetchall()]
+            if pending_events:
+                log.info(f"debate_verify: {len(pending_events)} event(s) with unverified claims: {pending_events}")
+                for eid in pending_events:
+                    verified = verify_debate_claims_sync(eid, limit=20)
+                    log.info(f"debate_verify: event_id={eid} verified={verified}")
+            else:
+                log.info("debate_verify: no unverified debate claims")
+        except Exception:
+            log.warning("debate_verify failed — non-fatal")
+            traceback.print_exc()
+
         prune_usage(cur)
         conn.commit()
 
