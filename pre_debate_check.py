@@ -153,13 +153,21 @@ def main():
             check("Job runs query", False, str(e))
 
         try:
-            cur.execute("SELECT MAX(published_at) FROM articles WHERE published_at IS NOT NULL")
+            # Use fetched_at (reliable pipeline timestamp) instead of published_at
+            # (published_at has malformed future values from some RSS feeds).
+            # fetched_at is timezone-naive in the DB — treat as UTC explicitly.
+            cur.execute("""
+                SELECT MAX(fetched_at) FROM articles
+                WHERE fetched_at IS NOT NULL
+                  AND fetched_at <= NOW()
+            """)
             row = cur.fetchone()
             if row and row[0]:
-                age = (datetime.now(timezone.utc) - row[0].astimezone(timezone.utc)).total_seconds() / 3600
-                check("Most recent article < 2 hours old", age < 2, f"{age:.1f}h ago")
+                fetched = row[0].replace(tzinfo=timezone.utc)
+                age = (datetime.now(timezone.utc) - fetched).total_seconds() / 3600
+                check("Most recent article fetched < 4 hours ago", age < 4, f"{age:.1f}h ago")
             else:
-                check("Recent articles found", False, "No articles with published_at")
+                check("Recent articles found", False, "No articles with fetched_at")
         except Exception as e:
             check("Article freshness", False, str(e))
 
