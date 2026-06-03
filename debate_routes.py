@@ -630,7 +630,7 @@ def register_debate_routes(app, get_db_conn):
                    JOIN speakers s ON s.id = su.speaker_id
                    WHERE su.event_id = %s
                      AND s.speaker_type IN ('politician', 'official')
-                   ORDER BY su.created_at DESC LIMIT 1""",
+                   ORDER BY COALESCE(su.timestamp_seconds, EXTRACT(EPOCH FROM su.created_at)::INTEGER) DESC LIMIT 1""",
                 (event_id,))
             recent_spk = cur.fetchone()
             most_recent_speaker = {'id': recent_spk[0], 'name': recent_spk[1]} if recent_spk else None
