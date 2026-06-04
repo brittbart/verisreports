@@ -461,8 +461,14 @@ def main():
             pending_events = [r[0] for r in cur.fetchall()]
             if pending_events:
                 log.info(f"debate_verify: {len(pending_events)} event(s) with unverified claims: {pending_events}")
+                import time as _time
+                _dv_start = _time.time()
+                _dv_timeout = 180  # 3-minute wall-clock cap — never block next cron cycle
                 for eid in pending_events:
-                    verified = verify_debate_claims_sync(eid, limit=20)
+                    if _time.time() - _dv_start > _dv_timeout:
+                        log.warning(f"debate_verify: timeout after {_dv_timeout}s — deferring remaining events")
+                        break
+                    verified = verify_debate_claims_sync(eid, limit=5)
                     log.info(f"debate_verify: event_id={eid} verified={verified}")
             else:
                 log.info("debate_verify: no unverified debate claims")
