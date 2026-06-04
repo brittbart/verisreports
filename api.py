@@ -4463,36 +4463,29 @@ def ops_changelog():
 
 @app.route('/api/ops/git-log', methods=['GET'])
 def api_ops_git_log():
-    """Return recent git commits as JSON. Basic-auth protected."""
+    """Return recent git commits as JSON. Basic-auth protected. Reads from git_log DB table."""
     auth_err = _ops_auth()
     if auth_err is not None:
         return auth_err
-    import subprocess
     from flask import jsonify
     try:
-        result = subprocess.run(
-            ['git', 'log', '--pretty=format:%H|%as|%s', '-n', '50'],
-            capture_output=True, text=True, cwd='/app',
-            timeout=5
-        )
-        if result.returncode != 0:
-            # Try local path as fallback (development)
-            result = subprocess.run(
-                ['git', 'log', '--pretty=format:%H|%as|%s', '-n', '50'],
-                capture_output=True, text=True,
-                timeout=5
-            )
-        commits = []
-        for line in result.stdout.strip().split('\n'):
-            if '|' not in line:
-                continue
-            parts = line.split('|', 2)
-            if len(parts) == 3:
-                h, date, msg = parts
-                commits.append({'hash': h, 'short': h[:7], 'date': date, 'message': msg})
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("""
+            SELECT hash, short_hash, date, message
+            FROM git_log
+            ORDER BY recorded_at DESC, id DESC
+            LIMIT 50
+        """)
+        commits = [
+            {'hash': r[0], 'short': r[1], 'date': r[2], 'message': r[3]}
+            for r in cur.fetchall()
+        ]
+        cur.close()
+        db.close()
         return jsonify({'commits': commits})
     except Exception as e:
-        return jsonify({'commits': [], 'note': 'git log unavailable in Railway environment'})
+        return jsonify({'commits': [], 'note': str(e)})
 
 
 # ── /ops/outlets ──────────────────────────────────────────────────────────────
