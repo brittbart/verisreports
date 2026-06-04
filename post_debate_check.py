@@ -221,7 +221,10 @@ def main():
         remaining_uncertain = cur.fetchone()[0]
         if remaining_uncertain > 0:
             print(f'  → {remaining_uncertain} utterances need manual review at /ops/disputes')
-    print(f'  → Check debate page: verumsignal.com/debates/...')
+    print(f'  → Check debate page: verumsignal.com/debates/...
+  → Monitor Railway cron: veris-api-refresh should fire every 5 min
+    If provisional claims don\'t promote within 70 min, run manually:
+    python3 railway_api_refresh.py')
     print()
 
     cur.close()
