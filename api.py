@@ -4474,7 +4474,7 @@ def api_ops_git_log():
                 commits.append({'hash': h, 'short': h[:7], 'date': date, 'message': msg})
         return jsonify({'commits': commits})
     except Exception as e:
-        return jsonify({'error': str(e), 'commits': []}), 500
+        return jsonify({'commits': [], 'note': 'git log unavailable in Railway environment'})
 
 
 # ── /ops/outlets ──────────────────────────────────────────────────────────────
