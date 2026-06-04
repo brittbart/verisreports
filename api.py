@@ -6120,6 +6120,366 @@ def auth_error_page():
     return Response(html, mimetype='text/html')
 
 
+
+@app.route('/ops/sse-test', methods=['GET'])
+def ops_sse_test():
+    auth_err = _ops_auth()
+    if auth_err:
+        return auth_err
+    from flask import Response
+    # Get all public events for selector
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, slug, event_name FROM events WHERE is_public = TRUE ORDER BY id DESC")
+    events = [{'id': r[0], 'slug': r[1], 'name': r[2]} for r in cur.fetchall()]
+    cur.close()
+    db.close()
+    html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SSE Test — Verum Signal Ops</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; padding: 24px; }
+  h1 { font-size: 16px; font-weight: 600; color: #a855f7; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+  .controls { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; }
+  label { font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+  select, input, button { background: #1e1e2e; border: 1px solid #2d2d3f; color: #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+  button { cursor: pointer; background: #a855f7; border-color: #a855f7; color: #fff; font-weight: 500; }
+  button:hover { background: #9333ea; }
+  button.danger { background: #ef4444; border-color: #ef4444; }
+  button.secondary { background: #1e1e2e; border-color: #374151; color: #94a3b8; }
+  button.secondary:hover { border-color: #a855f7; color: #a855f7; }
+  .status-bar { display: flex; gap: 16px; align-items: center; padding: 10px 16px; background: #1e1e2e; border: 1px solid #2d2d3f; border-radius: 8px; margin-bottom: 20px; font-size: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #374151; display: inline-block; margin-right: 6px; }
+  .dot.connected { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,0.5); }
+  .dot.error { background: #ef4444; }
+  .layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+  .feed { display: flex; flex-direction: column; gap: 12px; }
+  .card { background: #1e1e2e; border: 1px solid #2d2d3f; border-radius: 10px; padding: 16px; border-left: 3px solid #a855f7; transition: border-color 0.3s; }
+  .card.provisional { border-left-color: #4ade80; opacity: 0.85; }
+  .card.updated { animation: flash 0.6s ease; }
+  @keyframes flash { 0%,100% { background: #1e1e2e; } 50% { background: #1a1a2e; border-color: #a855f7; } }
+  .card-speaker { font-size: 11px; font-weight: 600; color: #a855f7; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .card-text { font-size: 13px; color: #e2e8f0; line-height: 1.5; margin-bottom: 10px; font-style: italic; }
+  .card-footer { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pill { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+  .pill-verifying { background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; display: flex; align-items: center; gap: 5px; }
+  .prov-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ade80; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+  .pill-supported { background: rgba(74,222,128,0.15); color: #4ade80; }
+  .pill-plausible { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .pill-corroborated { background: rgba(139,92,246,0.15); color: #8b5cf6; }
+  .pill-overstated { background: rgba(251,146,60,0.15); color: #fb923c; }
+  .pill-disputed { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .pill-not-supported { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .pill-not-verifiable { background: rgba(100,116,139,0.15); color: #64748b; }
+  .pill-opinion { background: rgba(100,116,139,0.15); color: #64748b; }
+  .pill-provisional-badge { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); color: #4ade80; font-size: 10px; padding: 2px 7px; border-radius: 4px; }
+  .log { background: #0f0f1a; border: 1px solid #2d2d3f; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 11px; color: #64748b; height: 500px; overflow-y: auto; }
+  .log-entry { padding: 3px 0; border-bottom: 1px solid #1e1e2e; }
+  .log-entry.ev-connected { color: #4ade80; }
+  .log-entry.ev-claim { color: #a855f7; }
+  .log-entry.ev-claim_provisional { color: #4ade80; }
+  .log-entry.ev-claim_update { color: #fbbf24; }
+  .log-entry.ev-heartbeat { color: #334155; }
+  .log-entry.ev-error { color: #ef4444; }
+  .inject-form { background: #1e1e2e; border: 1px solid #2d2d3f; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .inject-form h3 { font-size: 12px; color: #94a3b8; margin-bottom: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .inject-form textarea, .inject-form input { width: 100%; margin-bottom: 8px; padding: 8px; font-size: 12px; background: #0f0f1a; border: 1px solid #2d2d3f; color: #e2e8f0; border-radius: 4px; }
+  .inject-form textarea { height: 60px; resize: vertical; font-family: inherit; }
+  .inject-form .row { display: flex; gap: 8px; }
+  .empty { text-align: center; color: #334155; padding: 40px; font-size: 13px; }
+  .ts { font-size: 10px; color: #475569; }
+</style>
+</head>
+<body>
+<h1>SSE Stream Test</h1>
+<div class="sub">Ops-only staging tool — test live claim feed without affecting production debate pages</div>
+
+<div class="controls">
+  <div>
+    <label>Event</label>
+    <select id="event-select">""" +     ''.join(f'<option value="{e["slug"]}">{e["name"]}</option>' for e in events) +     """</select>
+  </div>
+  <div>
+    <button onclick="connectSSE()">Connect</button>
+    <button class="danger" onclick="disconnectSSE()" style="margin-left:6px">Disconnect</button>
+    <button class="secondary" onclick="clearFeed()" style="margin-left:6px">Clear feed</button>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span><span class="dot" id="conn-dot"></span><span id="conn-status">Disconnected</span></span>
+  <span id="event-label" style="color:#64748b">—</span>
+  <span id="claim-count" style="color:#64748b">0 claims</span>
+  <span id="last-event" style="color:#475569">—</span>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="inject-form">
+      <h3>Inject test claim</h3>
+      <textarea id="inject-text" placeholder="Claim text...">Colorado has the highest property tax rate in the Mountain West.</textarea>
+      <input id="inject-speaker" placeholder="Speaker name" value="Test Speaker">
+      <div class="row">
+        <button onclick="injectProvisional()" style="flex:1">Inject provisional</button>
+        <button onclick="injectVerified()" style="flex:1;background:#4ade80;border-color:#4ade80;color:#000">Inject verified</button>
+      </div>
+    </div>
+    <div class="feed" id="claim-feed">
+      <div class="empty" id="feed-empty">No claims yet — connect to an event and inject test claims</div>
+    </div>
+  </div>
+  <div>
+    <label style="margin-bottom:8px;display:block">Event log</label>
+    <div class="log" id="event-log"></div>
+  </div>
+</div>
+
+<script>
+var es = null;
+var claimCount = 0;
+
+function log(type, msg) {
+  var el = document.getElementById('event-log');
+  var entry = document.createElement('div');
+  entry.className = 'log-entry ev-' + type;
+  var ts = new Date().toLocaleTimeString();
+  entry.textContent = '[' + ts + '] ' + type.toUpperCase() + ': ' + msg;
+  el.insertBefore(entry, el.firstChild);
+  document.getElementById('last-event').textContent = type + ' · ' + ts;
+}
+
+function setStatus(state) {
+  var dot = document.getElementById('conn-dot');
+  var status = document.getElementById('conn-status');
+  dot.className = 'dot ' + (state === 'connected' ? 'connected' : state === 'error' ? 'error' : '');
+  status.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+}
+
+function clearFeed() {
+  var feed = document.getElementById('claim-feed');
+  feed.innerHTML = '<div class="empty" id="feed-empty">Feed cleared</div>';
+  claimCount = 0;
+  document.getElementById('claim-count').textContent = '0 claims';
+}
+
+function disconnectSSE() {
+  if (es) { es.close(); es = null; }
+  setStatus('disconnected');
+  log('system', 'Disconnected');
+}
+
+function connectSSE() {
+  if (es) { es.close(); }
+  var slug = document.getElementById('event-select').value;
+  document.getElementById('event-label').textContent = slug;
+  setStatus('connecting');
+  log('system', 'Connecting to ' + slug + '...');
+
+  es = new EventSource('/mobile/v1/debates/' + slug + '/stream?since_id=0');
+
+  es.addEventListener('connected', function(e) {
+    setStatus('connected');
+    var data = JSON.parse(e.data);
+    log('connected', 'event_id=' + data.event_id + ', existing=' + (data.existing_claims||[]).length + ', provisional=' + (data.existing_provisional||[]).length);
+    (data.existing_claims || []).forEach(function(c) { renderClaim(c, false); });
+    (data.existing_provisional || []).forEach(function(c) { renderClaim(c, true); });
+  });
+
+  es.addEventListener('claim', function(e) {
+    var c = JSON.parse(e.data);
+    log('claim', 'id=' + c.id + ' verdict=' + c.verdict + ' speaker=' + c.speaker_name);
+    renderClaim(c, false);
+  });
+
+  es.addEventListener('claim_provisional', function(e) {
+    var c = JSON.parse(e.data);
+    log('claim_provisional', 'id=' + c.id + ' speaker=' + c.speaker_name);
+    renderClaim(c, true);
+  });
+
+  es.addEventListener('claim_update', function(e) {
+    var c = JSON.parse(e.data);
+    log('claim_update', 'id=' + c.id + ' verdict=' + c.verdict);
+    updateClaim(c);
+  });
+
+  es.addEventListener('heartbeat', function(e) {
+    log('heartbeat', JSON.parse(e.data).ts);
+  });
+
+  es.addEventListener('error', function(e) {
+    setStatus('error');
+    try { log('error', JSON.stringify(JSON.parse(e.data))); }
+    catch(ex) { log('error', 'SSE connection error'); }
+  });
+
+  es.addEventListener('debate_ended', function() {
+    log('system', 'Debate ended — stream closed');
+    setStatus('disconnected');
+    es.close();
+  });
+}
+
+var VERDICT_LABELS = {
+  'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED',
+  'overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED',
+  'not_verifiable':'NOT VERIFIABLE','opinion':'OPINION'
+};
+
+function renderClaim(c, isProvisional) {
+  var feed = document.getElementById('claim-feed');
+  var empty = document.getElementById('feed-empty');
+  if (empty) empty.remove();
+
+  var verdictKey = (c.verdict || '').replace(/ /g,'_');
+  var verdictClass = 'pill-' + verdictKey.replace(/_/g,'-');
+  var verdictLabel = VERDICT_LABELS[verdictKey] || verdictKey;
+
+  var pillHtml = isProvisional
+    ? '<span class="pill pill-verifying"><span class="prov-dot"></span>VERIFYING</span>'
+    : '<span class="pill ' + verdictClass + '">' + verdictLabel + '</span>' +
+      (c.is_provisional ? '<span class="pill-provisional-badge">provisional</span>' : '');
+
+  var card = document.createElement('div');
+  card.className = 'card' + (isProvisional ? ' provisional' : '');
+  card.id = 'claim-' + c.id;
+  card.innerHTML =
+    '<div class="card-speaker">' +
+      '<span>' + (c.speaker_name || 'Unknown') + '</span>' +
+      '<span class="ts">id:' + c.id + (c.timestamp_seconds ? ' · ' + Math.floor(c.timestamp_seconds/60) + ':' + String(c.timestamp_seconds%60).padStart(2,'0') : '') + '</span>' +
+    '</div>' +
+    '<div class="card-text">“' + (c.claim_text||'') + '”</div>' +
+    '<div class="card-footer" id="footer-' + c.id + '">' + pillHtml + '</div>' +
+    (c.verdict_summary ? '<div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">' + c.verdict_summary + '</div>' : '');
+
+  feed.insertBefore(card, feed.firstChild);
+  claimCount++;
+  document.getElementById('claim-count').textContent = claimCount + ' claim' + (claimCount !== 1 ? 's' : '');
+}
+
+function updateClaim(c) {
+  var card = document.getElementById('claim-' + c.id);
+  if (!card) { renderClaim(c, false); return; }
+  card.classList.remove('provisional');
+  card.classList.add('updated');
+  setTimeout(function() { card.classList.remove('updated'); }, 700);
+  var verdictKey = (c.verdict || '').replace(/ /g,'_');
+  var verdictClass = 'pill-' + verdictKey.replace(/_/g,'-');
+  var verdictLabel = VERDICT_LABELS[verdictKey] || verdictKey;
+  var footer = document.getElementById('footer-' + c.id);
+  if (footer) {
+    footer.innerHTML = '<span class="pill ' + verdictClass + '">' + verdictLabel + '</span>' +
+      (c.is_provisional ? '<span class="pill-provisional-badge">provisional</span>' : '');
+  }
+  if (c.verdict_summary) {
+    var existing = card.querySelector('[style*="font-size:11px"]');
+    if (existing) existing.textContent = c.verdict_summary;
+    else card.insertAdjacentHTML('beforeend', '<div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5">' + c.verdict_summary + '</div>');
+  }
+}
+
+function injectProvisional() {
+  var text = document.getElementById('inject-text').value.trim();
+  var speaker = document.getElementById('inject-speaker').value.trim();
+  if (!text) return;
+  var slug = document.getElementById('event-select').value;
+  fetch('/api/ops/sse-test/inject', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'Authorization': 'Basic ' + btoa('admin:' + prompt('OPS_PASSWORD:'))},
+    body: JSON.stringify({slug: slug, claim_text: text, speaker_name: speaker, provisional: true})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    log('system', 'Injected provisional claim id=' + d.claim_id);
+  }).catch(function(e) { log('error', 'Inject failed: ' + e); });
+}
+
+function injectVerified() {
+  var text = document.getElementById('inject-text').value.trim();
+  var speaker = document.getElementById('inject-speaker').value.trim();
+  if (!text) return;
+  var slug = document.getElementById('event-select').value;
+  fetch('/api/ops/sse-test/inject', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'Authorization': 'Basic ' + btoa('admin:' + prompt('OPS_PASSWORD:'))},
+    body: JSON.stringify({slug: slug, claim_text: text, speaker_name: speaker, provisional: false})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    log('system', 'Injected verified claim id=' + d.claim_id);
+  }).catch(function(e) { log('error', 'Inject failed: ' + e); });
+}
+</script>
+</body>
+</html>"""
+    from flask import Response
+    return Response(html, mimetype='text/html')
+
+
+@app.route('/api/ops/sse-test/inject', methods=['POST'])
+def api_ops_sse_test_inject():
+    """Inject a test claim for SSE staging. Ops-auth protected."""
+    auth_err = _ops_auth()
+    if auth_err:
+        return auth_err
+    from flask import jsonify, request as req
+    data = req.get_json()
+    slug = data.get('slug')
+    claim_text = data.get('claim_text', '').strip()
+    speaker_name = data.get('speaker_name', 'Test Speaker').strip()
+    is_provisional = data.get('provisional', True)
+
+    if not slug or not claim_text:
+        return jsonify({'error': 'slug and claim_text required'}), 400
+
+    db = get_db()
+    cur = db.cursor()
+    try:
+        # Get event_id
+        cur.execute("SELECT id FROM events WHERE slug = %s AND is_public = TRUE", (slug,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Event not found'}), 404
+        event_id = row[0]
+
+        # Get or create speaker
+        cur.execute("SELECT id FROM speakers WHERE name = %s LIMIT 1", (speaker_name,))
+        spk = cur.fetchone()
+        if spk:
+            speaker_id = spk[0]
+        else:
+            cur.execute(
+                "INSERT INTO speakers (name, normalized_name, speaker_type) VALUES (%s, %s, 'politician') RETURNING id",
+                (speaker_name, speaker_name.lower())
+            )
+            speaker_id = cur.fetchone()[0]
+
+        # Insert claim
+        verdict = None if is_provisional else 'supported'
+        verdict_summary = None if is_provisional else 'Test verdict — injected via SSE staging tool.'
+        verdict_status = 'provisional'
+        cur.execute("""
+            INSERT INTO claims
+                (claim_text, claim_origin, verdict, verdict_summary, verdict_status,
+                 methodology_version, speaker_id, event_id, first_seen, last_checked,
+                 priority_score, verification_method)
+            VALUES
+                (%s, 'debate_claim', %s, %s, %s, 'v1.7', %s, %s,
+                 NOW(), %s, 50, 'fresh')
+            RETURNING id
+        """, (claim_text, verdict, verdict_summary, verdict_status,
+              speaker_id, event_id, 'NOW()' if not is_provisional else None))
+        claim_id = cur.fetchone()[0]
+        db.commit()
+        return jsonify({'claim_id': claim_id, 'event_id': event_id, 'provisional': is_provisional})
+    except Exception as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        db.close()
+
 from auth_routes import register_auth_routes
 register_auth_routes(app, get_db)
 
