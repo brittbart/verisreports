@@ -1612,44 +1612,240 @@
     setInterval(updateLiveExtras, STATS_INTERVAL);
   })();
 
-  // ============= Live auto-refresh (upcoming + live states) =============
+  // ============= Live claim feed via SSE =============
   (function() {
     var bodyClass = document.body.className;
     var isLive = bodyClass.indexOf('is-live') !== -1;
     var isUpcoming = bodyClass.indexOf('is-upcoming') !== -1;
-    if (!isLive && !isUpcoming) return;
 
-    var slug = window.location.pathname.split('/').pop();
-    var INTERVAL = isLive ? 30000 : 60000; // 30s live, 60s upcoming
-
-    function refresh() {
-      fetch('/api/debates/' + slug)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          // If status changed to live, reload the full page
-          if (isUpcoming && data.status === 'live') {
-            window.location.reload();
-            return;
-          }
-          // If new claims arrived, reload to show them
-          var feed = document.getElementById('claim-feed');
-          var current = feed ? feed.querySelectorAll('[data-row="claim"]').length : 0;
-          var incoming = (data.claims || []).filter(function(c) { return c.verdict; }).length;
-          if (incoming > current) {
-            if (!_pauseScroll) { window.location.reload(); }
-            return;
-          }
-          // If provisional count changed (verdicts promoted to final), reload
-          var currentProvisional = feed ? feed.querySelectorAll('[data-provisional="true"]').length : 0;
-          var incomingProvisional = (data.claims || []).filter(function(c) { return c.verdict_status === 'provisional'; }).length;
-          if (incomingProvisional !== currentProvisional) {
-            window.location.reload();
-          }
-        })
-        .catch(function() {});
+    // Upcoming: poll for status change to live, then reload
+    if (isUpcoming && !isLive) {
+      var slug = window.location.pathname.split('/').pop();
+      setInterval(function() {
+        fetch('/api/debates/' + slug)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.status === 'live') { window.location.reload(); }
+          }).catch(function() {});
+      }, 30000);
+      return;
     }
 
-    setInterval(refresh, INTERVAL);
+    if (!isLive) return;
+
+    var slug = window.location.pathname.split('/').pop();
+    var feed = document.getElementById('claim-feed');
+    var empty = document.getElementById('claim-empty');
+    var lastClaimId = 0;
+
+    var VERDICT_LABELS = {
+      'supported':      'SUPPORTED',
+      'plausible':      'PLAUSIBLE',
+      'corroborated':   'CORROBORATED',
+      'overstated':     'OVERSTATED',
+      'disputed':       'DISPUTED',
+      'not_supported':  'NOT SUPPORTED',
+      'not_verifiable': 'NOT VERIFIABLE',
+      'opinion':        'OPINION'
+    };
+
+    var speakerColorMap = {};
+    var speakerOrder = [];
+    var colorClasses = ['cand-a', 'cand-b', 'cand-c', 'cand-d'];
+
+    function getSpeakerColor(speakerId) {
+      if (speakerId === null || speakerId === undefined) return 'cand-a';
+      var key = String(speakerId);
+      if (!(key in speakerColorMap)) {
+        speakerOrder.push(key);
+        speakerColorMap[key] = colorClasses[(speakerOrder.length - 1) % colorClasses.length];
+      }
+      return speakerColorMap[key];
+    }
+
+    function getInitials(name) {
+      if (!name) return '?';
+      var parts = name.trim().split(' ');
+      if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+      return name[0].toUpperCase();
+    }
+
+    function formatTimestamp(ts) {
+      if (ts === null || ts === undefined) return '';
+      var mins = Math.floor(ts / 60);
+      var secs = ts % 60;
+      return mins + ':' + (secs < 10 ? '0' : '') + secs;
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function escAttr(str) {
+      if (!str) return '';
+      return String(str).replace(/"/g,'&quot;');
+    }
+
+    function buildClaimCard(claim, isProvisional) {
+      var colorClass = getSpeakerColor(claim.speaker_id);
+      var initials = getInitials(claim.speaker_name);
+      var speakerSlug = (claim.speaker_name || '').toLowerCase().replace(/ /g, '-');
+      var ts = formatTimestamp(claim.timestamp_seconds);
+      var verdictKey = (claim.verdict || '').replace(/ /g, '_');
+      var verdictLabel = VERDICT_LABELS[verdictKey] || verdictKey.toUpperCase();
+      var verdictPillClass = 'v-pill--' + verdictKey.replace(/_/g, '-');
+
+      var verdictHtml = isProvisional
+        ? '<span class="vs-badge-provisional" title="Being verified now"><span class="prov-dot"></span>verifying</span>'
+        : '<span class="v-pill ' + verdictPillClass + '">' + verdictLabel + '</span>' +
+          (claim.is_provisional ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>verifying</span>' : '');
+
+      var summaryHtml = (!isProvisional && claim.verdict_summary)
+        ? '<p class="dt-claim-summary">' + escHtml(claim.verdict_summary) + '</p>'
+        : '<p class="dt-claim-summary" style="color:var(--text-3);font-style:italic;">Verifying claim against available sources\u2026</p>';
+
+      var confidenceHtml = (!isProvisional && claim.confidence_score)
+        ? '<div style="margin:8px 0 4px;display:flex;align-items:center;gap:6px;">' +
+          '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">CONFIDENCE</span>' +
+          '<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-2);">' + claim.confidence_score + '/3</span>' +
+          '</div>' : '';
+
+      return '<article class="dt-claim ' + colorClass + '" ' +
+             'data-row="claim" ' +
+             'data-claim-id="' + claim.id + '" ' +
+             'data-speaker="' + escAttr(speakerSlug) + '" ' +
+             'data-verdict="' + escAttr(verdictKey) + '" ' +
+             'data-provisional="' + (claim.is_provisional ? 'true' : 'false') + '">' +
+               '<div class="dt-claim-row">' +
+                 '<div class="dt-claim-mono">' + escHtml(initials) + '</div>' +
+                 '<div class="dt-claim-body">' +
+                   '<div class="dt-claim-speaker">' +
+                     '<span class="name">' + escHtml(claim.speaker_name || 'Unknown') + '</span>' +
+                     (ts ? '<span class="time" title="Time into debate">' + ts + '</span>' : '') +
+                   '</div>' +
+                   '<p class="dt-claim-quote">\u201c' + escHtml(claim.claim_text) + '\u201d</p>' +
+                   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                     verdictHtml +
+                     '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">Click to expand</span>' +
+                   '</div>' +
+                 '</div>' +
+                 '<div class="dt-claim-aside">' +
+                   '<button class="dt-claim-expand" aria-label="Expand claim">' +
+                     '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+                   '</button>' +
+                 '</div>' +
+               '</div>' +
+               '<div class="dt-claim-detail">' +
+                 summaryHtml +
+                 confidenceHtml +
+                 '<div class="dt-claim-detail-foot"></div>' +
+               '</div>' +
+             '</article>';
+    }
+
+    function attachCardListeners(card) {
+      card.addEventListener('click', function(e) {
+        if (e.target.closest('a')) return;
+        card.classList.toggle('is-expanded');
+      });
+    }
+
+    function prependCard(html) {
+      if (!feed) return;
+      var tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      var card = tmp.firstElementChild;
+      attachCardListeners(card);
+      feed.insertBefore(card, feed.firstChild);
+      if (empty) empty.classList.remove('is-visible');
+      if (!_pauseScroll) { card.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+      applyFilters();
+    }
+
+    function updateCard(claim) {
+      if (!feed) return;
+      var existing = feed.querySelector('[data-claim-id="' + claim.id + '"]');
+      if (!existing) { prependCard(buildClaimCard(claim, false)); return; }
+      var verdictKey = (claim.verdict || '').replace(/ /g, '_');
+      var verdictLabel = VERDICT_LABELS[verdictKey] || verdictKey.toUpperCase();
+      var pillArea = existing.querySelector('[data-row="claim"] div[style*="display:flex"]') ||
+                     existing.querySelector('.dt-claim-body > div:last-child');
+      if (pillArea) {
+        var provBadge = claim.is_provisional
+          ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>verifying</span>' : '';
+        var expandText = '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">Click to expand</span>';
+        pillArea.innerHTML = '<span class="v-pill v-pill--' + verdictKey.replace(/_/g,'-') + '">' + verdictLabel + '</span>' + provBadge + expandText;
+      }
+      var summary = existing.querySelector('.dt-claim-summary');
+      if (summary && claim.verdict_summary) {
+        summary.textContent = claim.verdict_summary;
+        summary.style.fontStyle = '';
+        summary.style.color = '';
+      }
+      existing.setAttribute('data-verdict', verdictKey);
+      existing.setAttribute('data-provisional', claim.is_provisional ? 'true' : 'false');
+      applyFilters();
+    }
+
+    // Seed lastClaimId from server-rendered cards
+    feed.querySelectorAll('[data-claim-id]').forEach(function(card) {
+      var cid = parseInt(card.getAttribute('data-claim-id'), 10);
+      if (cid) lastClaimId = Math.max(lastClaimId, cid);
+    });
+
+    // Connect SSE
+    var reconnectDelay = 3000;
+    var es;
+
+    function connectSSE() {
+      var url = '/mobile/v1/debates/' + slug + '/stream?since_id=' + lastClaimId;
+      es = new EventSource(url);
+
+      es.addEventListener('connected', function(e) {
+        reconnectDelay = 3000;
+        var data = JSON.parse(e.data);
+        (data.existing_provisional || []).forEach(function(claim) {
+          if (!feed.querySelector('[data-claim-id="' + claim.id + '"]')) {
+            prependCard(buildClaimCard(claim, true));
+            lastClaimId = Math.max(lastClaimId, claim.id);
+          }
+        });
+      });
+
+      es.addEventListener('claim', function(e) {
+        var claim = JSON.parse(e.data);
+        lastClaimId = Math.max(lastClaimId, claim.id);
+        prependCard(buildClaimCard(claim, false));
+      });
+
+      es.addEventListener('claim_provisional', function(e) {
+        var claim = JSON.parse(e.data);
+        lastClaimId = Math.max(lastClaimId, claim.id);
+        prependCard(buildClaimCard(claim, true));
+      });
+
+      es.addEventListener('claim_update', function(e) {
+        var claim = JSON.parse(e.data);
+        lastClaimId = Math.max(lastClaimId, claim.id);
+        updateCard(claim);
+      });
+
+      es.addEventListener('debate_ended', function() { es.close(); });
+
+      es.addEventListener('error', function(e) {
+        try {
+          var data = JSON.parse(e.data);
+          if (data.code === 'TIMEOUT') {
+            es.close();
+            setTimeout(connectSSE, reconnectDelay);
+            reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+          }
+        } catch(ex) {}
+      });
+    }
+
+    connectSSE();
+
   })();
 </script>
 </body>
