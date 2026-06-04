@@ -1712,6 +1712,12 @@ setTimeout(checkStatus, 3000);
                 'msg': 'We retrieved this article but could not extract verifiable factual claims from it.',
                 'detail': 'This happens when an article is primarily opinion, uses JavaScript rendering our scraper cannot access, or is behind a paywall. Try a different article from a text-heavy news report, or choose one of our tracked outlets: Fox News, CNN, BBC, NPR, The Guardian, or Politico.',
             },
+            'all_attributed': {
+                'icon': '\u2139\ufe0f',
+                'heading': 'Claims are from other sources',
+                'msg': 'This article reports statements made by third parties and does not contain scoreable assertions by this outlet.',
+                'detail': 'Verum Signal scores factual claims made directly by the outlet. This article is composed entirely of attributed quotes and sourced reporting, which do not count toward the outlet\u2019s reliability score. This is common in wire rewrites, press conference roundups, and aggregation pieces.',
+            },
             'paywall': {
                 'icon': '\U0001f512',
                 'heading': 'Paywall detected',
@@ -1782,6 +1788,14 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     score   = data.get('score', 0)
     # Patch 1: coerce None → 0 for rendering math. The 'Unscored' rating
     # comes through 'rating' below.
+    # Detect all-attributed case: claims exist but none are outlet_claim
+    _all_attributed = False
+    if _score_was_none and data.get('claims'):
+        _all_attributed = all(
+            c.get('claim_origin') in ('attributed_claim', 'wire_reprint')
+            for c in data.get('claims', [])
+            if c.get('claim_origin')
+        )
     _score_was_none = (score is None)
     if score is None:
         score = 0
@@ -2218,7 +2232,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{score_color}}', str(score_color))
     # Patch 3: render the article-score chip in Python so unscored articles
     # don't display a misleading '0/100 Unscored'.
-    if _score_was_none:
+    if _score_was_none and _all_attributed:
+        score_chip_html = '<span class="vs-chip-score" style="color:rgba(255,255,255,0.3)" title="All claims in this article are attributed to third parties">Article: Unscored — attributed sources</span>'
+    elif _score_was_none:
         score_chip_html = '<span class="vs-chip-score" style="color:rgba(255,255,255,0.3)">Article: Unscored</span>'
     else:
         score_chip_html = f'<span class="vs-chip-score" style="color:{score_color}">Article: {score}/100 {rating}</span>'
@@ -2312,6 +2328,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     no_scoreable_claims = data.get('no_scoreable_claims', False)
     if no_scoreable_claims:
         opinion_inset_html = ('<div class="vs-opinion-inset"><div class="vs-opinion-inset-label">NOT SCORED — OPINION / UNVERIFIABLE CONTENT</div><div class="vs-opinion-inset-text">This article was retrieved successfully but did not contain verifiable factual claims that can be assessed against independent sources. It may be primarily opinion, commentary, polling data, or analysis. The Verum Signal methodology only scores articles with attributable factual claims — this article is classified as unscored. No verdict is implied about its accuracy or quality.</div></div>')
+    elif _all_attributed:
+        opinion_inset_html = ('<div class="vs-opinion-inset"><div class="vs-opinion-inset-label">NOT SCORED — CLAIMS ATTRIBUTED TO THIRD PARTIES</div><div class="vs-opinion-inset-text">This article reports statements made by other sources and does not contain scoreable assertions by this outlet. Verum Signal scores factual claims made directly by the outlet — attributed quotes and sourced reporting do not count toward the outlet’s reliability score. The verdicts above reflect the accuracy of the underlying claims, not this outlet’s reporting.</div></div>')
     else:
         opinion_inset_html = ''
     html = html.replace('{{opinion_inset_html}}', opinion_inset_html)
