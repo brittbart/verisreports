@@ -1294,7 +1294,7 @@
                 <div class="dt-claim-body">
                   <div class="dt-claim-speaker">
                     <span class="name">{{ c.speaker_name }}</span>
-                    {% if c.timestamp_seconds is not none %}<span class="time" title="Time into debate">{{ (c.timestamp_seconds // 60)|int }}:{{"%.2d" % (c.timestamp_seconds % 60)}} in</span>{% else %}<span class="time">{{ c.first_seen }}</span>{% endif %}
+                    {% if c.timestamp_seconds is not none %}<span class="time" title="Time into debate">{{ (c.timestamp_seconds // 60)|int }}:{{"%.2d" % (c.timestamp_seconds % 60)}}</span>{% endif %}
                   </div>
                   <p class="dt-claim-quote">&ldquo;{{ c.claim_text }}&rdquo;</p>
                   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
