@@ -2581,6 +2581,7 @@ _OPS_CHANGELOG_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Veris Changelog</title>
+<script>const OPS_AUTH = "__OPS_AUTH_PLACEHOLDER__";</script>
 <style>
 :root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
 *{box-sizing:border-box}
