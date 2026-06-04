@@ -377,6 +377,7 @@ def fetch_rss():
 # Wire services with no direct RSS — fetched via NewsAPI domains parameter
 NEWSAPI_WIRE_DOMAINS = [
     'apnews.com',
+    'reuters.com',
     'washingtonpost.com',
     'newsmax.com',
 ]
