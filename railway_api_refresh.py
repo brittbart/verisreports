@@ -485,6 +485,15 @@ def main():
         except Exception:
             log.warning("token_cleanup failed — non-fatal")
 
+        # Write job_runs entry so pre_debate_check and ops dashboard reflect this run
+        try:
+            elapsed_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
+            cur.execute("""
+                INSERT INTO job_runs (stage, started_at, finished_at, duration_ms, status, items_processed, hostname)
+                VALUES ('verdicts', %s, %s, %s, 'ok', %s, %s)
+            """, (start, datetime.now(timezone.utc), elapsed_ms, claims_n, 'railway_api_refresh'))
+        except Exception:
+            log.warning('job_runs write failed — non-fatal')
         conn.commit()
 
     except Exception:
