@@ -6469,7 +6469,7 @@ def api_ops_sse_test_inject():
                  NOW(), %s, 50, 'fresh')
             RETURNING id
         """, (claim_text, verdict, verdict_summary, verdict_status,
-              speaker_id, event_id, 'NOW()' if not is_provisional else None))
+              speaker_id, event_id, None if is_provisional else __import__('datetime').datetime.now(__import__('datetime').timezone.utc)))
         claim_id = cur.fetchone()[0]
         db.commit()
         return jsonify({'claim_id': claim_id, 'event_id': event_id, 'provisional': is_provisional})
