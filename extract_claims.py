@@ -75,6 +75,7 @@ Apply the following adjustments:
 
 DO NOT EXTRACT:
 - Personal biographical statements ("I grew up in Denver", "my wife passed away in 2019")
+- Uncontested public record facts about third parties ("Jared Polis is Colorado's first Jewish governor", "Biden served as Vice President for 8 years") — universally acknowledged background facts that carry no evaluative weight and are not disputed
 - Location pleasantries ("it's wonderful to be here in Colorado Springs")
 - Statements of personal preference ("I love this state", "Colorado is the greatest")
 - Non-falsifiable opinions ("we deserve better leadership", "we need to do more")
