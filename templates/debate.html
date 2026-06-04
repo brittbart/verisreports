@@ -1341,8 +1341,13 @@
           <strong>No claims match the current filters.</strong>
           <div style="margin-top:8px;">Try selecting &ldquo;All&rdquo; speakers or verdicts.</div>
           {% else %}
+          {% if event.is_live %}
+          <strong>Pipeline is active.</strong>
+          <div style="margin-top:8px;">First claims typically appear within 5 minutes of debate start. The feed updates automatically.</div>
+          {% else %}
           <strong>No verified claims yet for this event.</strong>
           <div style="margin-top:8px;">Claims will appear here once the transcript has been processed.</div>
+          {% endif %}
           {% endif %}
         </div>
       </div>
@@ -1652,6 +1657,17 @@
     var speakerColorMap = {};
     var speakerOrder = [];
     var colorClasses = ['cand-a', 'cand-b', 'cand-c', 'cand-d'];
+    // Seed speaker color map from known event speaker order (deterministic, matches server-side _color_class)
+    (function() {
+      var knownSpeakers = {{ event.participants | map(attribute='id') | list | tojson }};
+      knownSpeakers.forEach(function(sid) {
+        var key = String(sid);
+        if (!(key in speakerColorMap)) {
+          speakerOrder.push(key);
+          speakerColorMap[key] = colorClasses[(speakerOrder.length - 1) % colorClasses.length];
+        }
+      });
+    })();
 
     function getSpeakerColor(speakerId) {
       if (speakerId === null || speakerId === undefined) return 'cand-a';
@@ -1792,6 +1808,8 @@
       var cid = parseInt(card.getAttribute('data-claim-id'), 10);
       if (cid) lastClaimId = Math.max(lastClaimId, cid);
     });
+    // On reconnect, existing_claims in the connected event contains any claims
+    // missed during the disconnect window — render ones not already in the DOM
 
     // Connect SSE
     var reconnectDelay = 3000;
@@ -1804,6 +1822,14 @@
       es.addEventListener('connected', function(e) {
         reconnectDelay = 3000;
         var data = JSON.parse(e.data);
+        // Render any verified claims missed during disconnect
+        (data.existing_claims || []).forEach(function(claim) {
+          if (!feed.querySelector('[data-claim-id="' + claim.id + '"]')) {
+            prependCard(buildClaimCard(claim, false));
+            lastClaimId = Math.max(lastClaimId, claim.id);
+          }
+        });
+        // Render provisional claims missed during disconnect
         (data.existing_provisional || []).forEach(function(claim) {
           if (!feed.querySelector('[data-claim-id="' + claim.id + '"]')) {
             prependCard(buildClaimCard(claim, true));
