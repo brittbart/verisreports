@@ -74,7 +74,10 @@ def api_ops_attribution():
         params.append(event_id)
     sql += " ORDER BY c.id DESC LIMIT 200"
 
-    cur.execute(sql, params)
+    if params:
+        cur.execute(sql, params)
+    else:
+        cur.execute(sql)
     rows = cur.fetchall()
 
     # Get available speakers for correction dropdown
