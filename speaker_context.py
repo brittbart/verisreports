@@ -56,6 +56,47 @@ EVENT_SPEAKER_CONTEXT = {
 EVENT_SPEAKER_CONTEXT[12] = EVENT_SPEAKER_CONTEXT[11]
 
 
+
+# ---------------------------------------------------------------------------
+# DB-backed context loading (falls back to hardcoded dict)
+# ---------------------------------------------------------------------------
+_context_cache = {}
+
+def _load_context(event_id):
+    """Load speaker context from speaker_event_context table, fall back to hardcoded."""
+    if event_id in _context_cache:
+        return _context_cache[event_id]
+    try:
+        import psycopg2, os
+        conn = psycopg2.connect(
+            dbname=os.getenv('DB_NAME'), user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'), host=os.getenv('DB_HOST'),
+            port=os.getenv('DB_PORT', '5432'), connect_timeout=5,
+        )
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT speaker_id, exclusive_keywords, roles FROM speaker_event_context WHERE event_id = %s",
+            (event_id,)
+        )
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+        if rows:
+            context = {}
+            for sid, keywords, roles in rows:
+                context[sid] = {
+                    'exclusive_keywords': keywords if isinstance(keywords, list) else [],
+                    'roles': roles if isinstance(roles, list) else [],
+                }
+            _context_cache[event_id] = context
+            return context
+    except Exception:
+        pass
+    # Fallback to hardcoded dict
+    context = EVENT_SPEAKER_CONTEXT.get(event_id)
+    _context_cache[event_id] = context
+    return context
+
+
 def check_speaker_consistency(claim_text: str, speaker_id: int, event_id: int) -> tuple:
     """
     Check if claim_text is semantically consistent with the attributed speaker.
@@ -65,7 +106,7 @@ def check_speaker_consistency(claim_text: str, speaker_id: int, event_id: int) -
         - (True, '') if consistent or no context available
         - (False, 'contains exclusive keyword for speaker_id=X: ...')
     """
-    context = EVENT_SPEAKER_CONTEXT.get(event_id)
+    context = _load_context(event_id)
     if not context:
         return True, ''
 
@@ -91,7 +132,7 @@ def check_first_person_role(claim_text: str, speaker_id: int, event_id: int) -> 
     Returns:
         (is_suspicious: bool, reason: str)
     """
-    context = EVENT_SPEAKER_CONTEXT.get(event_id)
+    context = _load_context(event_id)
     if not context:
         return False, ''
 
