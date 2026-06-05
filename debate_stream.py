@@ -676,12 +676,23 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
 
     client = RevAiStreamingClient(token, config)
 
-    # Start ffmpeg to pipe audio to stdin
+    # Save debate audio to disk for post-debate voice verification
+    audio_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debate_audio')
+    os.makedirs(audio_dir, exist_ok=True)
+    audio_filename = f'event_{event_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.wav'
+    audio_path = os.path.join(audio_dir, audio_filename)
+    print(f"  Audio will be saved to: {audio_path}")
+
+    # Start ffmpeg to pipe audio to stdin AND save to file
+    # Output 1: pipe for Rev AI (raw PCM s16le)
+    # Output 2: wav file on disk for post-debate verification
     ffmpeg_cmd = [
         'ffmpeg', '-i', stream_url,
         '-ar', '16000', '-ac', '1',
         '-f', 's16le', '-acodec', 'pcm_s16le',
-        'pipe:1'
+        'pipe:1',
+        '-ar', '16000', '-ac', '1',
+        audio_path,
     ]
 
     print("Starting ffmpeg audio capture...")
