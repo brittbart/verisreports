@@ -151,8 +151,49 @@ def main():
               remaining < uncertain,
               f'{remaining} still uncertain (manual review via /disputes)')
 
-    # ── 7. Confidence gate stats ──────────────────────────────────────────
-    section('7. Confidence gate stats (ATTRIBUTION_CONFIDENCE_THRESHOLD = 0.60)')
+    # ── 7. Semantic attribution flags (A5) ──────────────────────────────
+    section('7. Semantic attribution flags')
+    cur.execute("""
+        SELECT c.id, c.claim_text, c.speaker_id, s.name,
+               c.revision_history
+        FROM claims c
+        JOIN speakers s ON s.id = c.speaker_id
+        WHERE c.event_id = %s
+          AND c.claim_origin = 'debate_claim'
+          AND c.revision_history IS NOT NULL
+          AND c.revision_history::text LIKE '%%attribution_flagged%%'
+        ORDER BY c.id
+    """, (eid,))
+    flagged = cur.fetchall()
+    if not flagged:
+        print('  ✓ No claims flagged for attribution review')
+    else:
+        print(f'  ⚠ {len(flagged)} claim(s) flagged — review each:')
+        for cid, ctext, sid, sname, rev in flagged:
+            # Extract reason from revision_history
+            reason = ''
+            if rev:
+                import json
+                try:
+                    entries = rev if isinstance(rev, list) else json.loads(rev)
+                    for entry in entries:
+                        if entry.get('action') == 'attribution_flagged':
+                            reason = entry.get('reason', '')
+                            break
+                except Exception:
+                    reason = '(could not parse revision_history)'
+            print(f'    claim {cid}: {ctext[:70]}')
+            print(f'      attributed to: {sname} (speaker_id={sid})')
+            print(f'      reason: {reason}')
+            print()
+        print(f'  To correct a misattribution:')
+        print('    UPDATE claims SET speaker_id = <correct_id>,')
+        print("      revision_history = revision_history || '[{action:manual_correction, old_speaker:<old>, new_speaker:<new>}]'::jsonb")
+        print(f'    WHERE id = <claim_id>;')
+        print('    -- Then update api_debate_claims: python3 railway_api_refresh.py')
+
+    # ── 8. Confidence gate stats ──────────────────────────────────────────
+    section('8. Confidence gate stats (ATTRIBUTION_CONFIDENCE_THRESHOLD = 0.60)')
     cur.execute("""
         SELECT
             COUNT(*) FILTER (WHERE attribution_confidence IS NOT NULL) as with_confidence,
@@ -169,8 +210,8 @@ def main():
         print(f'  · Average confidence:       {float(avg_conf):.3f}')
         print(f'  · Minimum confidence:       {float(min_conf):.3f}')
 
-    # ── 8. Provisional promotion status ──────────────────────────────────
-    section('8. Provisional promotion status')
+    # ── 9. Provisional promotion status ──────────────────────────────────
+    section('9. Provisional promotion status')
     cur.execute("""
         SELECT 
             COUNT(*) FILTER (WHERE verdict_status = 'provisional') as still_provisional,
@@ -196,8 +237,8 @@ def main():
         else:
             print(f'  · Auto-promotion overdue — check railway_api_refresh cron')
 
-    # ── 9. API materialized tables ────────────────────────────────────────
-    section('9. API materialized tables')
+    # ── 10. API materialized tables ────────────────────────────────────────
+    section('10. API materialized tables')
     cur.execute("""
         SELECT COUNT(*) FROM api_debate_claims
         WHERE event_id = %s
@@ -205,8 +246,8 @@ def main():
     api_count = cur.fetchone()[0]
     check('api_debate_claims populated', api_count > 0, f'{api_count} rows')
 
-    # ── 10. Summary ───────────────────────────────────────────────────────
-    section('10. Next steps')
+    # ── 11. Summary ───────────────────────────────────────────────────────
+    section('11. Next steps')
     if pending > 0:
         print(f'  → {pending} claims still pending verification')
         print(f'    Run: python3 railway_api_refresh.py')
