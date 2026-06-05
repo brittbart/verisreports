@@ -332,6 +332,12 @@ Respond with ONLY the JSON array, no other text."""
             event_id,
         ))
 
+        # Write public correction note
+        cur.execute(
+            "UPDATE claims SET correction_note = %s WHERE utterance_id = %s AND event_id = %s AND correction_note IS NULL",
+            ('Correction: Originally attributed to ' + fix['old_name'] + '. Attribution corrected to ' + fix['new_name'] + ' following post-debate review.',
+             fix['uid'], event_id))
+
         print(f"    ✓ Utterance {fix['uorder']}: {fix['old_name']} → {fix['new_name']}")
 
     conn.commit()
