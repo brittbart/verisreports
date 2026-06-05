@@ -716,12 +716,29 @@ def run_extraction(event_id, limit=None, dry_run=False):
             stats['api_calls'] += 1
             continue
 
-        # Layer 2: AI extraction on full turn text
+        # Layer 2: AI extraction on full turn text (with retry on 529/overload)
         try:
             # Build article dict from first row but substitute full turn text as content
             article_dict = utterance_to_article_dict(row, event_id)
             article_dict['content'] = turn_text
-            claims = extract_claims_from_article(article_dict)
+            claims = None
+            _retry_delays = [5, 15, 30]
+            for _attempt in range(len(_retry_delays) + 1):
+                try:
+                    claims = extract_claims_from_article(article_dict)
+                    break
+                except Exception as _api_err:
+                    err_str = str(_api_err)
+                    is_retryable = '529' in err_str or 'overloaded' in err_str.lower() or '529' in getattr(_api_err, 'status_code', '')
+                    if is_retryable and _attempt < len(_retry_delays):
+                        delay = _retry_delays[_attempt]
+                        print(f"  [RETRY] API overloaded (attempt {_attempt+1}/{len(_retry_delays)+1}), waiting {delay}s...")
+                        import time as _time
+                        _time.sleep(delay)
+                    else:
+                        raise
+            if claims is None:
+                claims = []
             stats['api_calls'] += 1
             stats['claims_extracted'] += len(claims)
 
@@ -756,6 +773,9 @@ def run_extraction(event_id, limit=None, dry_run=False):
         except Exception as e:
             stats['errors'] += 1
             print(f"  ERROR: {e}")
+            # Do NOT mark utterances as processed — they will be retried next cycle
+            print(f"  → Utterances left unprocessed for retry")
+            continue
 
         # Mark all utterances in this turn as processed — reconnect if needed
         try:
