@@ -6529,6 +6529,10 @@ def api_ops_sse_test_inject():
 from auth_routes import register_auth_routes
 register_auth_routes(app, get_db)
 
+# ── Attribution review ops page ─────────────────────────────────────────────
+from ops_attribution import bp as ops_attribution_bp
+app.register_blueprint(ops_attribution_bp)
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
