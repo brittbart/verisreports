@@ -84,6 +84,60 @@ def _get_all_public_events(get_db_conn):
             for ev_id, verdict, n in cur.fetchall():
                 breakdown_by_event[ev_id].append({'v': verdict, 'n': n})
 
+        # Latest claim per event (for live hero quote line)
+        latest_by_event = {}
+        if eid_list:
+            cur.execute("""
+                SELECT DISTINCT ON (c.event_id)
+                    c.event_id, c.claim_text, s.name, c.speaker_id
+                FROM claims c
+                LEFT JOIN speakers s ON s.id = c.speaker_id
+                WHERE c.event_id = ANY(%s)
+                  AND c.claim_origin = 'debate_claim'
+                  AND c.verdict IS NOT NULL
+                ORDER BY c.event_id, c.timestamp_seconds DESC NULLS LAST, c.first_seen DESC NULLS LAST
+            """, (eid_list,))
+            for ev_id, text, spk_name, spk_id in cur.fetchall():
+                # Compute speaker ordinal from participants list
+                parts = participants_by_event.get(ev_id, [])
+                ordinal = next((i for i, p in enumerate(parts) if p['name'] == spk_name), 0)
+                latest_by_event[ev_id] = {
+                    'speaker_name': spk_name or 'Unknown',
+                    'speaker_ordinal': ordinal,
+                    'text': text,
+                }
+
+        # Most contested claim per event (for feature card)
+        top_by_event = {}
+        if eid_list:
+            cur.execute("""
+                SELECT DISTINCT ON (c.event_id)
+                    c.event_id, c.claim_text, c.verdict, s.name
+                FROM claims c
+                LEFT JOIN speakers s ON s.id = c.speaker_id
+                WHERE c.event_id = ANY(%s)
+                  AND c.claim_origin = 'debate_claim'
+                  AND c.verdict IS NOT NULL
+                ORDER BY c.event_id,
+                    CASE c.verdict
+                        WHEN 'not_supported' THEN 1
+                        WHEN 'disputed' THEN 2
+                        WHEN 'overstated' THEN 3
+                        WHEN 'not_verifiable' THEN 4
+                        WHEN 'opinion' THEN 5
+                        WHEN 'plausible' THEN 6
+                        WHEN 'corroborated' THEN 7
+                        WHEN 'supported' THEN 8
+                        ELSE 9
+                    END
+            """, (eid_list,))
+            for ev_id, text, verdict, spk_name in cur.fetchall():
+                top_by_event[ev_id] = {
+                    'verdict': verdict,
+                    'speaker_name': spk_name or 'Unknown',
+                    'text': text,
+                }
+
         cur.close()
         events = []
         today = date.today()
@@ -113,6 +167,8 @@ def _get_all_public_events(get_db_conn):
                 'timezone':            timezone or 'CT',
                 'participants':        participants_by_event.get(eid, []),
                 'verdict_breakdown':   breakdown_by_event.get(eid, []),
+                'latest_claim':        latest_by_event.get(eid),
+                'top_claim':           top_by_event.get(eid),
             })
         return events
     finally:
