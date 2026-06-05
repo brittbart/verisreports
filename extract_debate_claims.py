@@ -699,6 +699,9 @@ def run_extraction(event_id, limit=None, dry_run=False):
             else:
                 print(f"  → {len(claims)} claim(s):")
                 for claim in claims:
+                    # Carry timestamp from utterance into claim for display
+                    if 'timestamp_seconds' not in claim or claim['timestamp_seconds'] is None:
+                        claim['timestamp_seconds'] = article_dict.get('timestamp_seconds')
                     # Reconnect if connection was lost during API call
                     try:
                         conn.cursor().execute("SELECT 1")
