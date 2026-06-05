@@ -511,7 +511,17 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 r'^same question to you,?\s+(mr\.?|mrs\.?|senator)?\s*\w+',
                 r'^(short answer|your response|your question),?\s+(mr\.?|senator)?\s*\w+',
             ]
-            _is_address = any(_re.match(p, text.lower()) for p in _address_patterns)
+            # Only treat as moderator address if current speaker IS the moderator
+            # or is unmapped. If current speaker is a confirmed candidate,
+            # "Mr. Weiser" is a cross-reference, not a handoff.
+            _current_is_candidate = (
+                rev_speaker_idx in confirmed_speaker_ids
+                and confirmed_speaker_ids[rev_speaker_idx] != 3  # not moderator
+            )
+            _is_address = (
+                not _current_is_candidate
+                and any(_re.match(p, text.lower()) for p in _address_patterns)
+            )
 
             detected = detect_name_cue(text)
             if detected is not None:
