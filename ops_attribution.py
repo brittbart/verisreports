@@ -44,8 +44,12 @@ def api_ops_attribution():
     if auth_err:
         return auth_err
 
-    from api import get_db
-    conn = get_db()
+    import psycopg2
+    conn = psycopg2.connect(
+        dbname=os.environ.get('DB_NAME'), user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'), host=os.environ.get('DB_HOST'),
+        port=os.environ.get('DB_PORT', '5432'), connect_timeout=10)
+    conn.autocommit = True
     cur = conn.cursor()
 
     event_id = request.args.get('event_id', type=int)
@@ -123,8 +127,12 @@ def api_ops_attribution_correct():
     if not claim_id or not new_speaker_id:
         return jsonify({'error': 'claim_id and new_speaker_id required'}), 400
 
-    from api import get_db
-    conn = get_db()
+    import psycopg2
+    conn = psycopg2.connect(
+        dbname=os.environ.get('DB_NAME'), user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'), host=os.environ.get('DB_HOST'),
+        port=os.environ.get('DB_PORT', '5432'), connect_timeout=10)
+    conn.autocommit = True
     cur = conn.cursor()
 
     # Get current state
