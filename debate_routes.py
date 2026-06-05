@@ -69,6 +69,21 @@ def _get_all_public_events(get_db_conn):
                     'initials':    _initials(spk_name),
                     'color_class': _listing_color_class(idx),
                 })
+        # Verdict breakdown per event (for mobile distribution bars)
+        breakdown_by_event = {eid: [] for eid in eid_list}
+        if eid_list:
+            cur.execute("""
+                SELECT event_id, verdict, COUNT(*) AS n
+                FROM claims
+                WHERE event_id = ANY(%s)
+                  AND claim_origin = 'debate_claim'
+                  AND verdict IS NOT NULL
+                GROUP BY event_id, verdict
+                ORDER BY event_id
+            """, (eid_list,))
+            for ev_id, verdict, n in cur.fetchall():
+                breakdown_by_event[ev_id].append({'v': verdict, 'n': n})
+
         cur.close()
         events = []
         today = date.today()
@@ -97,6 +112,7 @@ def _get_all_public_events(get_db_conn):
                 'start_time':          start_time.strftime('%H:%M') if start_time else None,
                 'timezone':            timezone or 'CT',
                 'participants':        participants_by_event.get(eid, []),
+                'verdict_breakdown':   breakdown_by_event.get(eid, []),
             })
         return events
     finally:
