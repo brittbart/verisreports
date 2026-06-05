@@ -212,12 +212,12 @@ def _get_event_by_slug(get_db_conn, slug):
               AND c.claim_origin = 'debate_claim'
             ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC
         """, (eid,))
-        claims = []
+        raw_claims = []
         for c in cur.fetchall():
             (cid, claim_text, verdict, verdict_summary, confidence,
              first_seen, raw_status, speaker_name, speaker_slug, speaker_id, article_url,
              timestamp_seconds) = c
-            claims.append({
+            raw_claims.append({
                 'id':              cid,
                 'claim_text':      claim_text,
                 'verdict':         verdict,
@@ -234,6 +234,19 @@ def _get_event_by_slug(get_db_conn, slug):
                 'color_class':     _color_class(speaker_id, speaker_order_map),
                 'timestamp_seconds': timestamp_seconds,
             })
+        # Deduplicate by text similarity — keep first occurrence (newest first)
+        def _similar(a, b):
+            a, b = a.lower(), b.lower()
+            if a == b:
+                return True
+            ta, tb = set(a.split()), set(b.split())
+            if not ta or not tb:
+                return False
+            return len(ta & tb) / max(len(ta), len(tb)) > 0.75
+        claims = []
+        for raw in raw_claims:
+            if not any(_similar(raw['claim_text'], seen['claim_text']) for seen in claims):
+                claims.append(raw)
         cur.close()
         return event, claims
     finally:
