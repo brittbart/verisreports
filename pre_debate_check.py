@@ -93,8 +93,59 @@ def main():
         except Exception as e:
             check("Speaker query", False, str(e))
 
-    # ── 4. _derive_status check ─────────────────────────────────────────────
-    section("4. Status derivation")
+    # ── 4. Rev AI vocabulary
+    section("4. Rev AI vocabulary")
+    if conn and event:
+        try:
+            cur.execute("SELECT rev_ai_vocabulary_id FROM events WHERE id = %s", (event[0],))
+            row = cur.fetchone()
+            vocab_id = row[0] if row else None
+            check("Rev AI vocabulary registered", bool(vocab_id),
+                  vocab_id or "MISSING")
+        except Exception as e:
+            check("Rev AI vocabulary", False, str(e))
+
+    # ── 5. Speaker event context (A5)
+    section("5. Speaker context (attribution safety)")
+    if conn and event:
+        try:
+            cur.execute(
+                "SELECT sec.speaker_id, s.name, sec.generated_by, "
+                "jsonb_array_length(sec.exclusive_keywords) as kw_count "
+                "FROM speaker_event_context sec "
+                "JOIN speakers s ON s.id = sec.speaker_id "
+                "WHERE sec.event_id = %s", (event[0],))
+            ctx_rows = cur.fetchall()
+            if ctx_rows:
+                for sid, sname, gen_by, kw_count in ctx_rows:
+                    check("Context for " + sname, kw_count > 0,
+                          str(kw_count) + " keywords (" + gen_by + ")", critical=False)
+            else:
+                check("Speaker context exists", False,
+                      "MISSING — run: python3 generate_speaker_context.py --event-id " + str(event[0]))
+        except Exception as e:
+            check("Speaker context query", False, str(e))
+
+    # ── 6. Voice enrollments
+    section("6. Voice enrollments")
+    if conn and event:
+        try:
+            cur.execute(
+                "SELECT s.id, s.name FROM event_speakers es "
+                "JOIN speakers s ON s.id = es.speaker_id "
+                "WHERE es.event_id = %s AND es.is_active = TRUE "
+                "AND s.speaker_type IN ('politician', 'official')", (event[0],))
+            emb_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'speaker_embeddings')
+            for sid, sname in cur.fetchall():
+                emb_path = os.path.join(emb_dir, 'speaker_' + str(sid) + '.json')
+                exists = os.path.exists(emb_path)
+                check("Voice enrolled: " + sname, exists,
+                      "ready" if exists else "MISSING", critical=False)
+        except Exception as e:
+            check("Voice enrollment check", False, str(e), critical=False)
+
+    # ── 7. _derive_status check ─────────────────────────────────────────────
+    section("7. Status derivation")
     if conn and event:
         try:
             from debate_routes import _derive_status
@@ -105,8 +156,8 @@ def main():
         except Exception as e:
             check("_derive_status", False, str(e))
 
-    # ── 5. yt_dlp Python library ────────────────────────────────────────────
-    section("5. Stream resolution")
+    # ── 8. yt_dlp Python library ────────────────────────────────────────────
+    section("8. Stream resolution")
     try:
         import yt_dlp
         check("yt_dlp library importable", True, f"version {yt_dlp.version.__version__}")
@@ -134,8 +185,8 @@ def main():
     else:
         check("YouTube URL resolves", False, "No stream_url set — skip or add one", critical=False)
 
-    # ── 6. Scheduler / ingestion health ────────────────────────────────────
-    section("6. Ingestion pipeline")
+    # ── 9. Scheduler / ingestion health ────────────────────────────────────
+    section("9. Ingestion pipeline")
     if conn:
         try:
             cur.execute("""
@@ -171,8 +222,8 @@ def main():
         except Exception as e:
             check("Article freshness", False, str(e))
 
-    # ── 7. Anthropic API ────────────────────────────────────────────────────
-    section("7. Anthropic API")
+    # ── 10. Anthropic API ────────────────────────────────────────────────────
+    section("10. Anthropic API")
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
@@ -186,8 +237,8 @@ def main():
     except Exception as e:
         check("Anthropic API reachable", False, str(e))
 
-    # ── 8. veris-stream health ──────────────────────────────────────────────
-    section("8. veris-stream")
+    # ── 11. veris-stream health ──────────────────────────────────────────────
+    section("11. veris-stream")
     try:
         import urllib.request, json as _json
         ops_user = os.getenv('OPS_USERNAME', '')
