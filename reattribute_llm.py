@@ -316,6 +316,8 @@ Respond with ONLY the JSON array, no other text."""
             UPDATE claims SET
                 speaker_id = %s,
                 speaker = %s,
+                verdict = NULL,
+                verdict_status = 'provisional',
                 revision_history = COALESCE(revision_history, '[]'::jsonb) || %s::jsonb
             WHERE utterance_id = %s AND event_id = %s
         """, (

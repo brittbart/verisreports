@@ -177,6 +177,8 @@ def api_ops_attribution_correct():
         UPDATE claims SET
             speaker_id = %s,
             speaker = %s,
+            verdict = NULL,
+            verdict_status = 'provisional',
             revision_history = COALESCE(revision_history, '[]'::jsonb) || %s::jsonb,
             correction_note = %s
         WHERE id = %s
