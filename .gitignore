@@ -25,3 +25,9 @@ fix_*.py
 inspect_*.py
 reverify_*.py
 scripts/
+
+# Voice verification local data
+reference_audio/
+speaker_embeddings/
+debate_audio/
+.speechbrain_cache/
