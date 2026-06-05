@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 load_dotenv('/home/veris/projects/veris/.env')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import json
 import psycopg2
 
 CONTEXT_WINDOW = 3  # utterances on each side to examine
@@ -107,6 +108,28 @@ def run_reattribution(event_id, window=CONTEXT_WINDOW, dry_run=False):
                         attribution_uncertain = FALSE
                     WHERE id = %s
                 """, (inferred_speaker, uid))
+                # Propagate to any claims sourced from this utterance
+                cur.execute("""
+                    SELECT s.name FROM speakers s WHERE s.id = %s
+                """, (inferred_speaker,))
+                _sname_row = cur.fetchone()
+                _sname = _sname_row[0] if _sname_row else str(inferred_speaker)
+                cur.execute("""
+                    UPDATE claims SET
+                        speaker_id = %s,
+                        speaker = %s,
+                        revision_history = COALESCE(revision_history, '[]'::jsonb) || %s::jsonb
+                    WHERE utterance_id = %s AND event_id = %s
+                """, (
+                    inferred_speaker, _sname,
+                    json.dumps([{
+                        'action': 'context_reattribution',
+                        'old_speaker_id': current_speaker,
+                        'new_speaker_id': inferred_speaker,
+                        'method': 'context_window_unanimous',
+                    }]),
+                    uid, event_id,
+                ))
                 conn.commit()
             stats['resolved'] += 1
         else:
@@ -125,6 +148,27 @@ def run_reattribution(event_id, window=CONTEXT_WINDOW, dry_run=False):
                             attribution_uncertain = FALSE
                         WHERE id = %s
                     """, (inferred_speaker, uid))
+                    cur.execute("""
+                        SELECT s.name FROM speakers s WHERE s.id = %s
+                    """, (inferred_speaker,))
+                    _sname_row = cur.fetchone()
+                    _sname = _sname_row[0] if _sname_row else str(inferred_speaker)
+                    cur.execute("""
+                        UPDATE claims SET
+                            speaker_id = %s,
+                            speaker = %s,
+                            revision_history = COALESCE(revision_history, '[]'::jsonb) || %s::jsonb
+                        WHERE utterance_id = %s AND event_id = %s
+                    """, (
+                        inferred_speaker, _sname,
+                        json.dumps([{
+                            'action': 'context_reattribution',
+                            'old_speaker_id': current_speaker,
+                            'new_speaker_id': inferred_speaker,
+                            'method': 'context_window_before_after_agree',
+                        }]),
+                        uid, event_id,
+                    ))
                     conn.commit()
                 stats['resolved'] += 1
             else:
