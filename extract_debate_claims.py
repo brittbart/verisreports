@@ -66,6 +66,7 @@ if os.path.exists(".env"):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from extract_claims import extract_claims_from_article
+from speaker_context import check_speaker_consistency, check_first_person_role
 
 CLAIM_ORIGIN = 'debate_claim'
 METHODOLOGY_VERSION = 'v1.7'
@@ -507,6 +508,19 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
     if exclude:
         return None, f'post-filtered ({reason})'
 
+    # Semantic consistency check: does claim content match attributed speaker?
+    consistent, con_reason = check_speaker_consistency(claim_text, speaker_id, event_id)
+    suspicious, sus_reason = check_first_person_role(claim_text, speaker_id, event_id)
+    _attribution_flag = None
+    if suspicious:
+        _attribution_flag = f'SUSPICIOUS: {sus_reason}'
+        print(f"    ⚠ ATTRIBUTION SUSPECT: {sus_reason}")
+        print(f"      claim: {claim_text[:80]}")
+        print(f"      attributed to speaker_id={speaker_id} ({speaker_name})")
+    elif not consistent:
+        _attribution_flag = f'INCONSISTENT: {con_reason}'
+        print(f"    ⚠ ATTRIBUTION FLAG: {con_reason}")
+
     with conn.cursor() as cur:
         cur.execute("""
             SELECT id FROM claims
@@ -552,6 +566,23 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
             claim.get('timestamp_seconds'),
         ))
         row = cur.fetchone()
+
+        # If semantic check flagged this claim, write to revision_history
+        if row and _attribution_flag:
+            claim_id = row[0]
+            import json as _json
+            flag_entry = _json.dumps([{
+                'action': 'attribution_flagged',
+                'reason': _attribution_flag,
+                'speaker_id': speaker_id,
+                'speaker_name': speaker_name,
+                'timestamp': 'auto',
+            }])
+            cur.execute("""
+                UPDATE claims SET revision_history = %s::jsonb
+                WHERE id = %s AND revision_history IS NULL
+            """, (flag_entry, claim_id))
+
     conn.commit()
     return (row[0] if row else None), 'inserted'
 

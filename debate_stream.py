@@ -161,13 +161,18 @@ def get_event_id(slug):
 ATTRIBUTION_CONFIDENCE_THRESHOLD = 0.60
 
 def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
-                    timestamp_seconds=None, attribution_confidence=None):
+                    timestamp_seconds=None, attribution_confidence=None,
+                    force_uncertain=False):
     """Write a single utterance to speaker_utterances and queue for extraction.
 
     If attribution_confidence is below ATTRIBUTION_CONFIDENCE_THRESHOLD,
     the utterance is written with speaker_id=None and attribution_uncertain=True
     so it can be re-attributed in a post-debate pass without polluting claims
     with wrong speaker data.
+
+    If force_uncertain=True, the utterance keeps its speaker_id (so claims still
+    generate during live coverage) but is flagged attribution_uncertain=True for
+    post-debate review via reattribute_uncertain.py.
     """
     text = text.strip()
     if not text or len(text) < 10:
@@ -179,6 +184,11 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
         print(f"  [UNCERTAIN] confidence={attribution_confidence:.2f} < {ATTRIBUTION_CONFIDENCE_THRESHOLD} — writing unattributed")
         speaker_id = None
         attribution_uncertain = True
+    elif force_uncertain:
+        # Caller flagged this as uncertain (e.g. last_known fallback)
+        # Keep speaker_id so claims still generate, but flag for post-debate review
+        attribution_uncertain = True
+        print(f"  [UNCERTAIN] force_uncertain — speaker_id={speaker_id} kept but flagged for review")
 
     if dry_run:
         flag = ' [UNCERTAIN]' if attribution_uncertain else ''
@@ -553,6 +563,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 elif confirmed_speaker_ids:
                     last_known = list(confirmed_speaker_ids.values())[-1]
                     seen_speaker_ids[rev_speaker_idx] = last_known
+                    print(f"  [LAST_KNOWN] Rev AI {rev_speaker_idx} → speaker_id={last_known} (uncertain — flagged for review)")
                 else:
                     seen_speaker_ids[rev_speaker_idx] = None  # unconfirmed — wait for name cue
                 speaker_id = seen_speaker_ids[rev_speaker_idx]
@@ -590,11 +601,18 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 speaker_id = 3
                 print(f"  [MOD GATE] Forced to moderator: {text[:60]}")
 
+            # Determine if speaker resolution used an uncertain path
+            _used_fallback = (
+                rev_speaker_idx in seen_speaker_ids
+                and rev_speaker_idx not in confirmed_speaker_ids
+            )
+
             uid = write_utterance(
                 event_id, speaker_id, text,
                 utterance_order[0], args.dry_run,
                 timestamp_seconds=ts_seconds,
                 attribution_confidence=mean_confidence,
+                force_uncertain=_used_fallback,
             )
 
             if uid:
