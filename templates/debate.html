@@ -828,6 +828,18 @@
     transition: all .15s;
   }
   .dt-claim-evidence a:hover { background: rgba(168, 85, 247, 0.14); border-color: rgba(168, 85, 247, 0.40); }
+  .dt-correction-note {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-style: italic;
+    color: var(--text-3);
+    line-height: 1.45;
+    margin: 10px 0 4px;
+    padding: 8px 12px;
+    border-left: 2px solid rgba(251, 191, 36, 0.4);
+    background: rgba(251, 191, 36, 0.04);
+    border-radius: 0 6px 6px 0;
+  }
   .dt-claim-detail-foot {
     margin-top: 12px;
     display: flex;
@@ -1313,6 +1325,7 @@
               </div>
               <div class="dt-claim-detail">
                 {% if c.verdict_summary %}<p class="dt-claim-summary">{{ c.verdict_summary }}</p>{% endif %}
+                {% if c.correction_note %}<div class="dt-correction-note">{{ c.correction_note }}</div>{% endif %}
                 {% if c.confidence is not none %}
                 <div style="margin:8px 0 4px;display:flex;align-items:center;gap:6px;">
                   <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">CONFIDENCE</span>

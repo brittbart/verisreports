@@ -203,7 +203,8 @@ def _get_event_by_slug(get_db_conn, slug):
                 s.name AS speaker_name, s.slug AS speaker_slug,
                 s.id AS speaker_id,
                 a.url AS article_url,
-                c.timestamp_seconds
+                c.timestamp_seconds,
+                c.correction_note
             FROM claims c
             LEFT JOIN speakers s ON s.id = c.speaker_id
             LEFT JOIN articles a ON a.id = c.article_id
@@ -216,7 +217,7 @@ def _get_event_by_slug(get_db_conn, slug):
         for c in cur.fetchall():
             (cid, claim_text, verdict, verdict_summary, confidence,
              first_seen, raw_status, speaker_name, speaker_slug, speaker_id, article_url,
-             timestamp_seconds) = c
+             timestamp_seconds, correction_note) = c
             raw_claims.append({
                 'id':              cid,
                 'claim_text':      claim_text,
@@ -233,6 +234,7 @@ def _get_event_by_slug(get_db_conn, slug):
                 'initials':        _initials(speaker_name or ''),
                 'color_class':     _color_class(speaker_id, speaker_order_map),
                 'timestamp_seconds': timestamp_seconds,
+                'correction_note':   correction_note,
             })
         # Deduplicate by text similarity — keep first occurrence (newest first)
         def _similar(a, b):
