@@ -491,15 +491,36 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             # speaker ID belongs to that candidate.
             # Special case: if BOTH names appear in same utterance (bio section),
             # the last name mentioned is the one introduced next — skip it.
+            # ADDRESS PATTERN: moderator-style address at utterance start
+            # "Mr. Weiser, your response" → next speaker is Weiser, not current speaker
+            # These patterns indicate the utterance is FROM the moderator TO a candidate
+            import re as _re
+            _address_patterns = [
+                r'^(mr\.?|mrs\.?|ms\.?|senator|attorney general|general)\s+\w+',
+                r'^thank you,?\s+\w+',
+                r'^same question to you,?\s+(mr\.?|mrs\.?|senator)?\s*\w+',
+                r'^(short answer|your response|your question),?\s+(mr\.?|senator)?\s*\w+',
+            ]
+            _is_address = any(_re.match(p, text.lower()) for p in _address_patterns)
+
             detected = detect_name_cue(text)
             if detected is not None:
                 tl_check = text.lower()
-                both_present = (
-                    any(f in tl_check for f in ['turk', 'turek', 'josh t']) and
-                    any(f in tl_check for f in ['walz', 'wahls', 'walls', 'zach w'])
-                )
+                # Dynamically check if multiple candidate names are present
+                # Uses name_map built from actual event speakers (not hardcoded)
+                non_mod_speakers = {sid for sid in set(name_map.values()) if sid != 3}
+                speakers_mentioned = set()
+                for frag, sid in name_map.items():
+                    if sid in non_mod_speakers and frag in tl_check:
+                        speakers_mentioned.add(sid)
+                both_present = len(speakers_mentioned) >= 2
                 if both_present and not is_calibrating():
                     print(f"  [NAME CUE] skipped (both names in utterance): {text[:60]}")
+                elif _is_address:
+                    # Moderator is addressing a candidate — set pending for NEXT speaker
+                    # but do NOT lock current utterance to that candidate
+                    pending_speaker_id[0] = detected
+                    print(f"  [NAME CUE] address→pending={detected}: {text[:60]}")
                 else:
                     # During calibration, use first name mentioned
                     if both_present and is_calibrating():
@@ -551,6 +572,23 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 if e.get('type') == 'text' and e.get('confidence') is not None
             ]
             mean_confidence = (sum(conf_scores) / len(conf_scores)) if conf_scores else None
+
+            # MODERATOR GATE: force speaker_id=3 for utterances matching moderator patterns
+            # Short utterances with transition phrases are almost always the moderator
+            _mod_patterns = [
+                r'^thank you',
+                r'^(mr\.?|mrs\.?|senator|attorney general)\s+\w+[,\.]',
+                r'^(let\'s|let us)\s+(turn|move|go)',
+                r'^(short answer|your response|your question)',
+                r'^same question',
+                r'^(we\'ll|we will)\s+(continue|move|take)',
+                r'^(and\s+)?(finally|lastly|one more)',
+            ]
+            if (speaker_id != 3 and
+                len(text.split()) <= 20 and
+                any(_re.match(p, text.lower()) for p in _mod_patterns)):
+                speaker_id = 3
+                print(f"  [MOD GATE] Forced to moderator: {text[:60]}")
 
             uid = write_utterance(
                 event_id, speaker_id, text,
