@@ -185,10 +185,93 @@ def check_apis():
             check("Rev AI API responding", False, str(e))
 
 
-# ── Step 3: Process cleanup ──────────────────────────────────────────────────
+# ── Step 3: Pre-resolve stream URL ────────────────────────────────────────
+def preresolve_stream(event_id, dry_run=False):
+    log("=" * 60, 'HEAD')
+    log("Step 3 — Pre-resolve stream URL", 'HEAD')
+    log("=" * 60, 'HEAD')
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT stream_url FROM events WHERE id = %s", (event_id,))
+    row = cur.fetchone()
+    stream_url = row[0] if row else None
+    cur.close()
+    conn.close()
+
+    if not stream_url:
+        log("  No stream_url set — skipping pre-resolve", 'WARN')
+        return
+
+    is_video = 'watch?v=' in stream_url or 'youtu.be/' in stream_url
+    if not is_video:
+        log(f"  Channel/page URL — cannot pre-resolve: {stream_url}", 'WARN')
+        return
+
+    try:
+        from stream_utils import resolve_stream_url, PreLiveError
+        try:
+            resolved = resolve_stream_url(stream_url)
+            log(f"  Resolved: {resolved[:80]}...")
+            if not dry_run:
+                conn = get_connection()
+                cur = conn.cursor()
+                cur.execute(
+                    "UPDATE events SET stream_url_resolved = %s WHERE id = %s",
+                    (resolved, event_id))
+                conn.commit()
+                cur.close()
+                conn.close()
+                log("  Cached resolved URL in DB ✓", 'PASS')
+            else:
+                log("  [DRY RUN] Would cache resolved URL", 'PASS')
+        except PreLiveError:
+            log("  Pre-live (expected at T-90) — will resolve at stream start", 'PASS')
+        except Exception as e:
+            log(f"  Resolution failed: {e} — will retry at stream start", 'WARN')
+    except ImportError as e:
+        log(f"  stream_utils not available: {e}", 'WARN')
+
+
+# ── Step 4: Generate speaker context if missing ──────────────────────────
+def ensure_speaker_context(event_id, dry_run=False):
+    log("=" * 60, 'HEAD')
+    log("Step 4 — Speaker context (attribution safety)", 'HEAD')
+    log("=" * 60, 'HEAD')
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM speaker_event_context WHERE event_id = %s", (event_id,))
+    count = cur.fetchone()[0]
+    cur.close()
+    conn.close()
+
+    if count > 0:
+        log(f"  Speaker context exists ({count} speaker(s)) ✓", 'PASS')
+        return
+
+    log("  No speaker context found — generating via LLM...")
+    if dry_run:
+        log("  [DRY RUN] Would run: python3 generate_speaker_context.py --event-id " + str(event_id))
+        return
+
+    try:
+        result = subprocess.run(
+            [sys.executable, 'generate_speaker_context.py', '--event-id', str(event_id)],
+            capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            log("  Speaker context generated ✓", 'PASS')
+            print(result.stdout)
+        else:
+            log(f"  Generation failed: {result.stderr[:200]}", 'WARN')
+    except Exception as e:
+        log(f"  Could not generate: {e}", 'WARN')
+
+
+# ── Step 5: Process cleanup ──────────────────────────────────────────────────
 def cleanup_processes(dry_run=False):
     log("=" * 60, 'HEAD')
-    log("Step 3 — Process cleanup", 'HEAD')
+    log("Step 5 — Process cleanup", 'HEAD')
     log("=" * 60, 'HEAD')
 
     targets = ['debate_stream.py', 'extract_debate_claims.py']
@@ -217,7 +300,7 @@ def cleanup_processes(dry_run=False):
 # ── Step 4: Flip is_public at T-45 ──────────────────────────────────────────
 def flip_is_public(event_id, minutes_until, current_is_public, dry_run=False):
     log("=" * 60, 'HEAD')
-    log("Step 4 — is_public flip at T-45", 'HEAD')
+    log("Step 6 — is_public flip at T-45", 'HEAD')
     log("=" * 60, 'HEAD')
 
     T_MINUS_45 = 45  # minutes before start_time
@@ -248,7 +331,7 @@ def flip_is_public(event_id, minutes_until, current_is_public, dry_run=False):
 # ── Step 5: Confirm stream starts ────────────────────────────────────────────
 def verify_stream_starts(event_id, dry_run=False):
     log("=" * 60, 'HEAD')
-    log("Step 5 — Confirming stream starts", 'HEAD')
+    log("Step 7 — Confirming stream starts", 'HEAD')
     log("=" * 60, 'HEAD')
 
     if dry_run:
@@ -295,6 +378,8 @@ def main():
 
     event_start, minutes_until, is_public = validate_event(args.event_id, args.dry_run)
     check_apis()
+    preresolve_stream(args.event_id, args.dry_run)
+    ensure_speaker_context(args.event_id, args.dry_run)
     cleanup_processes(args.dry_run)
     flip_is_public(args.event_id, minutes_until, is_public, args.dry_run)
     verify_stream_starts(args.event_id, args.dry_run)
