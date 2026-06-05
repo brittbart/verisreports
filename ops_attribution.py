@@ -17,14 +17,13 @@ bp = Blueprint('ops_attribution', __name__)
 
 
 def _ops_auth():
-    """Reuse the same basic auth pattern as other ops pages."""
+    """Match api.py pattern: username='admin', password=OPS_PASSWORD."""
     from flask import Response
     auth = request.authorization
-    ops_user = os.environ.get('OPS_USERNAME', '')
-    ops_pass = os.environ.get('OPS_PASSWORD', '')
-    if not ops_user or not ops_pass:
-        return Response('Ops auth not configured', 500)
-    if not auth or auth.username != ops_user or auth.password != ops_pass:
+    expected_pw = os.environ.get('OPS_PASSWORD')
+    if not expected_pw:
+        return Response('OPS_PASSWORD not configured on server', 503)
+    if not auth or auth.username != 'admin' or auth.password != expected_pw:
         return Response('Unauthorized', 401,
                         {'WWW-Authenticate': 'Basic realm="Verum Signal Ops"'})
     return None
