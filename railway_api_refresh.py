@@ -325,7 +325,8 @@ def refresh_debate_claims(cur) -> int:
             c.last_checked              AS evaluated_at,
             'v1.6'  AS methodology_version,
             'https://verumsignal.com/debates/' || e.slug  AS event_url,
-            c.verdict_status
+            c.verdict_status,
+            c.timestamp_seconds
         FROM claims c
         JOIN events e ON e.id = c.event_id
         LEFT JOIN speaker_utterances su ON su.id = c.utterance_id
@@ -348,7 +349,7 @@ def refresh_debate_claims(cur) -> int:
         (claim_id, event_id, event_slug, event_name, event_date,
          utterance_id, speaker_id, speaker_name, speaker_party,
          claim_text, verdict_label, evaluated_at, methodology_version,
-         event_url, verdict_status) = row
+         event_url, verdict_status, timestamp_seconds) = row
 
         if methodology_version not in PUBLIC_METHODOLOGY_VERSIONS:
             continue
@@ -359,20 +360,22 @@ def refresh_debate_claims(cur) -> int:
                 speaker_id, speaker_name, speaker_party,
                 utterance_id, claim_text, verdict_label,
                 evaluated_at, methodology_version, event_url,
-                verdict_status, cursor_key, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                verdict_status, timestamp_seconds, cursor_key, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                       nextval('api_debate_claims_cursor_seq'), NOW())
             ON CONFLICT (claim_id) DO UPDATE SET
                 verdict_label       = EXCLUDED.verdict_label,
                 evaluated_at        = EXCLUDED.evaluated_at,
                 methodology_version = EXCLUDED.methodology_version,
                 verdict_status      = EXCLUDED.verdict_status,
+                timestamp_seconds   = EXCLUDED.timestamp_seconds,
                 cursor_key          = nextval('api_debate_claims_cursor_seq'),
                 updated_at          = NOW()
         """, (claim_id, event_id, event_slug, event_name, event_date,
               speaker_id, speaker_name, speaker_party,
               utterance_id, claim_text, verdict_label,
-              evaluated_at, methodology_version, event_url, verdict_status))
+              evaluated_at, methodology_version, event_url, verdict_status,
+              timestamp_seconds))
         upserted += 1
 
     return upserted
