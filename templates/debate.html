@@ -1104,13 +1104,7 @@
       </span>
     </div>
 
-    <h1 class="dt-title">
-      {% if event.event_subtitle %}
-        {{ event.event_name | replace(event.event_subtitle, '') | replace('—', '') | replace('  ', ' ') | trim | trim(':') | trim() }}: <em>{{ event.event_subtitle }}</em>
-      {% else %}
-        {{ event.event_name }}
-      {% endif %}
-    </h1>
+    <h1 class="dt-title">{{ event.event_name }}</h1>
 
     <div class="dt-meta-row">
       <span class="dt-meta-chip"><span class="dot"></span>{{ event.event_date_str }}{% if event.start_time_str and event.start_time_str != 'TBD' %} &middot; <strong>{{ event.start_time_str }}</strong>{% endif %}</span>
