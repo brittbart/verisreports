@@ -5070,6 +5070,40 @@ def api_ops_stream_health():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
+@app.route('/api/health/debate', methods=['GET'])
+def api_health_debate():
+    """Public endpoint for monitoring debate claim promotion.
+    Returns count of provisional claims older than 70 minutes.
+    Designed for uptime monitors (UptimeRobot, Better Stack).
+    Returns 200 if healthy, 503 if overdue provisionals exist."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM claims
+            WHERE claim_origin = 'debate_claim'
+              AND verdict_status = 'provisional'
+              AND verdict IS NOT NULL
+              AND first_seen < NOW() - INTERVAL '70 minutes'
+        """)
+        overdue = cur.fetchone()[0]
+        cur.execute("""
+            SELECT COUNT(*) FROM claims
+            WHERE claim_origin = 'debate_claim'
+              AND verdict_status = 'provisional'
+              AND verdict IS NOT NULL
+        """)
+        total_provisional = cur.fetchone()[0]
+        cur.close()
+        status_code = 200 if overdue == 0 else 503
+        return jsonify({
+            'status': 'healthy' if overdue == 0 else 'overdue',
+            'overdue_provisionals': overdue,
+            'total_provisionals': total_provisional,
+        }), status_code
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 @app.route('/api/ops/debates', methods=['GET'])
 def api_ops_debates():
     """Debate pipeline stats for ops dashboard. Basic-auth protected."""
