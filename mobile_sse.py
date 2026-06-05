@@ -59,7 +59,7 @@ CLAIM_QUERY = """
     WHERE c.event_id = %s
       AND c.verdict IS NOT NULL
       AND c.id > %s
-    ORDER BY c.first_seen ASC, c.id ASC
+    ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC NULLS LAST, c.id DESC
     LIMIT 50
 """
 
@@ -76,7 +76,7 @@ PROVISIONAL_CLAIM_QUERY = """
       AND c.verdict IS NULL
       AND c.verdict_status = 'provisional'
       AND c.id > %s
-    ORDER BY c.first_seen ASC, c.id ASC
+    ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC NULLS LAST, c.id DESC
     LIMIT 50
 """
 
@@ -92,7 +92,7 @@ CLAIM_UPDATE_QUERY = """
     WHERE c.event_id = %s
       AND c.verdict IS NOT NULL
       AND c.id = ANY(%s)
-    ORDER BY c.id ASC
+    ORDER BY c.id DESC
 """
 
 def _get_event(slug: str, get_db):

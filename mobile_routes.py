@@ -686,7 +686,7 @@ def debate_detail(slug):
             LEFT JOIN speakers s ON s.id = c.speaker_id
             WHERE c.event_id = %s
               AND c.verdict IS NOT NULL
-            ORDER BY c.first_seen ASC NULLS LAST
+            ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC NULLS LAST
         """, (event_id,))
 
         claim_rows = cur.fetchall()
