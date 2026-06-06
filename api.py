@@ -2496,7 +2496,7 @@ def api_job_runs():
                         status, items_processed, error_class, error_message, hostname
                     FROM job_runs
                     WHERE started_at >= NOW() - INTERVAL '24 hours'
-                    ORDER BY id DESC
+                    ORDER BY date DESC, id ASC
                 """)
                 cols = [d[0] for d in cur.description]
                 rows = []
@@ -4548,7 +4548,7 @@ def api_ops_git_log():
         cur.execute("""
             SELECT hash, short_hash, date, message
             FROM git_log
-            ORDER BY id DESC
+            ORDER BY date DESC, id ASC
             LIMIT 50
         """)
         commits = [
@@ -6249,7 +6249,7 @@ def ops_sse_test():
     # Get all public events for selector
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT id, slug, event_name FROM events WHERE is_public = TRUE ORDER BY id DESC")
+    cur.execute("SELECT id, slug, event_name FROM events WHERE is_public = TRUE ORDER BY date DESC, id ASC")
     events = [{'id': r[0], 'slug': r[1], 'name': r[2]} for r in cur.fetchall()]
     cur.close()
     db.close()
