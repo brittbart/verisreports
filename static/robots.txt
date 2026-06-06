@@ -1,2 +1,7 @@
 User-agent: *
 Disallow: /
+
+# When ready to go live, change to:
+# User-agent: *
+# Allow: /
+# Sitemap: https://verumsignal.com/sitemap.xml

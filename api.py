@@ -6,6 +6,7 @@ import os
 import sys
 from dotenv import load_dotenv
 import secrets
+from seo import homepage_meta, report_meta, leaderboard_meta, methodology_meta
 import string
 from datetime import datetime
 
@@ -800,6 +801,34 @@ def styles():
 @app.route('/robots.txt', methods=['GET'])
 def robots_txt():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'robots.txt')
+
+@app.route("/sitemap.xml", methods=["GET"])
+def sitemap_xml():
+    """Auto-generated XML sitemap. Invisible until robots.txt allows crawling."""
+    from flask import Response
+    conn = get_db()
+    cur = conn.cursor()
+    pages = []
+    # Static pages
+    for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing"]:
+        pages.append(f"  <url><loc>https://verumsignal.com{path}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>")
+    # Outlet pages
+    cur.execute("SELECT DISTINCT domain FROM api_outlets WHERE score IS NOT NULL ORDER BY domain")
+    for row in cur.fetchall():
+        pages.append(f"  <url><loc>https://verumsignal.com/outlet/{row[0]}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>")
+    # Debate pages
+    cur.execute("SELECT slug FROM events WHERE is_public = TRUE ORDER BY event_date DESC")
+    for row in cur.fetchall():
+        pages.append(f"  <url><loc>https://verumsignal.com/debates/{row[0]}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>")
+    # Report short URLs
+    cur.execute("SELECT short_hash FROM articles WHERE short_hash IS NOT NULL AND short_hash != '' ORDER BY verified_at DESC NULLS LAST LIMIT 500")
+    for row in cur.fetchall():
+        pages.append(f"  <url><loc>https://verumsignal.com/r/{row[0]}</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>")
+    cur.close()
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+        + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(pages) + "\n</urlset>"
+    return Response(xml, mimetype="application/xml")
 
 @app.route('/how-it-works', methods=['GET'])
 def how_it_works_clean():
@@ -2353,6 +2382,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{compare_html}}', str(compare_html))
     html = html.replace('{{total}}', str(stats_total_for_free if stats_total_for_free is not None else stats.get('total',0)))
     html = html.replace('{{sc}}', str(sc))
+    html = html.replace("{{seo_meta}}", report_meta(source=str(source), title=str(title), score=score, url=str(url), short_hash=short_url_hash))
     from flask import Response
     return Response(html, mimetype='text/html')
 

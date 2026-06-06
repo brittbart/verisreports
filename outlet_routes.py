@@ -7,6 +7,7 @@ Outlet detail routes:
 import re
 import time as _time
 from flask import render_template, abort, request, jsonify
+from seo import outlet_meta
 from api_leaderboard import (
     get_leaderboard_data,
     compute_score,
@@ -237,6 +238,7 @@ def register_outlet_routes(app, get_db_conn):
             "outlet.html",
             outlet=outlet,
             methodology_version=METHODOLOGY_VERSION,
+            seo_meta=outlet_meta(outlet["domain"], outlet.get("score"), outlet.get("tier"), outlet.get("scoreable_count", 0)),
             inclusion_threshold=INCLUSION_THRESHOLD,
         )
 
