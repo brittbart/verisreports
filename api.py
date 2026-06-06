@@ -2496,7 +2496,7 @@ def api_job_runs():
                         status, items_processed, error_class, error_message, hostname
                     FROM job_runs
                     WHERE started_at >= NOW() - INTERVAL '24 hours'
-                    ORDER BY date DESC, id ASC
+                    ORDER BY started_at DESC
                 """)
                 cols = [d[0] for d in cur.description]
                 rows = []
@@ -6249,7 +6249,7 @@ def ops_sse_test():
     # Get all public events for selector
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT id, slug, event_name FROM events WHERE is_public = TRUE ORDER BY date DESC, id ASC")
+    cur.execute("SELECT id, slug, event_name FROM events WHERE is_public = TRUE ORDER BY event_date DESC")
     events = [{'id': r[0], 'slug': r[1], 'name': r[2]} for r in cur.fetchall()]
     cur.close()
     db.close()
