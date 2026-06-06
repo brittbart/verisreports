@@ -4548,7 +4548,7 @@ def api_ops_git_log():
         cur.execute("""
             SELECT hash, short_hash, date, message
             FROM git_log
-            ORDER BY id ASC
+            ORDER BY id DESC
             LIMIT 50
         """)
         commits = [
