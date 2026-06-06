@@ -830,6 +830,37 @@ def sitemap_xml():
         + "\n".join(pages) + "\n</urlset>")
     return Response(xml, mimetype="application/xml")
 
+@app.route("/api/og/report", methods=["GET"])
+def og_report():
+    from og_images import generate_report_og
+    from flask import Response
+    source = request.args.get("source", "")
+    score = request.args.get("score", "")
+    title = request.args.get("title", "")
+    score_val = int(score) if score and score.isdigit() else None
+    buf = generate_report_og(source, score_val, title)
+    return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+@app.route("/api/og/outlet", methods=["GET"])
+def og_outlet():
+    from og_images import generate_outlet_og
+    from flask import Response
+    domain = request.args.get("domain", "")
+    score = request.args.get("score", "")
+    score_val = int(score) if score and score.isdigit() else None
+    buf = generate_outlet_og(domain, score_val)
+    return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+@app.route("/api/og/debate", methods=["GET"])
+def og_debate():
+    from og_images import generate_debate_og
+    from flask import Response
+    name = request.args.get("name", "")
+    claims = request.args.get("claims", "0")
+    claims_val = int(claims) if claims.isdigit() else 0
+    buf = generate_debate_og(name, claims_val)
+    return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
 @app.route('/how-it-works', methods=['GET'])
 def how_it_works_clean():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'how-it-works.html')
