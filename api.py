@@ -825,9 +825,9 @@ def sitemap_xml():
     for row in cur.fetchall():
         pages.append(f"  <url><loc>https://verumsignal.com/r/{row[0]}</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>")
     cur.close()
-    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
         + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "\n".join(pages) + "\n</urlset>"
+        + "\n".join(pages) + "\n</urlset>")
     return Response(xml, mimetype="application/xml")
 
 @app.route('/how-it-works', methods=['GET'])
