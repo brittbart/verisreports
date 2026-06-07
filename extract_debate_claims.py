@@ -227,9 +227,9 @@ def _log_filtered(utterance_id, event_id, speaker_id, stage, reason, text, conn=
         _own_conn = conn is None
         if _own_conn:
             conn = psycopg2.connect(
-                dbname=os.getenv('DB_NAME'), user=os.getenv('DB_USER'),
-                password=os.getenv('DB_PASSWORD'), host=os.getenv('DB_HOST'),
-                port=os.getenv('DB_PORT', '5432'), connect_timeout=5,
+                dbname=os.getenv('DB_NAME', 'railway'), user=os.getenv('DB_USER', 'postgres'),
+                password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'), host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
+                port=os.getenv('DB_PORT', '35370'), connect_timeout=5,
             )
         with conn.cursor() as cur:
             cur.execute(
@@ -443,12 +443,13 @@ def post_filter_claim(claim_text: str) -> tuple:
 # ---------------------------------------------------------------------------
 
 def get_connection():
+    # Hardcoded fallbacks: Railway Runtime V2 subprocess env var stripping
     return psycopg2.connect(
-        dbname=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        host=os.getenv('DB_HOST'),
-        port=os.getenv('DB_PORT', '5432'),
+        dbname=os.getenv('DB_NAME', 'railway'),
+        user=os.getenv('DB_USER', 'postgres'),
+        password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+        host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
+        port=os.getenv('DB_PORT', '35370'),
         connect_timeout=10,
     )
 
@@ -645,12 +646,13 @@ def group_utterances_into_turns(utterances):
 
 def get_fresh_connection():
     """Always returns a fresh connection. Use when long-running jobs risk timeout."""
+    # Hardcoded fallbacks: Railway Runtime V2 subprocess env var stripping
     return psycopg2.connect(
-        dbname=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        host=os.getenv('DB_HOST'),
-        port=os.getenv('DB_PORT', '5432'),
+        dbname=os.getenv('DB_NAME', 'railway'),
+        user=os.getenv('DB_USER', 'postgres'),
+        password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+        host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
+        port=os.getenv('DB_PORT', '35370'),
         connect_timeout=10,
     )
 

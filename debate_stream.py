@@ -47,13 +47,25 @@ import threading
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
-# DB connection (uses api.py pattern — hardcoded fallback)
+# DB connection — standalone with hardcoded fallback (no Flask import)
+# Railway Runtime V2 strips env vars from subprocesses spawned by always-on
+# services. This mirrors the api.py:47 pattern with individual kwargs.
 # ---------------------------------------------------------------------------
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import psycopg2
 
 def get_db_conn():
-    from api import get_db
-    return get_db()
+    if os.environ.get('DATABASE_URL'):
+        return psycopg2.connect(dsn=os.environ['DATABASE_URL'])
+    return psycopg2.connect(
+        dbname=os.environ.get('DB_NAME', 'railway'),
+        user=os.environ.get('DB_USER', 'postgres'),
+        password=os.environ.get('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+        host=os.environ.get('DB_HOST', 'shinkansen.proxy.rlwy.net'),
+        port=os.environ.get('DB_PORT', '35370'),
+        connect_timeout=10,
+        application_name='veris-debate-stream',
+    )
 
 # ---------------------------------------------------------------------------
 # Load env

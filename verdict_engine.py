@@ -41,12 +41,13 @@ def pre_filter_claim(claim_text):
 
 def get_connection():
     # Patch 13: timeouts + keepalives + statement_timeout (180s)
+    # Hardcoded fallbacks: Railway Runtime V2 strips env vars in subprocesses
     conn = psycopg2.connect(
-        dbname=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        host=os.getenv('DB_HOST'),
-        port=os.getenv('DB_PORT', '5432'),
+        dbname=os.getenv('DB_NAME', 'railway'),
+        user=os.getenv('DB_USER', 'postgres'),
+        password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+        host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
+        port=os.getenv('DB_PORT', '35370'),
         connect_timeout=10,
         keepalives=1,
         keepalives_idle=30,
