@@ -4957,6 +4957,355 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-d
 
 # ── /ops/api-usage ────────────────────────────────────────────────────────────
 
+
+# ════════════════════════════════════════════════════════════════
+# Page view tracking + Ops Dashboard
+# ════════════════════════════════════════════════════════════════
+
+@app.route('/api/pv', methods=['POST'])
+def api_page_view():
+    """Record a page view. No auth — lightweight, public."""
+    try:
+        data = request.get_json(silent=True) or {}
+        path = (data.get('p') or '/')[:500]
+        referrer = (data.get('r') or '')[:500] or None
+        session_id = (data.get('s') or '')[:64] or None
+        screen_width = data.get('w')
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip:
+            ip = ip.split(',')[0].strip()
+        ua = (request.headers.get('User-Agent') or '')[:500]
+        is_mobile_app = 'verum-signal-app' in ua.lower() or data.get('app') is True
+
+        # Skip bots and ops pages
+        if any(skip in path for skip in ['/ops/', '/api/pv', '/static/', '/favicon']):
+            return jsonify({'ok': True, 'id': None})
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO page_views (path, referrer, user_agent, session_id, ip, screen_width, is_mobile_app)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (path, referrer, ua, session_id, ip, screen_width, is_mobile_app))
+        pv_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True, 'id': pv_id})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/pv/duration', methods=['POST'])
+def api_page_view_duration():
+    """Update duration for an existing page view (beacon on page leave)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        pv_id = data.get('id')
+        duration = data.get('d')
+        if not pv_id or not duration:
+            return jsonify({'ok': False}), 400
+        duration = min(int(duration), 3600000)  # cap at 1 hour
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE page_views SET duration_ms = %s WHERE id = %s", (duration, pv_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception:
+        return jsonify({'ok': False}), 500
+
+
+_OPS_DASHBOARD_HTML = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — Verum Signal Ops</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fff;font-family:'DM Sans',system-ui,sans-serif;padding:24px 32px}
+h1{font-family:'DM Serif Display',Georgia,serif;font-size:28px;margin-bottom:4px;letter-spacing:-0.5px}
+.sub{color:#6b7280;font-size:12px;margin-bottom:28px;font-family:monospace}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:32px}
+.card{background:#131218;border:0.5px solid #3a3743;border-radius:14px;padding:18px 20px}
+.card .label{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#6b7280;margin-bottom:8px;font-family:monospace}
+.card .value{font-family:'DM Serif Display',Georgia,serif;font-size:32px;letter-spacing:-1px;line-height:1}
+.card .delta{font-size:11px;color:#22c55e;margin-top:4px;font-family:monospace}
+.card .delta.down{color:#ef4444}
+h2{font-size:14px;letter-spacing:1.8px;text-transform:uppercase;color:#9ca3af;margin-bottom:14px;font-family:monospace;
+   display:flex;align-items:center;gap:10px}
+h2::after{content:'';flex:1;height:0.5px;background:rgba(255,255,255,0.07)}
+table{width:100%;border-collapse:collapse;margin-bottom:32px}
+th{text-align:left;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b7280;padding:8px 12px;
+   border-bottom:0.5px solid #3a3743;font-family:monospace;font-weight:600}
+td{padding:10px 12px;border-bottom:0.5px solid rgba(255,255,255,0.04);font-size:13px;color:#9ca3af}
+td:first-child{color:#fff}
+tr:hover td{background:rgba(168,85,247,0.03)}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;font-family:monospace}
+.badge-live{background:rgba(34,197,94,0.15);color:#22c55e}
+.badge-app{background:rgba(168,85,247,0.1);color:#a855f7}
+.pct-bar{height:4px;border-radius:99px;background:#2e2c36;margin-top:4px;overflow:hidden}
+.pct-fill{height:100%;border-radius:99px;background:#a855f7}
+.refresh{color:#6b7280;text-decoration:none;font-size:11px;font-family:monospace;float:right}
+.refresh:hover{color:#a855f7}
+.live-dot{width:6px;height:6px;border-radius:3px;background:#22c55e;display:inline-block;margin-right:4px;
+          animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:800px){.two-col{grid-template-columns:1fr}}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<a href="?refresh=1" class="refresh">↻ Refresh</a>
+<h1>Dashboard</h1>
+<p class="sub">VERUM SIGNAL OPS · {{ now }}</p>
+
+<!-- Summary cards -->
+<div class="grid">
+  <div class="card">
+    <div class="label">Visitors today</div>
+    <div class="value">{{ today.visitors }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Page views today</div>
+    <div class="value">{{ today.views }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Avg duration</div>
+    <div class="value">{{ today.avg_duration }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Live now (5m)</div>
+    <div class="value"><span class="live-dot"></span>{{ live_count }}</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="label">7-day visitors</div>
+    <div class="value">{{ week.visitors }}</div>
+  </div>
+  <div class="card">
+    <div class="label">7-day page views</div>
+    <div class="value">{{ week.views }}</div>
+  </div>
+  <div class="card">
+    <div class="label">30-day visitors</div>
+    <div class="value">{{ month.visitors }}</div>
+  </div>
+  <div class="card">
+    <div class="label">30-day page views</div>
+    <div class="value">{{ month.views }}</div>
+  </div>
+</div>
+
+<div class="two-col">
+<div>
+<!-- Top pages -->
+<h2>Top pages (7 days)</h2>
+<table>
+<tr><th>Page</th><th>Views</th><th>Avg time</th></tr>
+{% for p in top_pages %}
+<tr>
+  <td>{{ p.path }}</td>
+  <td>{{ p.views }}</td>
+  <td style="color:#6b7280">{{ p.avg_dur }}</td>
+</tr>
+{% endfor %}
+{% if not top_pages %}<tr><td colspan="3" style="color:#6b7280">No data yet</td></tr>{% endif %}
+</table>
+</div>
+
+<div>
+<!-- Mobile app activity -->
+<h2>App API calls (7 days)</h2>
+<table>
+<tr><th>Endpoint</th><th>Calls</th></tr>
+{% for a in app_api %}
+<tr>
+  <td>{{ a.endpoint }}</td>
+  <td>{{ a.calls }}</td>
+</tr>
+{% endfor %}
+{% if not app_api %}<tr><td colspan="2" style="color:#6b7280">No API calls</td></tr>{% endif %}
+</table>
+</div>
+</div>
+
+<!-- Daily breakdown -->
+<h2>Daily views (last 14 days)</h2>
+<table>
+<tr><th>Date</th><th>Visitors</th><th>Views</th><th>Avg duration</th><th>App calls</th></tr>
+{% for d in daily %}
+<tr>
+  <td>{{ d.date }}</td>
+  <td>{{ d.visitors }}</td>
+  <td>{{ d.views }}</td>
+  <td style="color:#6b7280">{{ d.avg_dur }}</td>
+  <td style="color:#6b7280">{{ d.api_calls }}</td>
+</tr>
+{% endfor %}
+{% if not daily %}<tr><td colspan="5" style="color:#6b7280">No data yet</td></tr>{% endif %}
+</table>
+
+<!-- Recent visitors -->
+<h2>Recent visitors</h2>
+<table>
+<tr><th>Time</th><th>Page</th><th>Duration</th><th>Referrer</th><th>Session</th></tr>
+{% for v in recent %}
+<tr>
+  <td style="font-family:monospace;font-size:11px">{{ v.time }}</td>
+  <td>{{ v.path }}</td>
+  <td style="color:#6b7280">{{ v.duration }}</td>
+  <td style="color:#6b7280;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ v.referrer or '—' }}</td>
+  <td style="font-family:monospace;font-size:10px;color:#6b7280">{{ v.sid }}</td>
+</tr>
+{% endfor %}
+{% if not recent %}<tr><td colspan="5" style="color:#6b7280">No visitors yet</td></tr>{% endif %}
+</table>
+
+<!-- Users -->
+<h2>User registrations</h2>
+<table>
+<tr><th>Period</th><th>Count</th></tr>
+<tr><td>This week</td><td>{{ users_week }}</td></tr>
+<tr><td>This month</td><td>{{ users_month }}</td></tr>
+<tr><td>Total</td><td>{{ users_total }}</td></tr>
+</table>
+
+<p style="color:#3a3743;font-size:10px;margin-top:40px;font-family:monospace">Verum Signal Ops · Confidential</p>
+</body></html>"""
+
+
+@app.route('/ops/dashboard', methods=['GET'])
+def ops_dashboard():
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import render_template_string
+    from datetime import datetime, timedelta
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    def _fmt_dur(ms):
+        if ms is None or ms == 0:
+            return '—'
+        s = int(ms / 1000)
+        if s < 60:
+            return f'{s}s'
+        return f'{s // 60}m {s % 60}s'
+
+    def _period_stats(days):
+        cur.execute("""
+            SELECT
+                COUNT(DISTINCT session_id) AS visitors,
+                COUNT(*) AS views,
+                ROUND(AVG(duration_ms) FILTER (WHERE duration_ms > 0))::int AS avg_dur
+            FROM page_views
+            WHERE created_at > NOW() - INTERVAL '%s days'
+        """ % days)
+        r = cur.fetchone()
+        return {'visitors': r[0] or 0, 'views': r[1] or 0, 'avg_duration': _fmt_dur(r[2])}
+
+    today = _period_stats(1)
+    week = _period_stats(7)
+    month = _period_stats(30)
+
+    # Live (last 5 min)
+    cur.execute("SELECT COUNT(DISTINCT session_id) FROM page_views WHERE created_at > NOW() - INTERVAL '5 minutes'")
+    live_count = cur.fetchone()[0] or 0
+
+    # Top pages (7 days)
+    cur.execute("""
+        SELECT path, COUNT(*) AS views, ROUND(AVG(duration_ms) FILTER (WHERE duration_ms > 0))::int AS avg_dur
+        FROM page_views
+        WHERE created_at > NOW() - INTERVAL '7 days'
+        GROUP BY path ORDER BY views DESC LIMIT 15
+    """)
+    top_pages = [{'path': r[0], 'views': r[1], 'avg_dur': _fmt_dur(r[2])} for r in cur.fetchall()]
+
+    # App API calls (7 days)
+    try:
+        cur.execute("""
+            SELECT endpoint, COUNT(*) AS calls
+            FROM api_usage
+            WHERE created_at > NOW() - INTERVAL '7 days'
+            GROUP BY endpoint ORDER BY calls DESC LIMIT 10
+        """)
+        app_api = [{'endpoint': r[0], 'calls': r[1]} for r in cur.fetchall()]
+    except Exception:
+        app_api = []
+
+    # Daily breakdown (14 days)
+    cur.execute("""
+        SELECT
+            created_at::date AS day,
+            COUNT(DISTINCT session_id) AS visitors,
+            COUNT(*) AS views,
+            ROUND(AVG(duration_ms) FILTER (WHERE duration_ms > 0))::int AS avg_dur
+        FROM page_views
+        WHERE created_at > NOW() - INTERVAL '14 days'
+        GROUP BY day ORDER BY day DESC
+    """)
+    pv_daily = {str(r[0]): {'date': str(r[0]), 'visitors': r[1], 'views': r[2], 'avg_dur': _fmt_dur(r[3])} for r in cur.fetchall()}
+
+    # API calls per day
+    try:
+        cur.execute("""
+            SELECT created_at::date AS day, COUNT(*) AS calls
+            FROM api_usage
+            WHERE created_at > NOW() - INTERVAL '14 days'
+            GROUP BY day ORDER BY day DESC
+        """)
+        api_daily = {str(r[0]): r[1] for r in cur.fetchall()}
+    except Exception:
+        api_daily = {}
+
+    daily = []
+    for i in range(14):
+        d = str((datetime.now() - timedelta(days=i)).date())
+        row = pv_daily.get(d, {'date': d, 'visitors': 0, 'views': 0, 'avg_dur': '—'})
+        row['api_calls'] = api_daily.get(d, 0)
+        daily.append(row)
+
+    # Recent visitors
+    cur.execute("""
+        SELECT created_at, path, duration_ms, referrer, session_id
+        FROM page_views ORDER BY created_at DESC LIMIT 20
+    """)
+    recent = [{'time': r[0].strftime('%H:%M:%S'), 'path': r[1], 'duration': _fmt_dur(r[2]),
+               'referrer': (r[3] or '')[:60], 'sid': (r[4] or '')[:8]} for r in cur.fetchall()]
+
+    # User registrations
+    try:
+        cur.execute("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '7 days'")
+        users_week = cur.fetchone()[0] or 0
+        cur.execute("SELECT COUNT(*) FROM users WHERE created_at > NOW() - INTERVAL '30 days'")
+        users_month = cur.fetchone()[0] or 0
+        cur.execute("SELECT COUNT(*) FROM users")
+        users_total = cur.fetchone()[0] or 0
+    except Exception:
+        users_week = users_month = users_total = 0
+
+    cur.close()
+    conn.close()
+
+    return render_template_string(_OPS_DASHBOARD_HTML,
+        now=datetime.now().strftime('%B %-d, %Y · %-I:%M %p'),
+        today=today, week=week, month=month,
+        live_count=live_count,
+        top_pages=top_pages, app_api=app_api,
+        daily=daily, recent=recent,
+        users_week=users_week, users_month=users_month, users_total=users_total,
+    )
+
+
 @app.route('/ops/api-usage', methods=['GET'])
 def ops_api_usage():
     auth_err = _ops_auth()
