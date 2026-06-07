@@ -5183,7 +5183,7 @@ tr:hover td{background:rgba(168,85,247,0.03)}
 
 
 @app.route('/ops/dashboard', methods=['GET'])
-def ops_dashboard():
+def ops_main():
     auth_err = _ops_auth()
     if auth_err is not None:
         return auth_err
@@ -5844,7 +5844,7 @@ footer a{{color:var(--dim);text-decoration:none}}footer a:hover{{color:var(--fg)
         return f"<h1>Status unavailable</h1><p>{e}</p>", 500, {"Content-Type": "text/html"}
 
 @app.route('/ops', methods=['GET'])
-def ops_dashboard():
+def ops_main():
     """Render the ops dashboard HTML. Basic-auth protected."""
     auth_err = _ops_auth()
     if auth_err is not None:
