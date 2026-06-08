@@ -786,6 +786,12 @@ def main():
         print("ERROR: REV_AI_TOKEN not set in .env")
         sys.exit(1)
 
+    anthropic_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not anthropic_key:
+        print("WARNING: ANTHROPIC_API_KEY not set -- claims will not be extracted or verified")
+    else:
+        print(f"ANTHROPIC_API_KEY: ...{anthropic_key[-4:]}")
+    print(f"REV_AI_TOKEN: ...{token[-4:]}")
     speaker_map = parse_speaker_map(args.speakers)
     speaker_order = parse_speaker_order(args.speaker_order)
 
