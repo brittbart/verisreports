@@ -807,6 +807,28 @@ def main():
         sys.exit(1)
     print(f"Event ID: {event_id}")
 
+
+    # Auto-load speaker_order from DB if not provided via CLI
+    # Ensures bare WSL fallback launches get the correct speaker roster
+    if not speaker_order:
+        try:
+            _so_conn = get_db_conn()
+            _so_cur = _so_conn.cursor()
+            _so_cur.execute(
+                "SELECT speaker_id FROM event_speakers "
+                "WHERE event_id = %s AND is_active = TRUE "
+                "ORDER BY speaker_order",
+                (event_id,)
+            )
+            speaker_order = [r[0] for r in _so_cur.fetchall()]
+            _so_cur.close()
+            _so_conn.close()
+            if speaker_order:
+                print(f"Speaker order (auto-loaded from DB): {speaker_order}")
+            else:
+                print("WARNING: No active speakers found in event_speakers")
+        except Exception as _soe:
+            print(f"WARNING: Could not auto-load speaker_order: {_soe}")
     if args.mode == 'async':
         run_async(args, token, speaker_map, speaker_order, event_id)
     else:
