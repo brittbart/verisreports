@@ -926,6 +926,26 @@ def main():
                 print("WARNING: No active speakers found in event_speakers")
         except Exception as _soe:
             print(f"WARNING: Could not auto-load speaker_order: {_soe}")
+
+    # Load per-event attribution confidence threshold from DB
+    # Overrides module-level ATTRIBUTION_CONFIDENCE_THRESHOLD constant
+    # 2-speaker debates use 0.75, 4+ speaker debates use 0.60 (default)
+    try:
+        import debate_stream as _ds
+        _tc = get_db_conn()
+        _tcu = _tc.cursor()
+        _tcu.execute(
+            "SELECT attribution_confidence_threshold FROM events WHERE id = %s",
+            (event_id,)
+        )
+        _trow = _tcu.fetchone()
+        if _trow and _trow[0] is not None:
+            _ds.ATTRIBUTION_CONFIDENCE_THRESHOLD = float(_trow[0])
+            print(f"Attribution confidence threshold: {_ds.ATTRIBUTION_CONFIDENCE_THRESHOLD} (from DB)")
+        _tcu.close(); _tc.close()
+    except Exception as _te:
+        print(f"WARNING: Could not load threshold from DB: {_te}")
+
     if args.mode == 'async':
         run_async(args, token, speaker_map, speaker_order, event_id)
     else:
