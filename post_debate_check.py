@@ -152,6 +152,23 @@ def main():
               f'{remaining} still uncertain (manual review via /disputes)')
 
     # ── 7. Semantic attribution flags (A5) ──────────────────────────────
+    # ── 6b. LLM re-attribution pass ──────────────────────────────────────
+    section('6b. LLM re-attribution (reattribute_llm.py)')
+    print(f"  Running reattribute_llm.py --event-id {eid}{" --dry-run" if dry_run else " --apply"}...")
+    import subprocess as _sp
+    _llm_cmd = [sys.executable, "reattribute_llm.py", "--event-id", str(eid)]
+    if dry_run:
+        _llm_cmd.append("--dry-run")
+    else:
+        _llm_cmd.append("--apply")
+    _llm_result = _sp.run(_llm_cmd, capture_output=True, text=True)
+    if _llm_result.stdout:
+        print(_llm_result.stdout)
+    if _llm_result.returncode != 0:
+        print(f"  ✗ LLM re-attribution failed: {_llm_result.stderr[:200]}")
+    else:
+        print("  ✓ LLM re-attribution complete")
+
     section('7. Semantic attribution flags')
     cur.execute("""
         SELECT c.id, c.claim_text, c.speaker_id, s.name,
