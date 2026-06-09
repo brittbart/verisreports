@@ -31,6 +31,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import psycopg2
 import anthropic
 
+CHUNK_SIZE = 60  # utterances per LLM call — keeps response under max_tokens
+
 def get_connection():
     return psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
@@ -100,6 +102,84 @@ def build_speaker_context(speakers):
     return '\n'.join(lines)
 
 
+def chunk_utterances(utterances, chunk_size):
+    """Split utterances into chunks for sequential LLM processing."""
+    return [utterances[i:i+chunk_size] for i in range(0, len(utterances), chunk_size)]
+
+def call_llm_chunk(client, chunk, speaker_context, event_name, event_date, chunk_num, total_chunks):
+    """Call Claude on a single chunk. Returns list of suspect dicts."""
+    lines = []
+    for uid, uorder, utext, speaker_id, speaker_name, stype, conf, uncertain in chunk:
+        name = speaker_name or 'UNKNOWN'
+        flag = ' [UNCERTAIN]' if uncertain else ''
+        lines.append(f"[{uorder}] {name}: {utext}{flag}")
+    transcript_chunk = '\n'.join(lines)
+
+    prompt = f"""You are verifying speaker attributions in a political debate transcript.
+EVENT: {event_name}
+DATE: {event_date}
+SPEAKERS:
+{speaker_context}
+
+TASK:
+Review the transcript below. Each line is formatted as:
+[utterance_order] Speaker Name: utterance text
+
+Identify utterances attributed to the WRONG speaker. Focus on:
+1. First-person claims about roles/experience that belong to a different speaker
+2. Self-referential statements that don't match the attributed speaker's background
+3. Obvious speaker transitions where the attribution didn't switch
+
+Do NOT flag:
+- Candidates referencing each other's records
+- Moderator questions attributed to the moderator
+- Policy disagreements where either candidate could plausibly make the statement
+- Vague or generic statements
+
+Respond with a JSON array only. Each element:
+- "utterance_order": the [number] from the transcript
+- "current_speaker": who it's currently attributed to
+- "likely_speaker": who likely said it
+- "confidence": "high" or "medium"
+- "reason": brief explanation (10 words max)
+
+If all attributions look correct, respond with: []
+Be conservative. Only flag attributions you are genuinely confident are wrong.
+
+TRANSCRIPT (chunk {chunk_num}/{total_chunks}):
+{transcript_chunk}
+
+Respond with ONLY the JSON array, no other text."""
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    result_text = response.content[0].text.strip()
+
+    # Strip markdown fences
+    clean = result_text
+    if clean.startswith('```'):
+        clean = clean.split('\n', 1)[1] if '\n' in clean else clean[3:]
+    if clean.endswith('```'):
+        clean = clean.rsplit('```', 1)[0]
+    clean = clean.strip()
+    if clean.startswith('json'):
+        clean = clean[4:].strip()
+
+    # Salvage truncated JSON
+    if not clean.endswith(']'):
+        last = clean.rfind('},')
+        if last > 0:
+            clean = clean[:last+1] + ']'
+            print(f"    (chunk {chunk_num}: JSON truncated — salvaged partial response)")
+
+    suspects = json.loads(clean)
+    tokens_in = response.usage.input_tokens
+    tokens_out = response.usage.output_tokens
+    return suspects, tokens_in, tokens_out
+
 def run_verification(event_id, apply_corrections=False):
     print("=" * 68)
     print(f"Verum Signal — LLM attribution verification")
@@ -140,87 +220,35 @@ def run_verification(event_id, apply_corrections=False):
     print(f"  Transcript: ~{word_count} words (~{est_input_tokens} input tokens)")
     print(f"  Estimated cost: ~${est_input_tokens * 3 / 1_000_000:.2f} input + output\n")
 
-    # Build prompt
-    prompt = f"""You are verifying speaker attributions in a political debate transcript.
+    # Call LLM in chunks to avoid response truncation
+    chunks = chunk_utterances(utterances, CHUNK_SIZE)
+    total_chunks = len(chunks)
+    print(f"  Chunking into {total_chunks} chunk(s) of up to {CHUNK_SIZE} utterances each")
 
-EVENT: {event_name}
-DATE: {event_date}
-
-SPEAKERS:
-{speaker_context}
-
-TASK:
-Review the transcript below. Each line is formatted as:
-[utterance_order] Speaker Name: utterance text
-
-Identify any utterances that are likely attributed to the WRONG speaker. Focus on:
-1. First-person claims about roles/experience that belong to a different speaker
-   (e.g., "I served as attorney general" attributed to someone who was never AG)
-2. Self-referential statements that don't match the attributed speaker's background
-3. Obvious speaker transitions where the attribution didn't switch
-4. Utterances where the content strongly suggests a different speaker
-
-Do NOT flag:
-- Candidates referencing each other's records (e.g., Bennet saying "the attorney general failed")
-- Moderator questions attributed to the moderator
-- Policy disagreements where either candidate could plausibly make the statement
-- Vague or generic statements
-
-Respond with a JSON array. Each element should have:
-- "utterance_order": the [number] from the transcript
-- "current_speaker": who it's currently attributed to
-- "likely_speaker": who likely said it
-- "confidence": "high" or "medium" (skip low-confidence guesses)
-- "reason": brief explanation
-
-If all attributions look correct, respond with an empty array: []
-
-IMPORTANT: Be conservative. Only flag attributions you are genuinely confident are wrong.
-A false positive (flagging a correct attribution) is worse than a false negative (missing a real error).
-
-TRANSCRIPT:
-{transcript}
-
-Respond with ONLY the JSON array, no other text."""
-
-    # Call Sonnet
-    print("  Calling Claude Sonnet for verification...")
     client = anthropic.Anthropic()
-    try:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        result_text = response.content[0].text.strip()
-    except Exception as e:
-        print(f"  ERROR: API call failed: {e}")
-        conn.close()
-        return
+    all_suspects = []
+    total_tokens_in = 0
+    total_tokens_out = 0
 
-    # Parse response
-    try:
-        # Strip markdown fences if present
-        clean = result_text
-        if clean.startswith('```'):
-            clean = clean.split('\n', 1)[1]
-        if clean.endswith('```'):
-            clean = clean.rsplit('```', 1)[0]
-        clean = clean.strip()
-        if clean.startswith('json'):
-            clean = clean[4:].strip()
-        suspects = json.loads(clean)
-    except json.JSONDecodeError as e:
-        print(f"  ERROR: Could not parse response as JSON: {e}")
-        print(f"  Raw response:\n{result_text[:500]}")
-        conn.close()
-        return
+    for i, chunk in enumerate(chunks, 1):
+        print(f"  Calling Claude — chunk {i}/{total_chunks} ({len(chunk)} utterances)...")
+        try:
+            suspects, t_in, t_out = call_llm_chunk(
+                client, chunk, speaker_context, event_name, str(event_date),
+                i, total_chunks
+            )
+            all_suspects.extend(suspects)
+            total_tokens_in += t_in
+            total_tokens_out += t_out
+            print(f"    → {len(suspects)} suspect(s) | {t_in} in / {t_out} out tokens")
+        except json.JSONDecodeError as e:
+            print(f"    ERROR: Could not parse chunk {i} response as JSON: {e} — skipping")
+        except Exception as e:
+            print(f"    ERROR: chunk {i} failed: {e} — skipping")
 
-    # Report usage
-    usage = response.usage
-    cost = (usage.input_tokens * 3 + usage.output_tokens * 15) / 1_000_000
-    print(f"  Tokens: {usage.input_tokens} in / {usage.output_tokens} out")
-    print(f"  Cost: ${cost:.4f}")
+    cost = (total_tokens_in * 3 + total_tokens_out * 15) / 1_000_000
+    print(f"  Total tokens: {total_tokens_in} in / {total_tokens_out} out | Cost: ${cost:.4f}")
+    suspects = all_suspects
 
     # Display results
     print(f"\n{'─' * 50}")
