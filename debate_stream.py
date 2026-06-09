@@ -557,6 +557,37 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                         if entry['whole_word_only']:
                             whole_word_set.add(v)
             cur.close(); conn.close()
+            # Auto-generate phonetic variants for speaker last names
+            # Covers speakers not in the hardcoded misspellings dict
+            def _gen_variants(name):
+                """Generate common Rev AI transcription variants for a name."""
+                variants = [name]
+                # Double/single letter confusion (bennett/bennet, rutinel/rutinell)
+                import re as _re
+                variants.append(_re.sub(r"(.)\1+", r"\1", name))  # collapse doubles
+                # Add double of last consonant if single
+                if len(name) > 3 and name[-1] not in "aeiou" and name[-2] != name[-1]:
+                    variants.append(name + name[-1])
+                # Common phonetic substitutions
+                subs = [("ei", "i"), ("ie", "i"), ("oo", "u"), ("ph", "f"),
+                        ("ck", "k"), ("qu", "k"), ("x", "ks"), ("z", "s"),
+                        ("th", "t"), ("wh", "w")]
+                for old_s, new_s in subs:
+                    if old_s in name:
+                        variants.append(name.replace(old_s, new_s))
+                    if new_s in name:
+                        variants.append(name.replace(new_s, old_s))
+                return list(set(v for v in variants if len(v) >= 4 and v != name))
+            for sid, sname in [(sid, sname) for sname, sid in name_map.items()
+                               if len(sname.split()) == 1 and len(sname) > 3]:
+                last = sname.lower()
+                if last not in misspellings:
+                    auto_variants = _gen_variants(last)
+                    for v in auto_variants:
+                        if v not in name_map:
+                            name_map[v] = sid
+                    if auto_variants:
+                        print(f"  [NAME MAP] Auto-variants for {sname}: {auto_variants}")
             print(f"  Name detection active: {list(name_map.keys())}")
         except Exception as e:
             print(f"  [WARNING] Could not build name map: {e}")

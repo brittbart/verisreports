@@ -130,6 +130,7 @@ def main():
     section("6. Voice enrollments")
     if conn and event:
         try:
+            import json as _json
             cur.execute(
                 "SELECT s.id, s.name FROM event_speakers es "
                 "JOIN speakers s ON s.id = es.speaker_id "
@@ -139,8 +140,18 @@ def main():
             for sid, sname in cur.fetchall():
                 emb_path = os.path.join(emb_dir, 'speaker_' + str(sid) + '.json')
                 exists = os.path.exists(emb_path)
-                check("Voice enrolled: " + sname, exists,
-                      "ready" if exists else "MISSING", critical=False)
+                if exists:
+                    with open(emb_path) as _ef:
+                        _edata = _json.load(_ef)
+                    num_sources = _edata.get('num_sources', 1)
+                    enrolled_at = _edata.get('enrolled_at', 'unknown')[:10]
+                    quality = 'good' if num_sources >= 3 else 'weak (1-2 clips — consider re-enrolling with 3+)'
+                    detail = f"{num_sources} clip(s) averaged, enrolled {enrolled_at} — {quality}"
+                    check("Voice enrolled: " + sname, True, detail, critical=False)
+                    if num_sources < 3:
+                        print(f"    ⚠ Weak enrollment: only {num_sources} clip(s). Re-enroll with 3+ clips for better accuracy.")
+                else:
+                    check("Voice enrolled: " + sname, False, "MISSING", critical=False)
         except Exception as e:
             check("Voice enrollment check", False, str(e), critical=False)
 

@@ -267,6 +267,47 @@ def main():
     api_count = cur.fetchone()[0]
     check('api_debate_claims populated', api_count > 0, f'{api_count} rows')
 
+    # ── 10b. Attribution quality audit ──────────────────────────────────
+    section('10b. Attribution quality audit')
+    cur.execute("""
+        SELECT su.speaker_id, s.name, s.speaker_type,
+               COUNT(*) as utterances,
+               SUM(CASE WHEN su.attribution_uncertain THEN 1 ELSE 0 END) as uncertain
+        FROM speaker_utterances su
+        LEFT JOIN speakers s ON s.id = su.speaker_id
+        WHERE su.event_id = %s
+        GROUP BY su.speaker_id, s.name, s.speaker_type
+        ORDER BY utterances DESC
+    """, (eid,))
+    spk_rows = cur.fetchall()
+    total_utts = sum(r[3] for r in spk_rows)
+    candidate_rows = [r for r in spk_rows if r[2] in ("politician", "official")]
+    print(f"  Utterance distribution ({total_utts} total):")
+    collapse_detected = False
+    for sid, sname, stype, ucount, uncertain in spk_rows:
+        pct = ucount / total_utts * 100 if total_utts else 0
+        name = sname or f"NULL(id={sid})"
+        print(f"    {name}: {ucount} ({pct:.0f}%) — {uncertain} uncertain")
+    if len(candidate_rows) > 1:
+        candidate_total = sum(r[3] for r in candidate_rows)
+        for sid, sname, stype, ucount, uncertain in candidate_rows:
+            if candidate_total > 0 and ucount / candidate_total > 0.80:
+                print(f"  ⚠ COLLAPSE RISK: {sname} has {ucount/candidate_total:.0%} of candidate utterances")
+                print(f"    If this looks wrong, run: python3 reattribute_llm.py --event-id {eid} --cold --apply")
+                collapse_detected = True
+    cur.execute("""
+        SELECT s.name, COUNT(*) as claims
+        FROM claims c LEFT JOIN speakers s ON s.id = c.speaker_id
+        WHERE c.event_id = %s AND c.claim_origin = 'debate_claim'
+        GROUP BY s.name ORDER BY claims DESC
+    """, (eid,))
+    claim_rows = cur.fetchall()
+    print(f"  Claim distribution:")
+    for sname, ccount in claim_rows:
+        print(f"    {sname or 'NULL'}: {ccount} claims")
+    if not collapse_detected:
+        print("  ✓ Attribution distribution looks reasonable")
+
     # ── 11. Summary ───────────────────────────────────────────────────────
     section('11. Next steps')
     if pending > 0:
