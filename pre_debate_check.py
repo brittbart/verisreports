@@ -267,6 +267,34 @@ def main():
     warnings = [r for r in results if not r[1] and not r[2]]
     passed = [r for r in results if r[1]]
     print(f"  {len(passed)} passed  |  {len(warnings)} warnings  |  {len(critical_fails)} critical failures")
+    # ── WSL Fallback Command ────────────────────────────────────────────────
+    if conn and event:
+        try:
+            _eid = event[0]
+            _slug = event[1]
+            _surl = event[6]
+            cur.execute(
+                "SELECT es.speaker_id FROM event_speakers es "
+                "WHERE es.event_id = %s AND es.is_active = TRUE "
+                "ORDER BY es.speaker_order",
+                (_eid,)
+            )
+            _speaker_ids = [str(r[0]) for r in cur.fetchall()]
+            cur.execute("SELECT rev_ai_vocabulary_id FROM events WHERE id = %s", (_eid,))
+            _vrow = cur.fetchone()
+            _vocab = _vrow[0] if _vrow else None
+            _cmd = f"python3 debate_stream.py --mode live --url \"{_surl}\" --event-slug {_slug}"
+            if _speaker_ids:
+                _cmd += f" --speaker-order {','.join(_speaker_ids)}"
+            if _vocab:
+                _cmd += f" --vocabulary-id {_vocab}"
+            print()
+            print("  WSL FALLBACK COMMAND (run from ~/projects/veris with venv):")
+            print(f"    {_cmd}")
+            print()
+        except Exception as _e:
+            print(f"\n  WSL fallback command unavailable: {_e}\n")
+
     if critical_fails:
         print(f"\n  CRITICAL FAILURES — resolve before debate:")
         for label, _, _ in critical_fails:
