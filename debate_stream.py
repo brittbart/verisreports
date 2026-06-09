@@ -385,6 +385,103 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         except Exception as _we:
             print(f"  [PERSIST] WARNING: Could not persist mapping {rev_idx}->{speaker_id}: {_we}")
     # Calibration phase — first 3 minutes, aggressive name detection
+
+    # Voice re-identification — fires once at 90s after stream start
+    # Extracts embeddings from WAV file for each detected Rev AI speaker
+    # and matches against enrolled embeddings to populate confirmed_speaker_ids.
+    # Runs in background thread — does not block streaming.
+    voice_id_done = [False]
+    def run_voice_identification():
+        import time as _time
+        _time.sleep(90)  # wait 90s for audio to accumulate
+        if voice_id_done[0]:
+            return
+        voice_id_done[0] = True
+        try:
+            import numpy as np
+            import os as _os
+            from voice_verify import load_enrolled_embeddings, extract_embedding, cosine_distance
+            enrolled = load_enrolled_embeddings()
+            if not enrolled:
+                print("  [VOICE ID] No enrolled speakers found — skipping")
+                return
+            # Only identify speakers not yet confirmed
+            unconfirmed = [rid for rid in seen_speaker_ids
+                           if rid not in confirmed_speaker_ids]
+            if not unconfirmed:
+                print("  [VOICE ID] All speakers already confirmed — skipping")
+                return
+            if not _os.path.exists(audio_path):
+                print("  [VOICE ID] WAV file not found — skipping")
+                return
+            print(f"  [VOICE ID] Running identification for Rev AI speakers: {unconfirmed}")
+            # Get total duration written so far
+            import soundfile as sf
+            info = sf.info(audio_path)
+            total_secs = info.duration
+            if total_secs < 30:
+                print(f"  [VOICE ID] Only {total_secs:.0f}s of audio — need 30s minimum")
+                return
+            # Extract one embedding per unconfirmed Rev AI speaker
+            # Use utterance timestamps from DB to find their audio segments
+            _vc = get_db_conn()
+            _vcu = _vc.cursor()
+            id_results = {}
+            for rev_idx in unconfirmed:
+                db_sid = seen_speaker_ids.get(rev_idx)
+                # Find utterances for this Rev AI speaker with timestamps
+                _vcu.execute("""
+                    SELECT timestamp_seconds FROM speaker_utterances
+                    WHERE event_id = %s AND speaker_id = %s
+                    AND timestamp_seconds IS NOT NULL
+                    AND timestamp_seconds < %s
+                    ORDER BY timestamp_seconds LIMIT 5
+                """, (event_id, db_sid, int(total_secs) - 10))
+                ts_rows = _vcu.fetchall()
+                if not ts_rows:
+                    print(f"  [VOICE ID] No timestamps for Rev AI {rev_idx} — skipping")
+                    continue
+                # Extract embeddings from multiple segments and average
+                embs = []
+                for (ts,) in ts_rows:
+                    emb = extract_embedding(audio_path, start_sec=ts, end_sec=ts+8)
+                    if emb is not None:
+                        embs.append(emb)
+                if not embs:
+                    print(f"  [VOICE ID] Could not extract embedding for Rev AI {rev_idx}")
+                    continue
+                avg_emb = np.mean(embs, axis=0)
+                avg_emb = avg_emb / np.linalg.norm(avg_emb)
+                # Compare against all enrolled speakers
+                distances = {sid: cosine_distance(avg_emb, data["embedding"])
+                             for sid, data in enrolled.items()}
+                best_sid = min(distances, key=distances.get)
+                best_dist = distances[best_sid]
+                print(f"  [VOICE ID] Rev AI {rev_idx}: best match speaker_{best_sid} (dist={best_dist:.3f})")
+                VOICE_ID_THRESHOLD = 0.55
+                if best_dist < VOICE_ID_THRESHOLD:
+                    id_results[rev_idx] = best_sid
+                    print(f"  [VOICE ID] CONFIRMED: Rev AI {rev_idx} = speaker_{best_sid}")
+                else:
+                    print(f"  [VOICE ID] No confident match for Rev AI {rev_idx} (best dist={best_dist:.3f} >= {VOICE_ID_THRESHOLD})")
+            _vcu.close(); _vc.close()
+            # Apply confirmed identifications
+            for rev_idx, db_sid in id_results.items():
+                if db_sid not in confirmed_speaker_ids.values():
+                    confirmed_speaker_ids[rev_idx] = db_sid
+                    seen_speaker_ids[rev_idx] = db_sid
+                    persist_mapping(rev_idx, db_sid)
+                    print(f"  [VOICE ID] Mapped Rev AI {rev_idx} -> speaker_{db_sid} (persisted)")
+            if id_results:
+                print(f"  [VOICE ID] Complete — {len(id_results)} speaker(s) identified")
+            else:
+                print("  [VOICE ID] Complete — no confident identifications")
+        except Exception as _ve:
+            print(f"  [VOICE ID] ERROR: {_ve}")
+
+    # Launch voice identification in background thread
+    threading.Thread(target=run_voice_identification, daemon=True).start()
+
     calibration_start = [time.time()]
     CALIBRATION_SECS = 180  # 3 minutes
     calibration_done = [False]
