@@ -18,7 +18,7 @@ VERDICT DEFINITIONS -- apply strictly:
 - disputed: ANY credible source contradicts the claim, OR evidence is genuinely mixed. Do not default to plausible when evidence is mixed.
 - overstated: The core fact is real but the specific figure, scale, or characterisation is exaggerated or imprecise.
 - not_supported: Positive evidence contradicts the claim, OR the claim makes specific assertions that authoritative sources explicitly refute.
-- not_verifiable: The claim cannot be confirmed or denied because primary sources are unavailable, access is restricted, or the event is too recent. Use sparingly.
+- not_verifiable: The claim cannot be confirmed or denied because primary sources are unavailable, access is restricted, or the event is too recent. Use sparingly — exhaust at least 2-3 distinct search queries before assigning this verdict.
 - corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Counts as +0.75 (weaker than supported).
 - opinion: A value judgement, prediction, or normative claim that cannot be true or false.
 

@@ -81,9 +81,7 @@ def strip_attribution(claim_text, speaker):
 
 def build_attributed_prompt(core_claim, original_claim, speaker, claim_type, article_title, source_name):
     """Build verification prompt for attributed claims — verifies underlying fact, not attribution."""
-    return f"""You are the Verum Signal verification engine. Your job is to verify the FACTUAL CONTENT of a claim, not whether someone said it.
-
-CONTEXT: {speaker} made the following claim, as reported by {source_name}:
+    return f"""CONTEXT: {speaker} made the following claim, as reported by {source_name}:
 ORIGINAL: "{original_claim}"
 
 WHAT TO VERIFY — the underlying factual assertion:
@@ -95,8 +93,10 @@ Examples:
 - "Trump said gas prices are up 5% from 2011" -> verify whether gas prices are actually up 5% from 2011
 - "Harris said the bill would cost $2 trillion" -> verify whether the bill actually costs $2 trillion
 
-  TYPE: {claim_type}
-  ARTICLE: {article_title}"""
+TYPE: {claim_type}
+ARTICLE: {article_title}
+
+Try at least 2-3 distinct search queries before concluding not_verifiable."""
 
 
 def analyse_claim(claim_text, speaker, claim_type,
@@ -125,7 +125,9 @@ CLAIM: {claim_text}
 SPEAKER: {speaker}
 TYPE: {claim_type}
 ARTICLE: {article_title}
-SOURCE: {source_name}"""
+SOURCE: {source_name}
+
+Try at least 2-3 distinct search queries before concluding not_verifiable."""
 
     try:
         message = client.messages.create(
