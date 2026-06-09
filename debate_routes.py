@@ -729,7 +729,7 @@ def register_debate_routes(app, get_db_conn):
                    FROM speaker_utterances su
                    JOIN speakers s ON s.id = su.speaker_id
                    WHERE su.event_id = %s
-                     AND s.speaker_type IN ('politician', 'official')
+                     AND s.speaker_type IN ('politician', 'official', 'moderator')
                    ORDER BY COALESCE(su.timestamp_seconds, EXTRACT(EPOCH FROM su.created_at)::INTEGER) DESC LIMIT 1""",
                 (event_id,))
             recent_spk = cur.fetchone()
