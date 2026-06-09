@@ -18,9 +18,9 @@ mappings = {
 
 for canonical, variants in mappings.items():
     placeholders = ','.join(['%s'] * len(variants))
-    cur.execute(f'SELECT COALESCE(SUM(total_claims_checked),0), COALESCE(SUM(verified_count),0), COALESCE(SUM(disputed_count),0), COALESCE(SUM(overstated_count),0), COALESCE(SUM(plausible_count),0) FROM sources WHERE name IN ({placeholders})', variants)
+    cur.execute(f'SELECT COALESCE(SUM(total_claims_checked),0), COALESCE(SUM(supported_count),0), COALESCE(SUM(disputed_count),0), COALESCE(SUM(overstated_count),0), COALESCE(SUM(plausible_count),0), COALESCE(SUM(not_verifiable_count),0), COALESCE(SUM(corroborated_count),0), COALESCE(SUM(not_supported_count),0), COALESCE(SUM(opinion_count),0) FROM sources WHERE name IN ({placeholders})', variants)
     sums = cur.fetchone()
-    cur.execute('UPDATE sources SET total_claims_checked=total_claims_checked+%s, verified_count=verified_count+%s, disputed_count=disputed_count+%s, overstated_count=overstated_count+%s, plausible_count=plausible_count+%s WHERE name=%s', (*sums, canonical))
+    cur.execute('UPDATE sources SET total_claims_checked=total_claims_checked+%s, supported_count=supported_count+%s, disputed_count=disputed_count+%s, overstated_count=overstated_count+%s, plausible_count=plausible_count+%s, not_verifiable_count=not_verifiable_count+%s, corroborated_count=corroborated_count+%s, not_supported_count=not_supported_count+%s, opinion_count=opinion_count+%s WHERE name=%s', (*sums, canonical))
     cur.execute(f'DELETE FROM sources WHERE name IN ({placeholders})', variants)
     print(f'{canonical}: merged {cur.rowcount} variants, added {sums[0]} claims')
 

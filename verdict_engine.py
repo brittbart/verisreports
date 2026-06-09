@@ -278,15 +278,15 @@ Return ONLY this JSON:
         return None
     
 def update_source_profile(cursor, source_name, verdict):
-    if verdict == 'opinion':
-        return
     field_map = {
-        'supported':     'verified_count',
-        'plausible':     'plausible_count',
-        'disputed':      'disputed_count',
-        'not_supported': 'disputed_count',
-        'overstated':    'overstated_count',
-        'not_verifiable':'not_verifiable_count',
+        'supported':      'supported_count',
+        'plausible':      'plausible_count',
+        'corroborated':   'corroborated_count',
+        'disputed':       'disputed_count',
+        'not_supported':  'not_supported_count',
+        'overstated':     'overstated_count',
+        'not_verifiable': 'not_verifiable_count',
+        'opinion':        'opinion_count',
     }
     field = field_map.get(verdict, 'not_verifiable_count')
     try:
@@ -349,11 +349,18 @@ def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
         """, (source_name, new_score, new_score))
 
         if old_score != new_score:
+            # Get old counts for audit trail
+            cursor.execute("""
+                SELECT total_claims_checked, supported_count FROM sources WHERE name = %s
+            """, (source_name,))
+            old_row = cursor.fetchone()
+            old_verified_val = old_row[1] if old_row else None
+            old_total_val = old_row[0] if old_row else None
             cursor.execute("""
                 INSERT INTO score_history
-                (source_name, old_score, new_score, new_verified, new_total, trigger_claim_id)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (source_name, old_score, new_score, round(weighted), scoreable, trigger_claim_id))
+                (source_name, old_score, new_score, old_verified, new_verified, old_total, new_total, trigger_claim_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (source_name, old_score, new_score, old_verified_val, scoreable, old_total_val, scoreable, trigger_claim_id))
 
     except Exception as e:
         print(f"    Score update error: {str(e)}")

@@ -658,9 +658,11 @@ def get_report():
         # Step 3: Build report
         supported_count    = sum(1 for c in claims if c[5] == 'supported')
         plausible_count    = sum(1 for c in claims if c[5] == 'plausible')
+        corroborated_count = sum(1 for c in claims if c[5] == 'corroborated')
         overstated_count   = sum(1 for c in claims if c[5] == 'overstated')
         disputed_count     = sum(1 for c in claims if c[5] == 'disputed')
         not_supported_count= sum(1 for c in claims if c[5] == 'not_supported')
+        not_verifiable_count= sum(1 for c in claims if c[5] == 'not_verifiable')
         opinion_count      = sum(1 for c in claims if c[5] == 'opinion')
         unverified_count   = sum(1 for c in claims if c[5] is None)
 
@@ -699,9 +701,11 @@ def get_report():
             'stats': {
                 'supported': supported_count,
                 'plausible': plausible_count,
+                'corroborated': corroborated_count,
                 'overstated': overstated_count,
                 'disputed': disputed_count,
                 'not_supported': not_supported_count,
+                'not_verifiable': not_verifiable_count,
                 'opinion': opinion_count,
                 'unverified': unverified_count,
                 'total': len(claims)
