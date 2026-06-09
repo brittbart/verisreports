@@ -18,6 +18,7 @@ USAGE:
 
 import argparse
 import json
+import time
 import os
 import sys
 from datetime import datetime, timezone
