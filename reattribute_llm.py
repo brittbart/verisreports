@@ -378,6 +378,229 @@ def run_verification(event_id, apply_corrections=False):
     print(f"  Then verify: python3 post_debate_check.py --event-id {event_id}")
 
 
+def call_llm_chunk_cold(client, chunk, speakers, event_name, event_date, chunk_num, total_chunks):
+    """Cold attribution: send transcript with NO speaker labels.
+    Ask Claude to attribute each utterance from scratch based purely on content.
+    Used when current attribution is severely corrupted (e.g. >80% wrong).
+    Returns list of {utterance_order, speaker_id, confidence, reason} for every utterance.
+    """
+    # Build speaker descriptions
+    spk_lines = []
+    for sid, name, stype, party, order in speakers:
+        if stype == 'moderator':
+            spk_lines.append(f"- speaker_id={sid}: {name} (MODERATOR — asks questions, manages time)")
+        else:
+            party_str = f' ({party})' if party else ''
+            spk_lines.append(f"- speaker_id={sid}: {name}{party_str}")
+    speaker_desc = '\n'.join(spk_lines)
+
+    # Build transcript with NO speaker labels — just order and text
+    lines = []
+    for uid, uorder, utext, speaker_id, speaker_name, stype, conf, uncertain in chunk:
+        lines.append(f"[{uorder}] {utext}")
+    transcript_chunk = '\n'.join(lines)
+
+    prompt = f"""You are attributing utterances in a political debate transcript.
+The current speaker labels are UNRELIABLE and should be IGNORED.
+Attribute each utterance from scratch based purely on content.
+
+EVENT: {event_name}
+DATE: {event_date}
+
+SPEAKERS:
+{speaker_desc}
+
+ATTRIBUTION GUIDE:
+- The MODERATOR asks questions, addresses candidates by name, manages time, says "thank you"
+- Candidates speak about their own records, policies, and attack opponents
+- First-person statements about personal history, votes, and accomplishments identify the speaker
+- References to "Shannon Bird" or "Manny Rutinel" in third person = the OTHER candidate speaking
+
+TRANSCRIPT (no speaker labels — attribute each utterance):
+{transcript_chunk}
+
+Return a JSON array with an entry for EVERY utterance in the chunk.
+Format:
+[
+  {{"utterance_order": <int>, "speaker_id": <int>, "confidence": "high"|"medium"|"low", "reason": "<10 words>"}}
+]
+
+Rules:
+- Use speaker_id numbers from the SPEAKERS list above
+- Every utterance must be attributed — no skipping
+- If genuinely ambiguous, use "low" confidence
+- Respond with ONLY the JSON array"""
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    result_text = response.content[0].text.strip()
+    clean = result_text
+    if clean.startswith('```'):
+        clean = clean.split('\n', 1)[1] if '\n' in clean else clean[3:]
+    if clean.endswith('```'):
+        clean = clean.rsplit('```', 1)[0]
+    clean = clean.strip()
+    if clean.startswith('json'):
+        clean = clean[4:].strip()
+    if not clean.endswith(']'):
+        last = clean.rfind('},')
+        if last > 0:
+            clean = clean[:last+1] + ']'
+            print(f"    (chunk {chunk_num}: JSON truncated — salvaged partial)")
+    attributions = json.loads(clean)
+    return attributions, response.usage.input_tokens, response.usage.output_tokens
+
+
+def run_cold_attribution(event_id, apply_corrections=False):
+    """Rebuild speaker attribution from scratch ignoring current labels.
+    Use when live attribution was severely corrupted (e.g. Rev AI speaker ID collapse).
+    More expensive than run_verification (~2x tokens) but produces accurate results
+    even when the baseline attribution is mostly wrong.
+    """
+    print("=" * 68)
+    print(f"Verum Signal — COLD attribution rebuild")
+    print(f"Event ID: {event_id}  |  Mode: {'APPLY' if apply_corrections else 'REVIEW ONLY'}")
+    print(f"WARNING: This ignores all current speaker labels and rebuilds from scratch.")
+    print("=" * 68)
+
+    conn = get_connection()
+    event_info = fetch_event_info(conn, event_id)
+    if not event_info:
+        print(f"ERROR: Event {event_id} not found")
+        sys.exit(1)
+    event_name, event_date, start_time, tz = event_info
+    speakers = fetch_event_speakers(conn, event_id)
+    utterances = fetch_transcript(conn, event_id)
+
+    print(f"\n  Event: {event_name}")
+    print(f"  Speakers: {len(speakers)}")
+    print(f"  Utterances: {len(utterances)}")
+
+    if not utterances:
+        print("  No utterances found.")
+        conn.close()
+        return
+
+    speakers_by_id = {sid: (name, stype, party) for sid, name, stype, party, order in speakers}
+    chunks = chunk_utterances(utterances, CHUNK_SIZE)
+    total_chunks = len(chunks)
+    print(f"  Chunking into {total_chunks} chunk(s) of up to {CHUNK_SIZE} utterances")
+
+    client = anthropic.Anthropic()
+    all_attributions = []
+    total_tokens_in = 0
+    total_tokens_out = 0
+
+    for i, chunk in enumerate(chunks, 1):
+        print(f"  Calling Claude — chunk {i}/{total_chunks} ({len(chunk)} utterances)...")
+        try:
+            attrs, t_in, t_out = call_llm_chunk_cold(
+                client, chunk, speakers, event_name, str(event_date), i, total_chunks
+            )
+            all_attributions.extend(attrs)
+            total_tokens_in += t_in
+            total_tokens_out += t_out
+            print(f"    → {len(attrs)} attributions | {t_in} in / {t_out} out tokens")
+        except json.JSONDecodeError as e:
+            print(f"    ERROR: JSON parse failed for chunk {i}: {e} — skipping")
+        except Exception as e:
+            print(f"    ERROR: chunk {i} failed: {e} — skipping")
+        time.sleep(1)
+
+    cost = (total_tokens_in * 3 + total_tokens_out * 15) / 1_000_000
+    print(f"\n  Total: {total_tokens_in} in / {total_tokens_out} out | Cost: ${cost:.4f}")
+
+    # Build utterance lookup
+    utterance_lookup = {}
+    for uid, uorder, utext, speaker_id, speaker_name, stype, conf, uncertain in utterances:
+        utterance_lookup[uorder] = {
+            'uid': uid, 'text': utext,
+            'old_speaker_id': speaker_id, 'old_name': speaker_name
+        }
+
+    # Find corrections — utterances where cold attribution differs from current
+    corrections = []
+    low_confidence = []
+    for attr in all_attributions:
+        uorder = attr.get('utterance_order')
+        new_sid = attr.get('speaker_id')
+        confidence = attr.get('confidence', 'low')
+        reason = attr.get('reason', '')
+        if uorder is None or new_sid is None:
+            continue
+        udata = utterance_lookup.get(uorder)
+        if not udata:
+            continue
+        new_name = speakers_by_id.get(new_sid, (str(new_sid), None, None))[0]
+        if new_sid != udata['old_speaker_id']:
+            entry = {
+                'uid': udata['uid'],
+                'uorder': uorder,
+                'old_speaker_id': udata['old_speaker_id'],
+                'new_speaker_id': new_sid,
+                'old_name': udata['old_name'],
+                'new_name': new_name,
+                'reason': reason,
+                'confidence': confidence,
+            }
+            if confidence == 'low':
+                low_confidence.append(entry)
+            else:
+                corrections.append(entry)
+
+    print(f"\n{'─' * 50}")
+    print(f"  {len(corrections)} correction(s) (high/medium confidence)")
+    print(f"  {len(low_confidence)} low-confidence attribution(s) — not applied")
+    print(f"{'─' * 50}")
+
+    for fix in corrections[:20]:
+        print(f"  [{fix['confidence']}] utterance {fix['uorder']}: {fix['old_name']} → {fix['new_name']}")
+        print(f"    {fix['reason']}")
+    if len(corrections) > 20:
+        print(f"  ... and {len(corrections)-20} more")
+
+    if not apply_corrections:
+        print("\n  Run with --apply to write corrections to DB")
+        conn.close()
+        return
+
+    print("\n  Applying corrections...")
+    cur = conn.cursor()
+    applied = 0
+    for fix in corrections:
+        cur.execute("""
+            UPDATE speaker_utterances SET speaker_id = %s, attribution_uncertain = false
+            WHERE id = %s AND event_id = %s
+        """, (fix['new_speaker_id'], fix['uid'], event_id))
+        cur.execute("""
+            UPDATE claims SET
+                speaker_id = %s, speaker = %s,
+                verdict = NULL, verdict_status = 'provisional',
+                revision_history = COALESCE(revision_history, '[]'::jsonb) || %s::jsonb
+            WHERE utterance_id = %s AND event_id = %s
+        """, (
+            fix['new_speaker_id'], fix['new_name'],
+            json.dumps([{
+                'action': 'cold_reattribution',
+                'old_speaker_id': fix['old_speaker_id'],
+                'new_speaker_id': fix['new_speaker_id'],
+                'reason': fix['reason'],
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+            }]),
+            fix['uid'], event_id,
+        ))
+        applied += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    print(f"  Applied {applied} correction(s)")
+    print(f"  Run python3 railway_api_refresh.py to propagate to api_debate_claims")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--event-id', type=int, required=True)
@@ -385,9 +608,14 @@ if __name__ == '__main__':
                         help='Write corrections to DB (default: review only)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Alias for default review-only mode (no DB writes)')
+    parser.add_argument('--cold', action='store_true',
+                        help='Cold attribution: ignore current labels, rebuild from scratch. Use when attribution is severely corrupted.')
     args = parser.parse_args()
 
     # --dry-run and default both = review only. Only --apply writes.
     apply = args.apply and not args.dry_run
 
-    run_verification(args.event_id, apply_corrections=apply)
+    if args.cold:
+        run_cold_attribution(args.event_id, apply_corrections=apply)
+    else:
+        run_verification(args.event_id, apply_corrections=apply)
