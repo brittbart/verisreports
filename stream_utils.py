@@ -121,6 +121,6 @@ def resolve_stream_url(youtube_url):
         raise
     except yt_dlp.utils.DownloadError as e:
         msg = str(e).lower()
-        if 'will begin' in msg or 'not started' in msg or 'upcoming' in msg or 'premiere' in msg:
+        if 'will begin' in msg or 'not started' in msg or 'upcoming' in msg or 'premiere' in msg or 'unavailable' in msg or 'removed by' in msg or 'not found' in msg or 'video unavailable' in msg:
             raise PreLiveError(f"Stream not yet live: {e}")
         raise
