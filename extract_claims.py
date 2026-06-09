@@ -1,6 +1,7 @@
 import os
 import json
 import anthropic
+from extract_prompts import EXTRACT_SYSTEM_PROMPT
 from dotenv import load_dotenv
 from datetime import datetime
 # Load API keys
@@ -82,83 +83,16 @@ DO NOT EXTRACT:
 - Greetings or well-wishes to opponents or the audience
 """ if is_debate_utterance else """"""
 
-    prompt = f"""You are the claim detection engine for Verum Signal, an independent claim analysis platform.
-{content_type_instruction}
-Read the following {'statement' if is_debate_utterance else 'article'} and identify up to {'2' if is_debate_utterance else '7'} of the most check-worthy factual claims.
+    claim_limit = '2' if is_debate_utterance else '7'
+    content_label = 'statement' if is_debate_utterance else 'article'
 
-A check-worthy claim is:
-- A specific factual assertion that could be checked against evidence
-- Something that, if wrong, would meaningfully mislead the reader
-- Often (not always) includes specific numbers, statistics, names, dates, or events
+    prompt = f"""{content_type_instruction}
+Read the following {content_label} and identify up to {claim_limit} of the most check-worthy factual claims.
 
-IMPORTANT: Articles from any genre — opinion pieces, analysis, news, blogs, columns — can contain factual claims worth checking. Do not skip an article because its overall genre is opinion or commentary. Look for the embedded factual assertions within. An opinion piece that says "Tesla's stock dropped 40% last quarter and Musk fired half the legal team" contains two extractable factual claims even though the surrounding text is opinion.
-
-HEADLINE PRIORITY: Pay particular attention to claims made in the headline. Headlines are where factual distortion most commonly occurs. A headline claim that overstates, mischaracterizes, or contradicts the article body is highly check-worthy. If the headline makes a specific factual assertion, extract it as a claim even if the body qualifies or contradicts it — that gap is exactly what needs verification.
-
-OVERSTATED FRAMING: A claim is check-worthy even when it is technically accurate but omits context that would materially change the reader's understanding. "Senator X voted against the crime bill" may be technically accurate but omit that the bill was a procedural vote on an unrelated amendment. Extract such claims — the verification step will assess whether the framing is overstated.
-
-If you find fewer than 7 truly check-worthy claims, return only what you find. Do not pad. Returning 0 claims is acceptable when an article genuinely contains no concrete factual assertions (e.g. pure aesthetic review with no facts, or speculation without specifics).
-
-For each claim return:
-1. The exact claim text (quote directly from the article where possible)
-2. Who made the claim (speaker/source)
-3. What type of claim it is (factual, statistical, causal, legal, scientific)
-4. Why it is check-worthy
-5. Whether this is an outlet_claim (the outlet itself is asserting this) or attributed_claim (the outlet is reporting that someone else said this)
-6. If attributed, the exact attribution context e.g. "Trump said", "according to the Pentagon", "Iran's state media reported"
-
-CLAIM QUALITY STANDARDS — apply strictly:
-A claim is only check-worthy if it contains a SPECIFIC, VERIFIABLE FACTUAL ASSERTION. All of the following must be EXCLUDED:
-
-- BIOGRAPHICAL FACTS: Do not extract claims that merely confirm someone's role, title, or identity (e.g. "Justice Surya Kant is the Chief Justice of India", "Elon Musk is the CEO of Tesla", "Senator Warren represents Massachusetts"). These are reference facts, not claims worth verifying.
-- REDUNDANT CLAIMS: Do not extract the same assertion twice. If two sentences say the same thing in different words, extract only one — the more specific version.
-- OPINION OR CHARACTERIZATION: Do not extract value judgments, characterizations, or normative statements as factual claims, even when attributed to a named speaker (e.g. "X called Y a crime against human dignity" — the characterization is opinion, not a factual claim).
-- VAGUE ASSERTIONS: Do not extract claims without specific figures, dates, named events, named documents, or concrete outcomes. "The economy is doing badly" is not a claim. "GDP contracted 1.2% in Q3" is a claim.
-- PROCESS STATEMENTS: Do not extract claims that merely describe an article's subject or event (e.g. "The article reports on remarks made at a conference").
-- PERSONAL HEALTH DISCLOSURES: Do not extract claims about a speaker's personal health, medical procedures, or physical condition (e.g. "Senator X said he underwent surgery", "X said she is recovering well").
-- RECALLED OR SECONDHAND QUOTES: Do not extract claims that are one person recalling what another person told them (e.g. "Wood recalls being told by Laffer that..."). These are not directly verifiable.
-- VAGUE SENTIMENT: Do not extract claims that express general sentiment without specific content (e.g. "X said there was some pretty good news", "X expressed optimism about the talks").
-
-A strong attributed claim looks like: "Senator X said the bill would cost $2 trillion over 10 years" or "The Pentagon confirmed 3,000 troops were deployed to X on [date]." A weak attributed claim looks like: "X said Y is important" or "X described the situation as serious."
-
-CRITICAL ATTRIBUTED CLAIM DISTINCTION: Confirming that a speaker said something is NOT the same as extracting a checkworthy factual claim. Do not extract a claim simply because a quote can be verified as having been made. The claim must contain a specific factual assertion worth checking — not just the fact of the utterance itself.
-
-Ask: "If this claim is wrong, does it materially mislead anyone about a fact that matters?" If the answer is no — if the only thing being verified is that someone said something — do not extract it.
-
-Examples of quotes to SKIP (confirming utterance only):
-- "Senator X said he underwent gallstone surgery over the weekend" — the claim is trivially about a personal event, not a policy fact
-- "X posted on X that he would see reporters in court" — legal threat, not a factual claim
-- "X said there was some pretty good news about the talks" — vague sentiment, no specific fact
-- "X called the ceasefire a mistake" — opinion characterization
-
-Examples of quotes to EXTRACT (specific verifiable content):
-- "Senator X said the bill would cost $2 trillion over 10 years" — specific figure, verifiable
-- "The Pentagon said 3,000 troops were deployed to X on [date]" — specific action, named location, verifiable
-- "X said Iran has agreed to stop enriching uranium" — specific policy claim with verifiable content
-- "X said the agency is understaffed by 30%" — specific figure attributed to named source
-
-CRITICAL CONSTRAINTS:
-- claim_origin MUST be exactly "outlet_claim" OR exactly "attributed_claim". Never null. Never empty. Never any other value.
-- If the claim has a clear speaker other than the outlet (e.g. "Trump said", "according to the Pentagon"), use "attributed_claim".
-- Otherwise use "outlet_claim".
-- Returning 0 claims is correct when an article contains no specific, verifiable factual assertions meeting the above standards.
+If you find fewer than {claim_limit} truly check-worthy claims, return only what you find. Do not pad. Returning 0 claims is acceptable.
 
 Article:
 {article_text}
-
-Respond in this exact JSON format:
-{{
-  "claims": [
-    {{
-      "claim_text": "exact claim here",
-      "speaker": "who made the claim",
-      "claim_type": "type of claim",
-      "why_checkworthy": "brief reason",
-      "claim_origin": "outlet_claim",
-      "attribution_context": "if attributed, quote the exact words used to attribute it e.g. 'Trump said' or 'according to the White House' — leave blank if outlet_claim"
-    }}
-  ]
-}}
 
 Return only the JSON, no other text."""
 
@@ -166,6 +100,7 @@ Return only the JSON, no other text."""
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=3000,  # Sized for up to 7 claims with full schema. Was 1000 (truncated mid-JSON for >3 claims).
+            system=[{"type": "text", "text": EXTRACT_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[
                 {"role": "user", "content": prompt}
             ]

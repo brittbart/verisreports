@@ -3,6 +3,7 @@ import json
 import re
 import psycopg2
 import anthropic
+from verdict_prompts import VERDICT_SYSTEM_PROMPT
 from dotenv import load_dotenv
 from api_leaderboard import METHODOLOGY_VERSION
 
@@ -94,49 +95,8 @@ Examples:
 - "Trump said gas prices are up 5% from 2011" -> verify whether gas prices are actually up 5% from 2011
 - "Harris said the bill would cost $2 trillion" -> verify whether the bill actually costs $2 trillion
 
-TYPE: {claim_type}
-ARTICLE: {article_title}
-
-VERIFICATION STANDARDS:
-
-INDEPENDENCE RULE: Two sources are only independent if they obtained the information through different means. Multiple outlets repeating the same wire = ONE source.
-
-CONSENSUS EXCEPTION:
-If 5 or more outlets are consistently reporting the same claim without contradiction, assign corroborated at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
-
-VERDICT DEFINITIONS:
-- supported: Underlying fact confirmed by TWO genuinely independent primary sources
-- plausible: Consistent with evidence but only one credible source found
-- disputed: ANY credible source contradicts the factual assertion
-- overstated: Core fact is real but figure or scale is exaggerated
-- not_supported: Evidence actively contradicts the factual assertion
-- not_verifiable: Cannot confirm or deny — primary sources unavailable
-- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.75 (weaker than supported).
-- opinion: Value judgement or prediction that cannot be empirically true or false
-
-CONFIDENCE SCORE:
-- 3: Two or more genuinely independent sources with original reporting
-- 2: One credible source, or plausible based on consistent reporting
-- 1: Plausible or disputed
-
-SEARCH INSTRUCTIONS:
-1. Search for the specific factual assertion — NOT the quote or the speaker
-2. Find primary sources (government data, official reports, direct documentation)
-3. Find a second independent source
-4. If any credible source contradicts, assign disputed
-
-CRITICAL CONSTRAINTS:
-- verdict MUST be exactly one of: supported, plausible, corroborated, overstated, disputed, not_supported, not_verifiable, opinion
-- If cannot determine, use not_verifiable
-
-Return ONLY this JSON:
-{{
-  "verdict": "supported",
-  "confidence_score": 1,
-  "verdict_summary": "one sentence explaining whether the underlying fact holds up",
-  "full_analysis": "2-3 sentences on what you found, sources used, and why this verdict",
-  "sources_used": "specific named sources and whether each independently confirmed the underlying fact"
-}}"""
+  TYPE: {claim_type}
+  ARTICLE: {article_title}"""
 
 
 def analyse_claim(claim_text, speaker, claim_type,
@@ -159,66 +119,13 @@ def analyse_claim(claim_text, speaker, claim_type,
         )
     else:
         print(f"  -> Web search verification...")
-        prompt = f"""You are the Verum Signal verification engine. Your job is to verify claims with rigorous, defensible standards. Use web search to find primary sources.
+        prompt = f"""Verify this claim using web search.
 
 CLAIM: {claim_text}
 SPEAKER: {speaker}
 TYPE: {claim_type}
 ARTICLE: {article_title}
-SOURCE: {source_name}
-
-VERIFICATION STANDARDS — read carefully before assigning a verdict:
-
-
-INDEPENDENCE RULE:
-Two sources are only independent if they obtained the information through different means. Multiple outlets repeating the same wire report = ONE source, not multiple. To call something verified you must find sources that independently confirmed the fact through different channels.
-
-CONSENSUS EXCEPTION:
-If 5 or more outlets are consistently reporting the same claim without contradiction, assign corroborated at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
-
-VERDICT DEFINITIONS — apply strictly:
-
-- supported: Confirmed by at least TWO genuinely independent sources from Tier 1 or above, each having obtained the information through different means. If you cannot find this, do NOT use supported.
-
-- plausible: Consistent with available evidence but only confirmed by one credible source, or by multiple sources all citing the same original report. Use this when the claim seems likely true but true independence cannot be established.
-
-- disputed: ANY credible source contradicts the claim, OR evidence is genuinely mixed. Do not default to plausible when evidence is mixed — use disputed. This verdict is underused and should be applied whenever you find meaningful contradiction.
-
-- overstated: The core fact is real but the specific figure, scale, or characterisation is exaggerated or imprecise. Use when a claim is directionally correct but materially misleading in its specifics.
-
-- not_supported: Positive evidence contradicts the claim, OR the claim makes specific assertions that authoritative sources explicitly refute.
-
-- not_verifiable: The claim cannot be confirmed or denied because primary sources are unavailable, access is restricted, or the event is too recent. Use sparingly — exhaust search options first.
-
-- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.75 (weaker than supported).
-
-- opinion: A value judgement, prediction, or normative claim that cannot be true or false. Also use for analyst conclusions presented as facts.
-
-CONFIDENCE SCORE — assign based on source quality, not just number of sources:
-- 3: Verified by two or more genuinely independent sources with original reporting
-- 2: Verified by one credible source with original reporting, or plausible based on consistent but non-independent reporting
-- 1: Plausible or disputed, or claim is inherently difficult to verify
-
-SEARCH INSTRUCTIONS:
-1. Search for the specific claim first
-2. Find the original source — who first reported this?
-3. Find a second source that independently verified it (not just repeated it)
-4. If you find any contradiction from a credible source, assign disputed
-5. Note the quality of sources in your analysis
-
-CRITICAL CONSTRAINTS:
-- The "verdict" field MUST be EXACTLY one of these 8 lowercase strings, with no variations: supported, plausible, corroborated, overstated, disputed, not_supported, not_verifiable, opinion.
-- Do NOT use "verified", "true", "false", "confirmed", or any other value. Only the 8 listed above.
-- If you cannot determine the verdict, use "not_verifiable".
-
-Return ONLY this JSON:
-{{
-  "verdict": "supported",
-  "confidence_score": 1,
-  "verdict_summary": "one sentence plain-language explanation",
-  "full_analysis": "2-3 sentences explaining what you found, what sources you used, and why you assigned this verdict",
-  "sources_used": "specific named sources and whether each independently confirmed the fact"
-}}"""
+SOURCE: {source_name}"""
 
     try:
         message = client.messages.create(
@@ -230,7 +137,7 @@ Return ONLY this JSON:
                     "name": "web_search"
                 }
             ],
-            system=[{"type": "text", "text": "You are the Verum Signal verification engine. Return only valid JSON.", "cache_control": {"type": "ephemeral"}}],
+            system=[{"type": "text", "text": VERDICT_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[
                 {"role": "user", "content": prompt}
             ]
@@ -442,44 +349,13 @@ if __name__ == "__main__":
     run_verdict_engine(limit=10)
 
 def build_prompt(claim_text, speaker, claim_type, article_title, source_name):
-    return f"""You are the Verum Signal verification engine. Verify this claim using web search.
+    return f"""Verify this claim using web search.
 
 CLAIM: {claim_text}
 SPEAKER: {speaker}
 TYPE: {claim_type}
 ARTICLE: {article_title}
-SOURCE: {source_name}
-
-INDEPENDENCE RULE: Two sources are only independent if they obtained information through different means. Multiple outlets repeating the same wire = ONE source.
-
-CONSENSUS EXCEPTION:
-If 5 or more outlets are consistently reporting the same claim without contradiction, assign corroborated at confidence 2/3 even if you cannot confirm each outlet independently sourced the information. Widespread consistent reporting across multiple outlets is a strong signal of accuracy. If any credible outlet contradicts the claim, use disputed instead regardless of how many outlets agree.
-
-VERDICT DEFINITIONS:
-- supported: TWO genuinely independent sources confirm
-- plausible: Consistent but only one credible source
-- disputed: ANY credible source contradicts
-- overstated: Core fact real but exaggerated
-- not_supported: Evidence contradicts the claim
-- not_verifiable: Cannot confirm - sources unavailable
-- corroborated: 5 or more outlets are consistently reporting the same claim without contradiction, but full independence cannot be established. Use this when the consensus exception applies. Counts as +0.75 (weaker than supported).
-- opinion: Value judgement or prediction
-
-CONFIDENCE: 3=two+ independent sources, 2=one credible source, 1=plausible/disputed
-
-CRITICAL CONSTRAINTS:
-- The "verdict" field MUST be EXACTLY one of these 8 lowercase strings, with no variations: supported, plausible, corroborated, overstated, disputed, not_supported, not_verifiable, opinion.
-- Do NOT use "verified", "true", "false", "confirmed", or any other value. Only the 8 listed above.
-- If you cannot determine the verdict, use "not_verifiable".
-
-Return ONLY this JSON:
-{{
-  "verdict": "supported",
-  "confidence_score": 1,
-  "verdict_summary": "one sentence explanation",
-  "full_analysis": "2-3 sentences of reasoning",
-  "sources_used": "named sources and whether each independently confirmed"
-}}"""
+SOURCE: {source_name}"""
 
 
 
