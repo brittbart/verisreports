@@ -357,22 +357,17 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     confirmed_speaker_ids = {}  # Rev AI ID -> DB speaker_id (name-confirmed, authoritative)
     pending_speaker_id = [None] # next speaker assigned this DB speaker_id
 
-    # Load persisted speaker mappings from DB (survive stream restarts)
-    # Note: column named dg_speaker_map for historical reasons (Deepgram era); now stores Rev AI mappings
+    # Clear dg_speaker_map at stream start — Rev AI assigns new speaker IDs
+    # on each job connection so persisted mappings from prior jobs are invalid.
+    # Clearing ensures we always build the map fresh via voice re-ID and name detection.
     try:
         _mc = get_db_conn(); _mu = _mc.cursor()
-        _mu.execute("SELECT dg_speaker_map FROM events WHERE id = %s", (event_id,))
-        _mr = _mu.fetchone()
-        if _mr and _mr[0]:
-            for k, v in _mr[0].items():
-                confirmed_speaker_ids[int(k)] = v
-                seen_speaker_ids[int(k)] = v
-            print(f"  [PERSIST] Loaded {len(confirmed_speaker_ids)} mapping(s) from DB: {confirmed_speaker_ids}")
-        else:
-            print("  [PERSIST] No prior mappings — starting fresh")
+        _mu.execute("UPDATE events SET dg_speaker_map = '{}'::jsonb WHERE id = %s", (event_id,))
+        _mc.commit()
         _mu.close(); _mc.close()
+        print("  [PERSIST] Cleared stale speaker map — starting fresh")
     except Exception as _pe:
-        print(f"  [PERSIST] WARNING: Could not load mappings: {_pe} — proceeding with empty map")
+        print(f"  [PERSIST] WARNING: Could not clear speaker map: {_pe}")
 
     def persist_mapping(rev_idx, speaker_id):
         """Write Rev AI idx -> speaker_id mapping to DB. Non-fatal on failure."""
@@ -497,16 +492,28 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                        if sid not in confirmed_speaker_ids.values()]
             if missing:
                 print(f"  [CALIBRATION] 3min elapsed. Missing speakers: {missing}")
-                # Fall back to order-based for unconfirmed speakers
-                unconfirmed_rev_ids = [rid for rid in seen_speaker_ids
-                                        if rid not in confirmed_speaker_ids]
-                for i, rid in enumerate(sorted(unconfirmed_rev_ids)):
-                    for sid in missing:
-                        if sid not in confirmed_speaker_ids.values():
-                            confirmed_speaker_ids[rid] = sid
-                            seen_speaker_ids[rid] = sid
-                            print(f"  [CALIBRATION] Fallback: Rev AI {rid} = DB speaker {sid}")
-                            break
+                # Prefer voice re-identification over order-based fallback
+                # Order-based is fragile — Rev AI index != speaker order in practice
+                from voice_verify import load_enrolled_embeddings
+                enrolled = load_enrolled_embeddings()
+                if enrolled and not voice_id_done[0]:
+                    print("  [CALIBRATION] Triggering voice re-identification instead of order-based fallback")
+                    voice_id_done[0] = False
+                    import threading as _ct
+                    _ct.Thread(target=run_voice_identification, daemon=True).start()
+                elif not enrolled:
+                    print("  [CALIBRATION] No voice enrollments — using order-based fallback")
+                    unconfirmed_rev_ids = [rid for rid in seen_speaker_ids
+                                          if rid not in confirmed_speaker_ids]
+                    for _i, rid in enumerate(sorted(unconfirmed_rev_ids)):
+                        for sid in missing:
+                            if sid not in confirmed_speaker_ids.values():
+                                confirmed_speaker_ids[rid] = sid
+                                seen_speaker_ids[rid] = sid
+                                print(f"  [CALIBRATION] Order fallback: Rev AI {rid} = DB speaker {sid}")
+                                break
+                else:
+                    print("  [CALIBRATION] Voice re-ID already ran — accepting current state")
             else:
                 print(f"  [CALIBRATION] Complete — all speakers confirmed")
             calibration_done[0] = True

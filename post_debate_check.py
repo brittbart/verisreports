@@ -210,11 +210,15 @@ def main():
         print('    -- Then update api_debate_claims: python3 railway_api_refresh.py')
 
     # ── 8. Confidence gate stats ──────────────────────────────────────────
-    section('8. Confidence gate stats (ATTRIBUTION_CONFIDENCE_THRESHOLD = 0.60)')
-    cur.execute("""
+    # Load per-event threshold from DB (configurable — 0.75 for 2-speaker, 0.60 default)
+    cur.execute("SELECT COALESCE(attribution_confidence_threshold, 0.60) FROM events WHERE id = %s", (eid,))
+    _thresh_row = cur.fetchone()
+    _threshold = float(_thresh_row[0]) if _thresh_row else 0.60
+    section(f'8. Confidence gate stats (threshold={_threshold})')
+    cur.execute(f"""
         SELECT
             COUNT(*) FILTER (WHERE attribution_confidence IS NOT NULL) as with_confidence,
-            COUNT(*) FILTER (WHERE attribution_confidence < 0.60) as below_threshold,
+            COUNT(*) FILTER (WHERE attribution_confidence < {_threshold}) as below_threshold,
             AVG(attribution_confidence) as avg_confidence,
             MIN(attribution_confidence) as min_confidence
         FROM speaker_utterances WHERE event_id = %s
@@ -223,9 +227,9 @@ def main():
     check('Confidence scores captured', with_conf and with_conf > 0,
           f'{with_conf} utterances scored' if with_conf else 'NONE — gate did not fire')
     if with_conf and with_conf > 0:
-        print(f'  · Below threshold (< 0.60): {below}')
-        print(f'  · Average confidence:       {float(avg_conf):.3f}')
-        print(f'  · Minimum confidence:       {float(min_conf):.3f}')
+        print(f'  · Below threshold (< {_threshold}): {below}')
+        print(f'  · Average confidence:              {float(avg_conf):.3f}')
+        print(f'  · Minimum confidence:              {float(min_conf):.3f}')
 
     # ── 9. Provisional promotion status ──────────────────────────────────
     section('9. Provisional promotion status')
