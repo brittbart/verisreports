@@ -455,16 +455,21 @@ def get_connection():
 
 
 def fetch_politician_utterances(conn, event_id, limit=None):
+    """Fetch unprocessed politician utterances using round-robin per speaker.
+
+    Without round-robin, ORDER BY utterance_order ASC with a small limit
+    causes speaker starvation — the speaker with more early utterances fills
+    every batch and the other speaker never gets extracted during live coverage.
+
+    Round-robin: take limit//num_speakers utterances per speaker, interleaved
+    by utterance_order so turns stay in chronological sequence.
+    """
     with conn.cursor() as cur:
-        sql = """
-            SELECT
-                su.id, su.utterance_text, su.utterance_order,
-                su.speaker_id, s.name, s.speaker_type, s.party,
-                e.event_name, e.event_date, e.slug,
-                su.timestamp_seconds
+        # First get the list of active politician speakers for this event
+        cur.execute("""
+            SELECT DISTINCT su.speaker_id
             FROM speaker_utterances su
             JOIN speakers s ON s.id = su.speaker_id
-            JOIN events e ON e.id = su.event_id
             WHERE su.event_id = %s
               AND s.speaker_type IN ('politician', 'official')
               AND su.processed_at IS NULL
@@ -474,13 +479,49 @@ def fetch_politician_utterances(conn, event_id, limit=None):
                     AND event_id = %s
                     AND claim_origin = 'debate_claim'
               )
-            ORDER BY su.utterance_order ASC
-        """
-        params = [event_id, event_id]
-        if limit:
-            sql += f" LIMIT {int(limit)}"
-        cur.execute(sql, params)
-        return cur.fetchall()
+        """, (event_id, event_id))
+        speaker_ids = [r[0] for r in cur.fetchall()]
+
+        if not speaker_ids:
+            return []
+
+        # Compute per-speaker limit for fair distribution
+        num_speakers = len(speaker_ids)
+        per_speaker = max(1, (limit // num_speakers)) if limit else None
+
+        # Fetch utterances per speaker, then merge and sort by utterance_order
+        all_rows = []
+        for sid in speaker_ids:
+            sql = """
+                SELECT
+                    su.id, su.utterance_text, su.utterance_order,
+                    su.speaker_id, s.name, s.speaker_type, s.party,
+                    e.event_name, e.event_date, e.slug,
+                    su.timestamp_seconds
+                FROM speaker_utterances su
+                JOIN speakers s ON s.id = su.speaker_id
+                JOIN events e ON e.id = su.event_id
+                WHERE su.event_id = %s
+                  AND su.speaker_id = %s
+                  AND s.speaker_type IN ('politician', 'official')
+                  AND su.processed_at IS NULL
+                  AND su.id NOT IN (
+                      SELECT utterance_id FROM claims
+                      WHERE utterance_id IS NOT NULL
+                        AND event_id = %s
+                        AND claim_origin = 'debate_claim'
+                  )
+                ORDER BY su.utterance_order ASC
+            """
+            params = [event_id, sid, event_id]
+            if per_speaker:
+                sql += f" LIMIT {per_speaker}"
+            cur.execute(sql, params)
+            all_rows.extend(cur.fetchall())
+
+        # Sort merged results by utterance_order to preserve chronological flow
+        all_rows.sort(key=lambda r: r[2])
+        return all_rows
 
 
 def utterance_to_article_dict(row, event_id):
