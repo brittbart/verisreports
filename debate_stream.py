@@ -352,6 +352,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     utterance_order = [0]
     buffer = {}  # speaker_idx -> text buffer
     written_count = [0]
+    recent_speaker_ids = []  # rolling window for attribution collapse detection
     seen_speaker_ids = {}       # Rev AI ID -> DB speaker_id (order-based fallback)
     confirmed_speaker_ids = {}  # Rev AI ID -> DB speaker_id (name-confirmed, authoritative)
     pending_speaker_id = [None] # next speaker assigned this DB speaker_id
@@ -757,6 +758,32 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                         daemon=True
                     ).start()
 
+                # Attribution collapse detector — fires every 25 utterances
+                # If 80%+ of recent utterances went to one non-moderator speaker
+                # in a multi-speaker debate, attribution has likely collapsed
+                if speaker_id is not None:
+                    recent_speaker_ids.append(speaker_id)
+                    if len(recent_speaker_ids) > 30:
+                        recent_speaker_ids.pop(0)
+                if written_count[0] % 25 == 0 and written_count[0] > 0:
+                    non_mod = [sid for sid in recent_speaker_ids if sid != 3]
+                    candidate_sids = [sid for sid in (speaker_order or []) if sid != 3]
+                    if len(non_mod) >= 10 and len(candidate_sids) > 1:
+                        from collections import Counter
+                        counts = Counter(non_mod)
+                        top_sid, top_count = counts.most_common(1)[0]
+                        pct = top_count / len(non_mod)
+                        if pct >= 0.80:
+                            print(f"  [ATTRIBUTION WARNING] {pct:.0%} of last {len(non_mod)} utterances"
+                                  f" attributed to speaker_{top_sid} — possible collapse")
+                            print(f"  [ATTRIBUTION WARNING] Resetting voice ID to re-identify speakers")
+                            # Reset voice ID flag so it fires again
+                            voice_id_done[0] = False
+                            threading.Thread(
+                                target=run_voice_identification,
+                                daemon=True
+                            ).start()
+                            recent_speaker_ids.clear()
             utterance_order[0] += 1
 
         except Exception as e:
