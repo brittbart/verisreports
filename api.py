@@ -666,11 +666,12 @@ def get_report():
         opinion_count      = sum(1 for c in claims if c[5] == 'opinion')
         unverified_count   = sum(1 for c in claims if c[5] is None)
 
-        # Weighted scoring — opinion, not_verifiable, and unverified excluded.
+        # Weighted scoring — outlet_claims only, per v1.7 methodology.
+        # Attributed claims are displayed but do not affect article score.
         # Uses api_leaderboard.WEIGHTS / compute_score / compute_score_band as
-        # the single source of truth (Patch 1, methodology v1.6 prep).
-        weighted_sum = sum(WEIGHTS[c[5]] for c in claims if c[5] in WEIGHTS)
-        scoreable = sum(1 for c in claims if c[5] in WEIGHTS)
+        # the single source of truth.
+        weighted_sum = sum(WEIGHTS[c[5]] for c in claims if c[5] in WEIGHTS and c[4] == 'outlet_claim')
+        scoreable = sum(1 for c in claims if c[5] in WEIGHTS and c[4] == 'outlet_claim')
         score = compute_score(weighted_sum, scoreable)
         rating = compute_score_band(score)
 
@@ -1724,8 +1725,8 @@ setTimeout(checkStatus, 3000);
                     print(f"On-demand extraction (no_claims path) failed: {e}")
                     data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
             else:
-                sc = sum(1 for c in rows if c[5] in WEIGHTS)
-                ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS)
+                sc = sum(1 for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
+                ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
                 score = compute_score(ws, sc)
                 rating = compute_score_band(score)
                 scoreable_labels = {'supported':'supported by independent sources','plausible':'consistent with one credible source','corroborated':'corroborated by 5+ outlets','overstated':'overstated relative to evidence','disputed':'disputed by a credible source','not_supported':'actively contradicted by evidence'}
