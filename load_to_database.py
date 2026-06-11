@@ -45,6 +45,42 @@ def _normalize_url(url):
     except Exception:
         return url
 
+_SOURCE_CANONICAL = {
+    'bbc.co.uk':                'bbc.com',
+    'bbci.co.uk':               'bbc.com',
+    'cnnespanol.cnn.com':       'cnn.com',
+    'edition.cnn.com':          'cnn.com',
+    'us.cnn.com':               'cnn.com',
+    'arabic.cnn.com':           'cnn.com',
+    'm.economictimes.com':      'economictimes.indiatimes.com',
+    'economictimes.com':        'economictimes.indiatimes.com',
+    'radio.foxnews.com':        'foxnews.com',
+    'nation.foxnews.com':       'foxnews.com',
+    'feeds.washingtonpost.com': 'washingtonpost.com',
+    'feeds.reuters.com':        'reuters.com',
+}
+_STRIP_PREFIXES = ('www.', 'm.', 'amp.', 'arabic.', 'edition.', 'us.', 'radio.', 'feeds.', 'rss.', 'nation.')
+
+def _normalize_source_name(name):
+    """Normalize source_name at ingestion to prevent outlet splits (P2-008).
+    Strips known subdomain prefixes and maps known variants to canonical form.
+    Only affects NEW articles -- historical rows were fixed in Session 1."""
+    if not name:
+        return name
+    n = name.lower().strip()
+    if n in _SOURCE_CANONICAL:
+        return _SOURCE_CANONICAL[n]
+    changed = True
+    while changed:
+        changed = False
+        for prefix in _STRIP_PREFIXES:
+            if n.startswith(prefix):
+                n = n[len(prefix):]
+                changed = True
+    if n in _SOURCE_CANONICAL:
+        return _SOURCE_CANONICAL[n]
+    return n
+
 def load_single_article_with_claims(cursor, article, claims_list):
     """Day 24 refactor: shared per-article insert logic."""
     title = article.get('title', 'No title')
@@ -62,6 +98,7 @@ def load_single_article_with_claims(cursor, article, claims_list):
         _recovered = resolve_publisher(url, title)
         if _recovered:
             source_name = _recovered
+    source_name = _normalize_source_name(source_name)  # P2-008
     _raw_pub = article.get('publishedAt')
     published = _raw_pub if (_raw_pub and str(_raw_pub).strip()) else None
     description = article.get('description', '')
