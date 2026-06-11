@@ -1,6 +1,6 @@
 
 """
-Leaderboard API endpoint — Methodology v1.6 compliant.
+Leaderboard API endpoint — Methodology v1.7 compliant.
 """
 
 import time
@@ -27,13 +27,27 @@ EXCLUDED_DOMAINS = frozenset({
     'health.harvard.edu',
     'news.mit.edu',
     'prnewswire.com',
+    'linkedin.com',
+    'reddit.com',
+    'worldlabs.ai',
+    'stevenbartlett.com',
+    'schwab.com',
+    'massgeneralbrigham.org',
+    'healthcare.utah.edu',
+    'altimed.net',
+    'betalist.com',
+    'ms.now',
+    'expose-news.com',
+    'thealviator.com',
+    'ledestar.com',
+    'alcalorpolitico.com',
 })
 CACHE_TTL_SECONDS = 300
 INCLUSION_THRESHOLD = 20
 
 # ==============================================================================
 # Methodology constants — single source of truth
-# Methodology v1.6
+# Methodology v1.7
 # ==============================================================================
 
 # All eight verdict types per methodology Section 4.2
@@ -84,18 +98,18 @@ WEIGHT_DISPLAY = {
 }
 
 # Pipeline thresholds (methodology Section 2)
-# NOTE: Cache and consensus thresholds preserved at current production values for v1.6.
+# NOTE: Cache and consensus thresholds below are defined but not yet wired into the pipeline (see PIPELINE_AUDIT.md).
 # These are deferred to a future cost-optimization session along with Finding 15.
 # They will be documented in master Section 2 as-is during Patch 5.
 PRIORITY_THRESHOLD = 30
 CACHE_SIMILARITY_THRESHOLD = 0.85
 CACHE_TIME_WINDOW_HOURS = 24
-CACHE_FALLBACK_SIMILARITY = 0.6   # tier-2 cache, undocumented in v1.6
-CONSENSUS_SIMILARITY_THRESHOLD = 0.5  # to-be-documented in v1.6
+CACHE_FALLBACK_SIMILARITY = 0.6   # not-yet-implemented; pending methodology review
+CONSENSUS_SIMILARITY_THRESHOLD = 0.5  # not-yet-implemented; pending methodology review
 CONSENSUS_OUTLET_THRESHOLD = 5
 
 # Breaking news gate (methodology Section 5.3)
-# v1.6 uses static 6 hour gate. Dynamic gate by claim_type is v1.7+ target.
+# Static 6 hour gate (authoritative value is inline in LEADERBOARD_SQL). Dynamic gate by claim_type is a future target.
 BREAKING_NEWS_GATE_HOURS = 6
 
 

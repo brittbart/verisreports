@@ -2705,7 +2705,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
   </div>
   <ul class="deploy-items">
     <li><strong>Google News purge:</strong> 787 contaminated outlet_claims removed. 8 leaderboard outlets below threshold post-purge.</li>
-    <li><strong>Non-news exclusion:</strong> 12 domains excluded from leaderboard (gao.gov, .gov, .edu, PR wires). EXCLUDED_DOMAINS frozenset in api_leaderboard.py.</li>
+    <li><strong>Non-news exclusion:</strong> 29 domains excluded from leaderboard (gao.gov, .gov, .edu, PR wires, non-news entities). EXCLUDED_DOMAINS frozenset in api_leaderboard.py.</li>
     <li><strong>Content quality gate:</strong> Google News redirect URLs blocked at ingestion in fetch_articles.py.</li>
     <li><strong>methodology_version stamping:</strong> All four article verdict write locations + debate verdict path now stamp v1.7. Column added to claims table (NOT NULL, DEFAULT v1.6, backfilled).</li>
     <li><strong>verdict_status:</strong> New column on claims. Existing verdicts set to final. Debate verdicts now write provisional; auto-promote to final at 60-minute mark.</li>
