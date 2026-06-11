@@ -97,19 +97,22 @@ WEIGHT_DISPLAY = {
     'opinion':       'excl.',
 }
 
-# Pipeline thresholds (methodology Section 2)
-# NOTE: Cache and consensus thresholds below are defined but not yet wired into the pipeline (see PIPELINE_AUDIT.md).
-# These are deferred to a future cost-optimization session along with Finding 15.
-# They will be documented in master Section 2 as-is during Patch 5.
-PRIORITY_THRESHOLD = 30
-CACHE_SIMILARITY_THRESHOLD = 0.85
-CACHE_TIME_WINDOW_HOURS = 24
-CACHE_FALLBACK_SIMILARITY = 0.6   # not-yet-implemented; pending methodology review
-CONSENSUS_SIMILARITY_THRESHOLD = 0.5  # not-yet-implemented; pending methodology review
-CONSENSUS_OUTLET_THRESHOLD = 5
+# NOT-YET-IMPLEMENTED pipeline features (P2-011, June 2026)
+# The following behaviors are described in methodology but not yet wired into the pipeline.
+# Do not re-add as bare constants without wiring them to actual logic.
+#
+# - Claim cache (24hr dedup): CACHE_SIMILARITY_THRESHOLD, CACHE_TIME_WINDOW_HOURS,
+#   CACHE_FALLBACK_SIMILARITY -- deferred to cost-optimization session (P2-009).
+# - Consensus exception: CONSENSUS_SIMILARITY_THRESHOLD, CONSENSUS_OUTLET_THRESHOLD
+#   -- deferred to methodology session (Session 12).
+# - Priority threshold: PRIORITY_THRESHOLD=30 -- enforced in verdict_engine.py SQL directly,
+#   not via this constant. Consolidation deferred to Session 10 db.py refactor.
 
-# Breaking news gate (methodology Section 5.3)
-# Static 6 hour gate (authoritative value is inline in LEADERBOARD_SQL). Dynamic gate by claim_type is a future target.
+# Breaking news gate -- 6 hours (methodology Section 5.3)
+# P2-012: This constant is the named reference for the methodology value but is NOT the
+# authoritative source -- the gate is hardcoded inline in api_leaderboard.py (~line 150),
+# api.py (x2), outlet_routes.py (x2), and verdict_engine.py. Consolidation to use this
+# constant as the single source of truth is deferred to Session 10 db.py refactor.
 BREAKING_NEWS_GATE_HOURS = 6
 
 
