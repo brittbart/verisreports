@@ -42,7 +42,7 @@ def create_tables():
             url TEXT,
             editorial_lean TEXT,
             total_claims_checked INTEGER DEFAULT 0,
-            verified_count INTEGER DEFAULT 0,
+            supported_count INTEGER DEFAULT 0,
             disputed_count INTEGER DEFAULT 0,
             overstated_count INTEGER DEFAULT 0,
             not_verifiable_count INTEGER DEFAULT 0,
