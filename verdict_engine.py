@@ -623,6 +623,7 @@ def process_batch_results(batch_id=None):
                     verdict_summary=%s, full_analysis=%s, sources_used=%s,
                     verification_depth=COALESCE(%s, verification_depth),
                     methodology_version=%s,
+                    verdict_status='provisional',
                     last_checked=NOW() WHERE id=%s""",
                     (verdict, confidence, summary, analysis, sources, 99, METHODOLOGY_VERSION, claim_id))
                 update_source_profile(cursor, source_name, verdict)
