@@ -209,8 +209,6 @@ for tmpl in [
     'templates/outlet_stub.html',
     'templates/outlet_not_yet_published.html',
     'templates/debate.html',
-    'templates/speaker.html',
-    'templates/speakers.html',
 ]:
     try:
         c = read(tmpl)
