@@ -357,7 +357,9 @@ CLAIM: {claim_text}
 SPEAKER: {speaker}
 TYPE: {claim_type}
 ARTICLE: {article_title}
-SOURCE: {source_name}"""
+SOURCE: {source_name}
+
+Try at least 2-3 distinct search queries before concluding not_verifiable."""
 
 
 
