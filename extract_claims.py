@@ -227,6 +227,7 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
           AND fetched_at > NOW() - (%s || ' days')::interval
           AND source_name != 'news.google.com'  -- URL pattern check (defense-in-depth)
           AND excluded_from_extraction = FALSE   -- v1.7 content quality gate flag
+          AND extraction_attempted_at IS NULL
           AND id NOT IN (
               SELECT DISTINCT article_id
               FROM claims
@@ -305,6 +306,11 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
                         article_db_id=row["id"],
                         claims_list=claims,
                     )
+                    # stamp extraction_attempted_at on success
+                    conn.cursor().execute(
+                        "UPDATE articles SET extraction_attempted_at = NOW() WHERE id = %s",
+                        (row["id"],)
+                    )
                     conn.commit()
                     write_cur.close()
                     results.append({
@@ -317,6 +323,17 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
                     conn.rollback()
             else:
                 print(f"    No claims extracted")
+                # stamp extraction_attempted_at so this article is not retried forever
+                try:
+                    _cur = conn.cursor()
+                    _cur.execute(
+                        "UPDATE articles SET extraction_attempted_at = NOW() WHERE id = %s",
+                        (row["id"],)
+                    )
+                    conn.commit()
+                    _cur.close()
+                except Exception:
+                    conn.rollback()
 
     conn.close()
     print(f"\n\u2713 Processed {len(results)} articles with claims")
