@@ -590,6 +590,11 @@ def get_report():
     if not url:
         return jsonify({'error': 'url required'}), 400
 
+    # Anon ceiling on /api/report — 3/day/IP, 429 response (non-breaking shape)
+    # Full tier-gating deferred to Session 6; ceiling stops credit-drain now.
+    if not anon_ceiling_ok(get_db, request):
+        return jsonify({'error': 'daily anonymous limit reached', 'limit': 3}), 429
+
     try:
         conn = get_db()
         cur = conn.cursor()
@@ -1496,6 +1501,60 @@ def resolve_report_access(get_db):
     return {'user': user, 'tier': tier, 'depth': depth, 'user_id': user['id']}
 
 
+def anon_ceiling_ok(get_db, request):
+    """Check and enforce 3/day/IP ceiling for anonymous verifications.
+    Returns True if within ceiling (proceed), False if exceeded (block).
+    IP is SHA-256 hashed with a salt — raw IP never stored.
+    Increment only on successful verification (see anon_ceiling_increment).
+    """
+    import hashlib, os
+    from datetime import date
+    salt = os.environ.get("SECRET_KEY", "vs-anon-salt")
+    forwarded = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+    raw_ip = forwarded.split(",")[0].strip()
+    ip_hash = hashlib.sha256(f"{salt}:{raw_ip}".encode()).hexdigest()
+    today = date.today()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT count FROM anon_verify_counts WHERE ip_hash=%s AND day=%s",
+            (ip_hash, today)
+        )
+        row = cur.fetchone()
+        conn.close()
+        return (row[0] if row else 0) < 3
+    except Exception as e:
+        print(f"[anon_ceiling_ok] DB error: {e}")
+        return True  # fail open
+
+
+def anon_ceiling_increment(get_db, request):
+    """Increment anon daily verify counter for this IP.
+    Call only after successful verify_and_insert_claims.
+    """
+    import hashlib, os
+    from datetime import date
+    salt = os.environ.get("SECRET_KEY", "vs-anon-salt")
+    forwarded = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+    raw_ip = forwarded.split(",")[0].strip()
+    ip_hash = hashlib.sha256(f"{salt}:{raw_ip}".encode()).hexdigest()
+    today = date.today()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO anon_verify_counts (ip_hash, day, count) VALUES (%s, %s, 1)"
+            " ON CONFLICT (ip_hash, day) DO UPDATE"
+            " SET count = anon_verify_counts.count + 1",
+            (ip_hash, today)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[anon_ceiling_increment] DB error: {e}")
+
+
 @app.route('/report', methods=['GET'])
 
 
@@ -1651,15 +1710,11 @@ setTimeout(checkStatus, 3000);
                             row2 = cur2.fetchone()
                         art_id = row2[0]
 
-                        # ── Quota gate (consumer product) ──────────────────
-                        # Checks session-based user quota before firing the
-                        # verification engine. Anonymous users get free-tier
-                        # limit (2/month). Over-quota requests redirect to
-                        # /pricing.html — no verification cost incurred.
-                        # depth param and all existing logic are unchanged.
+                        # ── Quota gate (logged-in) + anon ceiling ──────────
                         from auth_routes import get_current_user, check_quota, increment_quota
                         _gate_user = get_current_user(get_db)
                         if _gate_user:
+                            # Logged-in: check monthly report quota
                             _quota = check_quota(get_db, _gate_user['id'], 'consumer')
                             if not _quota['allowed']:
                                 conn2.close()
@@ -1670,13 +1725,21 @@ setTimeout(checkStatus, 3000);
                                     f'&limit={_quota["limit"]}'
                                     f'&tier={_quota["tier"]}'
                                 )
-                        # ── End quota gate ─────────────────────────────────
+                        else:
+                            # Anonymous: enforce 3/day/IP ceiling
+                            if not anon_ceiling_ok(get_db, request):
+                                conn2.close()
+                                conn.close()
+                                return redirect('/pricing.html?reason=daily_limit&scope=anon')
+                        # ── End quota / ceiling gate ────────────────────────
 
                         verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
 
-                        # Increment quota on successful verification
+                        # Increment quota / ceiling counter on successful verification
                         if _gate_user:
                             increment_quota(get_db, _gate_user['id'], 'consumer')
+                        else:
+                            anon_ceiling_increment(get_db, request)
                         conn2.commit()
                         conn2.close()
                         rows = verified_claims
@@ -1731,8 +1794,15 @@ setTimeout(checkStatus, 3000);
                     else:
                         conn2 = get_db()
                         cur2 = conn2.cursor()
+                        # Anon ceiling on path B (cached-empty reextract)
+                        if not _gate_user:
+                            if not anon_ceiling_ok(get_db, request):
+                                conn2.close()
+                                return redirect('/pricing.html?reason=daily_limit&scope=anon')
                         verified_claims = []
                         verified_claims = verify_and_insert_claims(claims, art_id, title_db, source_name, cur2, depth=depth)
+                        if not _gate_user:
+                            anon_ceiling_increment(get_db, request)
                         cur2.execute("UPDATE articles SET claims_verified=TRUE WHERE id=%s", (art_id,))
                         conn2.commit()
                         conn2.close()
