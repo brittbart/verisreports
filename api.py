@@ -1873,6 +1873,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     # Patch 1: coerce None → 0 for rendering math. The 'Unscored' rating
     # comes through 'rating' below.
     # Detect all-attributed case: claims exist but none are outlet_claim
+    _score_was_none = (score is None)
     _all_attributed = False
     if _score_was_none and data.get('claims'):
         _all_attributed = all(
@@ -1880,7 +1881,6 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             for c in data.get('claims', [])
             if c.get('claim_origin')
         )
-    _score_was_none = (score is None)
     if score is None:
         score = 0
     rating  = data.get('rating', 'Unscored')
