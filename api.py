@@ -724,6 +724,93 @@ def get_report():
         return jsonify({'error': str(e)}), 500
 
 
+# Tunable staleness threshold for Pro re-check button.
+# Adjust post-launch once real re-check behavior is observable.
+RECHECK_STALENESS_DAYS = 14
+
+
+@app.route("/api/report/recheck", methods=["POST"])
+def recheck_report():
+    from auth_routes import get_current_user, check_quota, increment_quota
+    data = request.get_json(silent=True) or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    user = get_current_user(get_db)
+    if not user:
+        return jsonify({"error": "authentication required"}), 401
+    q = check_quota(get_db, user["id"], "consumer")
+    if q["tier"] not in ("pro", "scale"):
+        return jsonify({"error": "Pro subscription required for re-check"}), 403
+    if not q["allowed"]:
+        return jsonify({"error": "monthly quota exhausted",
+                        "used": q["used"], "limit": q["limit"]}), 402
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, title, source_name, verified_at FROM articles WHERE url=%s LIMIT 1",
+            (url,)
+        )
+        article = cur.fetchone()
+        if not article:
+            conn.close()
+            return jsonify({"error": "article not found"}), 404
+        art_id, title, source_name, verified_at = article
+        cur.execute(
+            "SELECT id FROM recheck_log WHERE article_id=%s AND user_id=%s"
+            " AND requested_at > NOW() - INTERVAL '24 hours'",
+            (art_id, user["id"])
+        )
+        if cur.fetchone():
+            conn.close()
+            return jsonify({"error": "re-check already requested for this article in the last 24h"}), 429
+        cur.execute(
+            "INSERT INTO recheck_log (article_id, user_id) VALUES (%s, %s)",
+            (art_id, user["id"])
+        )
+        conn.commit()
+        conn.close()
+        import anthropic as _anth_rc
+        from extract_claims import extract_claims_from_article
+        _anth_client_rc = _anth_rc.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        fetch_result = fetch_article_content(url, _anth_client_rc)
+        if not fetch_result or fetch_result.get("status") == "paywall":
+            return jsonify({"error": "could not fetch article for re-check"}), 422
+        body_text = fetch_result.get("body", "")
+        title_text = fetch_result.get("title") or title
+        article_dict = {
+            "title": title_text, "description": body_text[:500],
+            "content": body_text, "source": {"name": source_name},
+            "url": url, "publishedAt": ""
+        }
+        claims = extract_claims_from_article(article_dict)
+        if not claims:
+            return jsonify({"error": "no claims extracted on re-check"}), 422
+        conn2 = get_db()
+        cur2 = conn2.cursor()
+        verified_claims = verify_and_insert_claims(
+            claims, art_id, title_text, source_name, cur2, depth=None
+        )
+        cur2.execute(
+            "UPDATE articles SET verified_at=NOW(), claims_verified=TRUE WHERE id=%s",
+            (art_id,)
+        )
+        conn2.commit()
+        conn2.close()
+        increment_quota(get_db, user["id"], "consumer")
+        return jsonify({
+            "status": "ok",
+            "claims_rechecked": len(verified_claims),
+            "message": "Re-check complete. Reload the report to see updated verdicts."
+        })
+    except Exception as e:
+        import traceback
+        print(f"[recheck_report] error: {e}")
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/dispute", methods=["POST"])
 def submit_dispute():
     data = request.get_json(silent=True) or {}
@@ -2398,6 +2485,42 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     pass #removed
     html = html.replace('{{rating}}', str(rating))
     html = html.replace('{{as_of}}', str(as_of))
+    # Task 5R: compute recheck_available — Pro only, verdict older than RECHECK_STALENESS_DAYS
+    _recheck_available = False
+    if _tier in ('pro', 'scale') and data.get('status') == 'found':
+        _vat = data.get('_verified_at_raw')  # set below if available
+        # Use as_of string as proxy if raw datetime not threaded through
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+            _parsed = _dt.strptime(as_of, '%B %d, %Y') if as_of and as_of != 'assessment date unavailable' else None
+            if _parsed:
+                _age_days = (_dt.now() - _parsed).days
+                _recheck_available = _age_days >= RECHECK_STALENESS_DAYS
+        except Exception:
+            _recheck_available = False
+    if _recheck_available:
+        _recheck_html = (
+            '<div style="margin:12px 24px 0 24px;padding:10px 14px;'
+            'background:rgba(168,85,247,0.06);border:0.5px solid rgba(168,85,247,0.2);'
+            'border-radius:4px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
+            '<span style="font-size:12px;color:rgba(232,232,240,0.55);">'
+            'Assessed ' + str(as_of) + ' &mdash; verdicts may be outdated.</span>'
+            '<button onclick="recheckReport()" '
+            'style="font-family:monospace;font-size:11px;letter-spacing:0.08em;'
+            'background:rgba(168,85,247,0.15);color:#c084fc;border:0.5px solid rgba(168,85,247,0.35);'
+            'border-radius:3px;padding:5px 12px;cursor:pointer;">RE-CHECK</button>'
+            '</div>'
+            '<script>function recheckReport(){'
+            'fetch("/api/report/recheck",{method:"POST",headers:{"Content-Type":"application/json"},'
+            'body:JSON.stringify({url:"' + str(url) + '"})})'
+            '.then(r=>r.json()).then(d=>{if(d.status==="ok"){location.reload();}'
+            'else{alert(d.error||"Re-check failed");}})'
+            '.catch(()=>alert("Re-check failed — please try again."));'
+            '}</script>'
+        )
+    else:
+        _recheck_html = ''
+    html = html.replace('{{recheck_block}}', _recheck_html)
     html = html.replace('{{url}}', str(url))
     html = html.replace('{{title}}', str(title))
     html = html.replace('{{tag_html}}', str(tag_html))
