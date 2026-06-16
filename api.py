@@ -647,7 +647,7 @@ def get_report():
                    full_analysis, sources_used
             FROM claims
             WHERE article_id = %s
-            ORDER BY priority_score DESC
+            ORDER BY priority_score DESC, id ASC
         """, (art_id,))
         claims = cur.fetchall()
         conn.close()
@@ -1899,7 +1899,7 @@ setTimeout(checkStatus, 3000);
                     pass
         else:
             art_id, title_db, source_name, art_url, cv, vat = article
-            cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used FROM claims WHERE article_id = %s ORDER BY priority_score DESC", (art_id,))
+            cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used FROM claims WHERE article_id = %s ORDER BY priority_score DESC, id ASC", (art_id,))
             rows = cur.fetchall()
             conn.close()
             if not rows:
