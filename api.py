@@ -1913,11 +1913,10 @@ setTimeout(checkStatus, 3000);
                     cnt = sum(1 for c in rows if c[5] == vk)
                     if cnt:
                         parts.append(f"{cnt} {'was' if cnt == 1 else 'were'} {lbl}")
-                wire_count = sum(1 for c in rows if c[4] == 'wire_reprint')
-                quote_count = sum(1 for c in rows if c[4] == 'accurate_quote')
+                # Task 6: count attributed_claim (score-excluded by independence rule)
+                attributed_count = sum(1 for c in rows if c[4] == 'attributed_claim')
                 excl = []
-                if wire_count: excl.append(f"{wire_count} wire reprint{'s' if wire_count>1 else ''} excluded from outlet score")
-                if quote_count: excl.append(f"{quote_count} accurately reported quote{'s' if quote_count>1 else ''} excluded from outlet score")
+                if attributed_count: excl.append(f"{attributed_count} attributed claim{'s' if attributed_count>1 else ''} excluded from outlet score")
                 n_supported = sum(1 for c in rows if c[5] == 'supported')
                 n_corroborated = sum(1 for c in rows if c[5] == 'corroborated')
                 n_plausible = sum(1 for c in rows if c[5] == 'plausible')
@@ -1933,7 +1932,7 @@ setTimeout(checkStatus, 3000);
                     callout_text += (', '.join(parts[:-1]) + f", and {parts[-1]}. ") if len(parts)>1 else (parts[0] + ". ")
                 if excl:
                     callout_text += ' '.join(excl) + ". "
-                callout_text += "The independence rule and wire-service exclusion were applied where relevant."
+                callout_text += "The independence rule and attributed-claim scoring exclusion were applied where relevant."
                 # Task 5a: drive as_of from real assessment provenance, not today
                 if vat:
                     _path_c_as_of = vat.strftime('%B %d, %Y')
