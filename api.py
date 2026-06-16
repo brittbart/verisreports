@@ -2216,13 +2216,19 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         text = re.sub(r"'", '\u2019', text)
         return text
 
+    # Confidence scale — module-level so render block can build the legend from it
+    CONF_EXPLAIN = {
+        1: 'One source found — claim is plausible but not independently confirmed.',
+        2: 'One strong primary source confirmed this claim.',
+        3: 'Two or more genuinely independent sources confirmed this claim.',
+    }
+
     def claim_row(c, idx):
 
         v = c.get('verdict') or 'pending'
         VBAR = {'supported':'#4ade80','plausible':'#60a5fa','corroborated':'#34d399','overstated':'#fb923c','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)','pending':'rgba(255,255,255,0.06)'}
         VPILL = {'supported':'p-sup','plausible':'p-pla','corroborated':'p-cor','overstated':'p-ove','disputed':'p-dis','not_supported':'p-nsu','opinion':'p-opi','not_verifiable':'p-nve','pending':'p-pend'}
         VLBL = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'NOT YET VERIFIED'}
-        CONF_EXPLAIN = {1:'One source found — claim is plausible but not independently confirmed.', 2:'One strong primary source confirmed this claim.', 3:'Two or more genuinely independent sources confirmed this claim.'}
         bar_col = VBAR.get(v, 'rgba(255,255,255,0.1)')
         pill_cls = VPILL.get(v, 'p-opi')
         lbl = VLBL.get(v, v.upper())
@@ -2711,6 +2717,12 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{tier_stat}}', tier_stat)
     html = html.replace('{{footer_score_text}}', footer_score_text)
     html = html.replace('{{methodology_callout}}', str(methodology_callout))
+    confidence_legend = (
+        f'Confidence: 1 = {CONF_EXPLAIN[1].split(" — ")[0].lower()}'
+        f' · 2 = one strong primary source'
+        f' · 3 = two+ independent sources'
+    )
+    html = html.replace('{{confidence_legend}}', str(confidence_legend))
     html = html.replace('{{redflag_html}}', str(redflag_html))
     pass #removed
     html = html.replace('{{dist_bar_html}}', str(dist_blocks_html))
