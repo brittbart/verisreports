@@ -1933,14 +1933,29 @@ setTimeout(checkStatus, 3000);
                     else:
                         conn2 = get_db()
                         cur2 = conn2.cursor()
-                        # Anon ceiling on path B (cached-empty reextract)
-                        if not _gate_user:
+                        # Quota gate + anon ceiling on path B (cached-empty reextract)
+                        from auth_routes import check_quota, increment_quota
+                        if _gate_user:
+                            # Logged-in: check monthly report quota
+                            _quota_b = check_quota(get_db, _gate_user["id"], "consumer")
+                            if not _quota_b["allowed"]:
+                                conn2.close()
+                                return redirect(
+                                    f'/pricing.html?reason=quota_exceeded'
+                                    f'&used={_quota_b["used"]}'
+                                    f'&limit={_quota_b["limit"]}'
+                                    f'&tier={_quota_b["tier"]}'
+                                )
+                        else:
+                            # Anonymous: enforce 3/day/IP ceiling
                             if not anon_ceiling_ok(get_db, request):
                                 conn2.close()
                                 return redirect('/pricing.html?reason=daily_limit&scope=anon')
                         verified_claims = []
                         verified_claims = verify_and_insert_claims(claims, art_id, title_db, source_name, cur2, depth=depth)
-                        if not _gate_user:
+                        if _gate_user:
+                            increment_quota(get_db, _gate_user["id"], "consumer")
+                        else:
                             anon_ceiling_increment(get_db, request)
                         cur2.execute("UPDATE articles SET claims_verified=TRUE WHERE id=%s", (art_id,))
                         conn2.commit()
