@@ -717,7 +717,7 @@ def get_report():
                 'total': len(claims)
             },
             'claims': claims_data,
-            'as_of': datetime.now().strftime('%B %d, %Y')
+            'as_of': (verified_at.strftime('%B %d, %Y') if verified_at else 'assessment date unavailable')
         })
 
     except Exception as e:
