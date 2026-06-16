@@ -1847,7 +1847,25 @@ setTimeout(checkStatus, 3000);
                 if excl:
                     callout_text += ' '.join(excl) + ". "
                 callout_text += "The independence rule and wire-service exclusion were applied where relevant."
-                data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':callout_text,'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                # Task 5a: drive as_of from real assessment provenance, not today
+                if vat:
+                    _path_c_as_of = vat.strftime('%B %d, %Y')
+                else:
+                    # Fallback: MAX(last_checked) over claims for this article
+                    try:
+                        _lc_conn = get_db()
+                        _lc_cur = _lc_conn.cursor()
+                        _lc_cur.execute(
+                            "SELECT MAX(last_checked) FROM claims WHERE article_id=%s",
+                            (art_id,)
+                        )
+                        _lc_row = _lc_cur.fetchone()
+                        _lc_conn.close()
+                        _path_c_as_of = (_lc_row[0].strftime('%B %d, %Y')
+                            if _lc_row and _lc_row[0] else "assessment date unavailable")
+                    except Exception:
+                        _path_c_as_of = "assessment date unavailable"
+                data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':_path_c_as_of,'methodology_callout':callout_text,'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
     except Exception as e:
         data = {'status':'error','message':str(e)}
 
