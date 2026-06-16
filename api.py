@@ -1473,6 +1473,27 @@ def short_report(hash_value):
 
 
 
+def resolve_report_access(get_db):
+    """Single source of truth for report tiering.
+    Anonymous visitors are treated as free tier (ruling c-i).
+    Returns: {
+        'user': dict|None,
+        'tier': 'free'|'pro'|'scale',
+        'depth': 2|None,          # 2 = free cap, None = full (paid)
+        'user_id': int|None,
+    }
+    Depth is SERVER-DERIVED. The ?depth= URL param is ignored for access control.
+    """
+    from auth_routes import get_current_user, check_quota
+    user = get_current_user(get_db)
+    if not user:
+        return {'user': None, 'tier': 'free', 'depth': 2, 'user_id': None}
+    q = check_quota(get_db, user['id'], 'consumer')
+    tier = q['tier']
+    depth = None if tier in ('pro', 'scale') else 2
+    return {'user': user, 'tier': tier, 'depth': depth, 'user_id': user['id']}
+
+
 @app.route('/report', methods=['GET'])
 
 
@@ -1482,10 +1503,10 @@ def report_page():
         return redirect('/')
     # Phase 4: depth-aware verification. ?depth=2 (free) or ?depth=99 (paid).
     # Default = None (full verification, current behavior).
-    try:
-        depth = int(request.args.get('depth')) if request.args.get('depth') else None
-    except (ValueError, TypeError):
-        depth = None
+    _access = resolve_report_access(get_db)
+    depth      = _access['depth']       # server-derived; ?depth= no longer trusted
+    _tier      = _access['tier']
+    _gate_user = _access['user']        # used by quota gate on path A
 
     from urllib.parse import urlparse
     from datetime import datetime as dt
