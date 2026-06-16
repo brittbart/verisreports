@@ -1971,10 +1971,10 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 
     def claim_row(c, idx):
 
-        v = c.get('verdict') or 'not_verifiable'
-        VBAR = {'supported':'#4ade80','plausible':'#60a5fa','corroborated':'#34d399','overstated':'#fb923c','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)'}
-        VPILL = {'supported':'p-sup','plausible':'p-pla','corroborated':'p-cor','overstated':'p-ove','disputed':'p-dis','not_supported':'p-nsu','opinion':'p-opi','not_verifiable':'p-nve'}
-        VLBL = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE'}
+        v = c.get('verdict') or 'pending'
+        VBAR = {'supported':'#4ade80','plausible':'#60a5fa','corroborated':'#34d399','overstated':'#fb923c','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)','pending':'rgba(255,255,255,0.06)'}
+        VPILL = {'supported':'p-sup','plausible':'p-pla','corroborated':'p-cor','overstated':'p-ove','disputed':'p-dis','not_supported':'p-nsu','opinion':'p-opi','not_verifiable':'p-nve','pending':'p-pend'}
+        VLBL = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'NOT YET VERIFIED'}
         CONF_EXPLAIN = {1:'One source found — claim is plausible but not independently confirmed.', 2:'One strong primary source confirmed this claim.', 3:'Two or more genuinely independent sources confirmed this claim.'}
         bar_col = VBAR.get(v, 'rgba(255,255,255,0.1)')
         pill_cls = VPILL.get(v, 'p-opi')
@@ -2046,8 +2046,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 
     # Phase 5: simpler claim card for free report template
     def claim_row_free(c, idx):
-        v = c.get('verdict') or 'not_verifiable'
-        VLBL_FREE = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE'}
+        v = c.get('verdict') or 'pending'
+        VLBL_FREE = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'NOT YET VERIFIED'}
         text = smartquotes(c.get('claim_text', ''))
         sources = c.get('sources_used', '') or ''
         confidence = int(c.get('confidence_score', 2) or 2)
@@ -2064,8 +2064,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '</div>'
         )
     # Only show verified claims (verdict not None) in free report
-    verified_only = [c for c in claims if c.get('verdict')]
-    claims_html_free = "".join(claim_row_free(c, i+1) for i, c in enumerate(verified_only))
+    _FREE_CLAIM_CAP = 2
+    free_set = claims[:_FREE_CLAIM_CAP]
+    claims_html_free = "".join(claim_row_free(c, i+1) for i, c in enumerate(free_set))
 
     score_bar_pct = score
     rating_color  = score_color
@@ -2299,7 +2300,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     if depth == 2:
         claims_html = claims_html_free
         # Recompute total to reflect verified-only claim count for free report
-        stats_total_for_free = len(verified_only)
+        stats_total_for_free = len(free_set)
     else:
         stats_total_for_free = None
     html = html.replace('{{source}}', str(source))
@@ -2444,7 +2445,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     from seo import claim_review_jsonld
     jsonld_blocks = []
     _review_date = as_of or ""
-    for _c in (verified_only if depth == 2 else claims):
+    for _c in (free_set if depth == 2 else claims):
         _cv = _c.get("verdict")
         _ct = _c.get("claim_text", "")
         if _cv and _ct:
