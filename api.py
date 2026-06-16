@@ -1567,6 +1567,54 @@ def short_report(hash_value):
 
 
 
+def _build_report_data(rows, *, url, title, source, as_of, score, rating,
+                       callout_text=None, extraction_method=None):
+    """Canonical report data dict — single source of truth for all three /report paths.
+    as_of must be caller-supplied (never dt.now() internally):
+      paths A/B: dt.now() — they just verified.
+      path C:    _path_c_as_of — provenance-based (Task 5).
+    callout_text: path C supplies its own; A/B use the simple extraction summary.
+    Stats include all 8 verdicts (fixes missing not_verifiable on A/B/C HTML surface).
+    """
+    if callout_text is None:
+        n_sup = sum(1 for c in rows if c[5] == "supported")
+        n_flag = sum(1 for c in rows if c[5] in ("overstated", "disputed", "not_supported"))
+        callout_text = (
+            f"This article contained {len(rows)} claim{"s" if len(rows)!=1 else ""} "
+            f"assessed after extraction. {n_sup} supported, {n_flag} flagged."
+        )
+    d = {
+        "status": "found",
+        "url": url,
+        "title": title,
+        "source": source,
+        "score": score,
+        "rating": rating,
+        "as_of": as_of,
+        "methodology_callout": callout_text,
+        "stats": {
+            "supported":     sum(1 for c in rows if c[5] == "supported"),
+            "plausible":     sum(1 for c in rows if c[5] == "plausible"),
+            "corroborated":  sum(1 for c in rows if c[5] == "corroborated"),
+            "overstated":    sum(1 for c in rows if c[5] == "overstated"),
+            "disputed":      sum(1 for c in rows if c[5] == "disputed"),
+            "not_supported": sum(1 for c in rows if c[5] == "not_supported"),
+            "not_verifiable":sum(1 for c in rows if c[5] == "not_verifiable"),
+            "opinion":       sum(1 for c in rows if c[5] == "opinion"),
+            "total":         len(rows),
+        },
+        "claims": [
+            {"id":c[0],"claim_text":c[1],"speaker":c[2],"claim_type":c[3],
+             "claim_origin":c[4],"verdict":c[5],"confidence_score":c[6],
+             "verdict_summary":c[7],"full_analysis":c[8],"sources_used":c[9]}
+            for c in rows
+        ],
+    }
+    if extraction_method is not None:
+        d["extraction_method"] = extraction_method
+    return d
+
+
 def resolve_report_access(get_db):
     """Single source of truth for report tiering.
     Anonymous visitors are treated as free tier (ruling c-i).
@@ -1834,7 +1882,11 @@ setTimeout(checkStatus, 3000);
                         ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
                         score = compute_score(ws, sc)
                         rating = compute_score_band(score)
-                        data = {'status':'found','url':url,'title':title_text,'source':domain,'score':score,'rating':rating,'extraction_method':extraction_method,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                        data = _build_report_data(
+                            rows, url=url, title=title_text, source=domain,
+                            as_of=dt.now().strftime('%B %d, %Y'),
+                            score=score, rating=rating,
+                            extraction_method=extraction_method)
             except Exception as e:
                 import traceback
                 print(f"[report_page] Unexpected error: {e}")
@@ -1898,7 +1950,10 @@ setTimeout(checkStatus, 3000);
                         ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
                         score = compute_score(ws, sc)
                         rating = compute_score_band(score)
-                        data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':dt.now().strftime('%B %d, %Y'),'methodology_callout':f"This article contained {len(rows)} claim{'s' if len(rows)!=1 else ''} assessed after extraction. {sum(1 for c in rows if c[5]=='supported')} supported, {sum(1 for c in rows if c[5] in ('overstated','disputed','not_supported'))} flagged.",'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                        data = _build_report_data(
+                            rows, url=art_url, title=title_db, source=source_name,
+                            as_of=dt.now().strftime('%B %d, %Y'),
+                            score=score, rating=rating)
                 except Exception as e:
                     print(f"On-demand extraction (no_claims path) failed: {e}")
                     data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
@@ -1951,7 +2006,10 @@ setTimeout(checkStatus, 3000);
                             if _lc_row and _lc_row[0] else "assessment date unavailable")
                     except Exception:
                         _path_c_as_of = "assessment date unavailable"
-                data = {'status':'found','url':art_url,'title':title_db,'source':source_name,'score':score,'rating':rating,'as_of':_path_c_as_of,'methodology_callout':callout_text,'stats':{'supported':sum(1 for c in rows if c[5]=='supported'),'plausible':sum(1 for c in rows if c[5]=='plausible'),'corroborated':sum(1 for c in rows if c[5]=='corroborated'),'overstated':sum(1 for c in rows if c[5]=='overstated'),'disputed':sum(1 for c in rows if c[5]=='disputed'),'not_supported':sum(1 for c in rows if c[5]=='not_supported'),'opinion':sum(1 for c in rows if c[5]=='opinion'),'total':len(rows)},'claims':[{'id':c[0],'claim_text':c[1],'speaker':c[2],'claim_type':c[3],'claim_origin':c[4],'verdict':c[5],'confidence_score':c[6],'verdict_summary':c[7],'full_analysis':c[8],'sources_used':c[9]} for c in rows]}
+                data = _build_report_data(
+                    rows, url=art_url, title=title_db, source=source_name,
+                    as_of=_path_c_as_of, score=score, rating=rating,
+                    callout_text=callout_text)
     except Exception as e:
         data = {'status':'error','message':str(e)}
 
