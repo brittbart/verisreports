@@ -621,7 +621,9 @@ def get_report():
                     ORDER BY a.fetched_at DESC
                     LIMIT 1
                 """, (f'%{domain}%', search_terms))
-        article = cur.fetchone()
+                _fuzzy = cur.fetchone()
+                if _fuzzy:
+                    article = _fuzzy
 
         if not article:
             conn.close()
