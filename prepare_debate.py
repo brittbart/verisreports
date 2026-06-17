@@ -168,9 +168,9 @@ def check_apis():
           "ANTHROPIC_API_KEY not in environment")
 
     # Rev AI
-    rev_token = os.getenv('REVAI_ACCESS_TOKEN', '')
-    check("REVAI_ACCESS_TOKEN is set", bool(rev_token),
-          "REVAI_ACCESS_TOKEN not in environment — stream will fail")
+    rev_token = os.getenv('REV_AI_TOKEN', '')
+    check("REV_AI_TOKEN is set", bool(rev_token),
+          "REV_AI_TOKEN not in environment — stream will fail")
 
     if rev_token:
         try:
