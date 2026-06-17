@@ -147,31 +147,21 @@ def verify_and_insert_claims(claims, art_id, title, source_name, cursor, depth=N
             if result is None:
                 print(f"[verify] analyse_claim returned None for: {claim_text[:80]}... -- skipping")
                 continue
-            import json as _ijson
-            _ins_raw = result.get('sources_used', '')
-            if isinstance(_ins_raw, list): _ins_str = _ins_raw
-            elif isinstance(_ins_raw, str):
-                try:
-                    _ip = _ijson.loads(_ins_raw); _ins_str = _ip if isinstance(_ip, list) else []
-                except Exception: _ins_str = []
-            else: _ins_str = []
-            _ins_prose = _sources_to_prose(_ins_str) if _ins_str else (str(_ins_raw) if _ins_raw else '')
             cursor.execute(
                 "INSERT INTO claims (article_id, claim_text, speaker, claim_type, "
                 "claim_origin, verdict, confidence_score, verdict_summary, "
-                "full_analysis, sources_used, sources_structured, priority_score, verification_depth) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                "full_analysis, sources_used, priority_score, verification_depth) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                 (art_id, claim_text, speaker, claim_type, claim_origin,
                  result.get('verdict'), result.get('confidence_score'),
                  result.get('verdict_summary'), result.get('full_analysis'),
-                 _ins_prose, _ijson.dumps(_ins_str),
-                 50, depth or 99),
+                 result.get('sources_used'), 50, depth or 99),
             )
             cid = cursor.fetchone()[0]
             out_rows.append((cid, claim_text, speaker, claim_type, claim_origin,
                              result.get('verdict'), result.get('confidence_score'),
                              result.get('verdict_summary'), result.get('full_analysis'),
-                             _ins_prose, _ijson.dumps(_ins_str)))
+                             result.get('sources_used')))
         else:
             cursor.execute(
                 "INSERT INTO claims (article_id, claim_text, speaker, claim_type, "

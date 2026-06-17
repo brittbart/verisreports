@@ -48,10 +48,5 @@ Return ONLY this JSON:
   "confidence_score": 1,
   "verdict_summary": "one sentence stating the verdict conclusion in plain language",
   "full_analysis": "2-3 sentences on the EVIDENCE: what each source said, where they agreed or diverged, and why the verdict follows. Do not restate the summary.",
-  "sources_used": [{"name": "Source Name", "date": "YYYY-MM-DD or null if unknown", "independent": true, "type": "primary", "note": "what this source contributed"}]
-  Emit sources_used as a JSON array. One object per source actually used.
-  name: source name (required). date: ISO date or null, never fabricate.
-  independent: true only if source confirmed via different means than other sources.
-  type: primary=govt/official/peer-reviewed/court; secondary=established news; low_quality=blogs/press releases/social.
-  note: one brief phrase on contribution (required). Empty array [] if no sources.
+  "sources_used": "specific named sources and whether each independently confirmed the fact"
 }"""

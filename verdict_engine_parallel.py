@@ -311,15 +311,6 @@ def run_parallel_verdict_engine(limit=10, depth=None, shadow_compare=None):
                 # Production mode: write verdict
                 try:
                     write_cursor = write_conn.cursor()
-                    import json as _pjson
-                    _par_raw = result.get('sources_used', '')
-                    if isinstance(_par_raw, list): _par_str = _par_raw
-                    elif isinstance(_par_raw, str):
-                        try:
-                            _pp = _pjson.loads(_par_raw); _par_str = _pp if isinstance(_pp, list) else []
-                        except Exception: _par_str = []
-                    else: _par_str = []
-                    _par_prose = _sources_to_prose(_par_str) if _par_str else (str(_par_raw) if _par_raw else '')
                     write_cursor.execute("""
                         UPDATE claims
                         SET verdict = %s,
@@ -327,7 +318,6 @@ def run_parallel_verdict_engine(limit=10, depth=None, shadow_compare=None):
                             verdict_summary = %s,
                             full_analysis = %s,
                             sources_used = %s,
-                            sources_structured = %s,
                             verification_depth = COALESCE(%s, verification_depth),
                             verification_attempts = COALESCE(verification_attempts, 0) + 1,
                             last_checked = NOW()
@@ -337,8 +327,7 @@ def run_parallel_verdict_engine(limit=10, depth=None, shadow_compare=None):
                         min(result.get('confidence_score', 1), 3),
                         result.get('verdict_summary', ''),
                         result.get('full_analysis', ''),
-                        _par_prose,
-                        _pjson.dumps(_par_str),
+                        result.get('sources_used', ''),
                         depth or 99,
                         claim_id
                     ))
