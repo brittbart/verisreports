@@ -2780,7 +2780,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{confidence_legend}}', str(confidence_legend))
     html = html.replace('{{redflag_html}}', str(redflag_html))
     pass #removed
-    html = html.replace('{{dist_bar_html}}', str(dist_blocks_html))
+    html = html.replace('{{dist_bar_html}}', str(dist_bar_html))
     html = html.replace('{{dist_legend_html}}', str(dist_legend_html))
     html = html.replace('{{claims_html}}', str(claims_html))
     html = html.replace('{{overall_signal}}', str(overall_signal))

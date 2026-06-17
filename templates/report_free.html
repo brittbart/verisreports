@@ -199,15 +199,21 @@
   .verdict-scale .amber { color: #ef9f27; }
   .verdict-scale .red { color: #e24b4a; }
   .verdict-scale .weight { color: #9d8cc4; }
+  .verdict-dist-bar{display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;margin-bottom:6px}
+  .verdict-dist-bar > div{border-radius:2px}
+  .verdict-dist-legend{display:flex;gap:10px;flex-wrap:wrap}
+  .vs-leg{font-family:monospace;font-size:11px;color:rgba(232,232,240,0.45);display:flex;align-items:center;gap:4px}
+  .vs-leg-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
   .fr-src-item{display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:3px;padding:2px 7px;font-size:11px;color:rgba(232,232,240,0.5);margin:2px 3px 2px 0}
   .fr-src-indep{color:#34d399;font-size:10px}
 
   .footer {
-    display: flex; justify-content: space-between;
+    display: flex; flex-direction: column; gap: 6px;
     padding-top: 12px;
     border-top: 0.5px solid rgba(180, 150, 230, 0.12);
     font-family: ui-monospace, monospace; font-size: 10px; color: #9d8cc4;
   }
+  .footer-bottom { display: flex; justify-content: space-between; }
   .footer .correction { color: #b48cff; cursor: pointer; }
 </style>
 </head>
@@ -244,7 +250,7 @@
       </div>
 
       <div class="section-label">VERDICT DISTRIBUTION</div>
-      <div class="verdict-distribution">{{dist_legend_html}}</div>
+      <div class="verdict-distribution"><div class="verdict-dist-bar">{{dist_bar_html}}</div><div class="verdict-dist-legend">{{dist_legend_html}}</div></div>
 
       {{claims_html}}
 
@@ -266,9 +272,11 @@
       </div>
 
       <div class="footer">
-        <span>Methodology v1.6</span>
-        <span style="font-size:11px;color:rgba(255,255,255,0.35);display:block;margin-top:4px;">{{confidence_legend}}</span>
-        <a class="correction" href="/correction?url={{url}}">Submit a correction</a>
+        <span style="font-size:11px;color:rgba(255,255,255,0.35);">{{confidence_legend}}</span>
+        <div class="footer-bottom">
+          <span>Methodology v1.6</span>
+          <a class="correction" href="/correction?url={{url}}">Submit a correction</a>
+        </div>
       </div>
 
     </div>

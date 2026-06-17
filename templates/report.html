@@ -235,6 +235,17 @@ document.querySelectorAll(".vs-claim-header").forEach(h=>{
     if(t) t.textContent = claim.classList.contains("open") ? "Hide details ▴" : "Show details ▾";
   });
 });
+// vs-toggle: show/hide claim detail body
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.vs-toggle').forEach(function(toggle) {
+    toggle.addEventListener('click', function() {
+      var claim = toggle.closest('.vs-claim');
+      if (!claim) return;
+      var isOpen = claim.classList.toggle('open');
+      toggle.textContent = isOpen ? 'Hide details ▴' : 'Show details ▾';
+    });
+  });
+});
 </script>
 <script src="/static/vs-track.js" defer></script>
 </body>
