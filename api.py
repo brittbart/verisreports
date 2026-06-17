@@ -6229,6 +6229,70 @@ footer a{{color:var(--dim);text-decoration:none}}footer a:hover{{color:var(--fg)
     except Exception as e:
         return f"<h1>Status unavailable</h1><p>{e}</p>", 500, {"Content-Type": "text/html"}
 
+@app.route('/ops/test-report', methods=['GET'])
+def ops_test_report():
+    """Internal paid-report test page. OPS_PASSWORD protected."""
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    audit_key = os.environ.get('PAID_AUDIT_KEY', '')
+    html = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Verum Signal — Test Report Generator</title>
+<style>
+body{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;
+     min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0}
+.w{width:100%;max-width:640px;padding:40px 24px}
+.logo{color:#a855f7;font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+      font-family:Georgia,serif;font-style:italic;margin-bottom:32px}
+h1{font-size:22px;font-weight:600;margin:0 0 8px}
+p{color:rgba(232,232,240,.5);font-size:14px;margin:0 0 28px;line-height:1.6}
+input{width:100%;background:#12121e;border:1px solid rgba(168,85,247,.25);
+      border-radius:8px;padding:12px 16px;color:#f0f0f8;font-size:14px;
+      box-sizing:border-box;margin-bottom:16px;outline:none}
+input:focus{border-color:#a855f7}
+button{background:#7c3aed;border:none;border-radius:8px;padding:12px 28px;
+       color:#fff;font-size:14px;cursor:pointer;font-weight:500}
+button:hover{background:#6d28d9}
+.note{margin-top:20px;font-size:12px;color:rgba(232,232,240,.3);line-height:1.6}
+.key-status{font-size:12px;margin-bottom:20px;padding:8px 12px;border-radius:6px;
+            border:1px solid rgba(168,85,247,.2);background:rgba(168,85,247,.06)}
+</style>
+</head>
+<body><div class="w">
+<div class="logo">Verum Signal</div>
+<h1>Test Report Generator</h1>
+<p>Generates a full paid report via the audit override. Ops-protected — not publicly accessible.</p>
+""" + (
+    '<div class="key-status" style="color:#4ade80;">&#10003; PAID_AUDIT_KEY active — reports will resolve at paid tier</div>'
+    if audit_key else
+    '<div class="key-status" style="color:#f87171;">&#9888; PAID_AUDIT_KEY not set — reports will resolve at free tier</div>'
+) + """
+<input id="url-input" type="url" placeholder="https://..." autofocus>
+<br>
+<button onclick="go()">Generate paid report &rarr;</button>
+<div class="note">
+  Opens in a new tab. Use any article URL.<br>
+  To test free rendering: open <a href="/report?url=URL" style="color:#a855f7">/report</a> directly without the audit key.<br>
+  Anon ceiling: <code>DELETE FROM anon_verify_counts WHERE day = CURRENT_DATE;</code>
+</div>
+</div>
+<script>
+const AUDIT_KEY = """ + repr(audit_key) + """;
+function go() {
+  const v = document.getElementById('url-input').value.trim();
+  if (!v.startsWith('http')) { alert('Paste a full article URL starting with https://'); return; }
+  const keyParam = AUDIT_KEY ? '&audit_key=' + encodeURIComponent(AUDIT_KEY) : '';
+  window.open('/report?url=' + encodeURIComponent(v) + keyParam, '_blank');
+}
+document.getElementById('url-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') go();
+});
+</script>
+</body></html>"""
+    return html, 200, {'Content-Type': 'text/html'}
+
+
 @app.route('/ops', methods=['GET'])
 def ops_dashboard():
     """Render the ops dashboard HTML. Basic-auth protected."""
