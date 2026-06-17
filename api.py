@@ -2262,7 +2262,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             parts = w.split('.')
             if len(parts) >= 2 and parts[-1] in valid_tlds3 and len(parts[0]) > 1:
                 src_domains.append(w)
-        contradicts = v in ('disputed','not_supported')
+        contradicts = v in ('disputed','not_supported','overstated')
         src_pills = ''
         for d in src_domains[:6]:
             cls = 'vs-src-c' if contradicts else 'vs-src-p'
@@ -2281,6 +2281,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '</div>'
             '<div class="vs-claim-quote">' + text + '</div>'
             '<div class="vs-claim-brief">' + summary + '</div>'
+            + ('<div class="vs-contested"><span class="vs-contested-label">What’s contested</span> ' + summary + '</div>' if contradicts and summary else '') +
             '</div>'
             '<div class="vs-claim-right">'
             '<div class="vs-pill ' + pill_cls + '">' + lbl + '</div>'
