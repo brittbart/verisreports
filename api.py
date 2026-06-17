@@ -2057,9 +2057,7 @@ setTimeout(checkStatus, 3000);
   .cta-btn{{display:inline-block;padding:12px 28px;background:#7c3aed;color:#fff;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;letter-spacing:0.01em;transition:background 0.15s ease;margin-bottom:12px;}}
   .cta-btn:hover{{background:#6d28d9;}}
   .reset-note{{font-family:ui-monospace,monospace;font-size:11px;color:rgba(232,232,240,0.3);margin-bottom:24px;}}
-  .divider{{border:none;border-top:0.5px solid rgba(255,255,255,0.06);margin:20px 0;}}
-  .back-link{{font-size:13px;color:rgba(168,85,247,0.6);text-decoration:none;}}
-  .back-link:hover{{color:#a855f7;}}
+
   .count-row{{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px;}}
   .count-pip{{width:8px;height:8px;border-radius:50%;background:#a855f7;}}
   .count-pip.used{{background:rgba(255,255,255,0.12);}}
@@ -2209,9 +2207,7 @@ setTimeout(checkStatus, 3000);
   .cta-btn{{display:inline-block;padding:12px 28px;background:#7c3aed;color:#fff;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;letter-spacing:0.01em;transition:background 0.15s ease;margin-bottom:12px;}}
   .cta-btn:hover{{background:#6d28d9;}}
   .reset-note{{font-family:ui-monospace,monospace;font-size:11px;color:rgba(232,232,240,0.3);margin-bottom:24px;}}
-  .divider{{border:none;border-top:0.5px solid rgba(255,255,255,0.06);margin:20px 0;}}
-  .back-link{{font-size:13px;color:rgba(168,85,247,0.6);text-decoration:none;}}
-  .back-link:hover{{color:#a855f7;}}
+
   .count-row{{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px;}}
   .count-pip{{width:8px;height:8px;border-radius:50%;background:#a855f7;}}
   .count-pip.used{{background:rgba(255,255,255,0.12);}}
