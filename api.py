@@ -2352,20 +2352,31 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         confidence = int(c.get('confidence_score', 2) or 2)
         lbl = VLBL_FREE.get(v, v.upper())
         summary_html = ('<p class="claim-summary">' + smartquotes(summary) + '</p>') if summary else ''
+        sources_html = (
+            ''.join(
+                '<span class="fr-src-item">' + (s.get('name') or '') +
+                (' <span class="fr-src-indep">&#10003;</span>' if s.get('independent') else '') +
+                '</span>' for s in src_structured_free[:4]
+            ) if src_structured_free
+            else '<p class="sources-list">' + sources + '</p>'
+        )
         return (
             '<div class="claim-card ' + v + '">'
-            '<div class="claim-head">'
+            '<div class="claim-header">'
+            '<div class="claim-header-left">'
             '<div class="claim-num">CLAIM ' + str(idx) + '</div>'
-            '<span class="verdict-pill ' + v + '">' + lbl + ' &middot; ' + str(confidence) + '/3</span>'
-            '</div>'
             '<p class="claim-text">' + text + '</p>'
+            '</div>'
+            '<div class="claim-header-right">'
+            '<span class="verdict-pill ' + v + '">' + lbl + ' &middot; ' + str(confidence) + '/3</span>'
+            '<span class="claim-toggle">Show details ▾</span>'
+            '</div>'
+            '</div>'
+            '<div class="claim-body">'
             + summary_html +
             '<div class="sources-label">SOURCES</div>'
-            + ((''.join('<span class="fr-src-item">' + (s.get('name') or '') +
-               (' <span class="fr-src-indep">&#10003;</span>' if s.get('independent') else '') +
-               '</span>' for s in src_structured_free[:4]))
-               if src_structured_free
-               else '<p class="sources-list">' + sources + '</p>') +
+            + sources_html +
+            '</div>'
             '</div>'
         )
     # Build only the HTML for the template being served (Task 3)

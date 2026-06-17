@@ -5,174 +5,233 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>{{title}} — Verum Signal</title>
 {{seo_meta}}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: #1a0d2e;
-    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: #080810;
+    font-family: 'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
     min-height: 100vh;
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding: 32px 16px;
-    color: #e7dffb;
+    padding: 0 0 48px;
+    color: #e8e8f0;
   }
-  .stage { width: 100%; max-width: 460px; }
-  .label {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 10px; letter-spacing: 0.12em; color: #9d8cc4;
-    text-transform: uppercase; margin-bottom: 8px; padding-left: 4px;
+  .stage { width: 100%; max-width: 720px; padding: 0 16px; }
+
+  /* ── Top bar ── */
+  .top-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0 10px;
+    font-family: ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.12em;
+    color: rgba(232,232,240,0.35);
+    text-transform: uppercase;
+    border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    margin-bottom: 20px;
   }
+  .top-bar a { color: rgba(168,85,247,0.7); text-decoration: none; }
+  .top-bar .sep { color: rgba(255,255,255,0.2); }
+
+  /* ── Panel ── */
   .panel {
-    background: #100820;
-    border: 0.5px solid rgba(180, 150, 230, 0.18);
-    border-radius: 10px;
-    padding: 20px 20px 16px;
+    background: #0d0d18;
+    border: 0.5px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
   }
+
+  /* ── Header ── */
   .header {
     display: flex; justify-content: space-between; align-items: center;
-    padding-bottom: 14px;
-    border-bottom: 0.5px solid rgba(180, 150, 230, 0.12);
+    padding-bottom: 16px;
+    border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    margin-bottom: 16px;
   }
   .logo {
     display: inline-flex; align-items: center; gap: 8px;
-    font-size: 12px; letter-spacing: 0.18em; color: #ffffff; font-weight: 500;
+    font-size: 12px; letter-spacing: 0.18em; color: #ffffff; font-weight: 600;
   }
-  .logo .signal { font-style: italic; color: #b48cff; font-weight: 400; }
+  .logo .signal { font-style: italic; color: #c084fc; font-weight: 400; }
   .header-right {
     display: inline-flex; align-items: center; gap: 14px;
   }
   .share-btn {
     background: transparent;
-    border: 0.5px solid rgba(180, 150, 230, 0.3);
+    border: 0.5px solid rgba(255,255,255,0.12);
     border-radius: 4px; padding: 5px 11px;
     font-family: ui-monospace, monospace; font-size: 11px;
-    letter-spacing: 0.08em; color: #cfc1ec; cursor: pointer;
+    letter-spacing: 0.08em; color: rgba(232,232,240,0.5); cursor: pointer;
     display: inline-flex; align-items: center; gap: 6px;
     transition: border-color 0.15s ease;
   }
-  .share-btn:hover { border-color: rgba(180, 150, 230, 0.5); }
+  .share-btn:hover { border-color: rgba(255,255,255,0.25); }
   .outlet-meta {
     font-family: ui-monospace, monospace;
-    font-size: 11px; color: #9d8cc4;
+    font-size: 11px; color: rgba(232,232,240,0.4);
   }
-  .outlet-meta .score-inline { color: {{score_color}}; }
 
-  .article-block { padding: 16px 0 12px; }
+  /* ── Article block ── */
+  .article-block { padding: 0 0 16px; }
   .meta-line {
     font-family: ui-monospace, monospace; font-size: 10px;
-    letter-spacing: 0.1em; color: #9d8cc4;
-    text-transform: uppercase; margin-bottom: 8px;
+    letter-spacing: 0.1em; color: rgba(232,232,240,0.35);
+    text-transform: uppercase; margin-bottom: 10px;
   }
   .article-title {
-    font-family: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-    font-size: 22px; font-weight: 500; line-height: 1.25;
-    margin: 0 0 10px; color: #f3edff;
+    font-family: 'DM Sans', ui-sans-serif, sans-serif;
+    font-size: 22px; font-weight: 600; line-height: 1.25;
+    margin: 0 0 10px; color: #f0f0f8;
   }
-  .article-title a { color: #f3edff; text-decoration: none; }
-  .article-title a:hover { color: #b48cff; }
+  .article-title a { color: #f0f0f8; text-decoration: none; }
+  .article-title a:hover { color: #c084fc; }
   .article-desc {
-    font-size: 13px; line-height: 1.6;
-    color: #cfc1ec; margin: 0;
+    font-size: 13px; line-height: 1.65;
+    color: rgba(232,232,240,0.55); margin: 0;
   }
 
+  /* ── Score strip ── */
   .score-strip {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 0;
-    border-top: 0.5px solid rgba(180, 150, 230, 0.12);
-    border-bottom: 0.5px solid rgba(180, 150, 230, 0.12);
-    margin: 6px 0 14px;
+    padding: 10px 0;
+    border-top: 0.5px solid rgba(255,255,255,0.06);
+    border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    margin: 4px 0 16px;
   }
   .score-meta {
-    font-family: ui-monospace, monospace; font-size: 11px; color: #9d8cc4;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    color: rgba(232,232,240,0.35);
   }
-  .score-big {
-    font-family: 'Iowan Old Style', Georgia, serif;
-    font-size: 30px; font-weight: 500; color: {{score_color}};
-  }
-  .score-big .unit {
-    font-size: 12px; color: #9d8cc4;
-    font-family: ui-monospace, monospace; margin-left: 3px;
-  }
+  .score-meta a { color: rgba(168,85,247,0.6); text-decoration: none; }
 
+  /* ── Verdict distribution ── */
   .section-label {
     font-family: ui-monospace, monospace; font-size: 10px;
-    letter-spacing: 0.1em; color: #b48cff;
+    letter-spacing: 0.12em; color: rgba(168,85,247,0.6);
     text-transform: uppercase; margin-bottom: 8px;
   }
-  .verdict-distribution {
-    font-size: 12px; color: #cfc1ec; margin-bottom: 16px;
+  .verdict-distribution { margin-bottom: 20px; }
+  .verdict-dist-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+  .vs-leg {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    color: rgba(232,232,240,0.45);
+    display: flex; align-items: center; gap: 4px;
   }
-  .verdict-distribution .green { color: #97c459; }
-  .verdict-distribution .teal { color: #5dcaa5; }
-  .verdict-distribution .amber { color: #ef9f27; }
-  .verdict-distribution .red { color: #e24b4a; }
+  .vs-leg-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
+  /* ── Claim cards ── */
   .claim-card {
-    padding: 12px 14px;
     border-radius: 0 6px 6px 0;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
   }
-  .claim-card.supported { border-left: 2px solid #97c459; background: rgba(151, 196, 89, 0.04); }
-  .claim-card.plausible { border-left: 2px solid #5dcaa5; background: rgba(93, 202, 165, 0.04); }
-  .claim-card.corroborated { border-left: 2px solid #5dcaa5; background: rgba(93, 202, 165, 0.04); }
-  .claim-card.overstated { border-left: 2px solid #ef9f27; background: rgba(239, 159, 39, 0.04); }
-  .claim-card.disputed { border-left: 2px solid #e24b4a; background: rgba(226, 75, 74, 0.04); }
-  .claim-card.not_supported { border-left: 2px solid #e24b4a; background: rgba(226, 75, 74, 0.04); }
-  .claim-card.opinion { border-left: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); }
-  .claim-card.not_verifiable { border-left: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); }
+  .claim-card.supported  { border-left: 3px solid #4ade80; }
+  .claim-card.plausible  { border-left: 3px solid #60a5fa; }
+  .claim-card.corroborated { border-left: 3px solid #34d399; }
+  .claim-card.overstated { border-left: 3px solid #fb923c; }
+  .claim-card.disputed   { border-left: 3px solid #f87171; }
+  .claim-card.not_supported { border-left: 3px solid #ef4444; }
+  .claim-card.opinion    { border-left: 3px solid rgba(255,255,255,0.15); }
+  .claim-card.not_verifiable { border-left: 3px solid rgba(255,255,255,0.15); }
+  .claim-card.pending    { border-left: 3px solid rgba(255,255,255,0.1); }
 
-  .claim-head {
+  .claim-header {
     display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 12px; margin-bottom: 8px;
+    gap: 12px;
+    padding: 12px 14px 10px;
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    user-select: none;
+  }
+  .claim-header:hover { background: rgba(255,255,255,0.035); }
+  .claim-header-left { flex: 1; min-width: 0; }
+  .claim-header-right {
+    display: flex; flex-direction: column; align-items: flex-end;
+    gap: 6px; flex-shrink: 0;
   }
   .claim-num {
     font-family: ui-monospace, monospace;
-    font-size: 10px; letter-spacing: 0.1em; color: #9d8cc4;
+    font-size: 10px; letter-spacing: 0.1em;
+    color: rgba(232,232,240,0.35); margin-bottom: 4px;
   }
+  .claim-text {
+    font-size: 14px; line-height: 1.55; color: #e8e8f0; margin: 0;
+  }
+  .claim-toggle {
+    font-family: ui-monospace, monospace;
+    font-size: 10px; color: rgba(168,85,247,0.6);
+    letter-spacing: 0.05em; white-space: nowrap; margin-top: 2px;
+  }
+
   .verdict-pill {
     font-family: ui-monospace, monospace;
     font-size: 10px; padding: 3px 8px; border-radius: 3px;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.06em; white-space: nowrap;
   }
-  .verdict-pill.supported { background: rgba(151, 196, 89, 0.15); color: #c0dd97; }
-  .verdict-pill.plausible { background: rgba(93, 202, 165, 0.15); color: #8fdfc1; }
-  .verdict-pill.corroborated { background: rgba(93, 202, 165, 0.15); color: #8fdfc1; }
-  .verdict-pill.overstated { background: rgba(239, 159, 39, 0.18); color: #fac775; }
-  .verdict-pill.disputed { background: rgba(226, 75, 74, 0.18); color: #f3a1a0; }
-  .verdict-pill.not_supported { background: rgba(226, 75, 74, 0.18); color: #f3a1a0; }
-  .verdict-pill.opinion { background: rgba(255,255,255,0.06); color: #cfc1ec; }
-  .verdict-pill.not_verifiable { background: rgba(255,255,255,0.06); color: #cfc1ec; }
+  .verdict-pill.supported    { background: rgba(74,222,128,0.12); color: #86efac; }
+  .verdict-pill.plausible    { background: rgba(96,165,250,0.12); color: #93c5fd; }
+  .verdict-pill.corroborated { background: rgba(52,211,153,0.12); color: #6ee7b7; }
+  .verdict-pill.overstated   { background: rgba(251,146,60,0.15); color: #fdba74; }
+  .verdict-pill.disputed     { background: rgba(248,113,113,0.15); color: #fca5a5; }
+  .verdict-pill.not_supported{ background: rgba(239,68,68,0.15);  color: #fca5a5; }
+  .verdict-pill.opinion      { background: rgba(255,255,255,0.06); color: rgba(232,232,240,0.6); }
+  .verdict-pill.not_verifiable{ background: rgba(255,255,255,0.06); color: rgba(232,232,240,0.6); }
+  .verdict-pill.pending      { background: rgba(255,255,255,0.04); color: rgba(232,232,240,0.4); }
 
-  .claim-text {
-    font-size: 13px; line-height: 1.6; color: #e7dffb; margin: 0 0 10px;
+  /* ── Claim body (collapsed by default) ── */
+  .claim-body {
+    display: none;
+    padding: 12px 14px 14px;
+    border-top: 0.5px solid rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.01);
+  }
+  .claim-card.open .claim-body { display: block; }
+
+  .claim-summary {
+    font-size: 13px; line-height: 1.65;
+    color: rgba(232,232,240,0.7); margin: 0 0 12px;
   }
   .sources-label {
     font-family: ui-monospace, monospace;
-    font-size: 10px; letter-spacing: 0.08em; color: #9d8cc4;
-    text-transform: uppercase; margin-bottom: 5px;
+    font-size: 10px; letter-spacing: 0.08em;
+    color: rgba(232,232,240,0.3);
+    text-transform: uppercase; margin-bottom: 6px;
   }
   .sources-list {
-    font-size: 12px; line-height: 1.6; color: #b9a8e8; margin: 0;
+    font-size: 12px; line-height: 1.6;
+    color: rgba(232,232,240,0.45); margin: 0;
   }
+  .fr-src-item {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid rgba(255,255,255,0.08);
+    border-radius: 3px; padding: 2px 7px;
+    font-size: 11px; color: rgba(232,232,240,0.45);
+    margin: 2px 3px 2px 0;
+  }
+  .fr-src-indep { color: #34d399; font-size: 10px; }
 
+  /* ── Upgrade CTA ── */
   .upgrade-cta {
-    background: linear-gradient(180deg, rgba(212, 83, 126, 0.08) 0%, rgba(180, 140, 255, 0.04) 100%);
-    border: 1px solid rgba(212, 83, 126, 0.4);
+    background: linear-gradient(180deg, rgba(168,85,247,0.07) 0%, rgba(168,85,247,0.03) 100%);
+    border: 0.5px solid rgba(168,85,247,0.2);
     border-radius: 10px;
     padding: 22px 22px 20px;
-    margin: 18px 0;
+    margin: 20px 0;
     text-align: center;
   }
   .upgrade-cta h2 {
-    font-family: 'Iowan Old Style', Georgia, serif;
-    font-size: 24px; font-weight: 500; line-height: 1.15;
-    margin: 0 0 8px; color: #f3edff;
+    font-family: 'DM Sans', ui-sans-serif, sans-serif;
+    font-size: 22px; font-weight: 600; line-height: 1.15;
+    margin: 0 0 8px; color: #f0f0f8;
   }
-  .upgrade-cta h2 .accent { font-style: italic; color: #d4537e; }
+  .upgrade-cta h2 .accent { font-style: italic; color: #D4537E; }
   .upgrade-cta p {
-    font-size: 13px; line-height: 1.6; color: #cfc1ec;
+    font-size: 13px; line-height: 1.6; color: rgba(232,232,240,0.5);
     margin: 0 auto 16px; max-width: 340px;
   }
   .upgrade-btn {
@@ -187,45 +246,55 @@
   .upgrade-btn:hover { background: #b8456c; }
   .upgrade-reassurance {
     font-family: ui-monospace, monospace;
-    font-size: 11px; color: #9d8cc4; margin: 12px 0 0;
+    font-size: 11px; color: rgba(232,232,240,0.35); margin: 12px 0 0;
   }
 
+  /* ── Verdict scale ── */
   .verdict-scale {
     display: grid; grid-template-columns: 1fr 1fr;
-    gap: 5px 18px; font-size: 11px; color: #cfc1ec; margin-bottom: 14px;
+    gap: 5px 18px; font-size: 11px;
+    color: rgba(232,232,240,0.5); margin-bottom: 16px;
   }
-  .verdict-scale .green { color: #97c459; }
-  .verdict-scale .teal { color: #5dcaa5; }
-  .verdict-scale .amber { color: #ef9f27; }
-  .verdict-scale .red { color: #e24b4a; }
-  .verdict-scale .weight { color: #9d8cc4; }
-  .verdict-dist-bar{display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;margin-bottom:6px}
-  .verdict-dist-bar > div{border-radius:2px}
-  .verdict-dist-legend{display:flex;gap:10px;flex-wrap:wrap}
-  .vs-leg{font-family:monospace;font-size:11px;color:rgba(232,232,240,0.45);display:flex;align-items:center;gap:4px}
-  .vs-leg-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
-  .fr-src-item{display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:3px;padding:2px 7px;font-size:11px;color:rgba(232,232,240,0.5);margin:2px 3px 2px 0}
-  .fr-src-indep{color:#34d399;font-size:10px}
+  .verdict-scale .green { color: #4ade80; }
+  .verdict-scale .teal  { color: #34d399; }
+  .verdict-scale .amber { color: #fb923c; }
+  .verdict-scale .red   { color: #ef4444; }
+  .verdict-scale .weight { color: rgba(232,232,240,0.3); }
 
+  /* ── Footer ── */
   .footer {
     display: flex; flex-direction: column; gap: 6px;
     padding-top: 12px;
-    border-top: 0.5px solid rgba(180, 150, 230, 0.12);
-    font-family: ui-monospace, monospace; font-size: 10px; color: #9d8cc4;
+    border-top: 0.5px solid rgba(255,255,255,0.06);
+    font-family: ui-monospace, monospace; font-size: 10px;
+    color: rgba(232,232,240,0.3);
   }
   .footer-bottom { display: flex; justify-content: space-between; }
-  .footer .correction { color: #b48cff; cursor: pointer; }
+  .footer .correction {
+    color: rgba(168,85,247,0.6); text-decoration: none; cursor: pointer;
+  }
+  .footer .correction:hover { color: rgba(168,85,247,0.9); }
+
+  @media (max-width: 600px) {
+    .panel { padding: 18px 16px 16px; }
+    .article-title { font-size: 19px; }
+    .stage { padding: 0 8px; }
+  }
 </style>
 </head>
 <body>
   <div class="stage">
-    <div class="label">Free report &middot; public</div>
+    <div class="top-bar">
+      <a href="/">Free Report</a>
+      <span class="sep">&middot;</span>
+      <span>Public</span>
+    </div>
     <div class="panel">
 
       <div class="header">
         <div class="logo">
           <svg width="32" height="14" viewBox="0 0 32 14" xmlns="http://www.w3.org/2000/svg">
-            <path d="M 1 7 C 4 1, 8 1, 11 7 S 18 13, 21 7 S 28 1, 27.5 7" fill="none" stroke="#b48cff" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M 1 7 C 4 1, 8 1, 11 7 S 18 13, 21 7 S 28 1, 27.5 7" fill="none" stroke="#a855f7" stroke-width="1.7" stroke-linecap="round"/>
             <circle cx="27.5" cy="7" r="2.6" fill="#D4537E"/>
           </svg>
           <span>VERUM <span class="signal">SIGNAL</span></span>
@@ -246,17 +315,19 @@
       </div>
 
       <div class="score-strip">
-        <span class="score-meta">{{total}} claims &middot; <a href="/methodology" style="color:#9d8cc4;">Methodology v1.6</a></span>
+        <span class="score-meta">{{total}} claims assessed &middot; <a href="/methodology">Methodology v1.7</a></span>
       </div>
 
       <div class="section-label">VERDICT DISTRIBUTION</div>
-      <div class="verdict-distribution"><div class="verdict-dist-bar">{{dist_bar_html}}</div><div class="verdict-dist-legend">{{dist_legend_html}}</div></div>
+      <div class="verdict-distribution">
+        <div class="verdict-dist-legend">{{dist_legend_html}}</div>
+      </div>
 
       {{claims_html}}
 
       <div class="upgrade-cta">
-        <h2>Ready for <span class="accent">more?</span></h2>
-        <p>Pro reports show how every source was weighed, full claim-by-claim analysis, overall synthesis, and follow-up research.</p>
+        <h2>Want every <span class="accent">claim?</span></h2>
+        <p>Pro reports verify every claim, weigh every source, and synthesise the overall signal.</p>
         <a href="/upgrade?url={{url}}" class="upgrade-btn">Try one Pro report free &rarr;</a>
         <p class="upgrade-reassurance">No card required &middot; One report on us</p>
       </div>
@@ -272,15 +343,29 @@
       </div>
 
       <div class="footer">
-        <span style="font-size:11px;color:rgba(255,255,255,0.35);">{{confidence_legend}}</span>
+        <span>{{confidence_legend}}</span>
         <div class="footer-bottom">
-          <span>Methodology v1.6</span>
+          <span>Methodology v1.7</span>
           <a class="correction" href="/correction?url={{url}}">Submit a correction</a>
         </div>
       </div>
 
     </div>
   </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.claim-card').forEach(function(card) {
+    var header = card.querySelector('.claim-header');
+    var toggle = card.querySelector('.claim-toggle');
+    if (!header) return;
+    header.addEventListener('click', function() {
+      var isOpen = card.classList.toggle('open');
+      if (toggle) toggle.textContent = isOpen ? 'Hide details ▴' : 'Show details ▾';
+    });
+  });
+});
+</script>
 <script src="/static/vs-track.js" defer></script>
 </body>
 </html>
