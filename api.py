@@ -2908,9 +2908,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         try:
             from datetime import datetime as _dt, timezone as _tz
             # SESSION 6 COUPLING: staleness computed by re-parsing the as_of DISPLAY string.
-    # If as_of format ever changes, staleness math breaks silently (no exception).
-    # Session 6 fix: thread raw verified_at datetime through render block instead.
-    _parsed = _dt.strptime(as_of, '%B %d, %Y') if as_of and as_of != 'assessment date unavailable' else None
+            # If as_of format ever changes, staleness math breaks silently (no exception).
+            # Session 6 fix: thread raw verified_at datetime through render block instead.
+            _parsed = _dt.strptime(as_of, '%B %d, %Y') if as_of and as_of != 'assessment date unavailable' else None
             if _parsed:
                 _age_days = (_dt.now() - _parsed).days
                 _recheck_available = _age_days >= RECHECK_STALENESS_DAYS
