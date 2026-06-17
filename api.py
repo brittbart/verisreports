@@ -6270,23 +6270,30 @@ button:hover{background:#6d28d9}
 ) + """
 <input id="url-input" type="url" placeholder="https://..." autofocus>
 <br>
-<button onclick="go()">Generate paid report &rarr;</button>
+<div style="display:flex;gap:10px;margin-top:4px;">
+  <button onclick="goPaid()" style="background:#7c3aed;">Paid report &rarr;</button>
+  <button onclick="goFree()" style="background:#374151;">Free report &rarr;</button>
+</div>
 <div class="note">
-  Opens in a new tab. Use any article URL.<br>
-  To test free rendering: open <a href="/report?url=URL" style="color:#a855f7">/report</a> directly without the audit key.<br>
-  Anon ceiling: <code>DELETE FROM anon_verify_counts WHERE day = CURRENT_DATE;</code>
+  Both open in a new tab. Paid uses the audit key; free uses no key (anon path).<br>
+  Anon ceiling clear: <code>DELETE FROM anon_verify_counts WHERE day = CURRENT_DATE;</code>
 </div>
 </div>
 <script>
 const AUDIT_KEY = """ + repr(audit_key) + """;
-function go() {
+function goPaid() {
   const v = document.getElementById('url-input').value.trim();
   if (!v.startsWith('http')) { alert('Paste a full article URL starting with https://'); return; }
   const keyParam = AUDIT_KEY ? '&audit_key=' + encodeURIComponent(AUDIT_KEY) : '';
   window.open('/report?url=' + encodeURIComponent(v) + keyParam, '_blank');
 }
+function goFree() {
+  const v = document.getElementById('url-input').value.trim();
+  if (!v.startsWith('http')) { alert('Paste a full article URL starting with https://'); return; }
+  window.open('/report?url=' + encodeURIComponent(v), '_blank');
+}
 document.getElementById('url-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') go();
+  if (e.key === 'Enter') goPaid();
 });
 </script>
 </body></html>"""
