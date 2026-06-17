@@ -602,7 +602,11 @@ def get_report():
 
     # Anon ceiling on /api/report — 3/day/IP, 429 response (non-breaking shape)
     # Full tier-gating deferred to Session 6; ceiling stops credit-drain now.
-    if not anon_ceiling_ok(get_db, request):
+    # Audit override bypasses ceiling — testers must not be blocked after 3 reports.
+    import os as _apir_os
+    _apir_audit_key = _apir_os.getenv('PAID_AUDIT_KEY', '')
+    _apir_override = bool(_apir_audit_key and request.args.get('audit_key') == _apir_audit_key)
+    if not _apir_override and not anon_ceiling_ok(get_db, request):
         return jsonify({'error': 'daily anonymous limit reached', 'limit': 3}), 429
 
     try:
@@ -1638,14 +1642,24 @@ def resolve_report_access(get_db):
     }
     Depth is SERVER-DERIVED. The ?depth= URL param is ignored for access control.
     """
+    import os as _ra_os
     from auth_routes import get_current_user, check_quota
+    # TEMPORARY audit override (Session 3.5 — REMOVE at Session 6 real auth).
+    # Server-validated shared secret. PAID_AUDIT_KEY unset = override disabled.
+    _audit_key = _ra_os.getenv('PAID_AUDIT_KEY', '')
+    if _audit_key and request.args.get('audit_key') == _audit_key:
+        try:
+            print(f"[audit_override] full-depth granted via audit_key url={request.args.get('url','')[:120]}")
+        except Exception:
+            pass
+        return {'user': None, 'tier': 'audit', 'depth': None, 'user_id': None, 'audit_override': True}
     user = get_current_user(get_db)
     if not user:
-        return {'user': None, 'tier': 'free', 'depth': 2, 'user_id': None}
+        return {'user': None, 'tier': 'free', 'depth': 2, 'user_id': None, 'audit_override': False}
     q = check_quota(get_db, user['id'], 'consumer')
     tier = q['tier']
     depth = None if tier in ('pro', 'scale') else 2
-    return {'user': user, 'tier': tier, 'depth': depth, 'user_id': user['id']}
+    return {'user': user, 'tier': tier, 'depth': depth, 'user_id': user['id'], 'audit_override': False}
 
 
 def anon_ceiling_ok(get_db, request):
@@ -1712,9 +1726,10 @@ def report_page():
     # Phase 4: depth-aware verification. ?depth=2 (free) or ?depth=99 (paid).
     # Default = None (full verification, current behavior).
     _access = resolve_report_access(get_db)
-    depth      = _access['depth']       # server-derived; ?depth= no longer trusted
-    _tier      = _access['tier']
-    _gate_user = _access['user']        # used by quota gate on path A
+    depth          = _access['depth']       # server-derived; ?depth= no longer trusted
+    _tier          = _access['tier']
+    _gate_user     = _access['user']        # used by quota gate on path A
+    _audit_override = _access.get('audit_override', False)  # TEMP: Session 3.5 audit key
 
     from urllib.parse import urlparse
     from datetime import datetime as dt
@@ -1873,8 +1888,8 @@ setTimeout(checkStatus, 3000);
                                     f'&tier={_quota["tier"]}'
                                 )
                         else:
-                            # Anonymous: enforce 3/day/IP ceiling
-                            if not anon_ceiling_ok(get_db, request):
+                            # Anonymous: enforce 3/day/IP ceiling (skip for audit override)
+                            if not _audit_override and not anon_ceiling_ok(get_db, request):
                                 conn2.close()
                                 conn.close()
                                 return redirect('/pricing.html?reason=daily_limit&scope=anon')
@@ -1885,7 +1900,7 @@ setTimeout(checkStatus, 3000);
                         # Increment quota / ceiling counter on successful verification
                         if _gate_user:
                             increment_quota(get_db, _gate_user['id'], 'consumer')
-                        else:
+                        elif not _audit_override:
                             anon_ceiling_increment(get_db, request)
                         conn2.commit()
                         conn2.close()
@@ -1959,15 +1974,15 @@ setTimeout(checkStatus, 3000);
                                     f'&tier={_quota_b["tier"]}'
                                 )
                         else:
-                            # Anonymous: enforce 3/day/IP ceiling
-                            if not anon_ceiling_ok(get_db, request):
+                            # Anonymous: enforce 3/day/IP ceiling (skip for audit override)
+                            if not _audit_override and not anon_ceiling_ok(get_db, request):
                                 conn2.close()
                                 return redirect('/pricing.html?reason=daily_limit&scope=anon')
                         verified_claims = []
                         verified_claims = verify_and_insert_claims(claims, art_id, title_db, source_name, cur2, depth=depth)
                         if _gate_user:
                             increment_quota(get_db, _gate_user["id"], "consumer")
-                        else:
+                        elif not _audit_override:
                             anon_ceiling_increment(get_db, request)
                         cur2.execute("UPDATE articles SET claims_verified=TRUE WHERE id=%s", (art_id,))
                         conn2.commit()
@@ -2325,7 +2340,6 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '</div>'
         )
 
-    claims_html = "".join(claim_row(c, i+1) for i, c in enumerate(claims))
 
     # Phase 5: simpler claim card for free report template
     def claim_row_free(c, idx):
@@ -2354,10 +2368,15 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
                else '<p class="sources-list">' + sources + '</p>') +
             '</div>'
         )
-    # Only show verified claims (verdict not None) in free report
+    # Build only the HTML for the template being served (Task 3)
     _FREE_CLAIM_CAP = 2
     free_set = claims[:_FREE_CLAIM_CAP]
-    claims_html_free = "".join(claim_row_free(c, i+1) for i, c in enumerate(free_set))
+    if depth == 2:
+        claims_html = "".join(claim_row_free(c, i+1) for i, c in enumerate(free_set))
+        claims_html_free = claims_html
+    else:
+        claims_html_free = ""
+        claims_html = "".join(claim_row(c, i+1) for i, c in enumerate(claims))
 
     score_bar_pct = score
     rating_color  = score_color
@@ -2587,10 +2606,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     _template_name = 'report_free.html' if depth == 2 else 'report.html'
     with open(os.path.join(os.path.dirname(__file__), 'templates', _template_name), 'r') as _tf:
         html = _tf.read()
-    # Free template uses the simpler claims_html_free; paid uses claims_html
+    # claims_html already holds the right content (built conditionally above)
     if depth == 2:
-        claims_html = claims_html_free
-        # Recompute total to reflect verified-only claim count for free report
         stats_total_for_free = len(free_set)
     else:
         stats_total_for_free = None

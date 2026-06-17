@@ -773,15 +773,21 @@
     const btn = document.getElementById('url-input').nextElementSibling;
     btn.textContent = 'Analyzing…';
     btn.disabled = true;
-    window.location.href = '/report?url=' + encodeURIComponent(v) + '&depth=2';
+    window.open('/report?url=' + encodeURIComponent(v), '_blank');
+    btn.textContent = 'Analyze';
+    btn.disabled = false;
   }
+  const AUDIT_KEY = '';
   function handlePaidAnalyze() {
     const v = document.getElementById('paid-url-input').value.trim();
     if (!v) return;
     const btn = document.getElementById('paid-url-input').nextElementSibling;
     btn.textContent = 'Analyzing…';
     btn.disabled = true;
-    window.location.href = '/report?url=' + encodeURIComponent(v);
+    const keyParam = AUDIT_KEY ? '&audit_key=' + encodeURIComponent(AUDIT_KEY) : '';
+    window.open('/report?url=' + encodeURIComponent(v) + keyParam, '_blank');
+    btn.textContent = 'Analyze';
+    btn.disabled = false;
   }
 </script>
 
