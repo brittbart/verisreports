@@ -1750,65 +1750,204 @@ def report_page():
                 loading_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Verum Signal &mdash; Analysing...</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Analyzing — Verum Signal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}}
-.wrap{{max-width:540px;width:100%;text-align:center}}
-.topbar{{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:48px}}
-.brand{{font-size:11px;letter-spacing:0.2em;font-weight:700;color:#fff}}
-.brand em{{color:#e879f9;font-style:italic;font-weight:400}}
-.card{{background:rgba(255,255,255,0.03);border:0.5px solid rgba(168,85,247,0.2);border-radius:12px;padding:36px}}
-.pulse{{width:48px;height:48px;border-radius:50%;background:rgba(168,85,247,0.2);border:2px solid #a855f7;margin:0 auto 24px;animation:pulse 1.5s ease-in-out infinite}}
-@keyframes pulse{{0%,100%{{transform:scale(1);opacity:1}}50%{{transform:scale(1.15);opacity:0.6}}}}
-.heading{{font-size:20px;font-weight:600;color:#fff;margin-bottom:12px}}
-.msg{{font-size:14px;color:rgba(232,232,240,0.55);line-height:1.65;margin-bottom:24px}}
-.steps{{text-align:left;display:flex;flex-direction:column;gap:8px;margin-bottom:24px}}
-.step{{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(232,232,240,0.4);padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.02)}}
-.step.active{{color:rgba(232,232,240,0.8);background:rgba(168,85,247,0.08);border:0.5px solid rgba(168,85,247,0.2)}}
-.step-dot{{width:6px;height:6px;border-radius:50%;background:rgba(168,85,247,0.3);flex-shrink:0}}
-.step.active .step-dot{{background:#a855f7;box-shadow:0 0 6px #a855f7}}
-.url-disp{{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.18);word-break:break-all;margin-top:8px}}
-.back{{display:inline-block;margin-top:20px;font-family:monospace;font-size:11px;color:rgba(168,85,247,0.5)}}
+  :root{{
+    --vs-bg:#0a0a0a;
+    --vs-surface:#131218;
+    --vs-border:#2e2c36;
+    --vs-border-strong:#3a3743;
+    --vs-pink:#a855f7;
+    --vs-violet-light:#c084fc;
+    --vs-logo-pink:#ec4899;
+    --vs-green:#22c55e;
+    --vs-green-15:rgba(34,197,94,0.15);
+    --vs-text:#ffffff;
+    --vs-text-2:#9ca3af;
+    --vs-text-3:#6b7280;
+    --font-display:'DM Serif Display','Times New Roman',serif;
+    --font-sans:'DM Sans',system-ui,sans-serif;
+    --font-mono:ui-monospace,'SF Mono',Menlo,monospace;
+  }}
+  *{{box-sizing:border-box;}}
+  html,body{{height:100%;}}
+  body{{
+    margin:0;background:var(--vs-bg);color:var(--vs-text);
+    font-family:var(--font-sans);font-size:15px;line-height:1.4;letter-spacing:-0.005em;
+    -webkit-font-smoothing:antialiased;
+    display:flex;align-items:center;justify-content:center;
+    min-height:100dvh;position:relative;overflow:hidden;
+  }}
+  body::before{{
+    content:"";position:absolute;top:30%;left:50%;
+    width:560px;height:560px;transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(168,85,247,0.14) 0%, transparent 55%);
+    pointer-events:none;
+  }}
+  .screen{{
+    position:relative;z-index:1;width:100%;max-width:440px;
+    padding:60px 44px 48px;display:flex;flex-direction:column;align-items:center;
+  }}
+  .mark{{
+    position:relative;width:184px;height:184px;
+    display:flex;align-items:center;justify-content:center;margin-bottom:30px;
+  }}
+  .mark .ring{{
+    position:absolute;inset:0;border-radius:50%;
+    border:1px solid rgba(168,85,247,0.35);opacity:0;
+    animation:vs-radiate 2.6s ease-out infinite;
+  }}
+  .mark .ring:nth-child(2){{animation-delay:0.8s;}}
+  .mark .ring:nth-child(3){{animation-delay:1.6s;}}
+  .mark .core{{
+    position:relative;z-index:2;width:92px;height:92px;border-radius:50%;
+    background:radial-gradient(circle, #1a1330 0%, #0a0a0f 80%);
+    border:1px solid rgba(168,85,247,0.5);
+    box-shadow:0 0 60px rgba(168,85,247,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+  }}
+  .mark .core .glyph-dot{{transform-origin:27.5px 14px;animation:vs-pulse 1.8s ease-in-out infinite;}}
+  .wm{{display:block;height:22px;width:auto;margin-bottom:18px;}}
+  .eyebrow{{
+    font-family:var(--font-mono);font-size:10px;font-weight:500;
+    letter-spacing:0.20em;text-transform:uppercase;color:var(--vs-text-3);
+    display:flex;align-items:center;gap:8px;margin-bottom:16px;
+  }}
+  .eyebrow .dot{{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--vs-green);box-shadow:0 0 8px var(--vs-green);
+    animation:vs-pulse 1.4s ease-in-out infinite;
+  }}
+  .url-pill{{
+    max-width:100%;display:inline-flex;align-items:center;gap:9px;
+    padding:10px 18px;border-radius:100px;
+    background:rgba(168,85,247,0.10);border:0.5px solid rgba(168,85,247,0.35);
+    margin-bottom:26px;
+  }}
+  .url-pill .scheme{{font-family:var(--font-mono);font-size:12.5px;color:var(--vs-text-3);flex-shrink:0;}}
+  .url-pill .host{{
+    font-family:var(--font-mono);font-size:12.5px;letter-spacing:0.01em;color:var(--vs-text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }}
+  .status{{
+    font-family:var(--font-display);font-weight:400;font-size:24px;line-height:1.2;
+    color:var(--vs-text-2);text-align:center;max-width:300px;margin:0 0 30px;
+  }}
+  .status em{{font-style:italic;color:var(--vs-violet-light);}}
+  .phases{{
+    list-style:none;margin:0;padding:0;width:100%;max-width:330px;
+    display:flex;flex-direction:column;gap:14px;
+  }}
+  .phase{{display:flex;align-items:center;gap:12px;opacity:0.42;transition:opacity .3s ease;}}
+  .phase .circle{{
+    position:relative;flex-shrink:0;width:18px;height:18px;border-radius:50%;
+    border:1px solid var(--vs-border-strong);background:transparent;
+    display:flex;align-items:center;justify-content:center;
+    transition:border-color .3s ease,background-color .3s ease;
+  }}
+  .phase .circle .core2{{position:absolute;inset:3px;border-radius:50%;background:var(--vs-violet-light);opacity:0;}}
+  .phase .circle .check{{width:10px;height:10px;opacity:0;}}
+  .phase .label{{flex:1;font-size:13.5px;color:var(--vs-text-2);position:relative;overflow:hidden;}}
+  .phase.active{{opacity:1;}}
+  .phase.active .circle{{border-color:var(--vs-violet-light);}}
+  .phase.active .circle .core2{{opacity:1;animation:vs-pulse 1.2s ease-in-out infinite;}}
+  .phase.active .label{{color:var(--vs-text);font-weight:500;}}
+  .phase.active .label::after{{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,transparent 0%,rgba(168,85,247,0.18) 50%,transparent 100%);
+    transform:translateX(-100%);animation:vs-shimmer-row 1.6s linear infinite;
+  }}
+  .phase.done{{opacity:1;}}
+  .phase.done .circle{{border-color:var(--vs-green);background:var(--vs-green-15);}}
+  .phase.done .circle .check{{opacity:1;}}
+  .phase.done .label{{color:var(--vs-text-2);}}
+  .foot{{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;
+    margin-top:32px;padding-top:18px;border-top:1px solid var(--vs-border);
+  }}
+  .cancel{{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--vs-text-2);text-decoration:none;transition:color .2s ease;}}
+  .cancel:hover,.cancel:active{{color:var(--vs-text);}}
+  .cancel svg{{width:14px;height:14px;}}
+  .method{{
+    display:inline-flex;align-items:center;gap:7px;
+    font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.06em;color:var(--vs-text-3);
+    padding:4px 9px;border-radius:6px;border:1px solid var(--vs-border);background:var(--vs-surface);white-space:nowrap;
+  }}
+  .method i{{width:4px;height:4px;border-radius:50%;background:var(--vs-pink);}}
+  @keyframes vs-radiate{{0%{{transform:scale(0.4);opacity:0.9;}}70%{{opacity:0.05;}}100%{{transform:scale(1.4);opacity:0;}}}}
+  @keyframes vs-pulse{{0%,100%{{opacity:1;transform:scale(1);}}50%{{opacity:0.55;transform:scale(0.82);}}}}
+  @keyframes vs-shimmer-row{{0%{{transform:translateX(-100%);}}100%{{transform:translateX(100%);}}}}
+  @media (max-width:440px){{.screen{{padding:44px 26px 32px;}}.method{{display:none;}}}}
+  @media (prefers-reduced-motion:reduce){{
+    .mark .ring,.mark .core .glyph-dot,.eyebrow .dot,
+    .phase.active .circle .core2,.phase.active .label::after{{animation:none !important;}}
+  }}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="topbar">
-    <svg width="32" height="22" viewBox="0 0 54 40" fill="none"><path d="M3 20 Q 11 4 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/><circle cx="37" cy="18" r="4.2" fill="#e879f9"/></svg>
-    <span style="font-weight:700;color:#fff;letter-spacing:0.15em;font-size:13px;">VERUM</span> <em style="font-weight:400;color:#c084fc;font-style:italic;letter-spacing:0.15em;font-size:13px;">SIGNAL</em>
-  </div>
-  <div class="card">
-    <div class="pulse"></div>
-    <div class="heading">Analysing this article</div>
-    <div class="msg">This is a fresh article. Our pipeline is retrieving content, extracting claims, and verifying each one against independent sources.</div>
-    <div class="steps">
-      <div class="step active" id="step1"><div class="step-dot"></div>Retrieving article content</div>
-      <div class="step" id="step2"><div class="step-dot"></div>Extracting factual claims</div>
-      <div class="step" id="step3"><div class="step-dot"></div>Verifying claims against sources</div>
-      <div class="step" id="step4"><div class="step-dot"></div>Generating analysis</div>
+  <main class="screen" role="status" aria-live="polite" aria-label="Analyzing article">
+    <div class="mark">
+      <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+      <div class="core">
+        <svg width="52" height="48" viewBox="0 0 30 28" fill="none" aria-hidden="true">
+          <path class="wave" d="M3 14 Q7 4 11 14 Q15 24 19 14 Q23 4 26 14" stroke="#a855f7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle class="glyph-dot" cx="27.5" cy="14" r="2.6" fill="#ec4899"/>
+        </svg>
+      </div>
     </div>
-    <div class="url-disp">{url[:80]}{'...' if len(url) > 80 else ''}</div>
-    <a href="/" class="back">&#8592; Cancel</a>
-  </div>
-</div>
+    <svg class="wm" viewBox="3 5 135 18" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
+      <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+      <text x="32" y="19" font-family="'Trebuchet MS',sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+      <text x="88" y="19" font-family="'Trebuchet MS',sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+    </svg>
+    <div class="eyebrow"><span class="dot"></span>Received</div>
+    <div class="url-pill" title="{url}">
+      <span class="scheme">https://</span>
+      <span class="host">{url.split('://')[-1][:60]}{'...' if len(url.split('://')[-1]) > 60 else ''}</span>
+    </div>
+    <p class="status">Reading the article and<br><em>weighing every claim.</em></p>
+    <ul class="phases" id="pipeline">
+      <li class="phase active" data-step="0">
+        <span class="circle"><span class="core2"></span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+        <span class="label">Retrieving article content</span>
+      </li>
+      <li class="phase" data-step="1">
+        <span class="circle"><span class="core2"></span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+        <span class="label">Extracting factual claims</span>
+      </li>
+      <li class="phase" data-step="2">
+        <span class="circle"><span class="core2"></span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+        <span class="label">Verifying claims against sources</span>
+      </li>
+      <li class="phase" data-step="3">
+        <span class="circle"><span class="core2"></span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+        <span class="label">Generating analysis</span>
+      </li>
+    </ul>
+    <div class="foot">
+      <a class="cancel" href="/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        Cancel
+      </a>
+      <span class="method"><i></i>Methodology v1.7</span>
+    </div>
+  </main>
 <script>
-const steps = ['step1','step2','step3','step4'];
-let current = 0;
 let attempts = 0;
 const maxAttempts = 40;
 const encodedUrl = encodeURIComponent('{url}');
-        const depthParam = '{depth_param}';
+const depthParam = '{depth_param}';
 
-function advanceStep() {{
-  if (current < steps.length - 1) {{
-    document.getElementById(steps[current]).classList.remove('active');
-    current++;
-    document.getElementById(steps[current]).classList.add('active');
-  }}
+function renderPhases(currentStage) {{
+  document.querySelectorAll('#pipeline .phase').forEach(function(el, i) {{
+    el.className = 'phase' + (i < currentStage ? ' done' : i === currentStage ? ' active' : '');
+  }});
 }}
 
 function checkStatus() {{
@@ -1821,18 +1960,18 @@ function checkStatus() {{
     .then(r => r.json())
     .then(data => {{
       if (data.status === 'ready') {{
+        renderPhases(4);
         window.location.href = '/report?url=' + encodedUrl + '&_async=1' + depthParam;
       }} else {{
-        if (attempts === 3) advanceStep();
-        if (attempts === 8) advanceStep();
-        if (attempts === 15) advanceStep();
+        if (attempts === 3) renderPhases(1);
+        if (attempts === 8) renderPhases(2);
+        if (attempts === 15) renderPhases(3);
         setTimeout(checkStatus, 3000);
       }}
     }})
     .catch(() => setTimeout(checkStatus, 3000));
 }}
 
-// Trigger background processing
 fetch('/report?url=' + encodedUrl + '&_async=1' + depthParam);
 setTimeout(checkStatus, 3000);
 </script>
