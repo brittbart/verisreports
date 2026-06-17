@@ -5918,6 +5918,15 @@ def api_ops_debates():
             SELECT id, slug, event_name, event_date, start_time, timezone
             FROM events
             WHERE is_public = TRUE AND event_date = CURRENT_DATE
+            AND (
+                start_time IS NULL
+                OR (
+                    NOW() AT TIME ZONE COALESCE(timezone, 'UTC') >=
+                        (start_time::interval - INTERVAL '5 minutes')
+                    AND NOW() AT TIME ZONE COALESCE(timezone, 'UTC') <=
+                        (start_time::interval + INTERVAL '3 hours')
+                )
+            )
             LIMIT 1
         """)
         live_row = cur.fetchone()
