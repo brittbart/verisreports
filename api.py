@@ -2907,7 +2907,10 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         # Use as_of string as proxy if raw datetime not threaded through
         try:
             from datetime import datetime as _dt, timezone as _tz
-            _parsed = _dt.strptime(as_of, '%B %d, %Y') if as_of and as_of != 'assessment date unavailable' else None
+            # SESSION 6 COUPLING: staleness computed by re-parsing the as_of DISPLAY string.
+    # If as_of format ever changes, staleness math breaks silently (no exception).
+    # Session 6 fix: thread raw verified_at datetime through render block instead.
+    _parsed = _dt.strptime(as_of, '%B %d, %Y') if as_of and as_of != 'assessment date unavailable' else None
             if _parsed:
                 _age_days = (_dt.now() - _parsed).days
                 _recheck_available = _age_days >= RECHECK_STALENESS_DAYS
@@ -3072,6 +3075,26 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{compare_html}}', str(compare_html))
     html = html.replace('{{total}}', str(stats_total_for_free if stats_total_for_free is not None else stats.get('total',0)))
     html = html.replace('{{sc}}', str(sc))
+    html = html.replace('{{not_verifiable}}', str(stats.get('not_verifiable', 0)))
+    # D2: free template passive staleness notice (14-day threshold)
+    _staleness_notice = ''
+    if depth == 2 and as_of and as_of != 'assessment date unavailable':
+        try:
+            from datetime import datetime as _dt2
+            _assessed_dt = _dt2.strptime(as_of, '%B %d, %Y')  # SESSION 6 COUPLING — see comment above
+            _age_days = (datetime.utcnow() - _assessed_dt).days
+            if _age_days >= 14:
+                _staleness_notice = (
+                    '<div style="font-family:ui-monospace,monospace;font-size:11px;'
+                    'color:rgba(232,232,240,0.35);padding:10px 0 6px;'
+                    'border-top:0.5px solid rgba(255,255,255,0.06);margin-bottom:8px;">'
+                    'Assessed ' + as_of + ' &nbsp;&middot;&nbsp; '
+                    '<span style="color:rgba(168,85,247,0.5);">Pro users can request a re-check</span>'
+                    '</div>'
+                )
+        except Exception:
+            pass
+    html = html.replace('{{staleness_notice}}', _staleness_notice)
     html = html.replace("{{seo_meta}}", report_meta(source=str(source), title=str(title), score=score, url=str(url), short_hash=short_url_hash))
     # ClaimReview JSON-LD structured data for Google rich snippets
     from seo import claim_review_jsonld
