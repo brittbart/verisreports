@@ -46,7 +46,7 @@ Return ONLY this JSON:
 {
   "verdict": "supported",
   "confidence_score": 1,
-  "verdict_summary": "one sentence plain-language explanation",
-  "full_analysis": "2-3 sentences explaining what you found, what sources you used, and why you assigned this verdict",
+  "verdict_summary": "one sentence stating the verdict conclusion in plain language",
+  "full_analysis": "2-3 sentences on the EVIDENCE: what each source said, where they agreed or diverged, and why the verdict follows. Do not restate the summary.",
   "sources_used": "specific named sources and whether each independently confirmed the fact"
 }"""
