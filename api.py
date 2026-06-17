@@ -2031,7 +2031,77 @@ setTimeout(checkStatus, 3000);
                             if not _audit_override and not anon_ceiling_ok(get_db, request):
                                 conn2.close()
                                 conn.close()
-                                return redirect('/pricing.html?reason=daily_limit&scope=anon')
+                                return (lambda _url=url, _source=source: f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily limit reached — Verum Signal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *{{box-sizing:border-box;}}
+  body{{margin:0;background:#080810;color:#e8e8f0;font-family:'DM Sans',ui-sans-serif,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;}}
+  .stage{{width:100%;max-width:480px;}}
+  .top-bar{{display:flex;align-items:center;gap:12px;padding:0 0 16px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.12em;color:rgba(232,232,240,0.3);text-transform:uppercase;border-bottom:0.5px solid rgba(255,255,255,0.06);margin-bottom:32px;}}
+  .top-bar a{{color:rgba(168,85,247,0.7);text-decoration:none;}}
+  .mark{{display:flex;align-items:center;justify-content:center;margin-bottom:28px;}}
+  .mark svg{{opacity:0.9;}}
+  .panel{{background:#0d0d18;border:0.5px solid rgba(255,255,255,0.07);border-radius:12px;padding:32px 28px;text-align:center;}}
+  .eyebrow{{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(232,232,240,0.35);margin-bottom:14px;}}
+  h1{{font-family:'DM Serif Display',Georgia,serif;font-size:26px;font-weight:400;line-height:1.2;color:#f0f0f8;margin:0 0 12px;}}
+  h1 em{{font-style:italic;color:#c084fc;}}
+  .sub{{font-size:13px;line-height:1.65;color:rgba(232,232,240,0.5);margin:0 0 24px;max-width:340px;margin-left:auto;margin-right:auto;}}
+  .article-pill{{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:100px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.09);font-family:ui-monospace,monospace;font-size:11px;color:rgba(232,232,240,0.4);margin-bottom:28px;max-width:100%;overflow:hidden;}}
+  .article-pill .host{{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+  .cta-btn{{display:inline-block;padding:12px 28px;background:#7c3aed;color:#fff;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;letter-spacing:0.01em;transition:background 0.15s ease;margin-bottom:12px;}}
+  .cta-btn:hover{{background:#6d28d9;}}
+  .reset-note{{font-family:ui-monospace,monospace;font-size:11px;color:rgba(232,232,240,0.3);margin-bottom:24px;}}
+  .divider{{border:none;border-top:0.5px solid rgba(255,255,255,0.06);margin:20px 0;}}
+  .back-link{{font-size:13px;color:rgba(168,85,247,0.6);text-decoration:none;}}
+  .back-link:hover{{color:#a855f7;}}
+  .count-row{{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px;}}
+  .count-pip{{width:8px;height:8px;border-radius:50%;background:#a855f7;}}
+  .count-pip.used{{background:rgba(255,255,255,0.12);}}
+  .count-label{{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.1em;color:rgba(232,232,240,0.3);text-transform:uppercase;margin-left:4px;}}
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="top-bar">
+      <a href="/">&#8592; Verum Signal</a>
+    </div>
+    <div class="mark">
+      <svg width="40" height="28" viewBox="0 0 54 40" fill="none">
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      </svg>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">Daily limit reached</div>
+      <h1>You've used your 3 free<br><em>reports today.</em></h1>
+      <p class="sub">Free reports reset at midnight. Upgrade to Pro for unlimited reports, full claim breakdowns, and source analysis.</p>
+      <div class="count-row">
+        <span class="count-pip"></span>
+        <span class="count-pip"></span>
+        <span class="count-pip"></span>
+        <span class="count-pip used"></span>
+        <span class="count-label">3 / 3 used today</span>
+      </div>
+      <div class="article-pill">
+        <span>&#128279;</span>
+        <span class="host">{_url.split("://")[-1][:55]}{"..." if len(_url.split("://")[-1]) > 55 else ""}</span>
+      </div>
+      <br>
+      <a href="/pricing.html?url={_url}" class="cta-btn">See Pro plans &rarr;</a>
+      <p class="reset-note">Free reports reset tomorrow &middot; No card required for Pro trial</p>
+      <hr class="divider">
+      <a href="/" class="back-link">&#8592; Analyse a different article</a>
+    </div>
+  </div>
+</body>
+</html>""")(), 200, {'Content-Type': 'text/html'}
                         # ── End quota / ceiling gate ────────────────────────
 
                         verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
@@ -2116,7 +2186,77 @@ setTimeout(checkStatus, 3000);
                             # Anonymous: enforce 3/day/IP ceiling (skip for audit override)
                             if not _audit_override and not anon_ceiling_ok(get_db, request):
                                 conn2.close()
-                                return redirect('/pricing.html?reason=daily_limit&scope=anon')
+                                return (lambda _url=url, _source=source: f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily limit reached — Verum Signal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *{{box-sizing:border-box;}}
+  body{{margin:0;background:#080810;color:#e8e8f0;font-family:'DM Sans',ui-sans-serif,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;}}
+  .stage{{width:100%;max-width:480px;}}
+  .top-bar{{display:flex;align-items:center;gap:12px;padding:0 0 16px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.12em;color:rgba(232,232,240,0.3);text-transform:uppercase;border-bottom:0.5px solid rgba(255,255,255,0.06);margin-bottom:32px;}}
+  .top-bar a{{color:rgba(168,85,247,0.7);text-decoration:none;}}
+  .mark{{display:flex;align-items:center;justify-content:center;margin-bottom:28px;}}
+  .mark svg{{opacity:0.9;}}
+  .panel{{background:#0d0d18;border:0.5px solid rgba(255,255,255,0.07);border-radius:12px;padding:32px 28px;text-align:center;}}
+  .eyebrow{{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(232,232,240,0.35);margin-bottom:14px;}}
+  h1{{font-family:'DM Serif Display',Georgia,serif;font-size:26px;font-weight:400;line-height:1.2;color:#f0f0f8;margin:0 0 12px;}}
+  h1 em{{font-style:italic;color:#c084fc;}}
+  .sub{{font-size:13px;line-height:1.65;color:rgba(232,232,240,0.5);margin:0 0 24px;max-width:340px;margin-left:auto;margin-right:auto;}}
+  .article-pill{{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:100px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.09);font-family:ui-monospace,monospace;font-size:11px;color:rgba(232,232,240,0.4);margin-bottom:28px;max-width:100%;overflow:hidden;}}
+  .article-pill .host{{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+  .cta-btn{{display:inline-block;padding:12px 28px;background:#7c3aed;color:#fff;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;letter-spacing:0.01em;transition:background 0.15s ease;margin-bottom:12px;}}
+  .cta-btn:hover{{background:#6d28d9;}}
+  .reset-note{{font-family:ui-monospace,monospace;font-size:11px;color:rgba(232,232,240,0.3);margin-bottom:24px;}}
+  .divider{{border:none;border-top:0.5px solid rgba(255,255,255,0.06);margin:20px 0;}}
+  .back-link{{font-size:13px;color:rgba(168,85,247,0.6);text-decoration:none;}}
+  .back-link:hover{{color:#a855f7;}}
+  .count-row{{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px;}}
+  .count-pip{{width:8px;height:8px;border-radius:50%;background:#a855f7;}}
+  .count-pip.used{{background:rgba(255,255,255,0.12);}}
+  .count-label{{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.1em;color:rgba(232,232,240,0.3);text-transform:uppercase;margin-left:4px;}}
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="top-bar">
+      <a href="/">&#8592; Verum Signal</a>
+    </div>
+    <div class="mark">
+      <svg width="40" height="28" viewBox="0 0 54 40" fill="none">
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      </svg>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">Daily limit reached</div>
+      <h1>You've used your 3 free<br><em>reports today.</em></h1>
+      <p class="sub">Free reports reset at midnight. Upgrade to Pro for unlimited reports, full claim breakdowns, and source analysis.</p>
+      <div class="count-row">
+        <span class="count-pip"></span>
+        <span class="count-pip"></span>
+        <span class="count-pip"></span>
+        <span class="count-pip used"></span>
+        <span class="count-label">3 / 3 used today</span>
+      </div>
+      <div class="article-pill">
+        <span>&#128279;</span>
+        <span class="host">{_url.split("://")[-1][:55]}{"..." if len(_url.split("://")[-1]) > 55 else ""}</span>
+      </div>
+      <br>
+      <a href="/pricing.html?url={_url}" class="cta-btn">See Pro plans &rarr;</a>
+      <p class="reset-note">Free reports reset tomorrow &middot; No card required for Pro trial</p>
+      <hr class="divider">
+      <a href="/" class="back-link">&#8592; Analyse a different article</a>
+    </div>
+  </div>
+</body>
+</html>""")(), 200, {'Content-Type': 'text/html'}
                         verified_claims = []
                         verified_claims = verify_and_insert_claims(claims, art_id, title_db, source_name, cur2, depth=depth)
                         if _gate_user:
