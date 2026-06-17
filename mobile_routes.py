@@ -716,10 +716,15 @@ def debate_detail(slug):
                 "description": e['event_subtitle'],
                 "event_date":  e['event_date'].isoformat() if e['event_date'] else None,
                 "start_time":  e['start_time'].strftime('%H:%M') if e['start_time'] else None,
+                "start_time_str": (e['start_time'].strftime('%-I:%M %p') + ' ' + (e['timezone'] or '')).strip() if e['start_time'] else None,
                 "timezone":    e['timezone'],
                 "venue":       e['venue'],
                 "notes":       e['notes'],
                 "is_live":     False,
+                "event_start_iso": (
+                    datetime.combine(e['event_date'], e['start_time']).isoformat() + '+00:00'
+                    if e['event_date'] and e['start_time'] else None
+                ),
             },
             "speakers": speakers,
             "claims":   claims_out,
