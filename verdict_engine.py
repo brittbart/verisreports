@@ -3,7 +3,14 @@ import json
 import re
 import psycopg2
 import anthropic
-from verdict_prompts import VERDICT_SYSTEM_PROMPT
+from verdict_prompts import VERDICT_SYSTEM_PROMPT, build_verdict_prompt
+import os as _os_gate
+STRUCTURED_SOURCES_LIVE = _os_gate.getenv("STRUCTURED_SOURCES_LIVE", "false").lower() == "true"
+if STRUCTURED_SOURCES_LIVE:
+    print("[verdict_engine] STRUCTURED_SOURCES_LIVE=true — structured sources ACTIVE")
+else:
+    print("[verdict_engine] STRUCTURED_SOURCES_LIVE=false — legacy prose sources active")
+_ACTIVE_PROMPT = build_verdict_prompt(STRUCTURED_SOURCES_LIVE)
 from dotenv import load_dotenv
 from api_leaderboard import METHODOLOGY_VERSION
 
@@ -157,7 +164,7 @@ Try at least 2-3 distinct search queries before concluding not_verifiable."""
                     "name": "web_search"
                 }
             ],
-            system=[{"type": "text", "text": VERDICT_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+            system=[{"type": "text", "text": _ACTIVE_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[
                 {"role": "user", "content": prompt}
             ]
