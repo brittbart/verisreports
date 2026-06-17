@@ -2218,9 +2218,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
 
     # Confidence scale — module-level so render block can build the legend from it
     CONF_EXPLAIN = {
-        1: 'One source found — claim is plausible but not independently confirmed.',
-        2: 'One strong primary source confirmed this claim.',
-        3: 'Two or more genuinely independent sources confirmed this claim.',
+        1: 'Plausible or difficult to independently verify — one source found, or inherently hard to confirm.',
+        2: 'One credible source with original reporting confirmed this claim (or consistent non-independent reporting).',
+        3: 'Two or more genuinely independent sources with original reporting confirmed this claim.',
     }
 
     def claim_row(c, idx):
@@ -2245,7 +2245,11 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         for d in range(3):
             cls = 'vs-conf-on' if d < confidence else 'vs-conf-off'
             conf_dots += '<span class="vs-conf-dot ' + cls + '"></span>'
-        conf_label = {1: "Confidence: 1/3 — one source found", 2: "Confidence: 2/3 — two sources found", 3: "Confidence: 3/3 — supported by multiple independent sources"}.get(confidence, "")
+        conf_label = {
+            1: "Confidence: 1/3 — plausible, or difficult to independently verify",
+            2: "Confidence: 2/3 — one credible source with original reporting",
+            3: "Confidence: 3/3 — two or more genuinely independent sources",
+        }.get(confidence, "")
         conf_num_html = '<span class="vs-conf-num">' + str(confidence) + '/3</span>'
         conf_html = '<div class="vs-conf" title="' + conf_label + '">' + conf_num_html + conf_dots + '</div>'
         # Wire tag
@@ -2302,9 +2306,11 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         v = c.get('verdict') or 'pending'
         VLBL_FREE = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'NOT YET VERIFIED'}
         text = smartquotes(c.get('claim_text', ''))
+        summary = c.get('verdict_summary', '') or ''
         sources = c.get('sources_used', '') or ''
         confidence = int(c.get('confidence_score', 2) or 2)
         lbl = VLBL_FREE.get(v, v.upper())
+        summary_html = ('<p class="claim-summary">' + smartquotes(summary) + '</p>') if summary else ''
         return (
             '<div class="claim-card ' + v + '">'
             '<div class="claim-head">'
@@ -2312,6 +2318,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '<span class="verdict-pill ' + v + '">' + lbl + ' &middot; ' + str(confidence) + '/3</span>'
             '</div>'
             '<p class="claim-text">' + text + '</p>'
+            + summary_html +
             '<div class="sources-label">SOURCES</div>'
             '<p class="sources-list">' + sources + '</p>'
             '</div>'
