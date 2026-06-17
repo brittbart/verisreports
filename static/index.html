@@ -555,11 +555,6 @@
       <input id="url-input" type="text" placeholder="https://example.com/article" autocomplete="off" style="flex:1;background:none;border:none;outline:none;color:#fff;font-size:15px;pointer-events:auto;position:relative;z-index:999;" />
       <button onclick="handleAnalyze()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;pointer-events:auto;position:relative;z-index:999;">Analyze</button>
     </div>
-    <div style="display:flex;align-items:center;max-width:580px;margin:18px auto 0;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:6px 6px 6px 20px;">
-      <input id="paid-url-input" type="text" placeholder="https://example.com/article" autocomplete="off" style="flex:1;background:none;border:none;outline:none;color:#fff;font-size:15px;pointer-events:auto;position:relative;z-index:999;" />
-      <button onclick="handlePaidAnalyze()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;pointer-events:auto;position:relative;z-index:999;">Analyze</button>
-    </div>
-    <div style="max-width:580px;margin:8px auto 0;font-family:ui-monospace,monospace;font-size:11px;color:var(--text-3);text-align:center;letter-spacing:0.04em;">Temporary placeholder for Paid Report for friends and family audit</div>
     <div class="hero-pill fu5" style="margin-top: 36px; margin-bottom: 16px;">
       <span class="blink-dot"></span>
       <span>Continuously updated · Across the political spectrum · <a href="/methodology" class="pill-link">Documented methodology</a></span>
@@ -777,18 +772,7 @@
     btn.textContent = 'Analyze';
     btn.disabled = false;
   }
-  const AUDIT_KEY = 'D-ea73GJE0STiBLzjTCcIXzIK1LKv5nDbYWA2Z9VPcs';
-  function handlePaidAnalyze() {
-    const v = document.getElementById('paid-url-input').value.trim();
-    if (!v) return;
-    const btn = document.getElementById('paid-url-input').nextElementSibling;
-    btn.textContent = 'Analyzing…';
-    btn.disabled = true;
-    const keyParam = AUDIT_KEY ? '&audit_key=' + encodeURIComponent(AUDIT_KEY) : '';
-    window.open('/report?url=' + encodeURIComponent(v) + keyParam, '_blank');
-    btn.textContent = 'Analyze';
-    btn.disabled = false;
-  }
+
 </script>
 
 <!-- ============================================================
