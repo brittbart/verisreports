@@ -2044,8 +2044,7 @@ setTimeout(checkStatus, 3000);
   *{{box-sizing:border-box;}}
   body{{margin:0;background:#080810;color:#e8e8f0;font-family:'DM Sans',ui-sans-serif,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;}}
   .stage{{width:100%;max-width:480px;}}
-  .top-bar{{display:flex;align-items:center;gap:12px;padding:0 0 16px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.12em;color:rgba(232,232,240,0.3);text-transform:uppercase;border-bottom:0.5px solid rgba(255,255,255,0.06);margin-bottom:32px;}}
-  .top-bar a{{color:rgba(168,85,247,0.7);text-decoration:none;}}
+  .top-bar{{display:flex;align-items:center;justify-content:center;padding:0 0 20px;border-bottom:0.5px solid rgba(255,255,255,0.06);margin-bottom:32px;}}
   .mark{{display:flex;align-items:center;justify-content:center;margin-bottom:28px;}}
   .mark svg{{opacity:0.9;}}
   .panel{{background:#0d0d18;border:0.5px solid rgba(255,255,255,0.07);border-radius:12px;padding:32px 28px;text-align:center;}}
@@ -2070,12 +2069,11 @@ setTimeout(checkStatus, 3000);
 <body>
   <div class="stage">
     <div class="top-bar">
-      <a href="/">&#8592; Verum Signal</a>
-    </div>
-    <div class="mark">
-      <svg width="40" height="28" viewBox="0 0 54 40" fill="none">
-        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      <svg viewBox="3 5 135 18" height="20" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="'Trebuchet MS',sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="'Trebuchet MS',sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
       </svg>
     </div>
     <div class="panel">
@@ -2094,10 +2092,9 @@ setTimeout(checkStatus, 3000);
         <span class="host">{_url.split("://")[-1][:55]}{"..." if len(_url.split("://")[-1]) > 55 else ""}</span>
       </div>
       <br>
-      <a href="/pricing.html?url={_url}" class="cta-btn">See Pro plans &rarr;</a>
-      <p class="reset-note">Free reports reset tomorrow &middot; No card required for Pro trial</p>
-      <hr class="divider">
-      <a href="/" class="back-link">&#8592; Analyse a different article</a>
+      <a href="/pricing.html?url={_url}" class="cta-btn">See Pro plan &rarr;</a>
+      <p class="reset-note">Free reports reset daily &middot; No card required for Pro trial</p>
+
     </div>
   </div>
 </body>
@@ -2199,8 +2196,7 @@ setTimeout(checkStatus, 3000);
   *{{box-sizing:border-box;}}
   body{{margin:0;background:#080810;color:#e8e8f0;font-family:'DM Sans',ui-sans-serif,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;}}
   .stage{{width:100%;max-width:480px;}}
-  .top-bar{{display:flex;align-items:center;gap:12px;padding:0 0 16px;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:0.12em;color:rgba(232,232,240,0.3);text-transform:uppercase;border-bottom:0.5px solid rgba(255,255,255,0.06);margin-bottom:32px;}}
-  .top-bar a{{color:rgba(168,85,247,0.7);text-decoration:none;}}
+  .top-bar{{display:flex;align-items:center;justify-content:center;padding:0 0 20px;border-bottom:0.5px solid rgba(255,255,255,0.06);margin-bottom:32px;}}
   .mark{{display:flex;align-items:center;justify-content:center;margin-bottom:28px;}}
   .mark svg{{opacity:0.9;}}
   .panel{{background:#0d0d18;border:0.5px solid rgba(255,255,255,0.07);border-radius:12px;padding:32px 28px;text-align:center;}}
@@ -2225,12 +2221,11 @@ setTimeout(checkStatus, 3000);
 <body>
   <div class="stage">
     <div class="top-bar">
-      <a href="/">&#8592; Verum Signal</a>
-    </div>
-    <div class="mark">
-      <svg width="40" height="28" viewBox="0 0 54 40" fill="none">
-        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      <svg viewBox="3 5 135 18" height="20" xmlns="http://www.w3.org/2000/svg" aria-label="Verum Signal">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="'Trebuchet MS',sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="'Trebuchet MS',sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
       </svg>
     </div>
     <div class="panel">
@@ -2249,10 +2244,9 @@ setTimeout(checkStatus, 3000);
         <span class="host">{_url.split("://")[-1][:55]}{"..." if len(_url.split("://")[-1]) > 55 else ""}</span>
       </div>
       <br>
-      <a href="/pricing.html?url={_url}" class="cta-btn">See Pro plans &rarr;</a>
-      <p class="reset-note">Free reports reset tomorrow &middot; No card required for Pro trial</p>
-      <hr class="divider">
-      <a href="/" class="back-link">&#8592; Analyse a different article</a>
+      <a href="/pricing.html?url={_url}" class="cta-btn">See Pro plan &rarr;</a>
+      <p class="reset-note">Free reports reset daily &middot; No card required for Pro trial</p>
+
     </div>
   </div>
 </body>
