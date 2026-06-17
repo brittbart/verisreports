@@ -2529,6 +2529,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         pill_cls = VPILL.get(v, 'p-opi')
         lbl = VLBL.get(v, v.upper())
         text = smartquotes(c.get('claim_text', ''))
+        text = text[:1].upper() + text[1:] if text else text
         summary = c.get('verdict_summary', '') or ''
         full = c.get('full_analysis', '') or ''
         sources = c.get('sources_used', '') or ''
@@ -2615,6 +2616,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         v = c.get('verdict') or 'pending'
         VLBL_FREE = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'NOT YET VERIFIED'}
         text = smartquotes(c.get('claim_text', ''))
+        text = text[:1].upper() + text[1:] if text else text
         summary = c.get('verdict_summary', '') or ''
         sources = c.get('sources_used', '') or ''
         src_structured_free = c.get('sources_structured') or []
