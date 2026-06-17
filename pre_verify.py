@@ -103,13 +103,29 @@ def pre_verify_articles(limit=50, depth=None):
                     confidence = min(result.get("confidence_score", 1), 3)
                     summary = result.get("verdict_summary", "")
                     analysis = result.get("full_analysis", "")
-                    sources = result.get("sources_used", "")
+                    _pv_raw = result.get("sources_used", "")
+                    import json as _pvjson
+                    from verdict_engine import _sources_to_prose, STRUCTURED_SOURCES_LIVE as _pv_live
+                    _pv_structured = []
+                    if _pv_live:
+                        if isinstance(_pv_raw, list):
+                            _pv_structured = _pv_raw
+                        elif isinstance(_pv_raw, str):
+                            try:
+                                _pvp = _pvjson.loads(_pv_raw)
+                                _pv_structured = _pvp if isinstance(_pvp, list) else []
+                            except Exception:
+                                _pv_structured = []
+                    sources = _sources_to_prose(_pv_structured) if _pv_structured else (str(_pv_raw) if _pv_raw else "")
                     cur.execute("""
                         UPDATE claims SET verdict=%s, confidence_score=%s,
                         verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                        sources_structured=%s,
                         verification_depth=COALESCE(%s, verification_depth),
                         last_checked=NOW() WHERE id=%s
-                    """, (verdict, confidence, summary, analysis, sources, depth or 99, claim_id))
+                    """, (verdict, confidence, summary, analysis, sources,
+                          _pvjson.dumps(_pv_structured),
+                          depth or 99, claim_id))
                     update_source_profile(cur, source_name, verdict)
                     calculate_reliability_score(cur, source_name, claim_id)
                     conn.commit()
