@@ -163,8 +163,16 @@
   }
   .claim-toggle {
     font-family: ui-monospace, monospace;
-    font-size: 10px; color: rgba(168,85,247,0.6);
-    letter-spacing: 0.05em; white-space: nowrap; margin-top: 2px;
+    font-size: 11px; color: #a855f7;
+    letter-spacing: 0.05em; white-space: nowrap; margin-top: 4px;
+    border: 0.5px solid rgba(168,85,247,0.35);
+    border-radius: 4px; padding: 3px 8px;
+    background: rgba(168,85,247,0.08);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .claim-header:hover .claim-toggle {
+    background: rgba(168,85,247,0.15);
+    border-color: rgba(168,85,247,0.6);
   }
 
   .verdict-pill {
@@ -225,8 +233,8 @@
     text-align: center;
   }
   .upgrade-cta h2 {
-    font-family: 'DM Sans', ui-sans-serif, sans-serif;
-    font-size: 22px; font-weight: 600; line-height: 1.15;
+    font-family: 'DM Serif Display', 'Iowan Old Style', Georgia, serif;
+    font-size: 24px; font-weight: 400; line-height: 1.15;
     margin: 0 0 8px; color: #f0f0f8;
   }
   .upgrade-cta h2 .accent { font-style: italic; color: #D4537E; }
