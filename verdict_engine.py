@@ -99,6 +99,24 @@ ARTICLE: {article_title}
 Try at least 2-3 distinct search queries before concluding not_verifiable."""
 
 
+
+def _sources_to_prose(structured):
+    """Convert structured sources array to prose fallback for sources_used TEXT.
+    Returns empty string if empty/None.
+    """
+    if not structured:
+        return ""
+    parts = []
+    for s in structured:
+        name = s.get("name", "") or ""
+        note = s.get("note", "") or ""
+        indep = s.get("independent", False)
+        part = name
+        if note: part += f" — {note}"
+        if indep: part += " (independently confirmed)"
+        parts.append(part)
+    return "; ".join(parts)
+
 def analyse_claim(claim_text, speaker, claim_type,
                   article_title, source_name, cursor=None, stage='verdicts', **kwargs):
 
@@ -108,7 +126,7 @@ def analyse_claim(claim_text, speaker, claim_type,
 
     if pre_filter_claim(claim_text) == "opinion":
         print(f"  -> Pre-filter: opinion")
-        return {"verdict":"opinion","confidence_score":1,"verdict_summary":"Prediction or editorial opinion.","full_analysis":"Pre-classified by local filter.","sources_used":"Local filter"}
+        return {"verdict":"opinion","confidence_score":1,"verdict_summary":"Prediction or editorial opinion.","full_analysis":"Pre-classified by local filter.","sources_used":"Local filter","sources_structured":[]}
 
     claim_origin = kwargs.get('claim_origin', 'outlet_claim')
     if claim_origin == 'attributed_claim':
@@ -320,7 +338,17 @@ def run_verdict_engine(limit=10, depth=None):
             confidence = min(result.get('confidence_score', 1), 3)
             summary = result.get('verdict_summary', '')
             analysis = result.get('full_analysis', '')
-            sources = result.get('sources_used', '')
+            import json as _ejson
+            _src_raw = result.get('sources_used', '')
+            if isinstance(_src_raw, list): _src_structured = _src_raw
+            elif isinstance(_src_raw, str):
+                try:
+                    _p = _ejson.loads(_src_raw)
+                    _src_structured = _p if isinstance(_p, list) else []
+                except Exception: _src_structured = []
+            else: _src_structured = []
+            sources = _sources_to_prose(_src_structured) if _src_structured else (str(_src_raw) if _src_raw else '')
+            if not _src_structured: print(f'[engine] sources_structured empty for claim {claim_id}')
             cursor.execute("""
                 UPDATE claims
                 SET verdict = %s,
@@ -328,12 +356,14 @@ def run_verdict_engine(limit=10, depth=None):
                     verdict_summary = %s,
                     full_analysis = %s,
                     sources_used = %s,
+                    sources_structured = %s,
                     verification_depth = COALESCE(%s, verification_depth),
                     methodology_version = %s,
                     last_checked = NOW()
                 WHERE id = %s;
             """, (verdict, confidence, summary,
-                  analysis, sources, depth or 99, METHODOLOGY_VERSION, claim_id))
+                  analysis, sources, _ejson.dumps(_src_structured),
+                  depth or 99, METHODOLOGY_VERSION, claim_id))
             update_source_profile(cursor, source_name, verdict)
             calculate_reliability_score(cursor, source_name)
             conn.commit()
@@ -615,7 +645,16 @@ def process_batch_results(batch_id=None):
                 confidence = min(data.get("confidence_score", 1), 3)
                 summary = data.get("verdict_summary", "")
                 analysis = data.get("full_analysis", "")
-                sources = data.get("sources_used", "")
+                import json as _ejson2
+                _src_raw2 = data.get("sources_used", "")
+                if isinstance(_src_raw2, list): _src_structured2 = _src_raw2
+                elif isinstance(_src_raw2, str):
+                    try:
+                        _p2 = _ejson2.loads(_src_raw2)
+                        _src_structured2 = _p2 if isinstance(_p2, list) else []
+                    except Exception: _src_structured2 = []
+                else: _src_structured2 = []
+                sources = _sources_to_prose(_src_structured2) if _src_structured2 else (str(_src_raw2) if _src_raw2 else "")
                 cursor.execute("""SELECT a.source_name FROM claims c
                     JOIN articles a ON c.article_id = a.id WHERE c.id = %s""",
                     (claim_id,))
@@ -623,11 +662,14 @@ def process_batch_results(batch_id=None):
                 source_name = row[0] if row else "unknown"
                 cursor.execute("""UPDATE claims SET verdict=%s, confidence_score=%s,
                     verdict_summary=%s, full_analysis=%s, sources_used=%s,
+                    sources_structured=%s,
                     verification_depth=COALESCE(%s, verification_depth),
                     methodology_version=%s,
                     verdict_status='provisional',
                     last_checked=NOW() WHERE id=%s""",
-                    (verdict, confidence, summary, analysis, sources, 99, METHODOLOGY_VERSION, claim_id))
+                    (verdict, confidence, summary, analysis, sources,
+                     _ejson2.dumps(_src_structured2),
+                     99, METHODOLOGY_VERSION, claim_id))
                 update_source_profile(cursor, source_name, verdict)
                 calculate_reliability_score(cursor, source_name, claim_id)
                 conn.commit()
