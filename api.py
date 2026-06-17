@@ -116,63 +116,108 @@ def get_or_create_short_hash(article_id):
 # ---------- Phase 4: depth-aware claim verification ----------
 def verify_and_insert_claims(claims, art_id, title, source_name, cursor, depth=None):
     """Verify the top `depth` claims and insert all claims into the DB.
-    
+
     depth=None means verify all claims (paid behavior).
     depth=2 means verify top 2 (free behavior).
-    
+
     Outlet claims are processed first (they're what scoring uses).
     Remaining claims insert with verdict=NULL, verification_depth=NULL
     so a later upgrade can verify them.
+
+    Verification runs concurrently (ThreadPoolExecutor, max_workers=3) mirroring
+    the existing debate pattern at verdict_engine.py:523. Each worker opens its
+    own DB connection for the INSERT — the shared cursor is NOT used inside workers.
+    Results are re-sorted by original index before the claims[:2] cap so free-report
+    ordering is preserved exactly as in the serial path.
     """
     from verdict_engine import analyse_claim
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import json as _ijson
+
     def _sort_key(c):
         return 0 if c.get('claim_origin', 'outlet_claim') == 'outlet_claim' else 1
     sorted_claims = sorted(claims, key=_sort_key)
     verify_count = len(sorted_claims) if depth is None else min(depth, len(sorted_claims))
-    
-    out_rows = []
-    for i, c in enumerate(sorted_claims):
+
+    # ── Phase 1: parallel verification + insert for claims within verify_count ──
+    def _verify_worker(idx_claim):
+        """Worker: verify one claim and insert it. Opens its own DB connection."""
+        idx, c = idx_claim
         claim_text = c.get('claim_text', '')
         speaker = c.get('speaker', '')
         claim_type = c.get('claim_type', 'factual')
         claim_origin = c.get('claim_origin', 'outlet_claim')
         attribution_context = c.get('attribution_context', '')
-        
-        if i < verify_count:
+        try:
             result = analyse_claim(
                 claim_text, speaker, claim_type, title, source_name,
-                cursor=cursor, claim_origin=claim_origin,
+                cursor=None, claim_origin=claim_origin,
                 attribution_context=attribution_context,
             )
             if result is None:
                 print(f"[verify] analyse_claim returned None for: {claim_text[:80]}... -- skipping")
-                continue
-            import json as _ijson
+                return idx, None
             _ins_raw = result.get('sources_used', '')
-            if isinstance(_ins_raw, list): _ins_str = _ins_raw
+            if isinstance(_ins_raw, list):
+                _ins_str = _ins_raw
             elif isinstance(_ins_raw, str):
                 try:
-                    _ip = _ijson.loads(_ins_raw); _ins_str = _ip if isinstance(_ip, list) else []
-                except Exception: _ins_str = []
-            else: _ins_str = []
+                    _ip = _ijson.loads(_ins_raw)
+                    _ins_str = _ip if isinstance(_ip, list) else []
+                except Exception:
+                    _ins_str = []
+            else:
+                _ins_str = []
             _ins_prose = _sources_to_prose(_ins_str) if _ins_str else (str(_ins_raw) if _ins_raw else '')
-            cursor.execute(
-                "INSERT INTO claims (article_id, claim_text, speaker, claim_type, "
-                "claim_origin, verdict, confidence_score, verdict_summary, "
-                "full_analysis, sources_used, sources_structured, priority_score, verification_depth) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-                (art_id, claim_text, speaker, claim_type, claim_origin,
-                 result.get('verdict'), result.get('confidence_score'),
-                 result.get('verdict_summary'), result.get('full_analysis'),
-                 _ins_prose, _ijson.dumps(_ins_str),
-                 50, depth or 99),
-            )
-            cid = cursor.fetchone()[0]
-            out_rows.append((cid, claim_text, speaker, claim_type, claim_origin,
-                             result.get('verdict'), result.get('confidence_score'),
-                             result.get('verdict_summary'), result.get('full_analysis'),
-                             _ins_prose, _ijson.dumps(_ins_str)))
-        else:
+            # Per-worker DB connection (MITIGATION 1 — never share cursor across threads)
+            _wconn = get_db()
+            try:
+                with _wconn.cursor() as _wcur:
+                    _wcur.execute(
+                        "INSERT INTO claims (article_id, claim_text, speaker, claim_type, "
+                        "claim_origin, verdict, confidence_score, verdict_summary, "
+                        "full_analysis, sources_used, sources_structured, priority_score, verification_depth) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        (art_id, claim_text, speaker, claim_type, claim_origin,
+                         result.get('verdict'), result.get('confidence_score'),
+                         result.get('verdict_summary'), result.get('full_analysis'),
+                         _ins_prose, _ijson.dumps(_ins_str),
+                         50, depth or 99),
+                    )
+                    cid = _wcur.fetchone()[0]
+                _wconn.commit()
+            finally:
+                _wconn.close()
+            row = (cid, claim_text, speaker, claim_type, claim_origin,
+                   result.get('verdict'), result.get('confidence_score'),
+                   result.get('verdict_summary'), result.get('full_analysis'),
+                   _ins_prose, _ijson.dumps(_ins_str))
+            return idx, row
+        except Exception as e:
+            print(f"[verify] worker error for claim idx={idx}: {e}")
+            return idx, None
+
+    # Dispatch verified claims concurrently (max_workers=3, matching debate pattern)
+    to_verify = [(i, c) for i, c in enumerate(sorted_claims) if i < verify_count]
+    verified_results = {}  # idx -> row (or None on failure)
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {executor.submit(_verify_worker, ic): ic[0] for ic in to_verify}
+        for future in as_completed(futures):
+            try:
+                idx, row = future.result()
+                verified_results[idx] = row
+            except Exception as e:
+                print(f"[verify] future error: {e}")
+
+    # ── Phase 2: insert unverified claims serially (NULL insert, no model call) ──
+    unverified_rows = {}
+    for i, c in enumerate(sorted_claims):
+        if i >= verify_count:
+            claim_text = c.get('claim_text', '')
+            speaker = c.get('speaker', '')
+            claim_type = c.get('claim_type', 'factual')
+            claim_origin = c.get('claim_origin', 'outlet_claim')
             cursor.execute(
                 "INSERT INTO claims (article_id, claim_text, speaker, claim_type, "
                 "claim_origin, verdict, confidence_score, verdict_summary, "
@@ -181,9 +226,20 @@ def verify_and_insert_claims(claims, art_id, title, source_name, cursor, depth=N
                 (art_id, claim_text, speaker, claim_type, claim_origin, 50),
             )
             cid = cursor.fetchone()[0]
-            out_rows.append((cid, claim_text, speaker, claim_type, claim_origin,
-                             None, None, None, None, None))
+            unverified_rows[i] = (cid, claim_text, speaker, claim_type, claim_origin,
+                                  None, None, None, None, None)
+
+    # ── Phase 3: reassemble in original index order (MITIGATION 2 — preserves free top-2) ──
+    out_rows = []
+    for i in range(len(sorted_claims)):
+        if i in verified_results and verified_results[i] is not None:
+            out_rows.append(verified_results[i])
+        elif i in unverified_rows:
+            out_rows.append(unverified_rows[i])
+        # if verified_results[i] is None (worker failed), claim is skipped
+
     return out_rows
+
 
 
 
