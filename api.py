@@ -644,7 +644,7 @@ def get_report():
         cur.execute("""
             SELECT id, claim_text, speaker, claim_type, claim_origin,
                    verdict, confidence_score, verdict_summary,
-                   full_analysis, sources_used
+                   full_analysis, sources_used, sources_structured
             FROM claims
             WHERE article_id = %s
             ORDER BY priority_score DESC, id ASC
@@ -681,7 +681,7 @@ def get_report():
         rating = compute_score_band(score)
 
         claims_data = []
-        for cid, claim_text, speaker, claim_type, claim_origin, verdict, confidence, summary, analysis, sources in claims:
+        for cid, claim_text, speaker, claim_type, claim_origin, verdict, confidence, summary, analysis, sources, src_structured in claims:
             claims_data.append({
                 'id': cid,
                 'claim_text': claim_text,
@@ -692,7 +692,8 @@ def get_report():
                 'confidence_score': confidence,
                 'verdict_summary': summary,
                 'full_analysis': analysis,
-                'sources_used': sources
+                'sources_used': sources,
+                'sources_structured': src_structured if src_structured else []
             })
 
         return jsonify({
@@ -1606,7 +1607,8 @@ def _build_report_data(rows, *, url, title, source, as_of, score, rating,
         "claims": [
             {"id":c[0],"claim_text":c[1],"speaker":c[2],"claim_type":c[3],
              "claim_origin":c[4],"verdict":c[5],"confidence_score":c[6],
-             "verdict_summary":c[7],"full_analysis":c[8],"sources_used":c[9]}
+             "verdict_summary":c[7],"full_analysis":c[8],"sources_used":c[9],
+             "sources_structured":c[10] if len(c)>10 and c[10] else []}
             for c in rows
         ],
     }
@@ -1899,7 +1901,7 @@ setTimeout(checkStatus, 3000);
                     pass
         else:
             art_id, title_db, source_name, art_url, cv, vat = article
-            cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used FROM claims WHERE article_id = %s ORDER BY priority_score DESC, id ASC", (art_id,))
+            cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, sources_structured FROM claims WHERE article_id = %s ORDER BY priority_score DESC, id ASC", (art_id,))
             rows = cur.fetchall()
             conn.close()
             if not rows:
@@ -2254,19 +2256,32 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         conf_html = '<div class="vs-conf" title="' + conf_label + '">' + conf_num_html + conf_dots + '</div>'
         # Wire tag
         wire_html = '<span class="vs-wire">WIRE REPRINT &mdash; excluded from score</span>' if is_wire else ''
-        # Source pills
-        valid_tlds3 = {'com','org','gov','edu','net','io','co','uk','de','fr'}
-        src_domains = []
-        for word in sources.replace(',',' ').split():
-            w = word.strip('().-').lower()
-            parts = w.split('.')
-            if len(parts) >= 2 and parts[-1] in valid_tlds3 and len(parts[0]) > 1:
-                src_domains.append(w)
+        # Source pills — structured-first, prose fallback for legacy rows
         contradicts = v in ('disputed','not_supported','overstated')
+        src_structured = c.get('sources_structured') or []
         src_pills = ''
-        for d in src_domains[:6]:
-            cls = 'vs-src-c' if contradicts else 'vs-src-p'
-            src_pills += '<a href="https://' + d + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + cls + '">' + d + '</a>'
+        if src_structured:
+            # Render structured sources as citation chains with independence badges
+            for s in src_structured[:6]:
+                name = s.get('name','') or ''
+                indep = s.get('independent', False)
+                stype = s.get('type','secondary') or 'secondary'
+                note  = s.get('note','') or ''
+                pill_cls = 'vs-src-c' if contradicts else ('vs-src-p' if indep else 'vs-src-s')
+                indep_badge = '<span class="vs-src-indep" title="Independently confirmed">&#10003; independent</span>' if indep else ''
+                src_pills += '<span class="vs-src ' + pill_cls + '" title="' + note + '">' + name + indep_badge + '</span>'
+        else:
+            # Prose fallback: extract domains from free-text sources_used
+            valid_tlds3 = {'com','org','gov','edu','net','io','co','uk','de','fr'}
+            src_domains = []
+            for word in sources.replace(',',' ').split():
+                w = word.strip('().-').lower()
+                parts = w.split('.')
+                if len(parts) >= 2 and parts[-1] in valid_tlds3 and len(parts[0]) > 1:
+                    src_domains.append(w)
+            for d in src_domains[:6]:
+                cls = 'vs-src-c' if contradicts else 'vs-src-p'
+                src_pills += '<a href="https://' + d + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + cls + '">' + d + '</a>'
         src_pills_html = '<div class="vs-src-pills">' + src_pills + '</div>' if src_pills else ''
         conf_exp = CONF_EXPLAIN.get(confidence, '')
         detail_body = full if full and len(full) > len(summary) else sources
@@ -2309,6 +2324,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         text = smartquotes(c.get('claim_text', ''))
         summary = c.get('verdict_summary', '') or ''
         sources = c.get('sources_used', '') or ''
+        src_structured_free = c.get('sources_structured') or []
         confidence = int(c.get('confidence_score', 2) or 2)
         lbl = VLBL_FREE.get(v, v.upper())
         summary_html = ('<p class="claim-summary">' + smartquotes(summary) + '</p>') if summary else ''
@@ -2321,7 +2337,11 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '<p class="claim-text">' + text + '</p>'
             + summary_html +
             '<div class="sources-label">SOURCES</div>'
-            '<p class="sources-list">' + sources + '</p>'
+            + ((''.join('<span class="fr-src-item">' + (s.get('name') or '') +
+               (' <span class="fr-src-indep">&#10003;</span>' if s.get('independent') else '') +
+               '</span>' for s in src_structured_free[:4]))
+               if src_structured_free
+               else '<p class="sources-list">' + sources + '</p>') +
             '</div>'
         )
     # Only show verified claims (verdict not None) in free report

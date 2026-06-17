@@ -350,7 +350,7 @@ def article_report(article_id):
                 c.verdict_summary, c.full_analysis, c.sources_used,
                 c.claim_origin, c.attribution_context,
                 c.verdict_status, c.methodology_version,
-                c.first_seen
+                c.first_seen, c.sources_structured
             FROM claims c
             WHERE c.article_id = %s
               AND c.claim_origin = 'outlet_claim'
@@ -373,6 +373,7 @@ def article_report(article_id):
                 "verdict_summary":  c['verdict_summary'],
                 "full_analysis":    c['full_analysis'],
                 "sources_used":     (c['sources_used'] if isinstance(c['sources_used'], list) else [c['sources_used']]) if c['sources_used'] else [],
+                "sources_structured": c['sources_structured'] if c.get('sources_structured') else [],
                 "claim_origin":     c['claim_origin'],
                 "attribution_context": c['attribution_context'],
                 "is_provisional":   c['verdict_status'] == 'provisional',
