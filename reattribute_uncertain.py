@@ -90,7 +90,7 @@ def run_reattribution(event_id, window=CONTEXT_WINDOW, dry_run=False):
 
         context = before + after
         if not context:
-            print(f"  [{uid}] order={uorder} conf={conf:.2f if conf else '?'} — no context, skipping")
+            print(f"  [{uid}] order={uorder} conf={f'{conf:.2f}' if conf else '?'} — no context, skipping")
             stats['ambiguous'] += 1
             continue
 
@@ -98,7 +98,7 @@ def run_reattribution(event_id, window=CONTEXT_WINDOW, dry_run=False):
         unique_speakers = set(context)
         if len(unique_speakers) == 1:
             inferred_speaker = unique_speakers.pop()
-            print(f"  [{uid}] order={uorder} conf={conf:.2f if conf else '?'} → speaker_id={inferred_speaker} (context unanimous, n={len(context)})")
+            print(f"  [{uid}] order={uorder} conf={f'{conf:.2f}' if conf else '?'} → speaker_id={inferred_speaker} (context unanimous, n={len(context)})")
             print(f"         text: {utext[:70]}")
 
             if not dry_run:
@@ -141,7 +141,7 @@ def run_reattribution(event_id, window=CONTEXT_WINDOW, dry_run=False):
             if len(before_set) == 1 and len(after_set) == 1 and before_set == after_set:
                 # Before and after both unanimous and agree with each other
                 inferred_speaker = before_set.pop()
-                print(f"  [{uid}] order={uorder} conf={conf:.2f if conf else '?'} → speaker_id={inferred_speaker} (before+after agree)")
+                print(f"  [{uid}] order={uorder} conf={f'{conf:.2f}' if conf else '?'} → speaker_id={inferred_speaker} (before+after agree)")
                 print(f"         text: {utext[:70]}")
                 if not dry_run:
                     cur.execute("""
@@ -176,7 +176,7 @@ def run_reattribution(event_id, window=CONTEXT_WINDOW, dry_run=False):
                     conn.commit()
                 stats['resolved'] += 1
             else:
-                print(f"  [{uid}] order={uorder} conf={conf:.2f if conf else '?'} — ambiguous context {unique_speakers}, leaving for manual review")
+                print(f"  [{uid}] order={uorder} conf={f'{conf:.2f}' if conf else '?'} — ambiguous context {unique_speakers}, leaving for manual review")
                 print(f"         text: {utext[:70]}")
                 stats['ambiguous'] += 1
 
