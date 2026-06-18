@@ -2817,14 +2817,31 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             search_url = 'https://www.google.com/search?q=' + title.replace(' ','+')[:60] + '+' + outlet.replace(' ','+')
             compare_html += f'<a href="{search_url}" target="_blank" class="vs-compare-btn">{outlet} ↗</a>'
 
-    # Build all sources list
-    # Build all sources list
+    # Build all sources list — structured-first, prose fallback
     all_domains = set()
     for c in claims:
-        src = c.get('sources_used','') or ''
-        for word in src.replace(',',' ').split():
-            if '.' in word and len(word) > 3:
-                all_domains.add(word.strip('().-').lower())
+        # Primary: extract domains from sources_structured JSON array
+        src_structured = c.get('sources_structured') or []
+        for s in src_structured:
+            _surl = (s.get('url') or '').strip().lower()
+            _sname = (s.get('name') or '').strip().lower()
+            # Extract domain from URL
+            if _surl and '.' in _surl:
+                import re as _re
+                _dm = _re.sub(r'^https?://(www\.)?', '', _surl).split('/')[0]
+                if _dm and len(_dm) > 3:
+                    all_domains.add(_dm)
+            # Also try to extract domain from name (e.g. "cnn.com")
+            if _sname and '.' in _sname:
+                _parts = _sname.split('.')
+                if len(_parts) >= 2 and len(_parts[0]) > 1:
+                    all_domains.add(_sname.strip())
+        # Fallback: prose word-split for legacy rows without structured sources
+        if not src_structured:
+            src = c.get('sources_used','') or ''
+            for word in src.replace(',',' ').split():
+                if '.' in word and len(word) > 3:
+                    all_domains.add(word.strip('().-').lower())
     # Filter to real domains only (must have valid TLD)
     import re
     valid_tlds = {'com','org','gov','edu','net','io','co','uk','de','fr'}
@@ -2850,7 +2867,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     if clean_domains:
         all_sources_html = ''.join('<a href="https://' + d + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + _src_class(d) + '">' + d + '</a>' for d in sorted(clean_domains))
     else:
-        all_sources_html = '<span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.3);">No independent sources found — see Methodology v1.6 Section 5 (independence rule)</span>'
+        all_sources_html = '<span style="font-family:monospace;font-size:11px;color:rgba(255,255,255,0.3);">No independent sources found — see Methodology v1.7 Section 5 (independence rule)</span>'
 
 
     # --- Defaults for generated content ---
