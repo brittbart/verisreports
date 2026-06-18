@@ -2316,7 +2316,7 @@ setTimeout(checkStatus, 3000);
                             increment_quota(get_db, _gate_user["id"], "consumer")
                         elif not _audit_override:
                             anon_ceiling_increment(get_db, request)
-                        cur2.execute("UPDATE articles SET claims_verified=TRUE WHERE id=%s", (art_id,))
+                        cur2.execute("UPDATE articles SET claims_verified=TRUE, verified_at=NOW() WHERE id=%s", (art_id,))
                         conn2.commit()
                         conn2.close()
                         rows = verified_claims
@@ -2740,10 +2740,16 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     total_sc2 = stats.get('total',1) or 1
     dist_bar_html = ''
     dist_legend_html = ''
+    # On free path, build distribution from free_set only (not full claim set)
+    _dist_source = free_set if depth == 2 else claims
+    _dist_stats = {}
+    for _c in _dist_source:
+        _v = _c.get('verdict') or 'pending'
+        _dist_stats[_v] = _dist_stats.get(_v, 0) + 1
     for v, col in VCOLORS.items():
-        cnt = stats.get(v,0)
+        cnt = _dist_stats.get(v, 0)
         if cnt:
-            pct = round(cnt/total_sc2*100)
+            pct = round(cnt/max(len(_dist_source),1)*100)
             dist_bar_html += f'<div class="vs-dist-seg" style="flex:{cnt};background:{col};"></div>'
             lbl = v.replace('_',' ').title()
             dist_legend_html += f'<span class="vs-leg"><span class="vs-leg-dot" style="background:{col}"></span>{cnt} {lbl}</span>'
@@ -3160,6 +3166,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     html = html.replace('{{all_sources_html}}', str(all_sources_html))
     html = html.replace('{{compare_html}}', str(compare_html))
     html = html.replace('{{total}}', str(stats_total_for_free if stats_total_for_free is not None else stats.get('total',0)))
+    html = html.replace('{{sc_total}}', str(stats.get('total', 0)))
     html = html.replace('{{sc}}', str(sc))
     html = html.replace('{{not_verifiable}}', str(stats.get('not_verifiable', 0)))
     # D2: free template passive staleness notice (14-day threshold)
