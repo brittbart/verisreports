@@ -130,7 +130,7 @@ def verify_and_insert_claims(claims, art_id, title, source_name, cursor, depth=N
     Results are re-sorted by original index before the claims[:2] cap so free-report
     ordering is preserved exactly as in the serial path.
     """
-    from verdict_engine import analyse_claim
+    from verdict_engine import analyse_claim, _sources_to_prose
     from concurrent.futures import ThreadPoolExecutor, as_completed
     import json as _ijson
 
