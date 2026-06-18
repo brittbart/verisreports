@@ -497,7 +497,8 @@ def fetch_politician_utterances(conn, event_id, limit=None):
                     su.id, su.utterance_text, su.utterance_order,
                     su.speaker_id, s.name, s.speaker_type, s.party,
                     e.event_name, e.event_date, e.slug,
-                    su.timestamp_seconds
+                    su.timestamp_seconds,
+                    su.attribution_uncertain
                 FROM speaker_utterances su
                 JOIN speakers s ON s.id = su.speaker_id
                 JOIN events e ON e.id = su.event_id
@@ -527,7 +528,7 @@ def fetch_politician_utterances(conn, event_id, limit=None):
 def utterance_to_article_dict(row, event_id):
     (uid, utext, uorder, speaker_id, speaker_name,
      speaker_type, party, event_name, event_date, event_slug,
-     timestamp_seconds) = row
+     timestamp_seconds, attribution_uncertain) = row
     return {
         'title':       f"{speaker_name} at {event_name} ({event_date})",
         'description': f"Statement by {speaker_name} during {event_name}",
@@ -600,7 +601,7 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
             claim.get('claim_type', 'factual'),
             claim.get('why_checkworthy', ''),
             CLAIM_ORIGIN,
-            claim.get('attribution_context', ''),
+            ('[attribution_uncertain] ' if attribution_uncertain else '') + claim.get('attribution_context', ''),
             speaker_id,
             utterance_id,
             event_id,
@@ -740,6 +741,11 @@ def run_extraction(event_id, limit=None, dry_run=False):
 
         print(f"[{i+1}/{len(turns)}] {speaker_name} ({len(all_uids)} utterance(s)): {turn_text[:65]}...")
 
+        # Guard: never extract claims from generic moderator (speaker_id=3)
+        if speaker_id == GENERIC_MODERATOR_ID:
+            print(f'  -> skipped (moderator speaker_id={GENERIC_MODERATOR_ID})')
+            stats['pre_filtered'] += 1
+            continue
         # Layer 1: pre-filter on full turn text
         skip, reason = pre_filter_utterance(turn_text, utterance_id=uid, event_id=event_id, speaker_id=speaker_id, is_debate=True, conn=conn)
         if skip:
