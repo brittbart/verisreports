@@ -202,9 +202,49 @@ Try at least 2-3 distinct search queries before concluding not_verifiable."""
 
         return result
     except anthropic.APIStatusError as e:
-        if e.status_code == 529:
-            print(f"    [API overload] 529 received — re-raising for retry with backoff")
-            raise  # Let caller handle with appropriate backoff
+        if e.status_code in (429, 529):
+            import time as _time
+            for _attempt in range(3):
+                _wait = 2 ** (_attempt + 1)  # 2s, 4s, 8s
+                print(f"    [API {e.status_code}] rate/overload — retry {_attempt+1}/3 in {_wait}s...")
+                _time.sleep(_wait)
+                try:
+                    message = client.messages.create(
+                        model="claude-sonnet-4-6",
+                        max_tokens=1000,
+                        tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                        system=[{"type": "text", "text": _ACTIVE_PROMPT, "cache_control": {"type": "ephemeral"}}],
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    from token_logging import log_usage; log_usage(stage, message)
+                    _resp = ""
+                    for _blk in message.content:
+                        if hasattr(_blk, "text"):
+                            _resp += _blk.text
+                    _resp = _resp.strip()
+                    _s = _resp.find('{')
+                    _en = _resp.rfind('}') + 1
+                    if _s == -1 or _en == 0:
+                        continue
+                    _result = json.loads(_resp[_s:_en])
+                    VALID_VERDICTS = {'supported', 'plausible', 'corroborated', 'overstated',
+                                      'disputed', 'not_supported', 'not_verifiable', 'opinion'}
+                    _v = _result.get('verdict', '')
+                    if _v not in VALID_VERDICTS:
+                        _corrections = {
+                            'verified': 'supported', 'true': 'supported', 'confirmed': 'supported',
+                            'false': 'not_supported', 'misleading': 'overstated',
+                            'unverified': 'not_verifiable', 'unknown': 'not_verifiable',
+                        }
+                        _result['verdict'] = _corrections.get(str(_v).lower().strip(), 'not_verifiable')
+                    print(f"    [API {e.status_code}] retry {_attempt+1} succeeded")
+                    return _result
+                except anthropic.APIStatusError:
+                    continue
+                except Exception:
+                    continue
+            print(f"    [API {e.status_code}] all 3 retries exhausted — returning None")
+            return None
         print(f"    Error: {str(e)}")
         return None
     except Exception as e:
