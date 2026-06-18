@@ -396,7 +396,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         _time.sleep(60)  # wait 60s for audio to accumulate
         if voice_id_done[0]:
             return
-        voice_id_done[0] = True
+        # NOTE: voice_id_done set True only on completion — early returns don't suppress re-ID
         try:
             import numpy as np
             import os as _os
@@ -417,9 +417,19 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             # Find Rev AI speakers not yet confirmed
             unconfirmed = [rid for rid in seen_speaker_ids
                            if rid not in confirmed_speaker_ids]
-            if not unconfirmed:
+            # Also verify all expected DB speakers for this event are confirmed.
+            # Without this, a single mapped Rev AI index causes premature skip.
+            event_candidate_ids = [sid for sid in (speaker_order or []) if sid != 3]
+            confirmed_db_sids = set(confirmed_speaker_ids.values())
+            missing_db = [sid for sid in event_candidate_ids if sid not in confirmed_db_sids]
+            if not unconfirmed and not missing_db:
                 print("  [VOICE ID] All speakers already confirmed — skipping")
+                voice_id_done[0] = True
                 return
+            if unconfirmed:
+                print(f"  [VOICE ID] {len(unconfirmed)} unconfirmed Rev AI speaker(s): {unconfirmed}")
+            if missing_db:
+                print(f"  [VOICE ID] {len(missing_db)} expected DB speaker(s) not yet seen: {missing_db}")
             print(f"  [VOICE ID] Running for Rev AI speakers: {unconfirmed} ({total_secs:.0f}s audio available)")
             VOICE_ID_THRESHOLD = 0.55
             id_results = {}
@@ -472,6 +482,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 print(f"  [VOICE ID] Complete — {len(id_results)} speaker(s) identified")
             else:
                 print("  [VOICE ID] Complete — no confident identifications")
+            voice_id_done[0] = True  # mark done only on successful completion
         except Exception as _ve:
             import traceback
             print(f"  [VOICE ID] ERROR: {_ve}")
