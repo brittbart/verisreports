@@ -544,7 +544,7 @@ def utterance_to_article_dict(row, event_id):
     }
 
 
-def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker_name):
+def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker_name, attribution_uncertain=False):
     claim_text = claim.get('claim_text', '').strip()
 
     exclude, reason = post_filter_claim(claim_text)
@@ -664,6 +664,7 @@ def group_utterances_into_turns(utterances):
                     'speaker_name': current_row[4],
                     'first_uid': current_uids[0],
                     'all_uids': current_uids,
+                'attribution_uncertain': attribution_uncertain,
                     'row': current_row,
                 })
             current_speaker_id = speaker_id
@@ -739,6 +740,7 @@ def run_extraction(event_id, limit=None, dry_run=False):
         speaker_name = turn['speaker_name']
         turn_text = turn['text']
         row = turn['row']
+        attribution_uncertain = turn.get('attribution_uncertain', False)
 
         print(f"[{i+1}/{len(turns)}] {speaker_name} ({len(all_uids)} utterance(s)): {turn_text[:65]}...")
 
@@ -807,7 +809,8 @@ def run_extraction(event_id, limit=None, dry_run=False):
                         print(f"  [reconnecting to DB...]")
                         conn = get_fresh_connection()
                     claim_id, outcome = insert_debate_claim(
-                        conn, claim, uid, speaker_id, event_id, speaker_name
+                        conn, claim, uid, speaker_id, event_id, speaker_name,
+                        attribution_uncertain=attribution_uncertain
                     )
                     ct = claim.get('claim_text', '')[:70]
                     if outcome == 'inserted':
