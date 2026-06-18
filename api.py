@@ -2192,7 +2192,8 @@ setTimeout(checkStatus, 3000);
             # On paid/audit path: re-verify if ANY claims have NULL verdict
             # On free path: serve cached results to avoid burning credits
             _any_unverified = rows and any(r[5] is None for r in rows)
-            _should_reverify = (not rows) or (_any_unverified and (_audit_override or (_tier in ('pro', 'scale'))))
+            # Re-verify on all paths when claims are unverified — free capped at depth=2
+            _should_reverify = (not rows) or _any_unverified
             if _should_reverify:
                 # Trigger on-demand extraction for articles in DB but not yet extracted.
                 # Routed through fetch_article_content (the three-method fetcher) to handle
