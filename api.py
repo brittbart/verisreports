@@ -2189,7 +2189,10 @@ setTimeout(checkStatus, 3000);
             cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, sources_structured FROM claims WHERE article_id = %s ORDER BY priority_score DESC, id ASC", (art_id,))
             rows = cur.fetchall()
             conn.close()
-            if not rows:
+            # Treat all-NULL-verdict rows (RSS-ingested, unverified) same as no rows
+            # so paid/audit requests trigger verification rather than serving NOT YET VERIFIED
+            _all_unverified = rows and all(r[5] is None for r in rows)
+            if not rows or _all_unverified:
                 # Trigger on-demand extraction for articles in DB but not yet extracted.
                 # Routed through fetch_article_content (the three-method fetcher) to handle
                 # anti-bot, paywalled, and JS-rendered sites uniformly with the user-submitted path.
