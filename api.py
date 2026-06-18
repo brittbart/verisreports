@@ -2202,6 +2202,7 @@ setTimeout(checkStatus, 3000);
                     pass
         else:
             art_id, title_db, source_name, art_url, cv, vat = article
+            source = source_name  # ensure 'source' is defined before any lambda captures it (paths B/C)
             cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, sources_structured FROM claims WHERE article_id = %s ORDER BY priority_score DESC, id ASC", (art_id,))
             rows = cur.fetchall()
             # On paid/audit path: re-verify if ANY claims have NULL verdict
