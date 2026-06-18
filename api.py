@@ -2221,7 +2221,7 @@ setTimeout(checkStatus, 3000);
                 if not _got_lock:
                     print(f"[reverify] lock held for article {art_id} — serving cached rows")
                     _should_reverify = False
-            conn.close()
+                    conn.close()  # release conn when skipping re-verify
             if _should_reverify:
                 # Trigger on-demand extraction for articles in DB but not yet extracted.
                 # Routed through fetch_article_content (the three-method fetcher) to handle
@@ -2348,6 +2348,7 @@ setTimeout(checkStatus, 3000);
                         cur2.execute("UPDATE articles SET claims_verified=TRUE, verified_at=NOW() WHERE id=%s", (art_id,))
                         conn2.commit()
                         conn2.close()
+                        conn.close()  # release advisory lock — verification complete
                         rows = verified_claims
                         sc = sum(1 for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
                         ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
