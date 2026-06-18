@@ -2830,30 +2830,32 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             compare_html += f'<a href="{search_url}" target="_blank" class="vs-compare-btn">{outlet} ↗</a>'
 
     # Build all sources list — structured-first, prose fallback
+    import re as _src_re
     all_domains = set()
     for c in claims:
-        # Primary: extract domains from sources_structured JSON array
-        src_structured = c.get('sources_structured') or []
-        for s in src_structured:
-            _surl = (s.get('url') or '').strip().lower()
-            _sname = (s.get('name') or '').strip().lower()
-            # Extract domain from URL
-            if _surl and '.' in _surl:
-                import re as _re
-                _dm = _re.sub(r'^https?://(www\.)?', '', _surl).split('/')[0]
-                if _dm and len(_dm) > 3:
+        _sc_raw2 = c.get('sources_structured')
+        if isinstance(_sc_raw2, str):
+            try:
+                import json as _scj2; _sc_raw2 = _scj2.loads(_sc_raw2)
+            except Exception: _sc_raw2 = []
+        _src_list2 = _sc_raw2 if isinstance(_sc_raw2, list) else []
+        for s in _src_list2:
+            _surl = (s.get('url') or '').strip()
+            if _surl:
+                _dm = _src_re.sub(r'^https?://(www\.)?', '', _surl).split('/')[0].lower()
+                if _dm and len(_dm) > 3 and '.' in _dm:
                     all_domains.add(_dm)
-            # Also try to extract domain from name (e.g. "cnn.com")
-            if _sname and '.' in _sname:
-                _parts = _sname.split('.')
-                if len(_parts) >= 2 and len(_parts[0]) > 1:
-                    all_domains.add(_sname.strip())
-        # Fallback: prose word-split for legacy rows without structured sources
-        if not src_structured:
+            _sname = (s.get('name') or '').strip().lower()
+            if _sname and '.' in _sname and len(_sname) < 50:
+                _dm2 = _sname.split('/')[0].split('(')[0].strip()
+                if _dm2 and '.' in _dm2:
+                    all_domains.add(_dm2)
+        if not _src_list2:
             src = c.get('sources_used','') or ''
-            for word in src.replace(',',' ').split():
-                if '.' in word and len(word) > 3:
-                    all_domains.add(word.strip('().-').lower())
+            for word in src.replace(',',' ').replace(';',' ').split():
+                word = word.strip('().-[]')
+                if '.' in word and len(word) > 4 and len(word) < 60:
+                    all_domains.add(word.lower())
     # Filter to real domains only (must have valid TLD)
     import re
     valid_tlds = {'com','org','gov','edu','net','io','co','uk','de','fr'}
