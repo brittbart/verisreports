@@ -81,7 +81,7 @@ a{color:inherit;text-decoration:none}
 .vs-conf-on{background:#a855f7}
 .vs-conf-off{background:rgba(168,85,247,0.18)}
 .vs-wire{font-family:monospace;font-size:13px;padding:1px 5px;border-radius:2px;background:rgba(107,114,128,0.12);color:rgba(255,255,255,0.28);border:0.5px solid rgba(107,114,128,0.18)}
-.vs-toggle{font-size:11px;color:rgba(168,85,247,0.7);flex-shrink:0;margin-top:3px;user-select:none;font-weight:500;letter-spacing:0.05em;cursor:pointer;white-space:nowrap}
+.vs-toggle{font-size:11px;color:#a855f7;flex-shrink:0;margin-top:4px;user-select:none;font-weight:500;letter-spacing:0.05em;cursor:pointer;white-space:nowrap;border:0.5px solid rgba(168,85,247,0.35);border-radius:4px;padding:3px 8px;background:rgba(168,85,247,0.08);transition:background 0.15s ease,border-color 0.15s ease}.vs-claim-header:hover .vs-toggle{background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.6)}
 .vs-claim-body{display:none;padding:0 24px 14px 39px;background:rgba(255,255,255,0.01);border-top:0.5px solid rgba(255,255,255,0.04)}
 .vs-claim.open .vs-claim-body{display:block}
 .vs-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-top:12px;margin-bottom:10px}
@@ -161,14 +161,14 @@ a{color:inherit;text-decoration:none}
   <div class="vs-meta-row">
     <span class="vs-chip">{{as_of}}</span><span class="vs-chip-sep">&middot;</span>
     <span class="vs-chip">{{total}} claims assessed</span><span class="vs-chip-sep">&middot;</span>
-    <span class="vs-chip">Methodology v1.6</span><span class="vs-chip-sep">&middot;</span>
+    <span class="vs-chip">Methodology v1.7</span><span class="vs-chip-sep">&middot;</span>
     {{score_chip_html}}
   </div>
   <div class="vs-outlet-history">{{outlet_history_line}}</div>
 
   <div class="vs-callout">
     <div class="vs-callout-label">METHODOLOGY APPLIED</div>
-    <div class="vs-callout-body">{{methodology_callout}} <a href="/methodology">Methodology v1.6</a>.</div>
+    <div class="vs-callout-body">{{methodology_callout}} <a href="/methodology">Methodology v1.7</a>.</div>
   </div>
 
   {{opinion_inset_html}}
@@ -197,7 +197,7 @@ a{color:inherit;text-decoration:none}
 
   <div class="vs-legend-header">
     <div class="vs-legend-label">VERDICT SCALE</div>
-    <div class="vs-legend-sub">Each verdict contributes this weight to the outlet's reliability score &mdash; <a href="/methodology" target="_blank" rel="noopener noreferrer">Methodology v1.6</a></div>
+    <div class="vs-legend-sub">Each verdict contributes this weight to the outlet's reliability score &mdash; <a href="/methodology" target="_blank" rel="noopener noreferrer">Methodology v1.7</a></div>
     <div class="vs-legend-sub" style="margin-top:4px;">{{confidence_legend}}</div>
   </div>
   <div class="vs-legend">
@@ -219,7 +219,7 @@ a{color:inherit;text-decoration:none}
   </div>
 
   <div class="vs-footer">
-    <div class="vs-footer-l">Generated under <a href="/methodology">Methodology v1.6</a></div>
+    <div class="vs-footer-l">Generated under <a href="/methodology">Methodology v1.7</a></div>
     <div class="vs-footer-c">{{source}} &nbsp;&middot;&nbsp; {{footer_score_text}}</div>
     <div class="vs-footer-r"><a href="mailto:disputes@verumsignal.com">Submit a correction &nearr;</a></div>
   </div>
@@ -227,14 +227,6 @@ a{color:inherit;text-decoration:none}
 
 </div>
 <script>
-document.querySelectorAll(".vs-claim-header").forEach(h=>{
-  h.addEventListener("click",()=>{
-    const claim = h.closest(".vs-claim");
-    claim.classList.toggle("open");
-    const t = h.querySelector(".vs-toggle");
-    if(t) t.textContent = claim.classList.contains("open") ? "Hide details ▴" : "Show details ▾";
-  });
-});
 // vs-toggle: show/hide claim detail body
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.vs-toggle').forEach(function(toggle) {
