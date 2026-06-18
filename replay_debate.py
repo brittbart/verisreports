@@ -137,6 +137,37 @@ def main():
     log(f"  Total debate claims now: {post_claims}")
     if new_utterances > 0:
         log(f"  New content queued for extraction and verification.")
+        # Fix 1: set attribution_confidence=1.0 on replay utterances
+        try:
+            import sys as _sys
+            _sys.path.insert(0, os.path.dirname(__file__))
+            from verdict_engine import get_connection as _gc
+            _rconn = _gc()
+            _rcur = _rconn.cursor()
+            _rcur.execute(
+                "UPDATE speaker_utterances SET attribution_confidence = 1.0 WHERE event_id = %s AND attribution_confidence IS NULL",
+                (args.event_id,)
+            )
+            _updated = _rcur.rowcount
+            _rconn.commit()
+            _rcur.close()
+            _rconn.close()
+            log(f"  Replay confidence: set attribution_confidence=1.0 on {_updated} utterances")
+        except Exception as _ce:
+            log(f"  WARNING: Could not set replay confidence scores: {_ce}")
+        # Fix 2: auto cold reattribution after replay
+        log("")
+        log("Running cold LLM reattribution pass...")
+        _reattr_script = os.path.join(os.path.dirname(__file__), "reattribute_llm.py")
+        _reattr_result = subprocess.run(
+            [sys.executable, "-u", _reattr_script,
+             "--event-id", str(args.event_id), "--cold", "--apply"],
+            capture_output=False
+        )
+        if _reattr_result.returncode != 0:
+            log("  WARNING: reattribute_llm.py exited with errors")
+        else:
+            log("  Cold reattribution complete.")
     else:
         log(f"  No new content — replay matched existing coverage.")
     log("=" * 60)
