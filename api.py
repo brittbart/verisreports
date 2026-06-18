@@ -2665,17 +2665,53 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
                 indep_badge = '<span class="vs-src-indep" title="Independently confirmed">&#10003; independent</span>' if indep else ''
                 src_pills += '<span class="vs-src ' + pill_cls + '" title="' + note + '">' + name + indep_badge + '</span>'
         else:
-            # Prose fallback: extract domains from free-text sources_used
+            # Prose fallback: name mapping + domain extraction from free-text sources_used
+            _NAME_MAP = {
+                'reuters': ('Reuters', 'reuters.com'),
+                'ap news': ('AP News', 'apnews.com'), 'associated press': ('AP News', 'apnews.com'),
+                'bbc': ('BBC', 'bbc.com'), 'bbc news': ('BBC', 'bbc.com'),
+                'cnn': ('CNN', 'cnn.com'),
+                'fox news': ('Fox News', 'foxnews.com'),
+                'nbc news': ('NBC News', 'nbcnews.com'), 'nbc': ('NBC News', 'nbcnews.com'),
+                'abc news': ('ABC News', 'abcnews.go.com'),
+                'cbs news': ('CBS News', 'cbsnews.com'), 'cbs': ('CBS News', 'cbsnews.com'),
+                'npr': ('NPR', 'npr.org'),
+                'the guardian': ('The Guardian', 'theguardian.com'), 'guardian': ('The Guardian', 'theguardian.com'),
+                'new york times': ('NYT', 'nytimes.com'), 'nyt': ('NYT', 'nytimes.com'),
+                'washington post': ('Washington Post', 'washingtonpost.com'),
+                'politico': ('Politico', 'politico.com'),
+                'the hill': ('The Hill', 'thehill.com'),
+                'axios': ('Axios', 'axios.com'),
+                'bloomberg': ('Bloomberg', 'bloomberg.com'),
+                'wall street journal': ('WSJ', 'wsj.com'), 'wsj': ('WSJ', 'wsj.com'),
+                'scotusblog': ('SCOTUSblog', 'scotusblog.com'),
+                'wikipedia': ('Wikipedia', 'wikipedia.org'),
+                'cornell lii': ('Cornell LII', 'law.cornell.edu'), 'legal information institute': ('Cornell LII', 'law.cornell.edu'),
+                'oyez': ('Oyez', 'oyez.org'),
+                'snopes': ('Snopes', 'snopes.com'),
+                'factcheck': ('FactCheck.org', 'factcheck.org'),
+                'c-span': ('C-SPAN', 'c-span.org'), 'cspan': ('C-SPAN', 'c-span.org'),
+                'congress.gov': ('Congress.gov', 'congress.gov'),
+                'whitehouse.gov': ('WhiteHouse.gov', 'whitehouse.gov'),
+            }
+            src_labels = []
+            sources_lower = sources.lower()
+            _matched = set()
+            for key, (label, domain) in _NAME_MAP.items():
+                if key in sources_lower and domain not in _matched:
+                    src_labels.append((label, domain))
+                    _matched.add(domain)
+            # Also extract any domains not caught by name map
             valid_tlds3 = {'com','org','gov','edu','net','io','co','uk','de','fr'}
-            src_domains = []
             for word in sources.replace(',',' ').split():
                 w = word.strip('().-').lower()
                 parts = w.split('.')
-                if len(parts) >= 2 and parts[-1] in valid_tlds3 and len(parts[0]) > 1:
-                    src_domains.append(w)
-            for d in src_domains[:6]:
-                cls = 'vs-src-c' if contradicts else 'vs-src-p'
-                src_pills += '<a href="https://' + d + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + cls + '">' + d + '</a>'
+                if len(parts) >= 2 and parts[-1] in valid_tlds3 and len(parts[0]) > 1 and w not in _matched:
+                    src_labels.append((w, w))
+                    _matched.add(w)
+            cls = 'vs-src-c' if contradicts else 'vs-src-p'
+            for label, domain in src_labels[:6]:
+                src_pills += '<a href="https://' + domain + '" target="_blank" rel="noopener noreferrer" class="vs-src ' + cls + '">' + label + '</a>'
         src_pills_html = '<div class="vs-src-pills">' + src_pills + '</div>' if src_pills else ''
         conf_exp = CONF_EXPLAIN.get(confidence, '')
         detail_body = full if full and len(full) > len(summary) else sources
