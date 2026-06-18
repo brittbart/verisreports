@@ -2040,6 +2040,7 @@ setTimeout(checkStatus, 3000);
             from verdict_engine import analyse_claim
             from urllib.parse import urlparse
             domain = urlparse(url).netloc.replace('www.','')
+            source = domain  # ensure 'source' is defined before any lambda captures it
             _anth_client = _anth.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
             data = None
             try:
