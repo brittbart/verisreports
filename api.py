@@ -2706,7 +2706,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '<span class="claim-toggle">Show details ▾</span>'
             '</div>'
             '</div>'
-            '<div class="claim-body">'
+            '<div class="claim-body" style="display:none">'
             + summary_html +
             '<div class="sources-label">SOURCES</div>'
             + sources_html +
@@ -3159,6 +3159,14 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     pass #removed
     html = html.replace('{{dist_bar_html}}', str(dist_bar_html))
     html = html.replace('{{dist_legend_html}}', str(dist_legend_html))
+    if dist_legend_html:
+        _vd_section = ('<div class="section-label">VERDICT DISTRIBUTION</div>'
+            '<div class="verdict-distribution">'
+            '<div class="verdict-dist-legend">' + dist_legend_html + '</div>'
+            '</div>')
+    else:
+        _vd_section = ''
+    html = html.replace('{{verdict_dist_section}}', _vd_section)
     html = html.replace('{{claims_html}}', str(claims_html))
     html = html.replace('{{overall_signal}}', str(overall_signal))
     html = html.replace('{{watch_for_html}}', str(watch_for_html))
