@@ -655,6 +655,7 @@ def group_utterances_into_turns(utterances):
 
     for row in utterances:
         uid, utext, uorder, speaker_id, speaker_name = row[0], row[1], row[2], row[3], row[4]
+        attribution_uncertain = row[11] if len(row) > 11 else False
         if speaker_id != current_speaker_id:
             if current_uids:
                 turns.append({
