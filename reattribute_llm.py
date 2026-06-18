@@ -330,6 +330,9 @@ def run_verification(event_id, apply_corrections=False):
     print("\n  Applying corrections...")
     cur = conn.cursor()
     for fix in corrections:
+        if fix['new_speaker_id'] is None:
+            print(f"    SKIP utterance {fix['uorder']} — unknown speaker (no DB match)")
+            continue
         if fix['confidence'] != 'high':
             print(f"    SKIP utterance {fix['uorder']} — {fix['confidence']} confidence (only applying high)")
             continue
@@ -366,7 +369,7 @@ def run_verification(event_id, apply_corrections=False):
         # Write public correction note
         cur.execute(
             "UPDATE claims SET correction_note = %s WHERE utterance_id = %s AND event_id = %s AND correction_note IS NULL",
-            ('Correction: Originally attributed to ' + fix['old_name'] + '. Attribution corrected to ' + fix['new_name'] + ' following post-debate review.',
+            ((('Correction: Originally attributed to ' + (fix['old_name'] or 'unknown') + '. Attribution corrected to ' + (fix['new_name'] or 'unknown') + ' following post-debate review.') if fix['old_name'] or fix['new_name'] else None),
              fix['uid'], event_id))
 
         print(f"    ✓ Utterance {fix['uorder']}: {fix['old_name']} → {fix['new_name']}")
