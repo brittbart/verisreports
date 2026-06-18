@@ -56,7 +56,10 @@ import psycopg2
 
 def get_db_conn():
     if os.environ.get('DATABASE_URL'):
-        return psycopg2.connect(dsn=os.environ['DATABASE_URL'])
+        try:
+            return psycopg2.connect(dsn=os.environ['DATABASE_URL'])
+        except Exception as _dse:
+            print(f"  [DB] DATABASE_URL parse failed ({_dse}) — falling back to kwargs")
     return psycopg2.connect(
         dbname=os.environ.get('DB_NAME', 'railway'),
         user=os.environ.get('DB_USER', 'postgres'),
