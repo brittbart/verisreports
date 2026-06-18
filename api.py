@@ -2348,7 +2348,6 @@ setTimeout(checkStatus, 3000);
                         cur2.execute("UPDATE articles SET claims_verified=TRUE, verified_at=NOW() WHERE id=%s", (art_id,))
                         conn2.commit()
                         conn2.close()
-                        conn.close()  # release advisory lock — verification complete
                         rows = verified_claims
                         sc = sum(1 for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
                         ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
@@ -2361,6 +2360,11 @@ setTimeout(checkStatus, 3000);
                 except Exception as e:
                     print(f"On-demand extraction (no_claims path) failed: {e}")
                     data = {'status': 'no_claims', 'title': title_db, 'source': source_name}
+                finally:
+                    try:
+                        conn.close()  # release advisory lock — always runs, even on exception
+                    except Exception:
+                        pass
             else:
                 sc = sum(1 for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
                 ws = sum(WEIGHTS[c[5]] for c in rows if c[5] in WEIGHTS and c[4] == 'outlet_claim')
