@@ -256,8 +256,18 @@ def run_async(args, token, speaker_map, speaker_order, event_id):
     # Support local file paths as well as URLs
     import os as _os
     if _os.path.exists(args.url):
-        print(f"\nSubmitting local file to Rev AI async: {args.url}")
+        submit_path = args.url
+        if getattr(args, 'cutoff_time', '') and args.cutoff_time:
+            import subprocess as _sp
+            trimmed = args.url.replace('.wav', f'_cutoff.wav')
+            print(f"  [CUTOFF] Trimming audio to {args.cutoff_time} -> {trimmed}")
+            _sp.run(['ffmpeg', '-i', args.url, '-t', args.cutoff_time,
+                     trimmed, '-y', '-loglevel', 'error'], check=True)
+            submit_path = trimmed
+            print(f"  [CUTOFF] Trimmed file ready: {submit_path}")
+        print(f"\nSubmitting local file to Rev AI async: {submit_path}")
         job = client.submit_job_local_file(
+                submit_path,
                 args.url,
                 skip_diarization=False,
                 skip_punctuation=False,
@@ -963,6 +973,8 @@ def main():
                         help='Parse and print without writing to DB')
     parser.add_argument('--vocabulary-id', default='',
                         help='Rev AI custom vocabulary ID to use for this stream')
+    parser.add_argument('--cutoff-time', default='',
+                        help='Trim local audio file at this timestamp before async submission (HH:MM:SS or seconds)')
     args = parser.parse_args()
 
     load_env()

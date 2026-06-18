@@ -16,7 +16,16 @@ Usage:
 
 Run this in the hour after the debate ends. Allow 10-20 minutes for Rev AI
 async transcription to complete.
-"""
+
+SOURCE QUALITY GUIDE (best to worst):
+  1. Clean Elections YouTube (AZ debates) — single source, no ads, preferred
+  2. C-SPAN recordings — clean, no commercials, reliable
+  3. Network YouTube streams (KTAR, WOOD TV8) — usually clean
+  4. Local TV broadcast recordings (PIX11, WBTV) — may include ads,
+     post-debate interviews, and sponsor segments. Use --cutoff-time
+     to trim at debate end, and expect attribution noise from ORDER MAP.
+  AVOID: DVR recordings, cable captures with commercials embedded.
+
 
 import argparse
 import os
@@ -69,6 +78,7 @@ def main():
     parser.add_argument('--event-id', type=int, required=True, help='DB event ID')
     parser.add_argument('--url', required=True, help='YouTube or archived stream URL')
     parser.add_argument('--dry-run', action='store_true', help='Submit to Rev AI but do not write to DB')
+    parser.add_argument('--cutoff-time', default='', help='Trim audio at this timestamp before submitting (HH:MM:SS or seconds). Use to exclude post-debate interviews/ads from TV broadcast replays.')
     args = parser.parse_args()
 
     log("=" * 60)
@@ -107,6 +117,9 @@ def main():
         cmd += ['--speaker-order', speaker_order]
     if args.dry_run:
         cmd += ['--dry-run']
+    if args.cutoff_time:
+        cmd += ['--cutoff-time', args.cutoff_time]
+        log(f"Audio cutoff: {args.cutoff_time} (post-debate content excluded)")
 
     log(f"Running: {' '.join(cmd[:6])} ...")
     log("Rev AI async transcription typically takes 5-15 minutes.")
