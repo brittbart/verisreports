@@ -576,7 +576,7 @@ def insert_debate_claim(conn, claim, utterance_id, speaker_id, event_id, speaker
             SELECT id FROM claims
             WHERE event_id = %s
               AND claim_origin = 'debate_claim'
-              AND similarity(claim_text, %s) > 0.6
+              AND similarity(claim_text, %s) > 0.55
             LIMIT 1
         """, (event_id, claim_text))
         sim_row = cur.fetchone()

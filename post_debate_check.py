@@ -182,7 +182,39 @@ def main():
         ORDER BY c.id
     """, (eid,))
     flagged = cur.fetchall()
-    if not flagged:
+    # Also check for attribution_context/speaker_id name mismatches
+    # e.g. attribution_context says "Scott Neely said" but speaker_id=215 (Biggs)
+    cur.execute("""
+        SELECT c.id, c.claim_text, c.speaker_id, s.name, c.attribution_context,
+               s2.id as likely_speaker_id, s2.name as likely_speaker_name
+        FROM claims c
+        JOIN speakers s ON s.id = c.speaker_id
+        JOIN speakers s2 ON (
+            c.attribution_context ILIKE '%%' || s2.name || '%%'
+            AND s2.id != c.speaker_id
+            AND s2.id IN (
+                SELECT speaker_id FROM event_speakers
+                WHERE event_id = c.event_id AND is_active = TRUE
+            )
+        )
+        WHERE c.event_id = %s
+          AND c.claim_origin = 'debate_claim'
+          AND s.speaker_type IN ('politician', 'official')
+          AND s2.speaker_type IN ('politician', 'official')
+        ORDER BY c.id
+    """, (eid,))
+    mismatches = cur.fetchall()
+    if mismatches:
+        print(f'  ⚠ {len(mismatches)} attribution_context/speaker_id mismatch(es) detected:')
+        for cid, ctext, sid, sname, actx, likely_id, likely_name in mismatches:
+            print(f'    claim {cid}: {ctext[:65]}')
+            print(f'      current: {sname} (id={sid})')
+            print(f'      context says: {actx[:60]}')
+            print(f'      likely speaker: {likely_name} (id={likely_id})')
+            print(f'      fix: UPDATE claims SET speaker_id={likely_id}, verdict=NULL, verdict_status=\'provisional\' WHERE id={cid};')
+            print()
+
+    if not flagged and not mismatches:
         print('  ✓ No claims flagged for attribution review')
     else:
         print(f'  ⚠ {len(flagged)} claim(s) flagged — review each:')
@@ -307,6 +339,58 @@ def main():
         print(f"    {sname or 'NULL'}: {ccount} claims")
     if not collapse_detected:
         print("  ✓ Attribution distribution looks reasonable")
+
+    section('10c. Attribution context audit')
+    # Cross-check attribution_context field against speaker_id for all debate claims
+    cur.execute("""
+        SELECT c.id, c.claim_text, c.speaker_id, s.name,
+               c.attribution_context,
+               c.verdict, c.verdict_status
+        FROM claims c
+        JOIN speakers s ON s.id = c.speaker_id
+        WHERE c.event_id = %s
+          AND c.claim_origin = 'debate_claim'
+          AND c.attribution_context IS NOT NULL
+          AND c.attribution_context != ''
+        ORDER BY c.id
+    """, (eid,))
+    all_claims = cur.fetchall()
+
+    # Get all candidate speakers for this event
+    cur.execute("""
+        SELECT s.id, s.name FROM speakers s
+        JOIN event_speakers es ON es.speaker_id = s.id
+        WHERE es.event_id = %s
+          AND es.is_active = TRUE
+          AND s.speaker_type IN ('politician', 'official')
+    """, (eid,))
+    candidates = {r[0]: r[1] for r in cur.fetchall()}
+
+    mismatch_count = 0
+    for cid, ctext, sid, sname, actx, verdict, vstatus in all_claims:
+        for cand_id, cand_name in candidates.items():
+            if cand_id == sid:
+                continue
+            first_name = cand_name.split()[0]
+            last_name = cand_name.split()[-1]
+            if (cand_name.lower() in actx.lower() or
+                last_name.lower() in actx.lower() and len(last_name) > 4):
+                # Skip if current speaker name also appears (ambiguous context)
+                cur_last = sname.split()[-1].lower()
+                if cur_last in actx.lower():
+                    continue
+                mismatch_count += 1
+                print(f'  ⚠ Claim {cid} [{verdict or "unverified"}]: {ctext[:60]}')
+                print(f'      attributed to: {sname} (id={sid})')
+                print(f'      but context mentions: {cand_name} (id={cand_id})')
+                print(f'      context: {actx[:70]}')
+                break
+
+    if mismatch_count == 0:
+        print('  ✓ No attribution_context/speaker_id mismatches detected')
+    else:
+        print(f'  {mismatch_count} mismatch(es) — review above and correct if needed')
+        print('  Run: python3 railway_api_refresh.py after corrections')
 
     # ── 11. Summary ───────────────────────────────────────────────────────
     section('11. Next steps')
