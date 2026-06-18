@@ -2189,10 +2189,11 @@ setTimeout(checkStatus, 3000);
             cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, sources_structured FROM claims WHERE article_id = %s ORDER BY priority_score DESC, id ASC", (art_id,))
             rows = cur.fetchall()
             conn.close()
-            # Treat all-NULL-verdict rows (RSS-ingested, unverified) same as no rows
-            # so paid/audit requests trigger verification rather than serving NOT YET VERIFIED
-            _all_unverified = rows and all(r[5] is None for r in rows)
-            if not rows or _all_unverified:
+            # On paid/audit path: re-verify if ANY claims have NULL verdict
+            # On free path: serve cached results to avoid burning credits
+            _any_unverified = rows and any(r[5] is None for r in rows)
+            _should_reverify = (not rows) or (_any_unverified and (_audit_override or (_tier in ('pro', 'scale'))))
+            if _should_reverify:
                 # Trigger on-demand extraction for articles in DB but not yet extracted.
                 # Routed through fetch_article_content (the three-method fetcher) to handle
                 # anti-bot, paywalled, and JS-rendered sites uniformly with the user-submitted path.
@@ -2790,7 +2791,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
                     '<div style="display:flex;align-items:center;gap:8px;'
                     'font-family:monospace;font-size:11px;'
                     'letter-spacing:0.18em;color:#a855f7;'
-                    'text-transform:uppercase;margin-bottom:6px;">'
+                    'text-transform:uppercase;margin-bottom:6px;font-weight:600;">'
                     '<span style="width:6px;height:6px;border-radius:50%;'
                     'background:#a855f7;flex-shrink:0;"></span>'
                     'Background Signal</div>'
