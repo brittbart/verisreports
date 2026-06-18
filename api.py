@@ -636,7 +636,14 @@ def get_source():
         return jsonify({'error': str(e)}), 500
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'ok', 'version': '1.0'})
+    import subprocess
+    try:
+        sha = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'],
+                                       cwd='/home/veris/projects/veris',
+                                       stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        sha = 'unknown'
+    return jsonify({'status': 'ok', 'version': '1.0', 'sha': sha})
 
 @app.route('/api/stats', methods=['GET'])
 def stats():
