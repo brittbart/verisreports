@@ -44,6 +44,21 @@ def _normalize_url(url):
     except Exception:
         return url
 
+
+def parse_sources_structured(raw):
+    """Single parse point for sources_structured — always returns a list.
+    Handles: already-parsed list, JSON string, None, and malformed values."""
+    import json as _psj
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, str):
+        try:
+            v = _psj.loads(raw)
+        except Exception:
+            return []
+        return v if isinstance(v, list) else []
+    return []
+
 def get_db():
     return psycopg2.connect(
         **(dict(dsn=os.environ['DATABASE_URL']) if os.environ.get('DATABASE_URL') else dict(
@@ -1678,7 +1693,7 @@ def _build_report_data(rows, *, url, title, source, as_of, score, rating,
             {"id":c[0],"claim_text":c[1],"speaker":c[2],"claim_type":c[3],
              "claim_origin":c[4],"verdict":c[5],"confidence_score":c[6],
              "verdict_summary":c[7],"full_analysis":c[8],"sources_used":c[9],
-             "sources_structured":c[10] if len(c)>10 and c[10] else []}
+             "sources_structured":parse_sources_structured(c[10] if len(c)>10 else None)}
             for c in rows
         ],
     }
@@ -2630,7 +2645,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         wire_html = '<span class="vs-wire">WIRE REPRINT &mdash; excluded from score</span>' if is_wire else ''
         # Source pills — structured-first, prose fallback for legacy rows
         contradicts = v in ('disputed','not_supported','overstated')
-        src_structured = c.get('sources_structured') or []
+        src_structured = parse_sources_structured(c.get('sources_structured'))
         src_pills = ''
         if src_structured:
             # Render structured sources as citation chains with independence badges
@@ -2696,12 +2711,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         text = text[:1].upper() + text[1:] if text else text
         summary = c.get('verdict_summary', '') or ''
         sources = c.get('sources_used', '') or ''
-        _src_raw_free = c.get('sources_structured')
-        if isinstance(_src_raw_free, str):
-            try:
-                import json as _fj; _src_raw_free = _fj.loads(_src_raw_free)
-            except Exception: _src_raw_free = []
-        src_structured_free = _src_raw_free if isinstance(_src_raw_free, list) else []
+        src_structured_free = parse_sources_structured(c.get('sources_structured'))
         confidence = int(c.get('confidence_score', 2) or 2)
         lbl = VLBL_FREE.get(v, v.upper())
         summary_html = ('<p class="claim-summary">' + smartquotes(summary) + '</p>') if summary else ''
@@ -2846,12 +2856,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     import re as _src_re
     all_domains = set()
     for c in claims:
-        _sc_raw2 = c.get('sources_structured')
-        if isinstance(_sc_raw2, str):
-            try:
-                import json as _scj2; _sc_raw2 = _scj2.loads(_sc_raw2)
-            except Exception: _sc_raw2 = []
-        _src_list2 = _sc_raw2 if isinstance(_sc_raw2, list) else []
+        _src_list2 = parse_sources_structured(c.get('sources_structured'))
         for s in _src_list2:
             _surl = (s.get('url') or '').strip()
             if _surl:
