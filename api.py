@@ -2204,7 +2204,6 @@ setTimeout(checkStatus, 3000);
             art_id, title_db, source_name, art_url, cv, vat = article
             cur.execute("SELECT id, claim_text, speaker, claim_type, claim_origin, verdict, confidence_score, verdict_summary, full_analysis, sources_used, sources_structured FROM claims WHERE article_id = %s ORDER BY priority_score DESC, id ASC", (art_id,))
             rows = cur.fetchall()
-            conn.close()
             # On paid/audit path: re-verify if ANY claims have NULL verdict
             # On free path: serve cached results to avoid burning credits
             _any_unverified = rows and any(r[5] is None for r in rows)
@@ -2222,6 +2221,7 @@ setTimeout(checkStatus, 3000);
                 if not _got_lock:
                     print(f"[reverify] lock held for article {art_id} — serving cached rows")
                     _should_reverify = False
+            conn.close()
             if _should_reverify:
                 # Trigger on-demand extraction for articles in DB but not yet extracted.
                 # Routed through fetch_article_content (the three-method fetcher) to handle
