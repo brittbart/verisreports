@@ -254,7 +254,7 @@
   .upgrade-btn:hover { background: #b8456c; }
   .upgrade-reassurance {
     font-family: ui-monospace, monospace;
-    font-size: 11px; color: rgba(232,232,240,0.35); margin: 12px 0 4px;
+    font-size: 11px; color: rgba(232,232,240,0.35); margin: 12px 0 12px;
   }
   .upgrade-cta { padding-bottom: 24px; }
 
@@ -333,7 +333,7 @@
 
       <div class="upgrade-cta">
         <h2>Want every <span class="accent">claim?</span></h2>
-        <p>This article contains <span style="color:#a855f7;font-style:italic;font-weight:500;">{{sc_total}} claims</span> in total. Pro reports verify every one, weigh every source, and synthesise the overall signal.</p>
+        <p>This article contains <span style="color:#a855f7;font-style:italic;font-weight:500;">{{sc_total}} claims in total.</span> Pro reports verify every one, weigh every source, and synthesise the overall signal.</p>
         <a href="/upgrade?url={{url}}" class="upgrade-btn">Try one Pro report free &rarr;</a>
         <p class="upgrade-reassurance">No card required &middot; One report on us</p>
       </div>
@@ -368,6 +368,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!header) return;
     header.addEventListener('click', function() {
       var isOpen = card.classList.toggle('open');
+      var body = card.querySelector('.claim-body');
+      if (body) body.style.display = isOpen ? 'block' : 'none';
       if (toggle) toggle.textContent = isOpen ? 'Hide details ▴' : 'Show details ▾';
     });
   });
