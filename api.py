@@ -2308,6 +2308,9 @@ setTimeout(checkStatus, 3000);
 </body>
 </html>""")(), 200, {'Content-Type': 'text/html'}
                         verified_claims = []
+                        # Delete NULL-verdict claims before re-inserting to avoid duplicates
+                        cur2.execute("DELETE FROM claims WHERE article_id = %s AND verdict IS NULL", (art_id,))
+                        conn2.commit()
                         verified_claims = verify_and_insert_claims(claims, art_id, title_db, source_name, cur2, depth=depth)
                         if _gate_user:
                             increment_quota(get_db, _gate_user["id"], "consumer")
