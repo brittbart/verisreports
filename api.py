@@ -2195,6 +2195,18 @@ setTimeout(checkStatus, 3000);
             _any_unverified = rows and any(r[5] is None for r in rows)
             # Re-verify on all paths when claims are unverified — free capped at depth=2
             _should_reverify = (not rows) or _any_unverified
+            # Advisory lock: prevent concurrent re-verification of the same article.
+            # pg_try_advisory_lock is non-blocking — returns false if another worker holds it.
+            # On false: skip re-verify and serve whatever cached rows exist.
+            if _should_reverify:
+                _lock_key = int(art_id) % 2147483647
+                _lock_cur = conn.cursor()
+                _lock_cur.execute("SELECT pg_try_advisory_lock(%s)", (_lock_key,))
+                _got_lock = _lock_cur.fetchone()[0]
+                _lock_cur.close()
+                if not _got_lock:
+                    print(f"[reverify] lock held for article {art_id} — serving cached rows")
+                    _should_reverify = False
             if _should_reverify:
                 # Trigger on-demand extraction for articles in DB but not yet extracted.
                 # Routed through fetch_article_content (the three-method fetcher) to handle
