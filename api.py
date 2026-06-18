@@ -2683,7 +2683,12 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         text = text[:1].upper() + text[1:] if text else text
         summary = c.get('verdict_summary', '') or ''
         sources = c.get('sources_used', '') or ''
-        src_structured_free = c.get('sources_structured') or []
+        _src_raw_free = c.get('sources_structured')
+        if isinstance(_src_raw_free, str):
+            try:
+                import json as _fj; _src_raw_free = _fj.loads(_src_raw_free)
+            except Exception: _src_raw_free = []
+        src_structured_free = _src_raw_free if isinstance(_src_raw_free, list) else []
         confidence = int(c.get('confidence_score', 2) or 2)
         lbl = VLBL_FREE.get(v, v.upper())
         summary_html = ('<p class="claim-summary">' + smartquotes(summary) + '</p>') if summary else ''
