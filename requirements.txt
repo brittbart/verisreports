@@ -46,3 +46,4 @@ beautifulsoup4==4.12.3
 rev-ai
 yt-dlp
 Pillow
+gunicorn==26.0.0
