@@ -2980,14 +2980,12 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     _ctx_title = title[:80] + '...' if len(title) > 80 else title
     story_context = 'This article covers "' + _ctx_title + '". Here is what the evidence shows across ' + str(stats.get('total',0)) + ' extracted claims.'
 
-    # --- Distribution blocks ---
+    # --- Distribution legend ---
     _VCOLS = [('supported','#4ade80'),('plausible','#60a5fa'),('corroborated','#34d399'),('overstated','#fb923c'),('disputed','#f87171'),('not_supported','#ef4444'),('opinion','rgba(255,255,255,0.12)'),('not_verifiable','rgba(255,255,255,0.08)')]
-    dist_blocks_html = ''
     dist_legend_html = ''
     for _v,_col in _VCOLS:
         _cnt = stats.get(_v,0)
         if _cnt:
-            dist_blocks_html += ('<div class="vs-dist-block" style="background:' + _col + ';"></div>') * _cnt
             dist_legend_html += '<span class="vs-leg"><span class="vs-leg-dot" style="background:' + _col + '"></span>' + str(_cnt) + ' ' + _v.replace('_',' ').title() + '</span>'
 
     # --- Watch for ---
