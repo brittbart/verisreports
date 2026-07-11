@@ -827,11 +827,24 @@ def me_notifications():
 
 # ── registration ───────────────────────────────────────────────────────────
 
+_MOBILE_ROUTES_REGISTERED = False
+
 def register_mobile_routes(app, get_db_fn):
     """
     Register mobile routes with the Flask app.
     Called from api.py: register_mobile_routes(app, get_db)
+
+    Guarded against double-registration -- api.py's module body has been
+    observed executing more than once in a single process (cause not yet
+    identified, see incident 2026-07-10). A second call previously crashed
+    on re-adding routes to an already-attached blueprint.
     """
+    global _MOBILE_ROUTES_REGISTERED
+    if _MOBILE_ROUTES_REGISTERED:
+        print("[mobile_routes] register_mobile_routes called again -- skipping, already registered")
+        return
+    _MOBILE_ROUTES_REGISTERED = True
+
     # Attach get_db to blueprint so endpoints can call mobile_bp.get_db()
     mobile_bp.get_db = get_db_fn
 
