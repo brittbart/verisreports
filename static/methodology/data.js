@@ -4,8 +4,8 @@ window.VS_DATA = {
     brand: "VERUM SIGNAL",
     title: "Article Analysis Methodology",
     subtitle: "How Verum Signal Evaluates a Single Article",
-    version: "v1.6",
-    date: "May 5, 2026",
+    version: "v1.7",
+    date: "July 2026",
     principle: "We provide the signals. You decide.",
   },
   sections: [
@@ -19,7 +19,7 @@ window.VS_DATA = {
       id: "ingestion", num: "02", title: "Stage 1 — Article Ingestion", kind: "stage", stageIndex: 1,
       body: ["The article URL is submitted by the user. Verum Signal fetches the article content and extracts the full text. The following checks happen at ingestion:"],
       checks: [
-        ["Language detection", "non-English articles are flagged and excluded from scoring"],
+        ["Language detection", "non-English articles are flagged and excluded from scoring where detection succeeds; detection fails open (treats as English) on short text or errors -- measured impact as of July 2026 is effectively zero"],
         ["Published date extraction", "articles without a resolvable published_at timestamp are excluded from reliability scoring"],
         ["Breaking news gate", "articles published in the last 6 hours are tracked but not scored"],
         ["Source identification", "the article domain is matched to the outlet in the database"],
@@ -28,12 +28,11 @@ window.VS_DATA = {
     },
     {
       id: "attribution", num: "2.5", title: "Claim Attribution", kind: "prose",
-      body: ["Not every claim in an article counts against the publishing outlet. Two categories are excluded from outlet scoring:"],
+      body: ["Not every claim in an article counts against the publishing outlet. One category is excluded from outlet scoring:"],
       attribution: [
-        ["Wire reprints", "articles that are verbatim reprints from wire services like Reuters, AP, AFP, or Bloomberg are excluded entirely from the outlet claim pool when detected."],
         ["Quoted claims", "when an outlet reports what someone else said, the outlet is evaluated on whether the quote is accurate, not on whether the speaker's claim is true."],
       ],
-      bodyAfter: "This policy ensures outlets are scored on what they themselves originated, not what they republished or quoted.",
+      bodyAfter: "Verbatim wire-service content published under an outlet's own byline is scored as an ordinary outlet claim -- the outlet selected it, headlined it, and published it under its masthead. This policy ensures outlets are scored on what they themselves originated or, for quoted claims, on the accuracy of their reporting.",
     },
     {
       id: "extraction", num: "03", title: "Stage 2 — Claim Extraction", kind: "stage", stageIndex: 2,
@@ -58,7 +57,7 @@ window.VS_DATA = {
     },
     {
       id: "priority", num: "04", title: "Stage 3 — Priority Scoring", kind: "stage", stageIndex: 3,
-      body: ["Each extracted claim is assigned a priority score from 0 to 100. Only claims scoring 30 or above enter the verification queue. Claims below 30 are stored but not verified."],
+      body: ["Each extracted claim is assigned a priority score from 0 to 100. The threshold governs the background ingestion queue: of the roughly 3,400 articles ingested daily, only claims scoring 30 or above enter that queue -- claims below 30 are stored but not verified by that path.", "On-demand reports work differently. When a user submits a specific article URL, every extracted claim is verified regardless of priority score: paid reports verify all extracted claims, free reports verify the first 2 (ordered by claim type -- outlet claims before attributed -- not by priority score). This is a deliberate exception, not an oversight."],
       sub: [
         { title: "4.1  What raises a claim's priority score", items: [
           ["Political and policy content", "keywords like election, legislation, policy, congress, senate"],
@@ -72,11 +71,10 @@ window.VS_DATA = {
     },
     {
       id: "verification", num: "05", title: "Stage 4 — Verification Pipeline", kind: "pipeline", stageIndex: 4,
-      body: ["Each claim above the priority threshold passes through a three-step verification process. Steps are run in order; a claim exits the pipeline as soon as a verdict is assigned."],
+      body: ["Each claim above the priority threshold passes through a two-step verification process. Steps are run in order; a claim exits the pipeline as soon as a verdict is assigned."],
       steps: [
-        { num: "1", title: "Cache Check", body: "The system checks whether an identical or near-identical claim (85% similarity threshold) has been verified within the last 24 hours. If a match exists, the cached verdict is reused immediately." },
-        { num: "2", title: "Internal Consensus Check", body: "If 5 or more outlets have reported the same claim consistently without contradiction, the claim is marked corroborated and given a weight of +0.5." },
-        { num: "3", title: "Web Search Verification", body: "Claims that pass neither the cache nor consensus check are sent to Claude Sonnet with web search tool enabled. Sonnet searches the web for evidence and returns a verdict with supporting sources and reasoning." },
+        { num: "1", title: "Opinion Pre-Filter", body: "The claim text is checked locally against a fixed list of opinion and speculation signals. A match assigns the opinion verdict immediately, with no model call." },
+        { num: "2", title: "Web Search Verification", body: "Claims that pass the pre-filter are sent to Claude Sonnet with the web search tool enabled. Sonnet searches the web for evidence and returns a verdict, a confidence score, and sources with an independence assessment for each. Independence is judged by the model at verification time -- there is no separate deterministic consensus check. Corroboration (5+ outlets reporting consistently) is a small minority of assigned verdicts, measured at 4.8% of scored claims as of July 2026." },
       ],
     },
     {
@@ -85,7 +83,7 @@ window.VS_DATA = {
       verdicts: [
         { key: "supported",      weight: "+1.0",   tone: "pos",     meaning: "Confirmed by two genuinely independent sources" },
         { key: "plausible",      weight: "+0.5",   tone: "pos",     meaning: "Consistent with evidence, but only one credible source found" },
-        { key: "corroborated",   weight: "+0.5",   tone: "pos",     meaning: "5+ outlets report consistently without contradiction" },
+        { key: "corroborated",   weight: "+0.75",  tone: "pos",     meaning: "5+ outlets report consistently without contradiction, full independence not established" },
         { key: "overstated",     weight: "-0.5",   tone: "neg",     meaning: "Core fact is real but exaggerated or framed misleadingly" },
         { key: "disputed",       weight: "-1.0",   tone: "neg",     meaning: "At least one credible source directly contradicts the claim" },
         { key: "not_supported",  weight: "-1.5",   tone: "neg",     meaning: "Evidence actively contradicts the claim (stronger than disputed)" },
@@ -135,8 +133,16 @@ window.VS_DATA = {
     },
     {
       id: "changelog", num: "11", title: "Changelog", kind: "prose",
-      body: ["This page is the public methodology document. The full version history is preserved at /methodology/archive."],
+      body: ["This page is the public methodology document."],
       sub: [
+        { title: "v1.7 \u2014 July 2026", intro: "Verification pipeline rewritten to match the live engine; corroborated weight corrected; priority threshold and language detection described accurately; wire-reprint exclusion retired.", items: [
+          ["Corroborated weight corrected", "corroborated changed from +0.5 to +0.75, matching the engine since a Session 3 change. Rationale: v1.6 gave plausible and corroborated identical weight, erasing the distinction the verdict definitions themselves draw."],
+          ["Verification Pipeline rewritten", "The three-step cache/consensus/web-search process described in v1.6 no longer reflects the engine. Both short-circuits were removed in code May 28, 2026. Verification is now described as the two-step process it actually is."],
+          ["Priority Scoring corrected", "The 30-point threshold governs the background ingestion queue only; on-demand report requests verify claims regardless of priority score. This exception existed in the code but was never documented."],
+          ["Language detection described precisely", "Enforced where detection succeeds; fails open on short text or errors. Measured impact as of this version: effectively zero."],
+          ["Wire-reprint exclusion retired", "The wire-reprint category was retired as a deliberate methodology decision, folding wire-service content into the ordinary outlet-claim structure. Verbatim wire content published under an outlet's own byline is scored as an ordinary outlet claim -- an editorial decision the outlet is accountable for."],
+          ["Archive-history claim corrected", "This changelog previously stated the full version history is preserved at /methodology/archive. No general index exists; the claim has been removed rather than left inaccurate."],
+        ]},
         { title: "v1.6 \u2014 May 5, 2026", intro: "Methodology consolidation and breaking-news gate consistency.", items: [
           ["Single source of truth", "All scoring constants \u2014 verdict weights, scoreable types, tier thresholds, and formula parameters \u2014 consolidated into a single canonical module. Eliminates drift between the leaderboard, the API, and outlet detail pages."],
           ["Breaking-news gate applied uniformly", "The 6-hour breaking-news gate (Section 02) now applies consistently to every scoring surface: leaderboard, /api/source endpoint, outlet detail aggregates, score history charts, and article-report outlet badges. Previously the gate was only enforced on one of these surfaces, causing live and persisted scores to drift apart by small but real amounts."],
