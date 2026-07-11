@@ -177,7 +177,6 @@ def main():
             write_heartbeat('idle')
             log("Stream ended — resuming poll")
         else:
-            write_heartbeat('idle')
             log("No live event — sleeping")
         time.sleep(POLL_INTERVAL)
 
