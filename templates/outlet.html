@@ -128,7 +128,7 @@
           </div>
         </div>
         <div class="score-meta">
-          <div class="meta-row"><span class="meta-label">Tier</span><span class="meta-tier-pill meta-tier-pill--limited">Limited Data</span></div>
+          <div class="meta-row"><span class="meta-label">Tier</span><span class="meta-tier-pill meta-tier-pill--excluded">{{ outlet.tier }}</span></div>
           <div class="meta-row"><span class="meta-label">Verdicts evaluated</span><span class="meta-value">{{ outlet.verdict_count }}<small>total</small></span></div>
           <div class="meta-row"><span class="meta-label">Scoreable</span><span class="meta-value-stacked"><span class="meta-value">{{ outlet.scoreable_count }}</span><span class="meta-sub">{{ outlet.excluded_count }} excluded · {{ outlet.threshold - outlet.scoreable_count }} more to threshold</span></span></div>
           <div class="meta-row"><span class="meta-label">Status</span><span class="meta-status-text">Not yet scored</span></div>

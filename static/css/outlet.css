@@ -95,6 +95,7 @@ a { color: inherit; }
 .meta-tier-pill--high { background: rgba(74,222,128,0.12); color: var(--c-supported); border: 1px solid rgba(74,222,128,0.25); }
 .meta-tier-pill--med { background: rgba(251,191,36,0.10); color: var(--c-overstated); border: 1px solid rgba(251,191,36,0.20); }
 .meta-tier-pill--low { background: rgba(248,113,113,0.10); color: var(--c-disputed); border: 1px solid rgba(248,113,113,0.20); }
+.meta-tier-pill--excluded { background: rgba(255,255,255,0.06); color: var(--text-3); border: 1px solid rgba(255,255,255,0.12); }
 
 .score-block.is-sub-threshold .score-num-text { font-family: var(--font-display); font-weight: 400; font-size: 56px; line-height: 1.05; letter-spacing: -2px; color: var(--text-2); margin: 14px 0 0; }
 .score-block.is-sub-threshold .score-num-text em { font-style: italic; color: var(--violet-light); display: inline-block; transform: skewX(-4deg); }
