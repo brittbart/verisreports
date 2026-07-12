@@ -18,6 +18,7 @@ NEVER expose: verdict_summary, evidence_sources, priority_score,
 
 import hashlib
 import time
+import random
 import logging
 from datetime import datetime, timezone
 from functools import wraps
@@ -102,12 +103,32 @@ def require_api_key(f):
             key_id, tier, monthly_quota, rate_limit_per_minute = row
 
             # --- Step 3: Rate limit (per minute) ---
+            # Atomic increment-and-test, one round trip, no check-then-act gap.
+            # Meters requests ATTEMPTED (every attempt counts, including this
+            # one whether it's ultimately allowed or rejected) -- deliberately
+            # separate from monthly quota (Step 4), which meters resource
+            # CONSUMED and stays conditional on a 2xx outcome per FIX #4.
             cur.execute("""
-                SELECT COUNT(*) FROM api_usage
-                WHERE key_id = %s AND created_at > NOW() - INTERVAL '1 minute'
+                INSERT INTO api_rate_limit_buckets (key_id, minute_bucket, count)
+                VALUES (%s, date_trunc('minute', NOW()), 1)
+                ON CONFLICT (key_id, minute_bucket) DO UPDATE
+                    SET count = api_rate_limit_buckets.count + 1
+                RETURNING count
             """, (key_id,))
-            calls_last_minute = cur.fetchone()[0]
-            if calls_last_minute >= rate_limit_per_minute:
+            calls_this_minute = cur.fetchone()[0]
+            conn.commit()
+            # Cheap, unlocked opportunistic cleanup -- ~1% of requests also
+            # sweep buckets old enough to be irrelevant. Not required for
+            # correctness (a stale bucket's minute_bucket value is never
+            # matched by a current request, so it can't affect the check
+            # above), only to keep the table from growing forever.
+            if random.random() < 0.01:
+                cur.execute("""
+                    DELETE FROM api_rate_limit_buckets
+                    WHERE minute_bucket < NOW() - INTERVAL '10 minutes'
+                """)
+                conn.commit()
+            if calls_this_minute > rate_limit_per_minute:
                 _log_usage(cur, conn, key_id, request.path, 429,
                            int(time.time() * 1000) - start_ms)
                 return _rate_limit_error(
