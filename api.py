@@ -1099,21 +1099,6 @@ def privacy_html():
 
 
 
-def send_beta_request_notification(request_id, name, email, org, use_case, volume):
-    """Log new beta request. Replace with real SMTP when api@verumsignal.com is configured."""
-    import datetime
-    line = (
-        f"[{datetime.datetime.utcnow().isoformat()}] "
-        f"NEW BETA REQUEST #{request_id}: {name} <{email}> from {org}\n"
-        f"  Volume: {volume or 'not specified'}\n"
-        f"  Use case: {use_case[:200]}\n"
-        '---\n'
-    )
-    try:
-        with open('/tmp/beta_requests.log', 'a') as f: f.write(line)
-    except Exception: pass
-
-
 @app.route('/api', methods=['GET'])
 def api_landing():
     return send_from_directory(
@@ -1152,8 +1137,6 @@ def api_beta_request_submit():
         conn.rollback(); return jsonify({'success': False, 'error': 'server_error'}), 500
     finally:
         cur.close(); conn.close()
-    try: send_beta_request_notification(request_id, name, email, organization, use_case, estimated_volume)
-    except Exception: pass
     return jsonify({'success': True, 'request_id': request_id}), 200
 
 

@@ -7,6 +7,7 @@ import os
 import json
 import re
 from datetime import date, datetime
+from html import escape as _esc
 from flask import request, jsonify, Response
 
 # ---------------------------------------------------------------------------
@@ -1129,6 +1130,59 @@ def register_admin_routes(app, get_db_conn):
         auth_err = _admin_auth()
         if auth_err: return auth_err
         return Response(_ADMIN_HTML, mimetype='text/html')
+
+    @app.route('/api/admin/beta-requests', methods=['GET'])
+    def admin_beta_requests():
+        auth_err = _admin_auth()
+        if auth_err: return auth_err
+        conn = get_db_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, name, email, organization, use_case, estimated_volume,
+                       submitted_at, status
+                FROM api_beta_requests
+                ORDER BY submitted_at DESC
+            """)
+            rows = cur.fetchall()
+        finally:
+            cur.close(); conn.close()
+
+        badge_colors = {"new": "#a855f7", "contacted": "#3b82f6", "approved": "#4ade80",
+                         "declined": "#666", "spam": "#ef4444"}
+        rows_html = ""
+        for req_id, name, email, org, use_case, volume, submitted_at, status in rows:
+            color = badge_colors.get(status, "#666")
+            rows_html += f"""
+        <tr>
+          <td>{_esc(str(submitted_at))}</td>
+          <td><span style="background:{color};color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;text-transform:uppercase">{_esc(status)}</span></td>
+          <td>{_esc(name)}</td>
+          <td>{_esc(email)}</td>
+          <td>{_esc(org)}</td>
+          <td>{_esc(volume or chr(8212))}</td>
+          <td style="max-width:320px">{_esc(use_case)}</td>
+        </tr>"""
+
+        html_out = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Beta Requests -- Verum Signal Admin</title>
+<style>
+  body {{ background:#0a0a0f; color:#e8e8f0; font-family:-apple-system,BlinkMacSystemFont,sans-serif; padding:32px; }}
+  h1 {{ font-size:20px; margin-bottom:4px; }}
+  .sub {{ color:#888; font-size:13px; margin-bottom:24px; }}
+  table {{ width:100%; border-collapse:collapse; font-size:13px; }}
+  th {{ text-align:left; padding:8px 12px; border-bottom:1px solid #333; color:#888; font-weight:500; text-transform:uppercase; font-size:11px; }}
+  td {{ padding:8px 12px; border-bottom:1px solid #1e1e2e; vertical-align:top; }}
+</style></head>
+<body>
+  <h1>Beta Requests</h1>
+  <p class="sub">{len(rows)} total, most recent first. Refresh to update.</p>
+  <table>
+    <tr><th>Submitted</th><th>Status</th><th>Name</th><th>Email</th><th>Organization</th><th>Volume</th><th>Use case</th></tr>
+    {rows_html}
+  </table>
+</body></html>"""
+        return Response(html_out, mimetype='text/html')
 
     @app.route('/api/admin/events', methods=['GET'])
     def admin_get_events():
