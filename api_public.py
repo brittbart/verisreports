@@ -271,16 +271,22 @@ def _update_key_last_used(cur, conn, key_id):
 # ---------------------------------------------------------------------------
 
 def get_pagination_params():
-    """Parse and validate cursor + limit from query string."""
+    """Parse and validate cursor + limit from query string.
+    Returns (cursor, limit, error_response). error_response is None on
+    success, or a (json_body, 400) tuple if the cursor is malformed or
+    negative -- the caller must return it immediately when not None."""
     try:
         limit = min(int(request.args.get('limit', DEFAULT_LIMIT)), MAX_LIMIT)
     except (ValueError, TypeError):
         limit = DEFAULT_LIMIT
+    cursor_raw = request.args.get('cursor', '0')
     try:
-        cursor = int(request.args.get('cursor', 0))
+        cursor = int(cursor_raw)
     except (ValueError, TypeError):
-        cursor = 0
-    return cursor, limit
+        return None, None, (jsonify({"error": f"Invalid cursor: '{cursor_raw}' is not a valid integer"}), 400)
+    if cursor < 0:
+        return None, None, (jsonify({"error": f"Invalid cursor: {cursor} must be non-negative"}), 400)
+    return cursor, limit, None
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +333,9 @@ def meta():
 @require_api_key
 def claims():
     from api import get_db
-    cursor, limit = get_pagination_params()
+    cursor, limit, cursor_err = get_pagination_params()
+    if cursor_err is not None:
+        return cursor_err
 
     outlet   = request.args.get('outlet')
     verdict  = request.args.get('verdict')
@@ -412,7 +420,9 @@ def claims():
 @require_api_key
 def outlets():
     from api import get_db
-    cursor, limit = get_pagination_params()
+    cursor, limit, cursor_err = get_pagination_params()
+    if cursor_err is not None:
+        return cursor_err
     tier = request.args.get('tier')
 
     conn = get_db()
@@ -509,7 +519,9 @@ def _format_outlet(row):
 @require_api_key
 def debates():
     from api import get_db
-    cursor, limit = get_pagination_params()
+    cursor, limit, cursor_err = get_pagination_params()
+    if cursor_err is not None:
+        return cursor_err
 
     conn = get_db()
     cur = conn.cursor()
@@ -560,7 +572,9 @@ def debates():
 @require_api_key
 def debate_claims(slug):
     from api import get_db
-    cursor, limit = get_pagination_params()
+    cursor, limit, cursor_err = get_pagination_params()
+    if cursor_err is not None:
+        return cursor_err
     speaker = request.args.get('speaker')
     verdict = request.args.get('verdict')
 
