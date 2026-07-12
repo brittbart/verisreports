@@ -55,8 +55,14 @@ log = logging.getLogger(__name__)
 # Adding a version here exposes verdicts to all API customers immediately.
 # There is no rollback path for already-served records.
 #
-# When v1.7 launches: PUBLIC_METHODOLOGY_VERSIONS = ['v1.6', 'v1.7']
-PUBLIC_METHODOLOGY_VERSIONS = ['v1.6']
+# When v1.7 launches: set the PUBLIC_METHODOLOGY_VERSIONS env var to
+# "['v1.6', 'v1.7']" — counsel's call, no code change required here.
+# Same env var, same fallback, as mobile_routes.py already uses.
+import ast as _ast
+PUBLIC_METHODOLOGY_VERSIONS = _ast.literal_eval(
+    __import__('os').environ.get('PUBLIC_METHODOLOGY_VERSIONS', "['v1.6']")
+)
+del _ast
 
 METHODOLOGY_VERSION = 'v1.6'   # stamp on api_outlets (outlet scoring uses leaderboard formula)
 
@@ -91,6 +97,8 @@ def refresh_claims(cur) -> int:
     log.info(f"refresh_claims: fetching claims evaluated after {since}")
 
     versions_tuple = tuple(PUBLIC_METHODOLOGY_VERSIONS)
+    if not versions_tuple:
+        raise RuntimeError('PUBLIC_METHODOLOGY_VERSIONS is empty — refusing to sync')
 
     cur.execute("""
         SELECT
@@ -105,16 +113,17 @@ def refresh_claims(cur) -> int:
             a.title                     AS article_title,
             a.published_at              AS article_published_at,
             c.last_checked              AS evaluated_at,
-            'v1.6'  AS methodology_version,
+            c.methodology_version       AS methodology_version,
             'https://verumsignal.com/report?url=' || a.url  AS report_url
         FROM claims c
         JOIN articles a ON a.id = c.article_id
         WHERE c.claim_origin IN ('outlet_claim', 'attributed_claim')
           AND c.verdict IS NOT NULL
           AND c.last_checked > %s
+          AND c.methodology_version IN %s
         ORDER BY c.last_checked
         LIMIT 5000
-    """, (since,))
+    """, (since, versions_tuple))
 
     rows = cur.fetchall()
     if not rows:
@@ -128,8 +137,17 @@ def refresh_claims(cur) -> int:
          article_published_at, evaluated_at, methodology_version,
          report_url) = row
 
-        # Skip if version not public (belt-and-suspenders on top of WHERE clause)
+        # Belt-and-braces on top of the SQL-level filter above (which is the
+        # primary control). This should never actually fire; if it does, a
+        # non-public-version row got past the WHERE clause somehow, and
+        # that is a regression worth knowing about loudly, not silently.
         if methodology_version not in PUBLIC_METHODOLOGY_VERSIONS:
+            log.warning(
+                f"refresh_claims: claim_id={claim_id} has methodology_version="
+                f"{methodology_version!r}, not in PUBLIC_METHODOLOGY_VERSIONS="
+                f"{PUBLIC_METHODOLOGY_VERSIONS!r} — skipped despite passing the "
+                f"SQL filter. This should not happen; investigate."
+            )
             continue
 
         cur.execute("""
@@ -307,7 +325,9 @@ def refresh_debate_claims(cur) -> int:
     since = cur.fetchone()[0]
     log.info(f"refresh_debate_claims: fetching claims evaluated after {since}")
 
-    versions_list = list(PUBLIC_METHODOLOGY_VERSIONS)
+    versions_tuple = tuple(PUBLIC_METHODOLOGY_VERSIONS)
+    if not versions_tuple:
+        raise RuntimeError('PUBLIC_METHODOLOGY_VERSIONS is empty — refusing to sync')
 
     cur.execute("""
         SELECT
@@ -323,7 +343,7 @@ def refresh_debate_claims(cur) -> int:
             c.claim_text,
             c.verdict                   AS verdict_label,
             c.last_checked              AS evaluated_at,
-            'v1.6'  AS methodology_version,
+            c.methodology_version       AS methodology_version,
             'https://verumsignal.com/debates/' || e.slug  AS event_url,
             c.verdict_status,
             c.timestamp_seconds,
@@ -336,9 +356,10 @@ def refresh_debate_claims(cur) -> int:
           AND c.verdict IS NOT NULL
           AND e.is_public = TRUE
           AND c.last_checked > %s
+          AND c.methodology_version IN %s
         ORDER BY c.last_checked
         LIMIT 5000
-    """, (since,))
+    """, (since, versions_tuple))
 
     rows = cur.fetchall()
     if not rows:
@@ -353,6 +374,12 @@ def refresh_debate_claims(cur) -> int:
          event_url, verdict_status, timestamp_seconds, correction_note) = row
 
         if methodology_version not in PUBLIC_METHODOLOGY_VERSIONS:
+            log.warning(
+                f"refresh_debate_claims: claim_id={claim_id} has methodology_version="
+                f"{methodology_version!r}, not in PUBLIC_METHODOLOGY_VERSIONS="
+                f"{PUBLIC_METHODOLOGY_VERSIONS!r} — skipped despite passing the "
+                f"SQL filter. This should not happen; investigate."
+            )
             continue
 
         cur.execute("""
