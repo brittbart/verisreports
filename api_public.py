@@ -734,7 +734,7 @@ def developers_page():
     <div class="card"><h3>3,000+ independently checked claims</h3><p>Every claim assessed with web search under a public, versioned methodology. No verdict copying, no shortcuts.</p></div>
     <div class="card"><h3>Outlet scores</h3><p>Evidence-based credibility scores for 127 tracked outlets, updated continuously.</p></div>
     <div class="card"><h3>Live debate verdicts</h3><p>Real-time claim extraction during political debates, with speaker attribution.</p></div>
-    <div class="card"><h3>Agent-ready</h3><p>Structured JSON responses, cursor pagination, OpenAPI spec, and MCP server coming soon.</p></div>
+    <div class="card"><h3>Agent-ready</h3><p>Structured JSON responses, cursor pagination, OpenAPI spec, and a self-hosted <a href="https://github.com/brittbart/verumsignal-mcp" style="color:var(--accent)">MCP server</a> you run with your own key.</p></div>
   </div>
 
   <h2>Get API access</h2>
