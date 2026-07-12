@@ -197,20 +197,6 @@ def require_api_key(f):
         except Exception as e:
             log.error(f"Auth middleware error: {e}", exc_info=True)
             conn.rollback()
-            try:
-                import traceback as _tb
-                from api import get_db as _get_db_debug
-                _dc = _get_db_debug()
-                _dcur = _dc.cursor()
-                _dcur.execute(
-                    "INSERT INTO debug_traceback_capture (error_text) VALUES (%s)",
-                    (_tb.format_exc(),)
-                )
-                _dc.commit()
-                _dcur.close()
-                _dc.close()
-            except Exception:
-                pass  # never let debug capture itself break the real response
             return jsonify({'error': 'Internal server error'}), 500
         finally:
             cur.close()
