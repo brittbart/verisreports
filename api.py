@@ -557,6 +557,21 @@ def check_source_rate_limit(req):
     """Returns None if OK, or a (body, status) tuple if the per-IP
     limit is exceeded. Call at the top of each /api/source* handler."""
     ip = req.headers.get('X-Forwarded-For', req.remote_addr or 'unknown').split(',')[0].strip()
+
+    # TEMPORARY (API Go-Live Brief, PUSH 3): log the hit so the real
+    # traffic pattern can be measured with a direct SQL query. Remove
+    # once the atomic-limiter ceiling is sized from this data.
+    try:
+        _hlc = get_db(); _hlcur = _hlc.cursor()
+        _hlcur.execute(
+            "INSERT INTO api_source_hit_log (ip, path) VALUES (%s, %s)",
+            (ip, req.path)
+        )
+        _hlc.commit()
+        _hlcur.close(); _hlc.close()
+    except Exception:
+        pass  # never let logging break the real rate-limit check
+
     now = _rl_time.time()
     hits = _source_rate_limit_hits[ip]
     while hits and hits[0] < now - _SOURCE_RATE_LIMIT_WINDOW_SECONDS:
