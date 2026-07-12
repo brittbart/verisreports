@@ -133,7 +133,6 @@ def require_api_key(f):
                     retry_after=None,
                     limit=monthly_quota,
                     remaining=0,
-                    quota_error=True,
                 )
 
             # Store on g for use in response headers and post-request logging
@@ -185,7 +184,7 @@ def _auth_error(message):
     return resp
 
 
-def _rate_limit_error(message, retry_after, limit, remaining, quota_error=False):
+def _rate_limit_error(message, retry_after, limit, remaining):
     resp = jsonify({'error': message})
     resp.status_code = 429
     if retry_after:
@@ -196,19 +195,31 @@ def _rate_limit_error(message, retry_after, limit, remaining, quota_error=False)
 
 
 def _log_usage(cur, conn, key_id, endpoint, status_code, elapsed_ms):
+    """
+    Records every request attempt in api_usage regardless of outcome — that
+    table is the per-minute rate-limit source AND the full observability
+    log, so it stays unconditional (a rejected request still consumed
+    rate-limiter capacity, which is the point of a rate limiter).
+
+    api_monthly_usage is different: it meters the customer's monthly
+    allowance, and only a request that actually got a successful (2xx)
+    response consumed that allowance. A request rejected before reaching
+    a handler (429) — or one whose handler itself errored — did not.
+    """
     try:
         cur.execute("""
             INSERT INTO api_usage (key_id, endpoint, status_code, response_time_ms, ip)
             VALUES (%s, %s, %s, %s, %s)
         """, (key_id, endpoint, status_code, elapsed_ms,
               request.headers.get('X-Forwarded-For', request.remote_addr)))
-        cur.execute("""
-            INSERT INTO api_monthly_usage (key_id, year_month, call_count, last_updated)
-            VALUES (%s, %s, 1, NOW())
-            ON CONFLICT (key_id, year_month) DO UPDATE SET
-                call_count = api_monthly_usage.call_count + 1,
-                last_updated = NOW()
-        """, (key_id, datetime.now(timezone.utc).strftime('%Y-%m')))
+        if 200 <= status_code < 300:
+            cur.execute("""
+                INSERT INTO api_monthly_usage (key_id, year_month, call_count, last_updated)
+                VALUES (%s, %s, 1, NOW())
+                ON CONFLICT (key_id, year_month) DO UPDATE SET
+                    call_count = api_monthly_usage.call_count + 1,
+                    last_updated = NOW()
+            """, (key_id, datetime.now(timezone.utc).strftime('%Y-%m')))
         conn.commit()
     except Exception as e:
         log.error(f"Failed to log usage: {e}")
@@ -612,71 +623,18 @@ def openapi_spec():
 
 @api_public.route('/v1/keys/request', methods=['POST'])
 def request_api_key():
-    import secrets, hashlib, re as _re
-    from flask import request as _req
-    data = _req.get_json(silent=True) or {}
-    email = (data.get('email') or '').strip().lower()
-    name  = (data.get('name') or '').strip()
-    use_case = (data.get('use_case') or '').strip()[:500]
-    if not email or not _re.match(r"^[^@]+@[^@]+[.][^@]+$", email):
-        return jsonify({"error": "Valid email required"}), 400
-    if not name:
-        return jsonify({"error": "name required"}), 400
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT key_prefix FROM api_keys WHERE user_email = %s AND revoked_at IS NULL LIMIT 1",
-            (email,))
-        if cur.fetchone():
-            cur.close(); conn.close()
-            return jsonify({"error": "An active key exists for this email.", "hint": "Contact api@verumsignal.com to replace it."}), 409
-        raw_key = "vs_live_" + secrets.token_urlsafe(32)
-        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
-        key_prefix = raw_key[:16]
-        # Insert api_keys row
-        # monthly_quota=100 matches api.html free tier spec (was incorrectly 1000)
-        cur.execute(
-            "INSERT INTO api_keys (user_email, key_hash, key_prefix, name, tier, monthly_quota, rate_limit_per_minute, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id",
-            (email, key_hash, key_prefix, name, "free", 100, 10))
-        api_key_id = cur.fetchone()[0]
-
-        # Upsert users row — create if new, touch last_seen_at if returning
-        cur.execute("""
-            INSERT INTO users (email, email_verified, updated_at, last_seen_at)
-            VALUES (%s, FALSE, NOW(), NOW())
-            ON CONFLICT (email) DO UPDATE
-                SET last_seen_at = NOW(),
-                    updated_at = NOW()
-            RETURNING id
-        """, (email,))
-        user_id = cur.fetchone()[0]
-
-        # Link api_keys.user_id to users.id
-        cur.execute(
-            "UPDATE api_keys SET user_id = %s WHERE id = %s",
-            (user_id, api_key_id))
-
-        # Insert free-tier API subscription row (idempotent — ignore if exists)
-        # quota_reset_at: first of next month
-        from datetime import date
-        today = date.today()
-        if today.month == 12:
-            reset = date(today.year + 1, 1, 1)
-        else:
-            reset = date(today.year, today.month + 1, 1)
-
-        cur.execute("""
-            INSERT INTO subscriptions
-                (user_id, product, tier, status, quota_used_this_month, quota_reset_at)
-            VALUES (%s, 'api', 'free', 'active', 0, %s)
-            ON CONFLICT (user_id, product) DO NOTHING
-        """, (user_id, reset))
-
-        conn.commit(); cur.close(); conn.close()
-        return jsonify({"api_key": raw_key, "prefix": key_prefix, "tier": "free", "monthly_quota": 100, "rate_limit_per_minute": 10, "message": "Store this key safely — it will not be shown again.", "docs": "https://verumsignal.com/developers", "email": email}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    """
+    Self-service key issuance is disabled during closed beta (HOLD #5,
+    Option A — approved). Deliberately does NOT touch the database, so
+    none of the three bugs that were found here (missing get_db import,
+    stale tier value violating the live CHECK constraint, and a
+    users.external_id NOT NULL UNIQUE violation from the Clerk
+    migration) can fire. See Session 5 remediation record for detail.
+    """
+    return jsonify({
+        "error": "Self-service key issuance is not available during closed beta.",
+        "contact": "api@verumsignal.com"
+    }), 503
 
 
 @api_public.route('/developers')
