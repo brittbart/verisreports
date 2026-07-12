@@ -26,6 +26,7 @@ _QUOTA_HEADERS = {
     "X-RateLimit-Remaining":  "rate_limit_remaining",
     "X-Quota-Limit":          "monthly_quota_limit",
     "X-Quota-Remaining":      "monthly_quota_remaining",
+    "Retry-After":            "retry_after_seconds",
 }
 
 
