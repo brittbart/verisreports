@@ -18,6 +18,17 @@ from api_leaderboard import (
     WEIGHTS,
     SCOREABLE_VERDICTS,
 )
+import ast as _ast, os as _os
+# Public-facing methodology version — gated by attorney approval.
+# Derived from PUBLIC_METHODOLOGY_VERSIONS env var (same source as mobile_routes.py
+# and debate_routes.py's PUBLIC_METHODOLOGY_VERSION — see patch_methodology_version_leak.py).
+# Internal METHODOLOGY_VERSION may be ahead of what's publicly published.
+_raw_pmv = _os.environ.get('PUBLIC_METHODOLOGY_VERSIONS', "['v1.6']")
+try:
+    PUBLIC_METHODOLOGY_VERSION = _ast.literal_eval(_raw_pmv)[-1]
+except Exception:
+    PUBLIC_METHODOLOGY_VERSION = 'v1.6'
+del _ast, _os, _raw_pmv
 
 DOMAIN_RE = re.compile(r"^[a-z0-9.-]+$")
 
@@ -237,13 +248,17 @@ def register_outlet_routes(app, get_db_conn):
         return render_template(
             "outlet.html",
             outlet=outlet,
-            methodology_version=METHODOLOGY_VERSION,
+            methodology_version=PUBLIC_METHODOLOGY_VERSION,
             seo_meta=outlet_meta(outlet["domain"], outlet.get("score"), outlet.get("tier"), outlet.get("scoreable_count", 0)),
             inclusion_threshold=INCLUSION_THRESHOLD,
         )
 
     @app.route("/api/source/verdicts", methods=["GET"])
     def get_source_verdicts():
+        from api import check_source_rate_limit
+        _rl = check_source_rate_limit(request)
+        if _rl is not None:
+            return _rl
         domain = request.args.get("domain", "").strip()
         if not domain:
             return jsonify({"error": "domain required"}), 400
@@ -271,7 +286,7 @@ def register_outlet_routes(app, get_db_conn):
             return jsonify({
                 "domain":              domain,
                 "as_of":               last_at.strftime("%Y-%m-%d") if last_at else None,
-                "methodology_version": METHODOLOGY_VERSION,
+                "methodology_version": PUBLIC_METHODOLOGY_VERSION,
                 "verdicts":            api_verdicts,
             })
         except Exception as e:
@@ -279,6 +294,10 @@ def register_outlet_routes(app, get_db_conn):
 
     @app.route("/api/source/history", methods=["GET"])
     def get_source_history():
+        from api import check_source_rate_limit
+        _rl = check_source_rate_limit(request)
+        if _rl is not None:
+            return _rl
         domain = request.args.get("domain", "").strip()
         if not domain:
             return jsonify({"error": "domain required"}), 400
@@ -287,7 +306,7 @@ def register_outlet_routes(app, get_db_conn):
             history = _get_score_history(get_db_conn, core)
             return jsonify({
                 "domain":              domain,
-                "methodology_version": METHODOLOGY_VERSION,
+                "methodology_version": PUBLIC_METHODOLOGY_VERSION,
                 "history":             history,
             })
         except Exception as e:

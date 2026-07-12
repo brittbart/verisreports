@@ -540,8 +540,38 @@ def waitlist_confirmed():
     return html, 200, {'Content-Type': 'text/html'}
 
 
+import time as _rl_time
+from collections import defaultdict, deque
+
+# ---------------------------------------------------------------------------
+# §6 cheap mitigation — in-memory per-IP rate limit for /api/source*
+# Not distributed (per-process, resets on redeploy) — a deliberate low-risk
+# pre-launch stopgap, not the real fix. Real decision routed to Session 8.
+# ---------------------------------------------------------------------------
+_SOURCE_RATE_LIMIT_PER_MINUTE = 30
+_SOURCE_RATE_LIMIT_WINDOW_SECONDS = 60
+_source_rate_limit_hits = defaultdict(deque)
+
+
+def check_source_rate_limit(req):
+    """Returns None if OK, or a (body, status) tuple if the per-IP
+    limit is exceeded. Call at the top of each /api/source* handler."""
+    ip = req.headers.get('X-Forwarded-For', req.remote_addr or 'unknown').split(',')[0].strip()
+    now = _rl_time.time()
+    hits = _source_rate_limit_hits[ip]
+    while hits and hits[0] < now - _SOURCE_RATE_LIMIT_WINDOW_SECONDS:
+        hits.popleft()
+    if len(hits) >= _SOURCE_RATE_LIMIT_PER_MINUTE:
+        return jsonify({"error": "Too many requests"}), 429
+    hits.append(now)
+    return None
+
+
 @app.route('/api/source', methods=['GET'])
 def get_source():
+    _rl = check_source_rate_limit(request)
+    if _rl is not None:
+        return _rl
     # Aligned with api_leaderboard.compute_score / LEADERBOARD_SQL so the
     # extension and the public leaderboard never disagree.
     from api_leaderboard import compute_score, compute_score_band, compute_tier, INCLUSION_THRESHOLD
@@ -1740,15 +1770,32 @@ def resolve_report_access(get_db):
     return {'user': user, 'tier': tier, 'depth': depth, 'user_id': user['id'], 'audit_override': False}
 
 
+def _anon_salt():
+    """
+    Salt for anon-IP hashing. Fails closed in production (raises if
+    SECRET_KEY is unset on Railway), matching auth_routes.py's existing
+    check for the same env var — the mitigation should be a property of
+    this file, not a coincidence of another file's strictness.
+    """
+    import os
+    salt = os.environ.get("SECRET_KEY")
+    if not salt:
+        if os.environ.get("RAILWAY_ENVIRONMENT"):
+            raise RuntimeError("SECRET_KEY env var is required in production")
+        print("[anon_ceiling] SECRET_KEY not set — using insecure dev default.")
+        salt = "vs-anon-salt"
+    return salt
+
+
 def anon_ceiling_ok(get_db, request):
     """Check and enforce 3/day/IP ceiling for anonymous verifications.
     Returns True if within ceiling (proceed), False if exceeded (block).
     IP is SHA-256 hashed with a salt — raw IP never stored.
     Increment only on successful verification (see anon_ceiling_increment).
     """
-    import hashlib, os
+    import hashlib
     from datetime import date
-    salt = os.environ.get("SECRET_KEY", "vs-anon-salt")
+    salt = _anon_salt()
     forwarded = request.headers.get("X-Forwarded-For", request.remote_addr or "")
     raw_ip = forwarded.split(",")[0].strip()
     ip_hash = hashlib.sha256(f"{salt}:{raw_ip}".encode()).hexdigest()
@@ -1772,9 +1819,9 @@ def anon_ceiling_increment(get_db, request):
     """Increment anon daily verify counter for this IP.
     Call only after successful verify_and_insert_claims.
     """
-    import hashlib, os
+    import hashlib
     from datetime import date
-    salt = os.environ.get("SECRET_KEY", "vs-anon-salt")
+    salt = _anon_salt()
     forwarded = request.headers.get("X-Forwarded-For", request.remote_addr or "")
     raw_ip = forwarded.split(",")[0].strip()
     ip_hash = hashlib.sha256(f"{salt}:{raw_ip}".encode()).hexdigest()
