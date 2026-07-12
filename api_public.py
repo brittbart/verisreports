@@ -679,8 +679,8 @@ def developers_page():
   .form-wrap p{font-size:13px;color:var(--dim);margin-bottom:20px}
   .field{margin-bottom:16px}
   .field label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);margin-bottom:6px}
-  .field input,.field textarea{width:100%;background:#0a0a0f;border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--fg);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s}
-  .field input:focus,.field textarea:focus{border-color:var(--accent)}
+  .field input,.field textarea,.field select{width:100%;background:#0a0a0f;border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--fg);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}
   .field textarea{resize:vertical;min-height:80px}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.2s}
   .btn:hover{opacity:0.85}
@@ -688,9 +688,6 @@ def developers_page():
   .result{display:none;margin-top:20px;background:#0d0d14;border:1px solid var(--border);border-radius:8px;padding:20px}
   .result.success{border-color:rgba(74,222,128,0.3)}
   .result.error{border-color:rgba(248,113,113,0.3)}
-  .key-display{font-family:var(--mono);font-size:13px;color:var(--green);word-break:break-all;margin:10px 0;padding:12px;background:rgba(74,222,128,0.06);border-radius:6px;border:1px solid rgba(74,222,128,0.2)}
-  .copy-btn{font-size:12px;padding:4px 10px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--dim);cursor:pointer}
-  .copy-btn:hover{border-color:var(--accent);color:var(--accent)}
   .pill{display:inline-block;padding:2px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(168,85,247,0.15);color:var(--accent);margin-bottom:8px}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px}
   th{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);color:var(--dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.06em}
@@ -710,57 +707,67 @@ def developers_page():
   </div>
 
   <h1>Build with <em>Verum Signal</em></h1>
-  <p class="sub">Programmatic access to verdict-labeled claims, outlet credibility scores, and live debate verdicts. Built for agents, newsrooms, and researchers.</p>
+  <p class="sub">Verdict-labeled claims, outlet credibility scores, and speaker-attributed debate data — programmatic access to the Verum Signal corpus, under a documented methodology.</p>
 
   <div class="cards">
-    <div class="card"><h3>12,000+ verified claims</h3><p>Every claim independently verified with web search. No verdict copying, no shortcuts.</p></div>
-    <div class="card"><h3>Outlet scores</h3><p>Evidence-based credibility scores for 150+ outlets, updated continuously.</p></div>
-    <div class="card"><h3>Live debate verdicts</h3><p>Real-time claim extraction and verification during political debates.</p></div>
+    <div class="card"><h3>3,000+ independently checked claims</h3><p>Every claim assessed with web search under a public, versioned methodology. No verdict copying, no shortcuts.</p></div>
+    <div class="card"><h3>Outlet scores</h3><p>Evidence-based credibility scores for 127 tracked outlets, updated continuously.</p></div>
+    <div class="card"><h3>Live debate verdicts</h3><p>Real-time claim extraction during political debates, with speaker attribution.</p></div>
     <div class="card"><h3>Agent-ready</h3><p>Structured JSON responses, cursor pagination, OpenAPI spec, and MCP server coming soon.</p></div>
   </div>
 
-  <h2>Get an API key</h2>
+  <h2>Get API access</h2>
   <div class="form-wrap">
-    <h3>Free tier — 1,000 calls/month</h3>
-    <p>Your key is generated instantly and shown once. Store it safely.</p>
+    <span class="pill">Closed beta</span>
+    <h3>Access is by request</h3>
+    <p>Requests are reviewed within 48 hours. We're accepting a limited number of design partners — selected partners receive complimentary access in exchange for feedback.</p>
+    <div class="field"><label>Name</label><input type="text" id="f-name" placeholder="Jane Doe"></div>
     <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="you@example.com"></div>
-    <div class="field"><label>Name or organization</label><input type="text" id="f-name" placeholder="Acme Newsroom"></div>
-    <div class="field"><label>How will you use the API? (optional)</label><textarea id="f-use" placeholder="e.g. fact-checking pipeline, research tool, news aggregator..."></textarea></div>
-    <button class="btn" id="req-btn" onclick="requestKey()">Get API key</button>
+    <div class="field"><label>Organization</label><input type="text" id="f-org" placeholder="Acme Newsroom"></div>
+    <div class="field"><label>How will you use the API?</label><textarea id="f-use" placeholder="A few sentences is fine."></textarea></div>
+    <div class="field"><label>Estimated monthly calls (optional)</label>
+      <select id="f-volume">
+        <option value="">Not sure yet</option>
+        <option value="Under 5,000/mo">Under 5,000/mo</option>
+        <option value="5,000-50,000/mo">5,000–50,000/mo</option>
+        <option value="50,000+/mo">50,000+/mo</option>
+      </select>
+    </div>
+    <button class="btn" id="req-btn" onclick="requestAccess()">Request access</button>
     <div class="result" id="result-box"></div>
   </div>
 
   <h2>Quick start</h2>
   <div class="code-block"><pre><span class="comment"># Get your outlet credibility score</span>
-curl https://api.verumsignal.com/v1/outlets/nytimes.com \
+curl https://api.verumsignal.com/v1/outlets/nytimes.com \\
   -H "Authorization: Bearer vs_live_your_key_here"</pre></div>
-  <div class="code-block"><pre><span class="comment"># Search recent verified claims</span>
-curl "https://api.verumsignal.com/v1/claims?limit=10" \
+  <div class="code-block"><pre><span class="comment"># Recent claims</span>
+curl "https://api.verumsignal.com/v1/claims?limit=10" \\
   -H "Authorization: Bearer vs_live_your_key_here"</pre></div>
   <div class="code-block"><pre><span class="comment"># Get live debate verdicts</span>
-curl "https://api.verumsignal.com/v1/debates" \
+curl "https://api.verumsignal.com/v1/debates" \\
   -H "Authorization: Bearer vs_live_your_key_here"</pre></div>
 
   <h2>Endpoints</h2>
   <table>
     <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
     <tr><td>GET</td><td><code>/v1/meta</code></td><td>API status, corpus stats, methodology version</td></tr>
-    <tr><td>GET</td><td><code>/v1/claims</code></td><td>Paginated verified claims feed</td></tr>
+    <tr><td>GET</td><td><code>/v1/claims</code></td><td>Paginated claims feed</td></tr>
     <tr><td>GET</td><td><code>/v1/outlets</code></td><td>Outlet leaderboard with scores and tiers</td></tr>
     <tr><td>GET</td><td><code>/v1/outlets/:domain</code></td><td>Single outlet detail and verdict breakdown</td></tr>
     <tr><td>GET</td><td><code>/v1/debates</code></td><td>Debate list with claim counts</td></tr>
-    <tr><td>GET</td><td><code>/v1/debates/:slug/claims</code></td><td>All verified claims from a specific debate</td></tr>
+    <tr><td>GET</td><td><code>/v1/debates/:slug/claims</code></td><td>All claims from a specific debate</td></tr>
     <tr><td>GET</td><td><code>/openapi.yaml</code></td><td>Full OpenAPI 3.1 specification</td></tr>
   </table>
 
-  <h2>Rate limits</h2>
+  <h2>Pricing &amp; limits</h2>
   <table>
-    <tr><th>Tier</th><th>Monthly quota</th><th>Per minute</th></tr>
-    <tr><td>Free</td><td>1,000 calls</td><td>10 calls</td></tr>
-    <tr><td>Pro</td><td>50,000 calls</td><td>60 calls</td></tr>
-    <tr><td>Enterprise</td><td>Unlimited</td><td>Custom</td></tr>
+    <tr><th>Tier</th><th>Price</th><th>Monthly quota</th><th>Per minute</th></tr>
+    <tr><td>Starter</td><td>$49/mo</td><td>5,000 calls</td><td>60 calls</td></tr>
+    <tr><td>Pro</td><td>$199/mo</td><td>50,000 calls</td><td>180 calls</td></tr>
+    <tr><td>Enterprise</td><td>Custom</td><td>500,000+ calls</td><td>Custom</td></tr>
   </table>
-  <p style="font-size:13px;color:var(--dim)">Need higher limits? Email <a href="mailto:api@verumsignal.com" style="color:var(--accent)">api@verumsignal.com</a></p>
+  <p style="font-size:13px;color:var(--dim)">Now accepting design partners. Public pricing finalizes at general availability. Questions? Email <a href="mailto:api@verumsignal.com" style="color:var(--accent)">api@verumsignal.com</a></p>
 
   <footer>
     <a href="/methodology">Methodology</a>
@@ -771,48 +778,45 @@ curl "https://api.verumsignal.com/v1/debates" \
 </div>
 
 <script>
-async function requestKey() {
+async function requestAccess() {
   var btn = document.getElementById('req-btn');
   var box = document.getElementById('result-box');
-  var email = document.getElementById('f-email').value.trim();
   var name = document.getElementById('f-name').value.trim();
-  var use = document.getElementById('f-use').value.trim();
-  if (!email || !name) { alert('Email and name are required.'); return; }
-  btn.disabled = true; btn.textContent = 'Generating...';
+  var email = document.getElementById('f-email').value.trim();
+  var organization = document.getElementById('f-org').value.trim();
+  var use_case = document.getElementById('f-use').value.trim();
+  var estimated_volume = document.getElementById('f-volume').value || null;
+  if (!name || !email || !organization || !use_case) { alert('Name, email, organization, and use case are required.'); return; }
+  btn.disabled = true; btn.textContent = 'Submitting...';
   try {
-    var r = await fetch('/v1/keys/request', {
+    var r = await fetch('/api/beta-request', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email: email, name: name, use_case: use})
+      body: JSON.stringify({name: name, email: email, organization: organization, use_case: use_case, estimated_volume: estimated_volume})
     });
     var d = await r.json();
     box.style.display = 'block';
-    if (r.ok) {
+    if (r.ok && d.success) {
       box.className = 'result success';
-      box.innerHTML = '<div style="color:#4ade80;font-weight:600;margin-bottom:8px">✓ Your API key</div>' +
-        '<div class="key-display" id="key-val">' + d.api_key + '</div>' +
-        '<button class="copy-btn" onclick="copyKey()">Copy key</button>' +
-        '<p style="font-size:12px;color:#888;margin-top:12px">' + d.message + '<br>' +
-        'Tier: ' + d.tier + ' · ' + d.monthly_quota + ' calls/month · ' + d.rate_limit_per_minute + '/min</p>';
+      box.innerHTML = '<div style="color:#4ade80;font-weight:600">Request received</div>' +
+        '<p style="font-size:12px;color:#888;margin-top:8px">We review requests within 48 hours and will follow up at ' + email + '.</p>';
+      btn.textContent = 'Submitted';
     } else {
       box.className = 'result error';
-      box.innerHTML = '<div style="color:#f87171">' + (d.error || 'Something went wrong') + '</div>' +
-        (d.hint ? '<div style="font-size:12px;color:#888;margin-top:6px">' + d.hint + '</div>' : '');
+      box.innerHTML = '<div style="color:#f87171">Something went wrong. Please try again or email api@verumsignal.com directly.</div>';
+      btn.disabled = false; btn.textContent = 'Request access';
     }
   } catch(e) {
     box.style.display = 'block';
     box.className = 'result error';
-    box.innerHTML = '<div style="color:#f87171">Request failed: ' + e.message + '</div>';
+    box.innerHTML = '<div style="color:#f87171">Request failed. Please try again or email api@verumsignal.com directly.</div>';
+    btn.disabled = false; btn.textContent = 'Request access';
   }
-  btn.disabled = false; btn.textContent = 'Get API key';
-}
-function copyKey() {
-  var k = document.getElementById('key-val');
-  if (k) { navigator.clipboard.writeText(k.textContent); }
 }
 </script>
 </body>
 </html>""", 200, {'Content-Type': 'text/html'}
+
 
 @api_public.route('/docs')
 def swagger_ui():
