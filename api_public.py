@@ -22,7 +22,7 @@ import logging
 from datetime import datetime, timezone
 from functools import wraps
 
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, make_response
 
 log = logging.getLogger(__name__)
 
@@ -149,6 +149,13 @@ def require_api_key(f):
 
             # --- Step 5: Call handler ---
             response = f(*args, **kwargs)
+            # Normalize whatever the wrapped view returned (tuple, str, dict,
+            # Response) into a real Response object — mirrors what Flask's own
+            # dispatcher would do, since this decorator sits inside that boundary
+            # and the raw return value never reaches Flask's dispatcher directly.
+            # Without this, a plain (body, status) tuple return — normal, idiomatic
+            # Flask — has no .headers attribute, and the code below would throw.
+            response = make_response(response)
 
             # --- Step 6: Post-request logging ---
             status_code = response.status_code if hasattr(response, 'status_code') else 200
@@ -445,7 +452,9 @@ def outlet_detail(outlet_id):
         """, (outlet_id.lower(),))
         row = cur.fetchone()
         if not row:
-            return jsonify({'error': f'Outlet not found: {outlet_id}'}), 404
+            resp = jsonify({'error': f'Outlet not found: {outlet_id}'})
+            resp.status_code = 404
+            return resp
         return jsonify(_format_outlet(row))
     finally:
         cur.close()
@@ -540,7 +549,9 @@ def debate_claims(slug):
         # Verify event exists
         cur.execute("SELECT event_id FROM api_debate_claims WHERE event_slug = %s LIMIT 1", (slug,))
         if not cur.fetchone():
-            return jsonify({'error': f'Debate not found: {slug}'}), 404
+            resp = jsonify({'error': f'Debate not found: {slug}'})
+            resp.status_code = 404
+            return resp
 
         filters = ['event_slug = %s', 'cursor_key > %s']
         params  = [slug, cursor]
