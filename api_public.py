@@ -160,7 +160,7 @@ def require_api_key(f):
             g.api_key_id = key_id
             g.api_tier = tier
             g.api_rate_limit = rate_limit_per_minute
-            g.api_calls_last_minute = calls_last_minute
+            g.api_calls_last_minute = calls_this_minute
             g.api_monthly_quota = monthly_quota
             g.api_monthly_used = call_count
             g.api_start_ms = start_ms
@@ -185,7 +185,7 @@ def require_api_key(f):
             _update_key_last_used(cur, conn, key_id)
 
             # Add rate limit headers
-            remaining_minute = max(0, rate_limit_per_minute - calls_last_minute - 1)
+            remaining_minute = max(0, rate_limit_per_minute - calls_this_minute)
             response.headers['X-RateLimit-Limit'] = str(rate_limit_per_minute)
             response.headers['X-RateLimit-Remaining'] = str(remaining_minute)
             response.headers['X-RateLimit-Reset'] = '60'
@@ -197,20 +197,6 @@ def require_api_key(f):
         except Exception as e:
             log.error(f"Auth middleware error: {e}", exc_info=True)
             conn.rollback()
-            try:
-                import traceback as _tb
-                from api import get_db as _get_db_debug
-                _dc = _get_db_debug()
-                _dcur = _dc.cursor()
-                _dcur.execute(
-                    "INSERT INTO debug_traceback_capture (error_text) VALUES (%s)",
-                    (_tb.format_exc(),)
-                )
-                _dc.commit()
-                _dcur.close()
-                _dc.close()
-            except Exception:
-                pass  # never let debug capture itself break the real response
             return jsonify({'error': 'Internal server error'}), 500
         finally:
             cur.close()
