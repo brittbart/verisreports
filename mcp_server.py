@@ -310,7 +310,7 @@ def handle_message(msg):
         send({"jsonrpc":"2.0","id":msg_id,"result":{
             "protocolVersion":"2024-11-05",
             "capabilities":{"tools":{}},
-            "serverInfo":{"name":"verum-signal","version":"1.0.0"}
+            "serverInfo":{"name":"verum-signal","version":"0.1.0"}
         }})
 
     elif method == "tools/list":
