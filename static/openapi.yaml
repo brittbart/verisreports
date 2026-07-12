@@ -464,6 +464,7 @@ components:
         url:
           type: string
           format: uri
+          description: The original article's own URL, on the outlet's own site. Contrast with the claim-level report_url, which is Verum Signal's own report page for this claim.
         published_at:
           type: string
           format: date-time
@@ -495,7 +496,7 @@ components:
         report_url:
           type: string
           format: uri
-          description: Full report for this article on verumsignal.com
+          description: Verum Signal's own report page for this claim, on verumsignal.com. Contrast with article.url, which is the original article's own URL on the outlet's site.
       required:
         - id
         - claim_text
