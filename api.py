@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import secrets
 from seo import homepage_meta, report_meta, leaderboard_meta, methodology_meta
 import string
+import random
 from datetime import datetime
 
 
@@ -563,45 +564,47 @@ def waitlist_confirmed():
     return html, 200, {'Content-Type': 'text/html'}
 
 
-import time as _rl_time
-from collections import defaultdict, deque
-
 # ---------------------------------------------------------------------------
-# §6 cheap mitigation — in-memory per-IP rate limit for /api/source*
-# Not distributed (per-process, resets on redeploy) — a deliberate low-risk
-# pre-launch stopgap, not the real fix. Real decision routed to Session 8.
+# Atomic per-IP rate limit for /api/source* -- replaces the earlier
+# in-memory version (confirmed gap: gunicorn runs 2 worker processes,
+# and the in-memory hit-tracking dict was per-process, so the real
+# effective ceiling was up to 60/min, not the intended 30). Uses the
+# same atomic UPSERT pattern as api_rate_limit_buckets (the /v1 rate
+# limiter), proven correct under 40-way concurrency, keyed on IP
+# instead of key_id, at the SAME 30/min value already configured.
 # ---------------------------------------------------------------------------
 _SOURCE_RATE_LIMIT_PER_MINUTE = 30
-_SOURCE_RATE_LIMIT_WINDOW_SECONDS = 60
-_source_rate_limit_hits = defaultdict(deque)
 
 
 def check_source_rate_limit(req):
     """Returns None if OK, or a (body, status) tuple if the per-IP
-    limit is exceeded. Call at the top of each /api/source* handler."""
+    limit is exceeded. Call at the top of each /api/source* handler.
+    Fails OPEN on a DB error -- a low-stakes mitigation on a free
+    preview endpoint should not take real traffic down if the
+    database is ever transiently unreachable."""
     ip = req.headers.get('X-Forwarded-For', req.remote_addr or 'unknown').split(',')[0].strip()
-
-    # TEMPORARY (API Go-Live Brief, PUSH 3): log the hit so the real
-    # traffic pattern can be measured with a direct SQL query. Remove
-    # once the atomic-limiter ceiling is sized from this data.
     try:
-        _hlc = get_db(); _hlcur = _hlc.cursor()
-        _hlcur.execute(
-            "INSERT INTO api_source_hit_log (ip, path) VALUES (%s, %s)",
-            (ip, req.path)
-        )
-        _hlc.commit()
-        _hlcur.close(); _hlc.close()
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO api_source_rate_limit_buckets (ip, minute_bucket, count)
+            VALUES (%s, date_trunc('minute', NOW()), 1)
+            ON CONFLICT (ip, minute_bucket) DO UPDATE
+                SET count = api_source_rate_limit_buckets.count + 1
+            RETURNING count
+        """, (ip,))
+        calls_this_minute = cur.fetchone()[0]
+        conn.commit()
+        if random.random() < 0.01:
+            cur.execute("""
+                DELETE FROM api_source_rate_limit_buckets
+                WHERE minute_bucket < NOW() - INTERVAL '10 minutes'
+            """)
+            conn.commit()
+        cur.close(); conn.close()
     except Exception:
-        pass  # never let logging break the real rate-limit check
-
-    now = _rl_time.time()
-    hits = _source_rate_limit_hits[ip]
-    while hits and hits[0] < now - _SOURCE_RATE_LIMIT_WINDOW_SECONDS:
-        hits.popleft()
-    if len(hits) >= _SOURCE_RATE_LIMIT_PER_MINUTE:
+        return None  # fail open -- never let a DB hiccup take down real traffic
+    if calls_this_minute > _SOURCE_RATE_LIMIT_PER_MINUTE:
         return jsonify({"error": "Too many requests"}), 429
-    hits.append(now)
     return None
 
 
