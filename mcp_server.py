@@ -12,12 +12,37 @@ Environment:
   VS_API_BASE — API base URL (default: https://api.verumsignal.com)
 """
 import json, os, sys
-import urllib.request, urllib.parse
+import urllib.request, urllib.parse, urllib.error
 
 VS_API_BASE = os.environ.get("VS_API_BASE", "https://api.verumsignal.com")
 VS_API_KEY  = os.environ.get("VS_API_KEY", "")
 
+# Quota/rate-limit headers the REST API returns on every authenticated call.
+# Passed through into every tool's response so an agent running this
+# self-hosted server (and therefore owning its own key) can actually see
+# what's left, instead of finding out by hitting a 429 with no warning.
+_QUOTA_HEADERS = {
+    "X-RateLimit-Limit":      "rate_limit_per_minute",
+    "X-RateLimit-Remaining":  "rate_limit_remaining",
+    "X-Quota-Limit":          "monthly_quota_limit",
+    "X-Quota-Remaining":      "monthly_quota_remaining",
+}
+
+
+def _quota_from_headers(headers):
+    quota = {}
+    for header_name, key in _QUOTA_HEADERS.items():
+        v = headers.get(header_name)
+        if v is not None:
+            quota[key] = v
+    return quota
+
+
 def _api(path, params=None):
+    """Call the REST API. Returns the parsed JSON body with a "_quota" key
+    attached whenever rate-limit/quota headers were present. On error,
+    passes through the REAL error body from the API (not just the generic
+    HTTP reason phrase) alongside the same quota info."""
     url = VS_API_BASE + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
@@ -27,11 +52,36 @@ def _api(path, params=None):
     })
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
-            return json.loads(r.read())
+            data = json.loads(r.read())
+            quota = _quota_from_headers(r.headers)
+            if quota:
+                data["_quota"] = quota
+            return data
     except urllib.error.HTTPError as e:
-        return {"error": e.reason, "status": e.code}
+        body_bytes = e.read()
+        try:
+            data = json.loads(body_bytes)
+            if not isinstance(data, dict):
+                data = {"error": str(data)}
+        except Exception:
+            data = {"error": e.reason}
+        data["status"] = e.code
+        quota = _quota_from_headers(e.headers)
+        if quota:
+            data["_quota"] = quota
+        return data
     except Exception as e:
         return {"error": str(e)}
+
+
+def _carry_quota(response, raw_result):
+    """Copy _quota from a raw _api() result into a handler's reshaped
+    response, so quota visibility survives even when a handler picks
+    specific fields rather than returning the raw result directly."""
+    if isinstance(raw_result, dict) and "_quota" in raw_result:
+        response["_quota"] = raw_result["_quota"]
+    return response
+
 
 # ── Tool definitions ──────────────────────────────────────────────────────────
 
@@ -55,20 +105,18 @@ TOOLS = [
         }
     },
     {
-        "name": "search_claims",
+        "name": "list_recent_claims",
         "description": (
-            "Search Verum Signal's database of independently verified factual claims. "
-            "Returns claims with verdicts (supported/plausible/corroborated/overstated/disputed/"
-            "not_supported/not_verifiable/opinion), confidence scores, and sources. "
-            "Use this to fact-check specific claims or find evidence on a topic."
+            "List recent claims from Verum Signal's corpus, optionally filtered by "
+            "outlet, verdict, or claim origin. This does NOT perform text search — "
+            "there is no keyword or topic search over the claim corpus. It returns "
+            "claims in recency order, most recent first, matching whatever filters "
+            "are given. Use get_outlet_score for a specific outlet's overall "
+            "reliability, or get_debate_verdicts for claims from a specific debate."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query — topic, keyword, or specific claim text"
-                },
                 "verdict": {
                     "type": "string",
                     "description": "Filter by verdict: supported, disputed, overstated, not_supported, etc.",
@@ -78,20 +126,27 @@ TOOLS = [
                     "type": "string",
                     "description": "Filter by outlet domain, e.g. foxnews.com"
                 },
+                "claim_origin": {
+                    "type": "string",
+                    "description": "Filter by how the claim originated.",
+                    "enum": ["outlet_claim", "attributed_claim"]
+                },
                 "limit": {
                     "type": "integer",
                     "description": "Number of results (1-50, default 10)",
                     "default": 10
                 }
             },
-            "required": ["query"]
+            "required": []
         }
     },
     {
         "name": "get_debate_verdicts",
         "description": (
-            "Get verified claims from a political debate. Returns claims with speaker attribution, "
-            "verdicts, and evidence. Use this to fact-check debate statements."
+            "Get ALL verified claims from a political debate. Returns claims with "
+            "speaker attribution, verdicts, and evidence. Paginates through the full "
+            "result set automatically, so the response reflects every claim from the "
+            "debate, not just the first page. Use this to fact-check debate statements."
         ),
         "inputSchema": {
             "type": "object",
@@ -133,81 +188,112 @@ def handle_get_outlet_score(args):
     result = _api(f"/v1/outlets/{domain}")
     if "error" in result:
         return result
-    return {
+    response = {
         "domain": domain,
         "score": result.get("score"),
         "tier": result.get("tier"),
-        "scoreable_claims": result.get("total_scoreable_claims"),
+        "scoreable_claims": result.get("total_evaluated_claims"),
         "verdict_counts": result.get("verdict_counts", {}),
         "methodology_version": result.get("methodology_version"),
         "leaderboard_url": f"https://verumsignal.com/outlet/{domain}",
     }
+    return _carry_quota(response, result)
 
-def handle_search_claims(args):
+
+def handle_list_recent_claims(args):
     params = {"limit": min(args.get("limit", 10), 50)}
     if args.get("verdict"):
         params["verdict"] = args["verdict"]
     if args.get("outlet"):
         params["outlet"] = args["outlet"]
-    # Claims endpoint doesn't have text search yet — return recent claims filtered
+    if args.get("claim_origin"):
+        params["claim_origin"] = args["claim_origin"]
     result = _api("/v1/claims", params)
     if "error" in result:
         return result
-    query = args.get("query", "").lower()
     claims = result.get("data", [])
-    # Client-side filter by query text
-    if query:
-        claims = [c for c in claims if query in (c.get("claim_text") or "").lower()]
-    return {
-        "query": args.get("query"),
+    response = {
         "count": len(claims),
         "claims": [{
             "id": c.get("id"),
             "claim_text": c.get("claim_text"),
             "verdict": c.get("verdict"),
             "confidence_score": c.get("confidence_score"),
-            "verdict_summary": c.get("verdict_summary"),
             "outlet": c.get("outlet"),
             "methodology_version": c.get("methodology_version"),
-        } for c in claims[:20]]
+        } for c in claims]
     }
+    return _carry_quota(response, result)
+
 
 def handle_get_debate_verdicts(args):
     slug = args.get("slug", "").lower().strip()
     if not slug:
         return {"error": "slug required"}
-    result = _api(f"/v1/debates/{slug}/claims")
-    if "error" in result:
-        return result
-    claims = result.get("data", [])
-    return {
+
+    all_claims = []
+    cursor = 0
+    last_result = None
+    MAX_PAGES = 20  # safety cap: 20 pages at the API's own default page size
+                     # is far beyond any real debate seen so far (largest is 104
+                     # claims); this exists to bound a pathological case, not to
+                     # normally trigger.
+    truncated = False
+    for _ in range(MAX_PAGES):
+        result = _api(f"/v1/debates/{slug}/claims", {"cursor": cursor})
+        last_result = result
+        if "error" in result:
+            return result
+        page_claims = result.get("data", [])
+        all_claims.extend(page_claims)
+        pagination = result.get("pagination", {})
+        if not pagination.get("has_more"):
+            break
+        cursor = pagination.get("next_cursor")
+        if cursor is None:
+            break
+    else:
+        # Loop exhausted MAX_PAGES without has_more going false.
+        truncated = True
+
+    response = {
         "slug": slug,
-        "count": len(claims),
+        "count": len(all_claims),
         "claims": [{
             "claim_text": c.get("claim_text"),
             "speaker": c.get("speaker"),
             "verdict": c.get("verdict"),
             "confidence_score": c.get("confidence_score"),
-            "verdict_summary": c.get("verdict_summary"),
             "is_provisional": c.get("is_provisional"),
-        } for c in claims]
+        } for c in all_claims]
     }
+    if truncated:
+        response["truncated"] = True
+        response["note"] = (
+            f"Stopped after {MAX_PAGES} pages as a safety limit -- this debate "
+            f"has more claims than were retrieved. This should be rare."
+        )
+    return _carry_quota(response, last_result)
+
 
 def handle_list_debates(args):
     result = _api("/v1/debates")
     if "error" in result:
         return result
-    return {"debates": result.get("data", [])}
+    response = {"debates": result.get("data", [])}
+    return _carry_quota(response, result)
+
 
 def handle_get_api_status(args):
     return _api("/v1/meta")
 
+
 HANDLERS = {
-    "get_outlet_score":    handle_get_outlet_score,
-    "search_claims":       handle_search_claims,
-    "get_debate_verdicts": handle_get_debate_verdicts,
-    "list_debates":        handle_list_debates,
-    "get_api_status":      handle_get_api_status,
+    "get_outlet_score":     handle_get_outlet_score,
+    "list_recent_claims":   handle_list_recent_claims,
+    "get_debate_verdicts":  handle_get_debate_verdicts,
+    "list_debates":         handle_list_debates,
+    "get_api_status":       handle_get_api_status,
 }
 
 # ── MCP protocol (stdio) ──────────────────────────────────────────────────────
