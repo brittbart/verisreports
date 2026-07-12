@@ -27,27 +27,29 @@ def redirect_api_paths():
             return redirect(new_url, code=301)
 
 @app.before_request
-def _push4_host_enforcement_evidence():
-    """TEMPORARY (API Go-Live Brief, PUSH 4): log any request on the API
-    host whose path is NOT /v1, /docs, or /openapi.yaml, so host
-    enforcement's safety can be verified from real data instead of a
-    repo grep. Remove once the enforcement decision is made."""
-    from flask import request
-    try:
-        host = request.host.split(':')[0]
-        if host == 'api.verumsignal.com':
-            path = request.path
-            if not (path.startswith('/v1') or path.startswith('/docs') or path == '/openapi.yaml'):
-                ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
-                _hec = get_db(); _hecur = _hec.cursor()
-                _hecur.execute(
-                    "INSERT INTO api_host_enforcement_evidence (ip, path, method) VALUES (%s, %s, %s)",
-                    (ip, path, request.method)
-                )
-                _hec.commit()
-                _hecur.close(); _hec.close()
-    except Exception:
-        pass  # never let logging break a real request
+def _enforce_api_host():
+    """Host enforcement: api.verumsignal.com serves ONLY /v1, /docs,
+    and /openapi.yaml. Enabled per the API Go-Live Brief, PUSH 4 --
+    the one named dependent client (the Android app) has zero real
+    users, and the evidence-gathering hook this replaces logged zero
+    real external traffic on any other API-host route the whole time
+    it ran. verumsignal.com itself is untouched -- this only fires
+    when the host is specifically api.verumsignal.com.
+
+    Matches on a genuine path boundary (exact match or prefix + '/'),
+    not a bare string prefix -- a plain .startswith('/v1') would also
+    match an unrelated path like /v1x/something, which shares the
+    string but is not actually a /v1 route."""
+    if is_api_host():
+        path = request.path
+        if path == '/openapi.yaml':
+            return None
+        for _prefix in ALLOWED_API_PATHS:
+            if _prefix == '/openapi.yaml':
+                continue
+            if path == _prefix or path.startswith(_prefix + '/'):
+                return None
+        return jsonify({"error": "Not found"}), 404
 
 app.config['THREADED'] = True
 CORS(app)
@@ -97,7 +99,7 @@ def get_db():
 from api_leaderboard import register_leaderboard_routes
 from api_leaderboard import compute_score, compute_score_band, compute_tier, WEIGHTS, SCOREABLE_VERDICTS, INCLUSION_THRESHOLD
 from outlet_routes import register_outlet_routes
-from api_public import api_public
+from api_public import api_public, is_api_host, ALLOWED_API_PATHS
 register_leaderboard_routes(app, get_db)
 register_outlet_routes(app, get_db)
 app.register_blueprint(api_public)
