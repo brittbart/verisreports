@@ -6503,9 +6503,9 @@ def api_ops_debates():
                 start_time IS NULL
                 OR (
                     NOW() AT TIME ZONE COALESCE(timezone, 'UTC') >=
-                        (start_time::interval - INTERVAL '5 minutes')
+                        (event_date + start_time - INTERVAL '5 minutes')
                     AND NOW() AT TIME ZONE COALESCE(timezone, 'UTC') <=
-                        (start_time::interval + INTERVAL '3 hours')
+                        (event_date + start_time + INTERVAL '3 hours')
                 )
             )
             LIMIT 1
