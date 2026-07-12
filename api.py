@@ -25,6 +25,29 @@ def redirect_api_paths():
                 new_url += f'?{request.query_string.decode()}'
             return redirect(new_url, code=301)
 
+@app.before_request
+def _push4_host_enforcement_evidence():
+    """TEMPORARY (API Go-Live Brief, PUSH 4): log any request on the API
+    host whose path is NOT /v1, /docs, or /openapi.yaml, so host
+    enforcement's safety can be verified from real data instead of a
+    repo grep. Remove once the enforcement decision is made."""
+    from flask import request
+    try:
+        host = request.host.split(':')[0]
+        if host == 'api.verumsignal.com':
+            path = request.path
+            if not (path.startswith('/v1') or path.startswith('/docs') or path == '/openapi.yaml'):
+                ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+                _hec = get_db(); _hecur = _hec.cursor()
+                _hecur.execute(
+                    "INSERT INTO api_host_enforcement_evidence (ip, path, method) VALUES (%s, %s, %s)",
+                    (ip, path, request.method)
+                )
+                _hec.commit()
+                _hecur.close(); _hec.close()
+    except Exception:
+        pass  # never let logging break a real request
+
 app.config['THREADED'] = True
 CORS(app)
 
