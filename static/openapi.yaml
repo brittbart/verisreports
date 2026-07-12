@@ -70,6 +70,11 @@ paths:
       responses:
         "200":
           description: Corpus statistics and methodology metadata
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-Quota-Limit: { $ref: "#/components/headers/QuotaLimit" }
+            X-Quota-Remaining: { $ref: "#/components/headers/QuotaRemaining" }
           content:
             application/json:
               schema:
@@ -119,6 +124,11 @@ paths:
       responses:
         "200":
           description: Paginated list of claims
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-Quota-Limit: { $ref: "#/components/headers/QuotaLimit" }
+            X-Quota-Remaining: { $ref: "#/components/headers/QuotaRemaining" }
           content:
             application/json:
               schema:
@@ -146,6 +156,11 @@ paths:
       responses:
         "200":
           description: Paginated list of outlets
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-Quota-Limit: { $ref: "#/components/headers/QuotaLimit" }
+            X-Quota-Remaining: { $ref: "#/components/headers/QuotaRemaining" }
           content:
             application/json:
               schema:
@@ -174,6 +189,11 @@ paths:
       responses:
         "200":
           description: Outlet credibility data
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-Quota-Limit: { $ref: "#/components/headers/QuotaLimit" }
+            X-Quota-Remaining: { $ref: "#/components/headers/QuotaRemaining" }
           content:
             application/json:
               schema:
@@ -203,6 +223,11 @@ paths:
       responses:
         "200":
           description: Paginated list of debate events
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-Quota-Limit: { $ref: "#/components/headers/QuotaLimit" }
+            X-Quota-Remaining: { $ref: "#/components/headers/QuotaRemaining" }
           content:
             application/json:
               schema:
@@ -243,6 +268,11 @@ paths:
       responses:
         "200":
           description: Paginated list of debate claims
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/RateLimitLimit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/RateLimitRemaining" }
+            X-Quota-Limit: { $ref: "#/components/headers/QuotaLimit" }
+            X-Quota-Remaining: { $ref: "#/components/headers/QuotaRemaining" }
           content:
             application/json:
               schema:
@@ -264,6 +294,24 @@ components:
       description: |
         API key issued by Verum Signal. Pass as:
         `Authorization: Bearer vs_live_<your_key>`
+
+  headers:
+    RateLimitLimit:
+      description: Calls allowed per minute for this key's tier.
+      schema:
+        type: integer
+    RateLimitRemaining:
+      description: Calls remaining in the current one-minute window.
+      schema:
+        type: integer
+    QuotaLimit:
+      description: Calls allowed this calendar month for this key's tier.
+      schema:
+        type: integer
+    QuotaRemaining:
+      description: Calls remaining this calendar month.
+      schema:
+        type: integer
 
   parameters:
     cursor:
