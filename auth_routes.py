@@ -20,6 +20,7 @@ Cookie name: vs_session. HttpOnly, SameSite=Lax.
 
 import os
 import uuid
+import hashlib
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -266,19 +267,20 @@ def request_link():
         cur = conn.cursor()
 
         token = str(uuid.uuid4())
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_TTL_MINUTES)
 
         cur.execute("""
-            INSERT INTO magic_link_tokens (token, email, expires_at)
+            INSERT INTO magic_link_tokens (token_hash, email, expires_at)
             VALUES (%s, %s, %s)
-        """, (token, email, expires_at))
+        """, (token_hash, email, expires_at))
 
         conn.commit()
         cur.close()
         conn.close()
 
         base_url = request.host_url.rstrip('/')
-        send_magic_link(email, token, base_url)
+        send_magic_link(email, token, base_url)  # raw token — the only place it's ever used
 
     except Exception as e:
         logger.error("[AUTH] request_link error: %s", e)
@@ -303,13 +305,16 @@ def verify():
         conn = get_db_from_app()
         cur = conn.cursor()
         now = datetime.now(timezone.utc)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
 
-        # Fetch token row
+        # Fetch token row — looked up by hash, mirrors api_keys.key_hash.
+        # No raw token is ever stored, so there is nothing to compare
+        # against directly.
         cur.execute("""
             SELECT id, email, expires_at, used_at
             FROM magic_link_tokens
-            WHERE token = %s
-        """, (token,))
+            WHERE token_hash = %s
+        """, (token_hash,))
         row = cur.fetchone()
 
         if not row:
