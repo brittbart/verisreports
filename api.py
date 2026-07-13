@@ -897,7 +897,7 @@ RECHECK_STALENESS_DAYS = 14
 
 @app.route("/api/report/recheck", methods=["POST"])
 def recheck_report():
-    from auth_routes import get_current_user, check_quota, increment_quota
+    from auth_routes import get_current_user, get_subscription, reserve_quota, release_quota
     data = request.get_json(silent=True) or {}
     url = data.get("url", "").strip()
     if not url:
@@ -905,9 +905,23 @@ def recheck_report():
     user = get_current_user(get_db)
     if not user:
         return jsonify({"error": "authentication required"}), 401
-    q = check_quota(get_db, user["id"], "consumer")
-    if q["tier"] not in ("pro", "scale"):
+
+    # Tier eligibility is a plain read — no reservation yet. This
+    # endpoint requires pro/scale regardless of numeric quota, so
+    # there's no reason to reserve a unit before confirming that.
+    sub = get_subscription(get_db, user["id"], "consumer")
+    tier = sub["tier"] if sub else "free"
+    if tier not in ("pro", "scale"):
         return jsonify({"error": "Pro subscription required for re-check"}), 403
+
+    # Atomic reserve — THIS is the fix. Confirmed via
+    # session6_quota_race_test.py that the old check_quota()-then-
+    # increment_quota() pattern let unlimited concurrent requests
+    # through regardless of the limit (30 of 30 allowed against a
+    # 5-slot cap). Reserving here, before any of the work below runs,
+    # closes that window. release_quota() below refunds the unit on
+    # every failure path, so a failed recheck doesn't cost a unit.
+    q = reserve_quota(get_db, user["id"], "consumer")
     if not q["allowed"]:
         return jsonify({"error": "monthly quota exhausted",
                         "used": q["used"], "limit": q["limit"]}), 402
@@ -921,6 +935,7 @@ def recheck_report():
         article = cur.fetchone()
         if not article:
             conn.close()
+            release_quota(get_db, user["id"], "consumer")
             return jsonify({"error": "article not found"}), 404
         art_id, title, source_name, verified_at = article
         cur.execute(
@@ -930,6 +945,7 @@ def recheck_report():
         )
         if cur.fetchone():
             conn.close()
+            release_quota(get_db, user["id"], "consumer")
             return jsonify({"error": "re-check already requested for this article in the last 24h"}), 429
         cur.execute(
             "INSERT INTO recheck_log (article_id, user_id) VALUES (%s, %s)",
@@ -942,6 +958,7 @@ def recheck_report():
         _anth_client_rc = _anth_rc.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         fetch_result = fetch_article_content(url, _anth_client_rc)
         if not fetch_result or fetch_result.get("status") == "paywall":
+            release_quota(get_db, user["id"], "consumer")
             return jsonify({"error": "could not fetch article for re-check"}), 422
         body_text = fetch_result.get("body", "")
         title_text = fetch_result.get("title") or title
@@ -952,6 +969,7 @@ def recheck_report():
         }
         claims = extract_claims_from_article(article_dict)
         if not claims:
+            release_quota(get_db, user["id"], "consumer")
             return jsonify({"error": "no claims extracted on re-check"}), 422
         conn2 = get_db()
         cur2 = conn2.cursor()
@@ -964,7 +982,8 @@ def recheck_report():
         )
         conn2.commit()
         conn2.close()
-        increment_quota(get_db, user["id"], "consumer")
+        # No increment_quota() call — reserve_quota() already charged
+        # the unit, up front, atomically.
         return jsonify({
             "status": "ok",
             "claims_rechecked": len(verified_claims),
@@ -974,6 +993,7 @@ def recheck_report():
         import traceback
         print(f"[recheck_report] error: {e}")
         print(traceback.format_exc())
+        release_quota(get_db, user["id"], "consumer")
         return jsonify({"error": str(e)}), 500
 
 

@@ -289,6 +289,106 @@ def increment_quota(get_db, user_id: int, product: str) -> bool:
         return False
 
 
+def reserve_quota(get_db, user_id: int, product: str) -> dict:
+    """
+    Atomically checks AND reserves one unit of quota in a single
+    transaction — the actual fix for the check_quota()/increment_quota()
+    TOCTOU race (confirmed empirically, Session 6 Phase 5: 30 of 30
+    concurrent requests allowed against a 5-slot limit). Locks the
+    subscriptions row with SELECT ... FOR UPDATE so two concurrent
+    requests for the SAME (user_id, product) serialize instead of both
+    reading "allowed" before either commits.
+
+    Returns the same {'allowed', 'tier', 'used', 'limit', 'reason'?}
+    shape check_quota() did. If allowed=True, the quota has ALREADY
+    been incremented — call release_quota() if the work that follows
+    fails, so a failed request doesn't cost the customer a unit.
+
+    Call get_subscription()/tier-eligibility checks BEFORE this, not
+    after — this reserves a real unit the moment it returns allowed=True,
+    so don't call it for a request you're going to reject on other
+    grounds regardless of quota.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO subscriptions (user_id, product, tier, status, quota_used_this_month, updated_at)
+            VALUES (%s, %s, 'free', 'active', 0, NOW())
+            ON CONFLICT (user_id, product) DO NOTHING
+        """, (user_id, product))
+
+        cur.execute("""
+            SELECT tier, status, quota_used_this_month
+            FROM subscriptions
+            WHERE user_id = %s AND product = %s
+            FOR UPDATE
+        """, (user_id, product))
+        tier, status, used = cur.fetchone()
+
+        if status not in ('active', 'trialing'):
+            conn.rollback()
+            cur.close()
+            conn.close()
+            return {
+                'allowed': False, 'tier': tier, 'used': used,
+                'limit': QUOTA_LIMITS[product][tier],
+                'reason': f"subscription status is '{status}'"
+            }
+
+        limit = QUOTA_LIMITS[product][tier]
+        if used >= limit:
+            conn.rollback()
+            cur.close()
+            conn.close()
+            return {
+                'allowed': False, 'tier': tier, 'used': used, 'limit': limit,
+                'reason': f"{product} quota exhausted ({used}/{limit} this month)"
+            }
+
+        cur.execute("""
+            UPDATE subscriptions SET quota_used_this_month = quota_used_this_month + 1, updated_at = NOW()
+            WHERE user_id = %s AND product = %s
+        """, (user_id, product))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {'allowed': True, 'tier': tier, 'used': used + 1, 'limit': limit}
+
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        logger.error("[AUTH] reserve_quota error: %s", e)
+        return {'allowed': False, 'tier': None, 'used': None, 'limit': None, 'reason': 'internal error'}
+
+
+def release_quota(get_db, user_id: int, product: str) -> bool:
+    """
+    Refunds one quota unit reserved by reserve_quota(), for when the
+    work that followed the reservation failed. Never lets the count go
+    below zero. Best-effort — logs and returns False on failure rather
+    than raising, since callers use this in exception/error paths where
+    the original error is what should surface, not a refund failure.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE subscriptions
+            SET quota_used_this_month = GREATEST(quota_used_this_month - 1, 0),
+                updated_at = NOW()
+            WHERE user_id = %s AND product = %s
+        """, (user_id, product))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error("[AUTH] release_quota error: %s", e)
+        return False
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @auth_bp.route('/request-link', methods=['POST'])
