@@ -7604,6 +7604,7 @@ def auth_error_page():
         'token_already_used':('Link already used', 'This sign-in link has already been used. Please request a new one.'),
         'token_expired':     ('Link expired', 'This sign-in link expired after 15 minutes. Please request a new one.'),
         'server_error':      ('Something went wrong', 'An unexpected error occurred. Please try again.'),
+        'account_deleted':   ('Account no longer available', 'This account has been deleted. Contact support if you believe this is a mistake.'),
     }
 
     title, message = messages.get(reason, ('Sign-in failed', 'Please request a new sign-in link.'))

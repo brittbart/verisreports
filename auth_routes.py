@@ -22,6 +22,7 @@ import os
 import uuid
 import hashlib
 import logging
+import requests
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, request, jsonify, session, redirect
@@ -52,21 +53,64 @@ def send_magic_link(email: str, token: str, base_url: str) -> None:
         base_url: request base URL, e.g. https://verumsignal.com
     """
     link = f"{base_url}/auth/verify?token={token}"
-    logger.warning(
-        "[AUTH STUB] Magic link for %s — would send:\n  %s\n"
-        "  (replace send_magic_link() body with Resend to activate)",
-        email, link
+
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        logger.error(
+            "[AUTH] RESEND_API_KEY not set — cannot send magic link to %s. "
+            "Link (for manual use until this is configured): %s",
+            email, link
+        )
+        return
+
+    # Brand language: never "verify"/"verified"/"fact-check"/"truth"/
+    # "misinformation" in user-facing copy. "Confirm"/"sign in" only.
+    html_body = f"""\
+<!doctype html>
+<html>
+  <body style="font-family: -apple-system, sans-serif; color: #1a1a1a;">
+    <p>Use the link below to sign in to Verum Signal.</p>
+    <p><a href="{link}" style="color: #a855f7;">Sign in to Verum Signal</a></p>
+    <p style="color: #666; font-size: 13px;">
+      This link expires in {TOKEN_TTL_MINUTES} minutes and can only be used once.
+      If you didn't request this, you can ignore this email.
+    </p>
+  </body>
+</html>"""
+    text_body = (
+        f"Sign in to Verum Signal:\n{link}\n\n"
+        f"This link expires in {TOKEN_TTL_MINUTES} minutes and can only be used once. "
+        f"If you didn't request this, you can ignore this email."
     )
-    # When Resend is ready, replace above with:
-    #
-    # import resend
-    # resend.api_key = os.environ['RESEND_API_KEY']
-    # resend.Emails.send({
-    #     "from": "Verum Signal <noreply@verumsignal.com>",
-    #     "to": email,
-    #     "subject": "Your Verum Signal sign-in link",
-    #     "html": f'<a href="{link}">Sign in to Verum Signal</a> (expires in 15 minutes)',
-    # })
+
+    try:
+        resp = requests.post(
+            'https://api.resend.com/emails',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'from': 'Verum Signal <noreply@verumsignal.com>',
+                'to': [email],
+                'subject': 'Sign in to Verum Signal',
+                'html': html_body,
+                'text': text_body,
+            },
+            timeout=10,
+        )
+        if resp.status_code >= 400:
+            logger.error(
+                "[AUTH] Resend API error %s sending to %s: %s",
+                resp.status_code, email, resp.text
+            )
+        else:
+            logger.info(
+                "[AUTH] magic link sent to %s (Resend id=%s)",
+                email, resp.json().get('id')
+            )
+    except Exception as e:
+        logger.error("[AUTH] Resend send failed for %s: %s", email, e)
 
 
 # ── Helper: get current user ──────────────────────────────────────────────────
@@ -334,10 +378,34 @@ def verify():
             conn.close()
             return redirect('/auth/error?reason=token_expired')
 
-        # Mark token used
+        # Atomic single-use enforcement — THIS is the actual guarantee,
+        # not the used_at check above. Two concurrent requests for the
+        # same token can both pass that read-only check before either
+        # commits; only one can win this UPDATE, since the WHERE clause
+        # re-checks used_at IS NULL in the same statement that sets it.
         cur.execute("""
-            UPDATE magic_link_tokens SET used_at = %s WHERE id = %s
-        """, (now, token_id))
+            UPDATE magic_link_tokens
+            SET used_at = %s
+            WHERE id = %s AND used_at IS NULL AND expires_at > %s
+            RETURNING id
+        """, (now, token_id, now))
+        if cur.fetchone() is None:
+            cur.close()
+            conn.close()
+            return redirect('/auth/error?reason=token_already_used')
+
+        # Refuse to reactivate a soft-deleted account via a stale link —
+        # "token for a user that no longer exists," named explicitly in
+        # the brief's edge-case list. The token is still burned either
+        # way (it was legitimately presented); it just doesn't grant a
+        # session for a deleted account.
+        cur.execute("SELECT deleted_at FROM users WHERE email = %s", (email,))
+        existing = cur.fetchone()
+        if existing is not None and existing[0] is not None:
+            conn.commit()
+            cur.close()
+            conn.close()
+            return redirect('/auth/error?reason=account_deleted')
 
         # Upsert user — create if new, update last_seen_at if returning
         cur.execute("""
