@@ -10,7 +10,7 @@ Any request to api.verumsignal.com outside /v1, /docs, /openapi.yaml → 404.
 Auth: Authorization: Bearer <api_key> header only.
       No ?api_key= query param accepted.
 
-All DB access via get_db() — uses hardcoded fallback at api.py:33.
+All DB access via get_db() — uses hardcoded fallback at api.py:93.
 
 NEVER expose: verdict_summary, evidence_sources, priority_score,
               verification_attempts, or any internal scoring field.
@@ -670,17 +670,126 @@ def openapi_spec():
 @api_public.route('/v1/keys/request', methods=['POST'])
 def request_api_key():
     """
-    Self-service key issuance is disabled during closed beta (HOLD #5,
-    Option A — approved). Deliberately does NOT touch the database, so
-    none of the three bugs that were found here (missing get_db import,
-    stale tier value violating the live CHECK constraint, and a
-    users.external_id NOT NULL UNIQUE violation from the Clerk
-    migration) can fire. See Session 5 remediation record for detail.
+    Self-service API key request. Rebuilt for Session 6 Phase 4 — the
+    prior version was disabled (HOLD #5) after three stacked bugs:
+    missing get_db import, a hardcoded tier="free" violating
+    api_keys.tier's live CHECK (starter/pro/enterprise only), and a
+    users.external_id NOT NULL UNIQUE violation from the (now-dropped)
+    Clerk migration. All three fixed directly, not patched around.
+
+    Writes users + api_keys + subscriptions in ONE transaction — the
+    success criterion, and the first time this has ever completed in
+    this system's history.
     """
-    return jsonify({
-        "error": "Self-service key issuance is not available during closed beta.",
-        "contact": "api@verumsignal.com"
-    }), 503
+    import secrets
+    import re as _re
+    from datetime import date
+    from api import get_db
+
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    name = (data.get('name') or '').strip()
+    use_case = (data.get('use_case') or '').strip()[:500]
+
+    if not email or not _re.match(r"^[^@]+@[^@]+[.][^@]+$", email):
+        return jsonify({"error": "Valid email required"}), 400
+    if not name:
+        return jsonify({"error": "name required"}), 400
+
+    # Closed-beta self-service allocation — deliberately smaller than
+    # the $49/mo "API" tier advertised on pricing.html (5,000/mo,
+    # 60/min). Stripe doesn't exist yet, so self-service can't actually
+    # charge anyone; this mirrors the ORIGINAL pre-bug numbers exactly.
+    # This is a product call, not just a bug fix — confirm before
+    # treating it as final.
+    PHASE4_MONTHLY_QUOTA = 100
+    PHASE4_RATE_LIMIT_PER_MIN = 10
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        # Find or create the owning user row FIRST — every key must be
+        # owned at birth (Decision 1), same pattern as Phase 2's
+        # manual-issuance fix and the magic-link verify() upsert.
+        cur.execute("""
+            INSERT INTO users (email, email_verified, updated_at, last_seen_at)
+            VALUES (%s, FALSE, NOW(), NOW())
+            ON CONFLICT (email) DO UPDATE
+                SET last_seen_at = NOW(),
+                    updated_at = NOW()
+            RETURNING id
+        """, (email,))
+        user_id = cur.fetchone()[0]
+
+        # One active key per user — checked by ownership now, not by
+        # raw user_email string matching.
+        cur.execute(
+            "SELECT key_prefix FROM api_keys WHERE user_id = %s AND revoked_at IS NULL LIMIT 1",
+            (user_id,))
+        if cur.fetchone():
+            conn.rollback()
+            cur.close()
+            conn.close()
+            return jsonify({
+                "error": "An active key exists for this email.",
+                "hint": "Contact api@verumsignal.com to replace it."
+            }), 409
+
+        raw_key = "vs_live_" + secrets.token_urlsafe(32)
+        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+        key_prefix = raw_key[:16]
+
+        cur.execute("""
+            INSERT INTO api_keys
+                (user_id, user_email, key_hash, key_prefix, name,
+                 tier, monthly_quota, rate_limit_per_minute, created_at)
+            VALUES (%s, %s, %s, %s, %s, 'starter', %s, %s, NOW())
+            RETURNING id
+        """, (user_id, email, key_hash, key_prefix, name,
+              PHASE4_MONTHLY_QUOTA, PHASE4_RATE_LIMIT_PER_MIN))
+        api_key_id = cur.fetchone()[0]
+
+        # subscriptions.tier='free' is correct here and unrelated to
+        # api_keys.tier='starter' above — different column, different
+        # vocabulary (subscriptions.tier's real CHECK is free/pro/scale).
+        # This insert was actually fine in the original code; it just
+        # never got reached, since bug 3 always fired first.
+        today = date.today()
+        reset = date(today.year + 1, 1, 1) if today.month == 12 else date(today.year, today.month + 1, 1)
+        cur.execute("""
+            INSERT INTO subscriptions
+                (user_id, product, tier, status, quota_used_this_month, quota_reset_at)
+            VALUES (%s, 'api', 'free', 'active', 0, %s)
+            ON CONFLICT (user_id, product) DO NOTHING
+        """, (user_id, reset))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "api_key": raw_key,
+            "prefix": key_prefix,
+            "tier": "starter",
+            "monthly_quota": PHASE4_MONTHLY_QUOTA,
+            "rate_limit_per_minute": PHASE4_RATE_LIMIT_PER_MIN,
+            "message": "Store this key safely — it will not be shown again.",
+            "docs": "https://verumsignal.com/developers",
+            "email": email
+        }), 201
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+        log.error("[v1/keys/request] failed: %s", e)
+        return jsonify({"error": "Internal error — please try again or contact api@verumsignal.com"}), 500
 
 
 @api_public.route('/developers')
