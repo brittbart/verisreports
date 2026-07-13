@@ -44,6 +44,10 @@ def parse_args():
                    help='Override monthly call quota (enterprise custom deals)')
     p.add_argument('--rate-limit',     type=int,       default=None,
                    help='Override rate limit per minute (enterprise custom deals)')
+    p.add_argument('--override',       action='store_true',
+                   help='Required if --monthly-quota or --rate-limit differs from the '
+                        'tier preset. Without it, a mismatched request is refused, not '
+                        'silently minted.')
     return p.parse_args()
 
 
@@ -60,8 +64,36 @@ def main():
     args = parse_args()
 
     preset = TIER_PRESETS[args.tier]
-    monthly_quota       = args.monthly_quota  or preset['monthly_quota']
-    rate_limit_per_min  = args.rate_limit     or preset['rate_limit_per_minute']
+    monthly_quota       = args.monthly_quota  if args.monthly_quota is not None else preset['monthly_quota']
+    rate_limit_per_min  = args.rate_limit     if args.rate_limit    is not None else preset['rate_limit_per_minute']
+
+    mismatches = []
+    if monthly_quota != preset['monthly_quota']:
+        mismatches.append(
+            f"monthly_quota: preset={preset['monthly_quota']:,}, requested={monthly_quota:,}"
+        )
+    if rate_limit_per_min != preset['rate_limit_per_minute']:
+        mismatches.append(
+            f"rate_limit_per_minute: preset={preset['rate_limit_per_minute']}, requested={rate_limit_per_min}"
+        )
+
+    if mismatches and not args.override:
+        print(f"ERROR: refusing to mint -- requested limits don't match the "
+              f"'{args.tier}' tier's preset:", file=sys.stderr)
+        for m in mismatches:
+            print(f"  {m}", file=sys.stderr)
+        print("If this is a deliberate custom deal, pass --override to proceed anyway.",
+              file=sys.stderr)
+        sys.exit(1)
+
+    if mismatches and args.override:
+        print("!" * 64)
+        print(f"  WARNING: minting a '{args.tier}' key with NON-STANDARD limits")
+        print("!" * 64)
+        for m in mismatches:
+            print(f"  {m}")
+        print("!" * 64)
+        print()
 
     raw_key    = generate_key()
     key_hash   = hash_key(raw_key)
@@ -70,13 +102,27 @@ def main():
     conn = get_db()
     cur  = conn.cursor()
     try:
+        # Find or create the owning user row FIRST — every key must be
+        # owned at birth (Decision 1). Manually-issued keys go through
+        # RUNBOOK.md's review, so email_verified=TRUE is accurate here,
+        # same as the magic-link verify() route.
+        cur.execute("""
+            INSERT INTO users (email, email_verified, updated_at, last_seen_at)
+            VALUES (%s, TRUE, NOW(), NOW())
+            ON CONFLICT (email) DO UPDATE
+                SET last_seen_at = NOW(),
+                    updated_at = NOW()
+            RETURNING id
+        """, (args.email,))
+        user_id = cur.fetchone()[0]
+
         cur.execute("""
             INSERT INTO api_keys (
-                user_email, key_hash, key_prefix, name,
+                user_id, user_email, key_hash, key_prefix, name,
                 tier, monthly_quota, rate_limit_per_minute
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (args.email, key_hash, key_prefix, args.name,
+        """, (user_id, args.email, key_hash, key_prefix, args.name,
               args.tier, monthly_quota, rate_limit_per_min))
         key_id = cur.fetchone()[0]
         conn.commit()
@@ -98,6 +144,7 @@ def main():
     print(f"  Rate   : {rate_limit_per_min}/min")
     print(f"  Name   : {args.name or '(none)'}")
     print(f"  Key ID : {key_id}")
+    print(f"  User ID: {user_id}")
     print(f"  Prefix : {key_prefix}")
     print()
     print(f"  API KEY (copy now — shown once):")
