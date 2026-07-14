@@ -2185,11 +2185,16 @@ setTimeout(checkStatus, 3000);
                         art_id = row2[0]
 
                         # ── Quota gate (logged-in) + anon ceiling ──────────
-                        from auth_routes import get_current_user, check_quota, increment_quota
+                        from auth_routes import get_current_user, reserve_quota, release_quota
                         _gate_user = get_current_user(get_db)
+                        _quota_reserved = False
                         if _gate_user:
-                            # Logged-in: check monthly report quota
-                            _quota = check_quota(get_db, _gate_user['id'], 'consumer')
+                            # Atomic reserve, not check-then-increment-later —
+                            # the old pattern confirmed racy
+                            # (session6_quota_race_test.py: 30/30 allowed
+                            # against a 5-slot limit). release_quota() below
+                            # refunds if verify_and_insert_claims() fails.
+                            _quota = reserve_quota(get_db, _gate_user['id'], 'consumer')
                             if not _quota['allowed']:
                                 conn2.close()
                                 conn.close()
@@ -2199,6 +2204,7 @@ setTimeout(checkStatus, 3000);
                                     f'&limit={_quota["limit"]}'
                                     f'&tier={_quota["tier"]}'
                                 )
+                            _quota_reserved = True
                         else:
                             # Anonymous: enforce 3/day/IP ceiling (skip for audit override)
                             if not _audit_override and not anon_ceiling_ok(get_db, request):
@@ -2272,12 +2278,16 @@ setTimeout(checkStatus, 3000);
 </html>""")(), 200, {'Content-Type': 'text/html'}
                         # ── End quota / ceiling gate ────────────────────────
 
-                        verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
+                        try:
+                            verified_claims = verify_and_insert_claims(claims, art_id, title_text, domain, cur2, depth=depth)
+                        except Exception:
+                            if _quota_reserved:
+                                release_quota(get_db, _gate_user['id'], 'consumer')
+                            raise
 
-                        # Increment quota / ceiling counter on successful verification
-                        if _gate_user:
-                            increment_quota(get_db, _gate_user['id'], 'consumer')
-                        elif not _audit_override:
+                        # No increment_quota() call for logged-in users —
+                        # reserve_quota() already charged the unit up front.
+                        if not _gate_user and not _audit_override:
                             anon_ceiling_increment(get_db, request)
                         conn2.commit()
                         conn2.close()
