@@ -4,6 +4,8 @@ from flask_cors import CORS
 import psycopg2
 import os
 import sys
+import socket
+import ipaddress
 from dotenv import load_dotenv
 import secrets
 from seo import homepage_meta, report_meta, leaderboard_meta, methodology_meta
@@ -1418,7 +1420,55 @@ def _try_web_search(url, anthropic_client):
         return {'title': title, 'body': body, 'method': 'web_search'}
     except Exception as e: print(f"[web_search] Failed: {e}"); return None
 
+def _validate_public_url(url):
+    """
+    SSRF guard (Session 6 follow-on, Opus Task 3 re-score). Rejects:
+    non-http(s) schemes, and any hostname that resolves to a private,
+    loopback, link-local, reserved, or multicast address (RFC1918,
+    127.0.0.0/8, 169.254.0.0/16 — which covers cloud metadata
+    endpoints — etc.). Returns (True, None) or (False, reason).
+
+    Known limitation: resolves once here; the actual request re-
+    resolves independently, so a precisely-timed DNS-rebinding attack
+    is not fully closed by this check alone. Blocks the straightforward
+    case (a URL that always points at a non-public address).
+    """
+    from urllib.parse import urlparse as _up
+    try:
+        parsed = _up(url)
+    except Exception:
+        return False, "unparseable URL"
+
+    if parsed.scheme not in ("http", "https"):
+        return False, f"scheme {parsed.scheme!r} not allowed"
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "no hostname"
+
+    try:
+        addrinfo = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        return False, f"DNS resolution failed: {e}"
+
+    for _family, _type, _proto, _canon, sockaddr in addrinfo:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False, f"unparseable resolved IP {ip_str!r}"
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return False, f"{hostname} resolves to non-public address {ip_str}"
+
+    return True, None
+
+
 def fetch_article_content(url, anthropic_client=None):
+    _ok, _reason = _validate_public_url(url)
+    if not _ok:
+        print(f"[fetch] Blocked (SSRF guard): {url} — {_reason}")
+        return None
     result = _try_direct_scrape(url)
     if result: print(f"[fetch] direct: {len(result['body'])} chars"); return result
     result = _try_jina_reader(url)
