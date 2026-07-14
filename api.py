@@ -4575,9 +4575,6 @@ def api_pipeline_history():
 # /ops/insights — analytical dashboard
 # ============================================================
 
-_INSIGHTS_CACHE = {'data': None, 'expires_at': 0}
-
-
 def _compute_snapshot(cur):
     try:
         cur.execute("""
@@ -5100,13 +5097,43 @@ def _compute_insights_context():
 
 
 def build_insights_context():
-    from time import time as _time
-    if _INSIGHTS_CACHE['data'] and _time() < _INSIGHTS_CACHE['expires_at']:
-        return _INSIGHTS_CACHE['data']
+    # DB-backed (Session 6 follow-on, Opus Task 2): the old module-level
+    # dict gave each gunicorn worker its own independent cache, so
+    # ?refresh=1 only ever cleared the copy in whichever worker served
+    # that request -- a genuinely shared row fixes that.
+    import json
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT data, expires_at FROM insights_cache WHERE id = 1")
+        row = cur.fetchone()
+        if row and row[0] and row[1] and row[1] > _now_utc():
+            return json.loads(row[0])
+    finally:
+        cur.close()
+        conn.close()
+
     data = _compute_insights_context()
-    _INSIGHTS_CACHE['data'] = data
-    _INSIGHTS_CACHE['expires_at'] = _time() + 600
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO insights_cache (id, data, expires_at)
+            VALUES (1, %s, NOW() + INTERVAL '600 seconds')
+            ON CONFLICT (id) DO UPDATE
+                SET data = EXCLUDED.data, expires_at = EXCLUDED.expires_at
+        """, (json.dumps(data, default=str),))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
     return data
+
+
+def _now_utc():
+    import datetime
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 _OPS_INSIGHTS_HTML = r"""<!doctype html>
@@ -5566,7 +5593,12 @@ def ops_insights():
     if auth_err is not None:
         return auth_err
     if request.args.get('refresh') == '1':
-        _INSIGHTS_CACHE['expires_at'] = 0
+        _conn = get_db(); _cur = _conn.cursor()
+        try:
+            _cur.execute("UPDATE insights_cache SET expires_at = NOW() - INTERVAL '1 second' WHERE id = 1")
+            _conn.commit()
+        finally:
+            _cur.close(); _conn.close()
     ctx = build_insights_context()
     from flask import render_template_string
     return render_template_string(_OPS_INSIGHTS_HTML, **ctx)
