@@ -753,11 +753,7 @@ def get_report():
 
     # Anon ceiling on /api/report — 3/day/IP, 429 response (non-breaking shape)
     # Full tier-gating deferred to Session 6; ceiling stops credit-drain now.
-    # Audit override bypasses ceiling — testers must not be blocked after 3 reports.
-    import os as _apir_os
-    _apir_audit_key = _apir_os.getenv('PAID_AUDIT_KEY', '')
-    _apir_override = bool(_apir_audit_key and request.args.get('audit_key') == _apir_audit_key)
-    if not _apir_override and not anon_ceiling_ok(get_db, request):
+    if not anon_ceiling_ok(get_db, request):
         return jsonify({'error': 'daily anonymous limit reached', 'limit': 3}), 429
 
     try:
@@ -1796,24 +1792,16 @@ def resolve_report_access(get_db):
     }
     Depth is SERVER-DERIVED. The ?depth= URL param is ignored for access control.
     """
-    import os as _ra_os
     from auth_routes import get_current_user, check_quota
-    # TEMPORARY audit override (Session 3.5 — REMOVE at Session 6 real auth).
-    # Server-validated shared secret. PAID_AUDIT_KEY unset = override disabled.
-    _audit_key = _ra_os.getenv('PAID_AUDIT_KEY', '')
-    if _audit_key and request.args.get('audit_key') == _audit_key:
-        try:
-            print(f"[audit_override] full-depth granted via audit_key url={request.args.get('url','')[:120]}")
-        except Exception:
-            pass
-        return {'user': None, 'tier': 'audit', 'depth': None, 'user_id': None, 'audit_override': True}
+    # PAID_AUDIT_KEY override removed, Session 6 Phase 6 — real auth
+    # (this session's whole point) replaces the Session 3.5 stopgap.
     user = get_current_user(get_db)
     if not user:
-        return {'user': None, 'tier': 'free', 'depth': 2, 'user_id': None, 'audit_override': False}
+        return {'user': None, 'tier': 'free', 'depth': 2, 'user_id': None}
     q = check_quota(get_db, user['id'], 'consumer')
     tier = q['tier']
     depth = None if tier in ('pro', 'scale') else 2
-    return {'user': user, 'tier': tier, 'depth': depth, 'user_id': user['id'], 'audit_override': False}
+    return {'user': user, 'tier': tier, 'depth': depth, 'user_id': user['id']}
 
 
 def _anon_salt():
@@ -1900,7 +1888,6 @@ def report_page():
     depth          = _access['depth']       # server-derived; ?depth= no longer trusted
     _tier          = _access['tier']
     _gate_user     = _access['user']        # used by quota gate on path A
-    _audit_override = _access.get('audit_override', False)  # TEMP: Session 3.5 audit key
 
     from urllib.parse import urlparse
     from datetime import datetime as dt
@@ -2206,8 +2193,8 @@ setTimeout(checkStatus, 3000);
                                 )
                             _quota_reserved = True
                         else:
-                            # Anonymous: enforce 3/day/IP ceiling (skip for audit override)
-                            if not _audit_override and not anon_ceiling_ok(get_db, request):
+                            # Anonymous: enforce 3/day/IP ceiling
+                            if not anon_ceiling_ok(get_db, request):
                                 conn2.close()
                                 conn.close()
                                 return (lambda _url=url, _source=source: f"""<!DOCTYPE html>
@@ -2287,7 +2274,7 @@ setTimeout(checkStatus, 3000);
 
                         # No increment_quota() call for logged-in users —
                         # reserve_quota() already charged the unit up front.
-                        if not _gate_user and not _audit_override:
+                        if not _gate_user:
                             anon_ceiling_increment(get_db, request)
                         conn2.commit()
                         conn2.close()
@@ -2384,8 +2371,8 @@ setTimeout(checkStatus, 3000);
                                 )
                             _quota_b_reserved = True
                         else:
-                            # Anonymous: enforce 3/day/IP ceiling (skip for audit override)
-                            if not _audit_override and not anon_ceiling_ok(get_db, request):
+                            # Anonymous: enforce 3/day/IP ceiling
+                            if not anon_ceiling_ok(get_db, request):
                                 conn2.close()
                                 return (lambda _url=url, _source=source: f"""<!DOCTYPE html>
 <html lang="en">
@@ -2465,7 +2452,7 @@ setTimeout(checkStatus, 3000);
                             raise
                         # No increment_quota() call for logged-in users —
                         # reserve_quota() already charged the unit up front.
-                        if not _gate_user and not _audit_override:
+                        if not _gate_user:
                             anon_ceiling_increment(get_db, request)
                         cur2.execute("UPDATE articles SET claims_verified=TRUE, verified_at=NOW() WHERE id=%s", (art_id,))
                         conn2.commit()
@@ -6856,7 +6843,6 @@ def ops_test_report():
     auth_err = _ops_auth()
     if auth_err is not None:
         return auth_err
-    audit_key = os.environ.get('PAID_AUDIT_KEY', '')
     html = """<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <title>Verum Signal — Test Report Generator</title>
@@ -6883,38 +6869,27 @@ button:hover{background:#6d28d9}
 <body><div class="w">
 <div class="logo">Verum Signal</div>
 <h1>Test Report Generator</h1>
-<p>Generates a full paid report via the audit override. Ops-protected — not publicly accessible.</p>
-""" + (
-    '<div class="key-status" style="color:#4ade80;">&#10003; PAID_AUDIT_KEY active — reports will resolve at paid tier</div>'
-    if audit_key else
-    '<div class="key-status" style="color:#f87171;">&#9888; PAID_AUDIT_KEY not set — reports will resolve at free tier</div>'
-) + """
+<p>Opens a report for a given URL in a new tab. Ops-protected — not publicly accessible.
+   The PAID_AUDIT_KEY override was removed in Session 6 Phase 6 (real auth replaces it) — to preview
+   paid-tier depth, log in as a test account with a pro/scale consumer subscription instead.</p>
 <input id="url-input" type="url" placeholder="https://..." autofocus>
 <br>
 <div style="display:flex;gap:10px;margin-top:4px;">
-  <button onclick="goPaid()" style="background:#7c3aed;">Paid report &rarr;</button>
-  <button onclick="goFree()" style="background:#374151;">Free report &rarr;</button>
+  <button onclick="goOpen()" style="background:#7c3aed;">Open report &rarr;</button>
 </div>
 <div class="note">
-  Both open in a new tab. Paid uses the audit key; free uses no key (anon path).<br>
+  Opens in a new tab, anonymous path (no session, subject to the 3/day/IP ceiling).<br>
   Anon ceiling clear: <code>DELETE FROM anon_verify_counts WHERE day = CURRENT_DATE;</code>
 </div>
 </div>
 <script>
-const AUDIT_KEY = """ + repr(audit_key) + """;
-function goPaid() {
-  const v = document.getElementById('url-input').value.trim();
-  if (!v.startsWith('http')) { alert('Paste a full article URL starting with https://'); return; }
-  const keyParam = AUDIT_KEY ? '&audit_key=' + encodeURIComponent(AUDIT_KEY) : '';
-  window.open('/report?url=' + encodeURIComponent(v) + keyParam, '_blank');
-}
-function goFree() {
+function goOpen() {
   const v = document.getElementById('url-input').value.trim();
   if (!v.startsWith('http')) { alert('Paste a full article URL starting with https://'); return; }
   window.open('/report?url=' + encodeURIComponent(v), '_blank');
 }
 document.getElementById('url-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') goPaid();
+  if (e.key === 'Enter') goOpen();
 });
 </script>
 </body></html>"""
