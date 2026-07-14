@@ -194,7 +194,7 @@ def _build_outlet_view(get_db_conn, domain_lc):
             'state':              'sub_threshold',
             'score':              None,
             'score_band':         None,
-            'tier':               'Excluded',
+            'tier':               'Tracked',
             'scored_as_of':       None,
             'verdict_count':      0,
             'scoreable_count':    0,

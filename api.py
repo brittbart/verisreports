@@ -3350,7 +3350,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         'Published':    '#4ade80',
         'Stabilizing':  '#60a5fa',
         'Limited Data': '#fbbf24',
-        'Excluded':     '#f87171',
+        'Tracked':      '#f87171',
     }[inclusion_tier]
     html = html.replace('{{inclusion_tier}}', str(inclusion_tier))
     html = html.replace('{{tier_color}}', str(tier_color))

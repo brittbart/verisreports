@@ -187,7 +187,7 @@ def compute_tier(verdict_count):
         return "Stabilizing"
     if verdict_count >= INCLUSION_THRESHOLD:
         return "Limited Data"
-    return "Excluded"
+    return "Tracked"
 
 
 def compute_score_band(score):
