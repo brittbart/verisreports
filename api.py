@@ -7528,6 +7528,21 @@ def account_page():
     api_limit = QUOTA_LIMITS['api'][api_tier] if api_tier else None
     api_reset = api_sub['quota_reset_at'] if api_sub else None
 
+    # Owned API keys — the first surface where Phase 2's users<->api_keys
+    # linkage becomes visible to a customer. An orphan key (user_id IS
+    # NULL) cannot appear here at all, by construction of this query.
+    _akconn = get_db()
+    _akcur = _akconn.cursor()
+    _akcur.execute("""
+        SELECT id, key_prefix, name, tier, created_at, last_used_at, revoked_at
+        FROM api_keys
+        WHERE user_id = %s
+        ORDER BY revoked_at IS NOT NULL, created_at DESC
+    """, (user['id'],))
+    owned_keys = _akcur.fetchall()
+    _akcur.close()
+    _akconn.close()
+
     def quota_bar(used, limit, tier):
         if limit == 0:
             pct = 100
@@ -7556,6 +7571,26 @@ def account_page():
 
     def tier_badge(tier):
         return f'<span class="tier-badge {tier}">{tier.upper()}</span>'
+
+    def key_row(k):
+        key_id, key_prefix, name, tier, created_at, last_used_at, revoked_at = k
+        created_str = created_at.strftime('%b %d, %Y') if hasattr(created_at, 'strftime') else str(created_at)
+        last_used_str = last_used_at.strftime('%b %d, %Y') if hasattr(last_used_at, 'strftime') else 'never'
+        revoke_form = '' if revoked_at else f'''
+        <form method="POST" action="/account/keys/{key_id}/revoke"
+              onsubmit="return confirm('Revoke this key? This cannot be undone.');">
+          <button type="submit" class="btn-revoke">Revoke</button>
+        </form>'''
+        status = ' &middot; revoked' if revoked_at else ''
+        return f'''
+        <div class="key-row">
+          <div class="key-info">
+            <div class="key-prefix">{key_prefix}&hellip;{status}</div>
+            <div class="key-name">{name or '(unnamed)'}</div>
+            <div class="key-meta">{tier} &middot; created {created_str} &middot; last used {last_used_str}</div>
+          </div>
+          {revoke_form}
+        </div>'''
 
     # ── Consumer section ───────────────────────────────────────────────────────
     consumer_html = f'''
@@ -7589,6 +7624,20 @@ def account_page():
       {upgrade_api_cta(api_tier)}
     </div>'''
 
+    # ── API keys section — only shown if the user owns at least one key ───────
+    keys_html = ''
+    if owned_keys:
+        active_keys = [k for k in owned_keys if k[6] is None]
+        revoked_keys = [k for k in owned_keys if k[6] is not None]
+        rows_html = ''.join(key_row(k) for k in active_keys) or '<div class="no-keys">No active keys.</div>'
+        if revoked_keys:
+            rows_html += ''.join(key_row(k) for k in revoked_keys)
+        keys_html = f'''
+    <div class="section">
+      <div class="section-label">API Keys</div>
+      {rows_html}
+    </div>'''
+
     content = f'''
     <div class="panel">
       <div class="panel-header">
@@ -7597,6 +7646,7 @@ def account_page():
       </div>
       {consumer_html}
       {api_html}
+      {keys_html}
       <div class="signout-section">
         <span class="signout-meta">verumsignal.com</span>
         <button class="btn-signout" id="signout-btn">Sign out</button>
@@ -7609,6 +7659,30 @@ def account_page():
     html = template.replace('{{content}}', content)
     from flask import Response
     return Response(html, mimetype='text/html')
+
+
+@app.route('/account/keys/<int:key_id>/revoke', methods=['POST'])
+def revoke_own_api_key(key_id):
+    from auth_routes import get_current_user
+    user = get_current_user(get_db)
+    if not user:
+        return redirect('/pricing.html?reason=login_required')
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Ownership check is the real authorization guard here — the
+        # session cookie's SameSite=Lax already blocks cross-site POSTs
+        # from carrying it, but this checks regardless of that.
+        cur.execute("""
+            UPDATE api_keys SET revoked_at = NOW()
+            WHERE id = %s AND user_id = %s AND revoked_at IS NULL
+        """, (key_id, user['id']))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    return redirect('/account')
 
 
 def upgrade_consumer_cta(tier):
