@@ -87,6 +87,13 @@ def parse_sources_structured(raw):
         return v if isinstance(v, list) else []
     return []
 
+# STANDING CONSTRAINT — DO NOT REMOVE THIS FALLBACK.
+# Railway Runtime V2 workaround: env vars are stripped from subprocesses
+# spawned by always-on services, so this hardcoded default keeps get_db()
+# working when that happens. Removing it takes production down.
+# Mis-cited by line number in 5 other files across this codebase (33, 31,
+# 47 — none of them ever correct). This comment is the citation now:
+# reference "get_db() in api.py" by name elsewhere, never by line number.
 def get_db():
     return psycopg2.connect(
         **(dict(dsn=os.environ['DATABASE_URL']) if os.environ.get('DATABASE_URL') else dict(

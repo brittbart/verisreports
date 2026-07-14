@@ -11,7 +11,7 @@ Usage:
 """
 
 import sys
-from api import get_db   # uses the hardcoded fallback at api.py:33
+from api import get_db   # uses the hardcoded fallback in api.py's get_db() (Session 6 follow-on: no line number — see the comment there)
 
 
 EXPECTED_TABLES = [

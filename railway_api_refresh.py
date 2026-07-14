@@ -17,7 +17,7 @@ AND attorney review is complete.
 DO NOT query verdict_summary, evidence_sources, priority_score, or any
 internal scoring field — those fields must never reach the API tables.
 
-All DB connections via get_db() — uses hardcoded fallback at api.py:33.
+All DB connections via get_db() — uses the hardcoded fallback in api.py's get_db() (Session 6 follow-on: no line number — see the comment there).
 """
 
 import json

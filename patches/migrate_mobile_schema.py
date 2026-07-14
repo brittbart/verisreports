@@ -16,7 +16,7 @@ import sys
 import psycopg2
 from datetime import datetime
 
-# ── connection (mirrors api.py:31 fallback chain) ──────────────────────────
+# ── connection (mirrors api.py's get_db() fallback chain — Session 6 follow-on: no line number, see the comment there) ──
 def get_db():
     if os.environ.get('DATABASE_URL'):
         return psycopg2.connect(dsn=os.environ['DATABASE_URL'])

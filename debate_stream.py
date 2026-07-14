@@ -49,7 +49,7 @@ from datetime import datetime, timezone
 # ---------------------------------------------------------------------------
 # DB connection — standalone with hardcoded fallback (no Flask import)
 # Railway Runtime V2 strips env vars from subprocesses spawned by always-on
-# services. This mirrors the api.py:47 pattern with individual kwargs.
+# services. This mirrors api.py's get_db() pattern with individual kwargs (Session 6 follow-on: no line number — see the comment there).
 # ---------------------------------------------------------------------------
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import psycopg2

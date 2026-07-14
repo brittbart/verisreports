@@ -10,7 +10,7 @@ Any request to api.verumsignal.com outside /v1, /docs, /openapi.yaml → 404.
 Auth: Authorization: Bearer <api_key> header only.
       No ?api_key= query param accepted.
 
-All DB access via get_db() — uses hardcoded fallback at api.py:93.
+All DB access via get_db() — uses the hardcoded fallback in api.py's get_db() (Session 6 follow-on: no line number, even though 93 happens to be correct today — see the comment there).
 
 NEVER expose: verdict_summary, evidence_sources, priority_score,
               verification_attempts, or any internal scoring field.
