@@ -7599,6 +7599,16 @@ def account_page():
       {upgrade_api_cta(api_tier)}
     </div>'''
 
+    # ── Manage billing link — only shown once a Stripe customer exists ────────
+    billing_html = ''
+    if user.get('stripe_customer_id'):
+        billing_html = f'''
+    <div class="section">
+      <form method="POST" action="/billing/portal">
+        <button type="submit" class="btn-signout" style="width:100%;">Manage billing &rarr;</button>
+      </form>
+    </div>'''
+
     # ── API keys section — only shown if the user owns at least one key ───────
     keys_html = ''
     if owned_keys:
@@ -7622,6 +7632,7 @@ def account_page():
       {consumer_html}
       {api_html}
       {keys_html}
+      {billing_html}
       <div class="signout-section">
         <span class="signout-meta">verumsignal.com</span>
         <button class="btn-signout" id="signout-btn">Sign out</button>
@@ -8078,6 +8089,9 @@ def api_ops_sse_test_inject():
 
 from auth_routes import register_auth_routes
 register_auth_routes(app, get_db)
+
+from billing_routes import register_billing_routes
+register_billing_routes(app, get_db)
 
 # ── Attribution review ops page ─────────────────────────────────────────────
 from ops_attribution import bp as ops_attribution_bp
