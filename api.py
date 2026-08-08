@@ -5095,21 +5095,26 @@ def _compute_cost_and_usage(cur):
                 )::numeric, 2) AS cost_30d
             FROM job_runs
             WHERE started_at > NOW() - INTERVAL '30 days'
-        """ if False else "SELECT NULL")
+        """ if False else "SELECT 1")
         # job_runs doesn't have token columns — use the existing cost endpoint pattern
         cur.execute("""
-            SELECT
-                ROUND(SUM(
-                    input_tokens * 3.00 / 1000000.0 +
-                    output_tokens * 15.00 / 1000000.0
-                )::numeric, 2) AS cost
-            FROM job_runs
-            WHERE started_at > NOW() - INTERVAL '30 days'
-              AND input_tokens IS NOT NULL
+            SELECT ROUND(SUM(
+                input_tokens * 3.00 / 1000000.0 +
+                output_tokens * 15.00 / 1000000.0 +
+                COALESCE(cache_creation_input_tokens, 0) * 3.75 / 1000000.0 +
+                COALESCE(cache_read_input_tokens, 0) * 0.30 / 1000000.0
+            )::numeric, 2) AS cost_30d
+            FROM token_usage
+            WHERE timestamp > NOW() - INTERVAL '30 days'
         """)
         cost_30d = cur.fetchone()[0]
-    except Exception:
+    except Exception as e:
+        app.logger.error(f'insights cost_30d query failed: {e}')
         cost_30d = None
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
 
     try:
         cur.execute("SELECT COUNT(*) FROM api_keys WHERE revoked_at IS NULL")
