@@ -6836,13 +6836,21 @@ def status_page():
         articles = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM claims WHERE verdict IS NOT NULL")
         claims = cur.fetchone()[0]
+        # MOST RECENT run per stage, regardless of status. The previous query
+        # filtered status='ok', so a stage failing 100% of its runs still looked
+        # healthy as long as one old ok row sat inside the 48h window.
         cur.execute("""
-            SELECT stage, MAX(finished_at) as last_ok, MAX(items_processed) as last_count
-            FROM job_runs WHERE status = 'ok'
-              AND started_at > NOW() - INTERVAL '48 hours'
-            GROUP BY stage ORDER BY stage
+            SELECT DISTINCT ON (stage)
+                   stage,
+                   COALESCE(finished_at, started_at) AS last_run,
+                   status,
+                   items_processed
+            FROM job_runs
+            WHERE started_at > NOW() - INTERVAL '48 hours'
+            ORDER BY stage, started_at DESC
         """)
-        stages = {row[0]: {"last_ok": row[1], "last_count": row[2]} for row in cur.fetchall()}
+        stages = {row[0]: {"last_ok": row[1], "status": row[2], "last_count": row[3]}
+                  for row in cur.fetchall()}
         cur.execute("""
             SELECT COUNT(*) FROM job_runs
             WHERE status = 'failed' AND started_at > NOW() - INTERVAL '24 hours'
@@ -6865,6 +6873,8 @@ def status_page():
         def stage_status(name, threshold_hours=4):
             s = stages.get(name)
             if not s or not s["last_ok"]: return "unknown", "#888"
+            # A failed most-recent run is an outage NOW, regardless of how recent.
+            if s.get("status") != "ok": return "outage", "#f87171"
             dt = s["last_ok"]
             if dt.tzinfo is None: dt = dt.replace(tzinfo=_dt.timezone.utc)
             hrs = (now - dt).total_seconds() / 3600
@@ -6875,7 +6885,10 @@ def status_page():
         fs, fc = stage_status("fetch", 4)
         es, ec = stage_status("extract", 2)
         vs, vc = stage_status("verdicts", 8)
-        overall_ok = all(s == "operational" for s in [fs, es, vs])
+        aps, apc = stage_status("api_refresh", 1)
+        api_cache_age = age_str(stages.get("api_refresh", {}).get("last_ok"))
+        overall_ok = (all(s == "operational" for s in [fs, es, vs, aps])
+                      and error_count == 0)
         oc = "#4ade80" if overall_ok else "#fbbf24"
         ol = "All systems operational" if overall_ok else "Partial degradation"
         fi = stages.get("fetch", {})
@@ -6917,7 +6930,7 @@ footer a{{color:var(--dim);text-decoration:none}}footer a:hover{{color:var(--fg)
 <h2>Corpus</h2>
 <div class="stat-grid">
 <div class="sc"><div class="sl">Articles</div><div class="sv">{articles:,}</div></div>
-<div class="sc"><div class="sl">Verified claims</div><div class="sv">{claims:,}</div></div>
+<div class="sc"><div class="sl">Claims evaluated</div><div class="sv">{claims:,}</div></div>
 <div class="sc"><div class="sl">Last ingested</div><div class="sv" style="font-size:14px;padding-top:4px">{age_str(fi.get("last_ok"))}</div></div>
 </div>
 <h2>Pipeline</h2>
@@ -6925,7 +6938,7 @@ footer a{{color:var(--dim);text-decoration:none}}footer a:hover{{color:var(--fg)
 <div class="comp"><div><div class="cn">Article ingestion</div><div class="cd">Last run: {age_str(fi.get("last_ok"))} &middot; {fi.get("last_count") or 0} articles</div></div><div class="cs"><div class="dot" style="background:{fc}"></div>{fs}</div></div>
 <div class="comp"><div><div class="cn">Claim extraction</div><div class="cd">Last run: {age_str(ei.get("last_ok"))} &middot; {ei.get("last_count") or 0} claims</div></div><div class="cs"><div class="dot" style="background:{ec}"></div>{es}</div></div>
 <div class="comp"><div><div class="cn">Claim verification</div><div class="cd">Last run: {age_str(vi.get("last_ok"))} &middot; {vi.get("last_count") or 0} verdicts</div></div><div class="cs"><div class="dot" style="background:{vc}"></div>{vs}</div></div>
-<div class="comp"><div><div class="cn">Public API</div><div class="cd">api.verumsignal.com/v1/*</div></div><div class="cs"><div class="dot" style="background:#4ade80"></div>operational</div></div>
+<div class="comp"><div><div class="cn">Public API</div><div class="cd">api.verumsignal.com/v1/* &middot; cache refreshed {api_cache_age}</div></div><div class="cs"><div class="dot" style="background:{apc}"></div>{aps}</div></div>
 </div>
 <h2>Incidents</h2>
 <div class="inc">{incident_msg}</div>
