@@ -530,7 +530,7 @@ def main():
             elapsed_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
             cur.execute("""
                 INSERT INTO job_runs (stage, started_at, finished_at, duration_ms, status, items_processed, hostname)
-                VALUES ('verdicts', %s, %s, %s, 'ok', %s, %s)
+                VALUES ('api_refresh', %s, %s, %s, 'ok', %s, %s)
             """, (start, datetime.now(timezone.utc), elapsed_ms, claims_n, 'railway_api_refresh'))
         except Exception:
             log.warning('job_runs write failed — non-fatal')

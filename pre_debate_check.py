@@ -200,17 +200,25 @@ def main():
     section("9. Ingestion pipeline")
     if conn:
         try:
+            # Look at the MOST RECENT verdict run regardless of status. The old
+            # query filtered status='ok', which meant a stage failing 100% of its
+            # runs still looked healthy as long as one old ok row existed.
+            # Threshold is 8h to match the real cron cadence (0 */6 = every 6h);
+            # the previous 2h threshold could never pass on a healthy system.
             cur.execute("""
-                SELECT started_at FROM job_runs
-                WHERE stage = 'verdicts' AND status = 'ok'
+                SELECT started_at, status FROM job_runs
+                WHERE stage = 'verdicts'
                 ORDER BY started_at DESC LIMIT 1
             """)
             row = cur.fetchone()
             if row:
                 age = (datetime.now(timezone.utc) - row[0].astimezone(timezone.utc)).total_seconds()
-                check("Last verdict job < 2 hours ago", age < 7200, f"{int(age/60)} min ago")
+                last_status = row[1]
+                check("Most recent verdict job succeeded", last_status == 'ok',
+                      f"status={last_status}, {int(age/60)} min ago")
+                check("Last verdict job < 8 hours ago", age < 28800, f"{int(age/60)} min ago")
             else:
-                check("Last verdict job found", False, "No successful verdict jobs found")
+                check("Last verdict job found", False, "No verdict jobs found at all")
         except Exception as e:
             check("Job runs query", False, str(e))
 
