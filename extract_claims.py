@@ -283,7 +283,7 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
             claims = extract_claims_from_article(article_dict)
         except Exception as e:
             print(f"    Error extracting claims: {e}")
-            claims = []
+            claims = None  # FAILURE sentinel - distinct from a genuine empty result
         return row, claims, idx
 
     results = []
@@ -321,6 +321,10 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
                 except Exception as e:
                     print(f"    Error writing claims for article {row['id']}: {e}")
                     conn.rollback()
+            elif claims is None:
+                # Extraction FAILED (API error, timeout, etc). Do NOT stamp -
+                # leaving extraction_attempted_at NULL keeps it in the queue.
+                print(f"    Extraction FAILED - not stamping, will be retried")
             else:
                 print(f"    No claims extracted")
                 # stamp extraction_attempted_at so this article is not retried forever
