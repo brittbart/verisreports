@@ -37,7 +37,7 @@ def deduplicate_claims(claims, threshold=0.6):
             kept.append(claim)
     return kept
 
-def extract_claims_from_article(article):
+def extract_claims_from_article(article, raise_on_failure=False):
     """Send an article to Claude and extract its top checkable claims."""
     
     title = article.get('title', 'No title')
@@ -142,9 +142,13 @@ Return only the JSON, no other text."""
             print(f"    [API overload] 529 on extraction — caller should retry with backoff")
         else:
             print(f"    Error extracting claims: {str(e)}")
+        if raise_on_failure:
+            raise
         return []
     except Exception as e:
         print(f"    Error extracting claims: {str(e)}")
+        if raise_on_failure:
+            raise
         return []
 
 def process_articles(input_file, limit=50):
