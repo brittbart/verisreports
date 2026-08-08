@@ -5156,8 +5156,17 @@ def _compute_insights_context():
                 if elapsed > 5:
                     app.logger.warning(f'insights section {key} took {elapsed:.1f}s')
             except Exception as e:
+                # All seven sections share one cursor and one transaction.
+                # Without this rollback a single failing section leaves the
+                # transaction aborted, so every LATER section dies with
+                # 'current transaction is aborted' -- masking which section
+                # actually broke and blanking the rest of the page.
                 ctx[key] = {'error': str(e)}
                 app.logger.error(f'insights section {key} failed: {e}')
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
     finally:
         cur.close()
         conn.close()
