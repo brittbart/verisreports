@@ -3698,6 +3698,13 @@ def api_corpus_totals():
         return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
 
 
+# Date of the newest hand-written entry in the Deployments section below.
+# UPDATE THIS whenever you add an entry. The page compares it against the
+# newest commit in git_log and says so on the page when they drift, so the
+# section going stale is visible instead of silent (it sat 11 weeks stale
+# before Session 7 noticed).
+_CURATED_LATEST = "2026-08-08"
+
 _OPS_CHANGELOG_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3744,6 +3751,55 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 <div class="subtitle">Curated deployments and full git history &nbsp;·&nbsp; ops-auth protected</div>
 
 <h2>Deployments</h2>
+<div style="font-size:11px;color:var(--fg-dim);margin:-8px 0 16px">__CURATED_STALENESS__</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">Aug 8, 2026</span>
+    <span class="deploy-label">Session 7 — Ops observability</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/4b1283e" target="_blank">4b1283e</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Extraction failure vs empty:</strong> an API error returned [] and was indistinguishable from a genuine zero-claim article, so the article was stamped extraction_attempted_at and permanently retired from the queue. 12,198 articles affected since Jul 1; recovery pending.</li>
+    <li><strong>Stage mislabeling:</strong> railway_api_refresh wrote job_runs rows as stage='verdicts', status='ok' every 5 minutes. Three consumers read that as verdict-engine health. Fixed at source; 16,482 historical rows relabeled to api_refresh.</li>
+    <li><strong>/status:</strong> reported "All systems operational" through a 48-day verdict outage. Now reads the most recent run per stage regardless of status, a failed run is an outage, error_count gates the banner, and the Public API row is no longer hardcoded green.</li>
+    <li><strong>pre_debate_check:</strong> "Last verdict job &lt; 2 hours ago" passed on the impostor rows. Now checks whether the most recent run succeeded, at a threshold matching the real 6-hour cadence.</li>
+    <li><strong>Double-registration guard:</strong> only print()ed when it fired, so the question was unanswerable across deploys. Now writes a job_runs row.</li>
+    <li><strong>git_log:</strong> confirmed a 100-commit rolling wipe-and-rebuild on every push, not an audit trail.</li>
+  </ul>
+</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">Jul 13-15, 2026</span>
+    <span class="deploy-label">Session 6 — Auth, paywall &amp; email</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/bb015b7" target="_blank">bb015b7</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Identity in-house:</strong> Clerk dropped, users.external_id removed. Magic-link auth via Resend; magic_link_tokens moved from plaintext to SHA-256 while the table was still empty.</li>
+    <li><strong>First self-service signup:</strong> /v1/keys/request rebuilt, writing users to api_keys to subscriptions in one transaction. api_keys.user_id now set at issuance.</li>
+    <li><strong>Quota race:</strong> check-then-write allowed 30 requests against a limit of 5. Replaced with reserve_quota/release_quota at all three call sites.</li>
+    <li><strong>Gunicorn:</strong> production was running Flask's dev server — railway.toml silently overrode the Procfile. Fixed; _INSIGHTS_CACHE then moved from a per-worker dict to a shared DB table.</li>
+    <li><strong>CSRF + SSRF:</strong> /report could be made to fetch an attacker-chosen URL attributed to a victim; fetch_article_content had no scheme or private-IP validation. Both guarded.</li>
+    <li><strong>Stripe pre-build:</strong> checkout, portal and signature-verified webhooks, tested against the real database, dormant until the LLC lands. PAID_AUDIT_KEY removed entirely.</li>
+  </ul>
+</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">Jul 11-12, 2026</span>
+    <span class="deploy-label">Session 5 — Public API, MCP server, methodology v1.7</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/8bb3016" target="_blank">8bb3016</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Methodology gate:</strong> the sync wrote a hardcoded 'v1.6' into its own query then gated on the constant it had just fabricated — the check could never fail. Now filters on the real per-claim column in SQL.</li>
+    <li><strong>Version-label leaks:</strong> five sites served the internal v1.7 string publicly, including two dict-literal fallbacks the first patch missed.</li>
+    <li><strong>Rate limiting:</strong> non-atomic check-then-act allowed 197 successes against a limit of 180 under concurrency. Replaced with an atomic bucket table. /api/source's in-memory limiter under-enforced 2x across workers; same fix applied.</li>
+    <li><strong>500 vs 404:</strong> require_api_key called .headers on a (body, status) tuple. Fixed in the decorator via make_response, not at the call sites.</li>
+    <li><strong>Host enforcement enabled;</strong> MCP server published at github.com/brittbart/verumsignal-mcp with four bugs fixed, including a tool named search that could not search.</li>
+    <li><strong>Methodology v1.7 shipped:</strong> two-step verification pipeline, corroborated +0.75, priority-threshold and language-detection corrections, wire-reprint exclusion retired across all four public surfaces.</li>
+  </ul>
+</div>
 
 <div class="deploy-entry">
   <div class="deploy-header">
@@ -3851,6 +3907,11 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 <div class="refresh-info" id="refresh-info">Git log loads on page visit</div>
 
 <script>
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 async function loadGitLog() {
   try {
     const res = await fetch('/api/ops/git-log', {headers: {'Authorization': 'Basic ' + OPS_AUTH}});
@@ -3858,14 +3919,21 @@ async function loadGitLog() {
     const data = await res.json();
     const tbody = document.getElementById('git-log');
     if (!data.commits || !data.commits.length) {
-      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--fg-dim)">No commits found</td></tr>';
+      // Distinguish a genuinely empty table from a swallowed server error.
+      // /api/ops/git-log returns 200 with {commits: [], note: <error>} on any
+      // exception, so without this a DB failure renders as 'No commits found'.
+      const why = data.note
+        ? 'Git log unavailable: ' + escHtml(data.note)
+        : 'No commits found';
+      const col = data.note ? 'var(--bad)' : 'var(--fg-dim)';
+      tbody.innerHTML = '<tr><td colspan="3" style="color:' + col + '">' + why + '</td></tr>';
       return;
     }
     tbody.innerHTML = data.commits.map(c => `
       <tr>
-        <td><a class="commit-hash" href="https://github.com/brittbart/verisreports/commit/${c.hash}" target="_blank">${c.short}</a></td>
-        <td>${c.date}</td>
-        <td>${c.message}</td>
+        <td><a class="commit-hash" href="https://github.com/brittbart/verisreports/commit/${encodeURIComponent(c.hash)}" target="_blank">${escHtml(c.short)}</a></td>
+        <td>${escHtml(c.date)}</td>
+        <td>${escHtml(c.message)}</td>
       </tr>
     `).join('');
     document.getElementById('refresh-info').textContent = `${data.commits.length} commits loaded · ${new Date().toLocaleTimeString()}`;
@@ -5614,6 +5682,29 @@ def ops_changelog():
     ops_pw = os.environ.get('OPS_PASSWORD', '')
     ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
     html = _OPS_CHANGELOG_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
+
+    # Surface curated-vs-actual drift on the page itself. Wrapped so a DB
+    # failure hides the note rather than breaking the changelog.
+    note = ''
+    try:
+        import datetime as dt   # not bound at module scope; see test note
+        _c = get_db(); _cur = _c.cursor()
+        _cur.execute("SELECT MAX(date) FROM git_log")
+        newest = _cur.fetchone()[0]
+        _cur.close(); _c.close()
+        if newest:
+            newest_s = str(newest)
+            gap = (dt.date.fromisoformat(newest_s) - dt.date.fromisoformat(_CURATED_LATEST)).days
+            if gap > 14:
+                note = ('<span style="color:var(--bad)">Curated entries are '
+                        + str(gap) + ' days behind the newest commit ('
+                        + newest_s + '). Add an entry and update _CURATED_LATEST.</span>')
+            else:
+                note = 'Newest curated entry ' + _CURATED_LATEST + ' &middot; newest commit ' + newest_s
+    except Exception:
+        pass
+    html = html.replace('__CURATED_STALENESS__', note)
+
     from flask import Response
     return Response(html, mimetype='text/html')
 
