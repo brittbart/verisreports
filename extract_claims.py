@@ -293,6 +293,7 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
         return row, claims, idx
 
     results = []
+    extraction_failures = 0
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {
@@ -331,6 +332,7 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
                 # Extraction FAILED (API error, timeout, etc). Do NOT stamp -
                 # leaving extraction_attempted_at NULL keeps it in the queue.
                 print(f"    Extraction FAILED - not stamping, will be retried")
+                extraction_failures += 1
             else:
                 print(f"    No claims extracted")
                 # stamp extraction_attempted_at so this article is not retried forever
@@ -347,6 +349,18 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
 
     conn.close()
     print(f"\n\u2713 Processed {len(results)} articles with claims")
+
+    # A run where EVERY attempted article failed is not a success. Raise so
+    # run_stage() records status='failed' and the process exits non-zero,
+    # instead of reporting ok with items_processed=0. An empty queue (no rows)
+    # is still a legitimate ok. Partial failures stay ok - items_processed
+    # carries that signal.
+    if rows and not results and extraction_failures == len(rows):
+        raise RuntimeError(
+            f"extraction failed for all {len(rows)} attempted articles "
+            f"(0 succeeded, {extraction_failures} failed)"
+        )
+
     return results
 
 # force rebuild Mon Apr 27 15:31:55 MDT 2026
