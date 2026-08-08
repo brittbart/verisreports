@@ -842,6 +842,32 @@ def register_mobile_routes(app, get_db_fn):
     global _MOBILE_ROUTES_REGISTERED
     if _MOBILE_ROUTES_REGISTERED:
         print("[mobile_routes] register_mobile_routes called again -- skipping, already registered")
+        # Record durably. A print dies with the container, which made
+        # "has this guard ever fired?" unanswerable across deployments
+        # (Session 6 tagged it UNVERIFIED for exactly this reason). The
+        # underlying double-import cause is still unknown -- if a row
+        # appears here, STOP and escalate.
+        try:
+            import socket
+            _conn = get_db_fn()
+            _cur = _conn.cursor()
+            _now = datetime.now(timezone.utc)
+            _cur.execute(
+                """
+                INSERT INTO job_runs
+                    (stage, started_at, finished_at, duration_ms, status,
+                     error_class, error_message, hostname)
+                VALUES (%s, %s, %s, 0, 'failed', %s, %s, %s)
+                """,
+                ('mobile_routes_guard', _now, _now, 'DoubleRegistration',
+                 'register_mobile_routes called more than once in one process',
+                 socket.gethostname()),
+            )
+            _conn.commit()
+            _cur.close()
+            _conn.close()
+        except Exception as _e:
+            print(f"[mobile_routes] guard-fired logging failed (non-fatal): {_e}")
         return
     _MOBILE_ROUTES_REGISTERED = True
 
