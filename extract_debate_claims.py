@@ -802,7 +802,9 @@ def run_extraction(event_id, limit=None, dry_run=False):
             _retry_delays = [5, 15, 30]
             for _attempt in range(len(_retry_delays) + 1):
                 try:
-                    claims = extract_claims_from_article(article_dict)
+                    claims = extract_claims_from_article(
+                        article_dict, raise_on_failure=True
+                    )
                     break
                 except Exception as _api_err:
                     err_str = str(_api_err)

@@ -284,7 +284,9 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
         title_preview = (row["title"] or "")[:60]
         print(f"[{idx}/{total}] {row['source_name']}: {title_preview}...")
         try:
-            claims = extract_claims_from_article(article_dict)
+            claims = extract_claims_from_article(
+                article_dict, raise_on_failure=True
+            )
         except Exception as e:
             print(f"    Error extracting claims: {e}")
             claims = None  # FAILURE sentinel - distinct from a genuine empty result
