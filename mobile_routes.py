@@ -38,7 +38,7 @@ Auth-required (stubs — return 401 until Clerk wired):
   PATCH /mobile/v1/me/notifications
 """
 
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, current_app
 try:
     from vs_summary_generator import get_or_generate_vs_summary
     VS_SUMMARY_ENABLED = True
@@ -332,16 +332,28 @@ def article_report(article_id):
          source_name, vs_summary, outlet_domain, outlet_name,
          outlet_score, outlet_tier, report_hash) = row
 
-        # Lazy vs_summary generation — only fires if not already cached
+        # Lazy vs_summary generation — only fires if not already cached.
+        # S9-019: bounded so a generation failure (e.g. LLM credits
+        # exhausted -- observed live during S9-012 verification) returns
+        # the report without the summary instead of failing the whole
+        # request. Lazy generation itself is load-bearing; only the
+        # failure mode changed here.
         if not vs_summary and VS_SUMMARY_ENABLED:
-            vs_summary = get_or_generate_vs_summary(article_id, db)
+            try:
+                vs_summary = get_or_generate_vs_summary(article_id, db)
+            except Exception as e:
+                current_app.logger.warning(f"vs_summary generation failed for article {article_id}: {e}")
+                vs_summary = None
 
-        # Lazy short URL generation — only fires if no hash exists yet
+        # Lazy short URL generation — only fires if no hash exists yet.
+        # S9-019: was a bare `except: pass` -- a broken share URL failed
+        # completely silently. Still non-fatal to the request, but now
+        # observable.
         if not report_hash and SHORT_URL_ENABLED:
             try:
                 report_hash = get_or_create_short_hash(article_id)
-            except Exception:
-                pass  # non-fatal — share URL just won't work this request
+            except Exception as e:
+                current_app.logger.warning(f"short_hash generation failed for article {article_id}: {e}")
 
         # Claims
         cur.execute("""
@@ -401,6 +413,15 @@ def article_report(article_id):
         # so this practically never diverges, but the two are independent
         # numbers on purpose — claim_count/len(claims_out) is the returned,
         # possibly-capped set; scored_count is the true total).
+        #
+        # S9-026: this divergence is dormant, not impossible. claim_limit
+        # is 99 only because MOBILE_FORCE_DEEP_TIER is hardcoded True
+        # (S9-018). If that flag is ever flipped to False, claim_limit
+        # drops to 2 and any article with 3+ scored claims will return a
+        # scored_count well above claim_count/len(claims_out) — e.g.
+        # scored_count=12 alongside a 2-item claims list — with nothing
+        # in the response explaining why. Whoever resolves S9-018 should
+        # read this comment before shipping that change.
         cur.execute("""
             SELECT
                 COUNT(*) FILTER (WHERE claim_origin = 'outlet_claim' AND verdict IS NOT NULL) AS scored,
@@ -874,7 +895,11 @@ def register_mobile_routes(app, get_db_fn):
     """
     global _MOBILE_ROUTES_REGISTERED
     if _MOBILE_ROUTES_REGISTERED:
-        print("[mobile_routes] register_mobile_routes called again -- skipping, already registered")
+        # S9-010: was print() -- invisible under Gunicorn. This is the
+        # trigger condition for a documented stop-and-escalate (a
+        # job_runs row with stage='mobile_routes_guard'), so it goes to
+        # app.logger.error, not .warning.
+        app.logger.error("[mobile_routes] register_mobile_routes called again -- skipping, already registered")
         # Record durably. A print dies with the container, which made
         # "has this guard ever fired?" unanswerable across deployments
         # (Session 6 tagged it UNVERIFIED for exactly this reason). The
@@ -900,7 +925,7 @@ def register_mobile_routes(app, get_db_fn):
             _cur.close()
             _conn.close()
         except Exception as _e:
-            print(f"[mobile_routes] guard-fired logging failed (non-fatal): {_e}")
+            app.logger.error(f"[mobile_routes] guard-fired logging failed (non-fatal): {_e}")
         return
     _MOBILE_ROUTES_REGISTERED = True
 
@@ -910,9 +935,12 @@ def register_mobile_routes(app, get_db_fn):
     # Wire SSE stream routes
     if SSE_ENABLED:
         register_sse_routes(mobile_bp, get_db_fn)
-        print("[mobile_routes] registered /mobile/v1/debates/<slug>/stream (SSE)")
+        app.logger.info("[mobile_routes] registered /mobile/v1/debates/<slug>/stream (SSE)")
     else:
-        print("[mobile_routes] WARNING: mobile_sse.py not found — SSE stream unavailable")
+        # S9-010: this was the primary finding -- a bare print() meant the
+        # entire live-debate surface could silently degrade to no-SSE with
+        # no observable trace under Gunicorn.
+        app.logger.error("[mobile_routes] WARNING: mobile_sse.py not found — SSE stream unavailable")
 
     app.register_blueprint(mobile_bp)
-    print("[mobile_routes] registered /mobile/v1/* endpoints")
+    app.logger.info("[mobile_routes] registered /mobile/v1/* endpoints")
