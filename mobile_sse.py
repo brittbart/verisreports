@@ -46,6 +46,16 @@ def _format_claim(row, cols) -> dict:
         "methodology_version": c['methodology_version'],
     }
 
+# PATCH_S9006 (2026-08-10, reviewed by Opus same day): ORDER BY changed
+# from timestamp-DESC to id-ASC. This query now runs in a pagination loop
+# (see _get_claims_since / _get_provisional_claims_since) and id-ASC is the
+# only ordering provably monotonic with the id > %s cursor used to page it
+# — timestamp order is NOT reliably monotonic with id (see S9-008).
+# Callers get results back in approximately the original timestamp-desc/
+# id-desc order (sorted in Python after all pages are collected). One
+# deliberate exception: NULL timestamp_seconds sorts LAST here, not
+# FIRST as the original SQL's units-mismatch COALESCE produced -- S9-024,
+# resolved and signed off by Britt 2026-08-10, not an open item.
 
 CLAIM_QUERY = """
     SELECT
@@ -59,7 +69,7 @@ CLAIM_QUERY = """
     WHERE c.event_id = %s
       AND c.verdict IS NOT NULL
       AND c.id > %s
-    ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC NULLS LAST, c.id DESC
+    ORDER BY c.id ASC
     LIMIT 50
 """
 
@@ -76,7 +86,7 @@ PROVISIONAL_CLAIM_QUERY = """
       AND c.verdict IS NULL
       AND c.verdict_status = 'provisional'
       AND c.id > %s
-    ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC NULLS LAST, c.id DESC
+    ORDER BY c.id ASC
     LIMIT 50
 """
 
@@ -112,13 +122,41 @@ def _get_event(slug: str, get_db):
         db.close()
 
 def _get_claims_since(event_id: int, since_id: int, get_db) -> list:
+    # S9-006: CLAIM_QUERY is capped at LIMIT 50 per call (kept deliberately —
+    # see PATCH_S9006 note above CLAIM_QUERY). Page on id (monotonic, cannot
+    # skip rows) until a page returns fewer than 50, so events with more than
+    # 50 unread claims are never silently truncated.
+    #
+    # The re-sort below intentionally does NOT reproduce the original
+    # single-page query's NULL-timestamp_seconds behavior (debate_stream_
+    # generator, S9-008): the original SQL COALESCEd to EXTRACT(EPOCH FROM
+    # first_seen) (~1.7e9), sorting a NULL-timestamp claim to the TOP; this
+    # sort uses -1, sorting it to the BOTTOM. That's S9-024 — 215 claims
+    # affected in production as of 2026-08-10, DELIBERATELY kept this way
+    # (Britt sign-off, 2026-08-10): the original's TOP-sort was a units-bug
+    # side effect, not a design choice, so this is not "faithful to the
+    # original" and isn't meant to be.
     db = get_db()
     cur = db.cursor()
     try:
-        cur.execute(CLAIM_QUERY, (event_id, since_id))
-        rows = cur.fetchall()
-        cols = [d[0] for d in cur.description]
-        return [_format_claim(row, cols) for row in rows]
+        claims = []
+        cursor_id = since_id
+        while True:
+            cur.execute(CLAIM_QUERY, (event_id, cursor_id))
+            rows = cur.fetchall()
+            if not rows:
+                break
+            cols = [d[0] for d in cur.description]
+            batch = [_format_claim(row, cols) for row in rows]
+            claims.extend(batch)
+            cursor_id = batch[-1]['id']  # rows are id ASC; last row has the max id in this page
+            if len(rows) < 50:
+                break
+        claims.sort(
+            key=lambda c: (c['timestamp_seconds'] if c['timestamp_seconds'] is not None else -1, c['id']),
+            reverse=True,
+        )
+        return claims
     except Exception as e:
         print(f"[mobile_sse] DB error fetching claims: {e}")
         return []
@@ -127,13 +165,30 @@ def _get_claims_since(event_id: int, since_id: int, get_db) -> list:
         db.close()
 
 def _get_provisional_claims_since(event_id: int, since_id: int, get_db) -> list:
+    # S9-006: same exhaustive-paging fix as _get_claims_since, applied to
+    # the provisional-claims query. Same S9-024 deliberate NULL-sorts-last
+    # behavior applies (see _get_claims_since above and S9-024 disposition).
     db = get_db()
     cur = db.cursor()
     try:
-        cur.execute(PROVISIONAL_CLAIM_QUERY, (event_id, since_id))
-        rows = cur.fetchall()
-        cols = [d[0] for d in cur.description]
-        return [_format_claim(row, cols) for row in rows]
+        claims = []
+        cursor_id = since_id
+        while True:
+            cur.execute(PROVISIONAL_CLAIM_QUERY, (event_id, cursor_id))
+            rows = cur.fetchall()
+            if not rows:
+                break
+            cols = [d[0] for d in cur.description]
+            batch = [_format_claim(row, cols) for row in rows]
+            claims.extend(batch)
+            cursor_id = batch[-1]['id']
+            if len(rows) < 50:
+                break
+        claims.sort(
+            key=lambda c: (c['timestamp_seconds'] if c['timestamp_seconds'] is not None else -1, c['id']),
+            reverse=True,
+        )
+        return claims
     except Exception as e:
         print(f"[mobile_sse] DB error fetching provisional claims: {e}")
         return []
