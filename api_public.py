@@ -50,8 +50,14 @@ def is_api_host():
     return request.host.split(':')[0] == API_HOST
 
 
-# Host enforcement disabled until api.verumsignal.com routing is stable.
-# Auth (require_api_key) is the primary access control on all /v1 endpoints.
+# S9-011 (corrected 2026-08-10): host enforcement is LIVE, not disabled.
+# It moved to api.py:31 (_enforce_api_host) as of commit 7c4f422 -- this
+# is_api_host() helper is still the function that check calls. A prior
+# version of this comment said enforcement was disabled pending stable
+# routing; that stopped being true when 7c4f422 shipped and nobody
+# updated this file. If you're here because you grepped is_api_host,
+# read api.py:31 for the actual live enforcement logic.
+# Auth (require_api_key) remains the primary access control on all /v1 endpoints.
 
 
 # ---------------------------------------------------------------------------
