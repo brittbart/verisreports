@@ -380,6 +380,36 @@ def article_report(article_id):
                 "methodology_version": c['methodology_version'],
             })
 
+        # S9-012 (revised per Opus review 2026-08-10 — three states, not two):
+        # the claims query above returns only scored, verdicted outlet claims
+        # (claim_origin='outlet_claim' AND verdict IS NOT NULL), capped at
+        # claim_limit. Without more information the client cannot tell an
+        # empty claims_out apart from three different real situations:
+        #   - every claim on this article was attributed (a source quote),
+        #     excluded from scoring by methodology, or
+        #   - this article's outlet claims exist but have not been verdicted
+        #     yet (verdict production has been stopped since 2026-06-21 with
+        #     a 35,166-row backlog — this is not an edge case), or
+        #   - there is genuinely nothing.
+        # One grouped query (not three round trips — this GET already does
+        # enough work, see S9-019) returns all three counts. NOTE:
+        # claim_origin IS DISTINCT FROM 'outlet_claim' is used instead of
+        # != so a NULL claim_origin is never silently excluded from every
+        # counter (a claim with no origin should still surface somewhere).
+        # scored_count should equal len(claims_out) except on an article
+        # with more scored claims than claim_limit (99 for deep tier today,
+        # so this practically never diverges, but the two are independent
+        # numbers on purpose — claim_count/len(claims_out) is the returned,
+        # possibly-capped set; scored_count is the true total).
+        cur.execute("""
+            SELECT
+                COUNT(*) FILTER (WHERE claim_origin = 'outlet_claim' AND verdict IS NOT NULL) AS scored,
+                COUNT(*) FILTER (WHERE claim_origin IS DISTINCT FROM 'outlet_claim')           AS attributed,
+                COUNT(*) FILTER (WHERE claim_origin = 'outlet_claim' AND verdict IS NULL)      AS pending
+            FROM claims WHERE article_id = %s
+        """, (article_id,))
+        _scored, _attributed, _pending = cur.fetchone()
+
         # Article score (reuse api_outlets score for now;
         # per-article score computed server-side in future)
         article_score = None
@@ -410,6 +440,9 @@ def article_report(article_id):
                 "vs_summary":    vs_summary,
                 "claim_count":   len(claims_out),
                 "claims":        claims_out,
+                "scored_count":     int(_scored),
+                "attributed_count": int(_attributed),
+                "pending_count":    int(_pending),
                 "methodology_version": ast.literal_eval(os.environ.get("PUBLIC_METHODOLOGY_VERSIONS", "['v1.6']"))[-1],
             },
         })
