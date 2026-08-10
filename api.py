@@ -7130,8 +7130,6 @@ def ops_dashboard():
 
 # ──────────────────────────────────────────────────────────────────────────────
 # /ops/mobile — Mobile app operational dashboard
-# Paste this block into api.py after the last @app.route('/ops/...') block.
-# Add 'Mobile' link to NAV_LINKS in all existing ops pages.
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.route('/ops/mobile', methods=['GET'])
@@ -7146,18 +7144,11 @@ def ops_mobile():
     db = get_db()
     cur = db.cursor()
 
-    # Mobile API endpoint health checks
-    endpoint_checks = []
-    endpoints = [
-        ('GET', '/mobile/v1/articles', 'Article list'),
-        ('GET', '/mobile/v1/articles/<id>/report', 'Article report'),
-        ('GET', '/mobile/v1/outlets/leaderboard', 'Leaderboard'),
-        ('GET', '/mobile/v1/outlets/<domain>', 'Outlet detail'),
-        ('GET', '/mobile/v1/debates', 'Debates list'),
-        ('GET', '/mobile/v1/debates/<slug>', 'Debate detail'),
-        ('GET', '/mobile/v1/debates/<slug>/stream', 'SSE stream'),
-        ('GET', '/mobile/v1/methodology', 'Methodology'),
-    ]
+    # S9-030: endpoint_checks/endpoints removed here -- defined but never
+    # referenced anywhere in this function (confirmed by grep before
+    # removing). A decorative health-check list that never ran a check.
+    # Implementing real live checks is a bigger feature than this cleanup;
+    # scoped out deliberately, same as S9-029's load-test rewrite.
 
     # vs_summary stats
     cur.execute("""
@@ -7190,7 +7181,9 @@ def ops_mobile():
     scored_count = sum(c for t, c in tier_rows if t != 'tracked')
     tracked_count = sum(c for t, c in tier_rows if t == 'tracked')
 
-    # May 26 debate status
+    # S9-030: was hardcoded to event_id=9 ("May 26 debate"), 11 weeks past
+    # by the time this session found it. Now the most recent event by date,
+    # queried live on every load.
     cur.execute("""
         SELECT e.id, e.event_name, e.event_date, e.start_time, e.stream_url,
                COUNT(c.id) as claim_count,
@@ -7198,20 +7191,26 @@ def ops_mobile():
                COUNT(c.id) FILTER (WHERE c.verdict_status = 'final') as final_count
         FROM events e
         LEFT JOIN claims c ON c.event_id = e.id
-        WHERE e.id = 9
         GROUP BY e.id, e.event_name, e.event_date, e.start_time, e.stream_url
+        ORDER BY e.event_date DESC
+        LIMIT 1
     """)
-    may26 = cur.fetchone()
+    latest_event = cur.fetchone()
 
-    # Speaker config for May 26
-    cur.execute("""
-        SELECT s.id, s.name, es.speaker_order, s.role
-        FROM speakers s
-        JOIN event_speakers es ON es.speaker_id = s.id AND es.event_id = 9
-        WHERE s.id IN (187, 188, 189, 3)
-        ORDER BY es.speaker_order
-    """)
-    speakers = cur.fetchall()
+    # Speaker config for the same dynamically-selected event. The old
+    # hardcoded speaker id whitelist (187, 188, 189, 3) was specific to
+    # event 9 and meaningless for whichever event is actually latest --
+    # event_speakers itself is the correct source of "which speakers
+    # belong to this event", so the whitelist is dropped, not translated.
+    speakers = []
+    if latest_event:
+        cur.execute("""
+            SELECT s.id, s.name, es.speaker_order, s.role
+            FROM speakers s
+            JOIN event_speakers es ON es.speaker_id = s.id AND es.event_id = %s
+            ORDER BY es.speaker_order
+        """, (latest_event[0],))
+        speakers = cur.fetchall()
 
     cur.close()
     db.close()
@@ -7222,15 +7221,15 @@ def ops_mobile():
     table_counts_html = ''.join(f'<tr><td>{t}</td><td>{table_counts.get(t, "N/A")}</td></tr>' for t in mobile_tables)
     speakers_html = ''.join(f'<tr><td>{s[0]}</td><td>{s[1]}</td><td>{s[3] or "—"}</td><td>{s[2]}</td></tr>' for s in speakers) if speakers else '<tr><td colspan="4">No speakers found</td></tr>'
 
-    may26_html = ''
-    if may26:
-        may26_html = f'''
-        <div class="stat-row"><span class="stat-label">Event ID</span><span class="stat-val">{may26[0]}</span></div>
-        <div class="stat-row"><span class="stat-label">Title</span><span class="stat-val">{may26[1]}</span></div>
-        <div class="stat-row"><span class="stat-label">Date</span><span class="stat-val">{may26[2]}</span></div>
-        <div class="stat-row"><span class="stat-label">Start time</span><span class="stat-val">{may26[3]} MT</span></div>
-        <div class="stat-row"><span class="stat-label">Stream URL</span><span class="stat-val"><a href="{may26[4]}" target="_blank">{may26[4]}</a></span></div>
-        <div class="stat-row"><span class="stat-label">Claims so far</span><span class="stat-val">{may26[5]} total · {may26[6]} provisional · {may26[7]} final</span></div>
+    latest_event_html = ''
+    if latest_event:
+        latest_event_html = f'''
+        <div class="stat-row"><span class="stat-label">Event ID</span><span class="stat-val">{latest_event[0]}</span></div>
+        <div class="stat-row"><span class="stat-label">Title</span><span class="stat-val">{latest_event[1]}</span></div>
+        <div class="stat-row"><span class="stat-label">Date</span><span class="stat-val">{latest_event[2]}</span></div>
+        <div class="stat-row"><span class="stat-label">Start time</span><span class="stat-val">{latest_event[3]} MT</span></div>
+        <div class="stat-row"><span class="stat-label">Stream URL</span><span class="stat-val"><a href="{latest_event[4]}" target="_blank">{latest_event[4]}</a></span></div>
+        <div class="stat-row"><span class="stat-label">Claims so far</span><span class="stat-val">{latest_event[5]} total · {latest_event[6]} provisional · {latest_event[7]} final</span></div>
         '''
 
     html = f'''<!DOCTYPE html>
@@ -7307,6 +7306,7 @@ def ops_mobile():
     <div class="tab" onclick="showTab(this,'schema')">Schema</div>
     <div class="tab" onclick="showTab(this,'sse')">SSE Protocol</div>
     <div class="tab" onclick="showTab(this,'builds')">Build History</div>
+    <div class="tab" onclick="showTab(this,'latest')">Latest Event</div>
   </div>
 
   <!-- OVERVIEW TAB -->
@@ -7315,7 +7315,7 @@ def ops_mobile():
       <div class="metric">
         <div class="metric-label">App version</div>
         <div class="metric-value">1.0.3</div>
-        <div class="metric-sub">versionCode 4 · preview APK</div>
+        <div class="metric-sub">versionCode 4 · preview APK · manually maintained, not read live (S9-030)</div>
       </div>
       <div class="metric">
         <div class="metric-label">expo-updates</div>
@@ -7335,7 +7335,7 @@ def ops_mobile():
       <div class="metric">
         <div class="metric-label">Auth</div>
         <div class="metric-value" style="font-size:16px;padding-top:6px;color:#f59e0b">Stubbed</div>
-        <div class="metric-sub">Clerk signup pending</div>
+        <div class="metric-sub">No provider wired -- Clerk removed Session 6 (S9-030)</div>
       </div>
       <div class="metric">
         <div class="metric-label">Push notifications</div>
@@ -7403,7 +7403,7 @@ def ops_mobile():
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/outlets/&lt;domain&gt;</span><span class="badge badge-green">Working</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates</span><span class="badge badge-green">Working</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;</span><span class="badge badge-amber">Not tested in app</span></div>
-      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;/stream</span><span class="badge badge-amber">SSE · load tested</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;/stream</span><span class="badge badge-red">SSE · 8 concurrent max (S9-001)</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/methodology</span><span class="badge badge-green">Working</span><span style="color:#6b7280;font-size:11px;margin-left:8px">reads PUBLIC_METHODOLOGY_VERSIONS</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/health</span><span class="badge badge-green">Working</span></div>
     </div>
@@ -7569,25 +7569,29 @@ def ops_mobile():
       <div class="stat-row"><span class="stat-label">Nginx buffering</span><span class="stat-val">X-Accel-Buffering: no header set</span></div>
     </div>
 
-    <h2>Load test results (k6 v2.0.0 · May 23, 2026)</h2>
+    <h2>Concurrency -- live measurement (2026-08-10, supersedes May 23 k6 test)</h2>
     <div class="card">
-      <div class="stat-row"><span class="stat-label">Concurrent SSE connections</span><span class="stat-val">100 (ramped 0→10→50→100→50→0)</span></div>
-      <div class="stat-row"><span class="stat-label">Concurrent REST users</span><span class="stat-val">30 (20 articles + 10 leaderboard)</span></div>
-      <div class="stat-row"><span class="stat-label">Articles p95 latency</span><span class="stat-val" style="color:#22c55e">188ms (target: &lt;500ms)</span></div>
-      <div class="stat-row"><span class="stat-label">Leaderboard p95 latency</span><span class="stat-val" style="color:#22c55e">101ms (target: &lt;500ms)</span></div>
-      <div class="stat-row"><span class="stat-label">SSE first event p95</span><span class="stat-val" style="color:#22c55e">140ms (target: &lt;3000ms)</span></div>
-      <div class="stat-row"><span class="stat-label">API error rate</span><span class="stat-val" style="color:#22c55e">0.00% (target: &lt;0.1%)</span></div>
-      <div class="stat-row"><span class="stat-label">Total checks passed</span><span class="stat-val" style="color:#22c55e">33,661 / 33,661 (100%)</span></div>
-      <div class="stat-row"><span class="stat-label">SSE events delivered</span><span class="stat-val">11,126</span></div>
-      <div class="stat-row"><span class="stat-label">Decision</span><span class="stat-val" style="color:#22c55e">Ship as-is. No gevent or dedicated service needed for May 26.</span></div>
+      <div class="schema-note" style="color:#ef4444;background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2)">
+        S9-029: the May 23 k6 "100 concurrent, ship as-is" result below was retired 2026-08-10. It measured a threaded Flask dev server that no longer exists (Gunicorn landed 2026-06-18/07-13), against a past, already-ended debate event ("safe to hammer" -- true, and also why nothing was actually held open), using a script whose sseTest() is a buffered http.get() with a 10s timeout -- it cannot structurally hold a streaming connection. It was honest for the infrastructure it tested and has been invalid since. See S9-029.
+      </div>
+      <div class="stat-row"><span class="stat-label">Measured max concurrent streams</span><span class="stat-val" style="color:#ef4444">8 (Gunicorn: 2 workers x 4 threads)</span></div>
+      <div class="stat-row"><span class="stat-label">At 8 held streams</span><span class="stat-val" style="color:#ef4444">verumsignal.com -- website, leaderboard, /api/source, ops -- completely unreachable</span></div>
+      <div class="stat-row"><span class="stat-label">Baseline latency (idle)</span><span class="stat-val">/status 0.52s · /api/leaderboard 0.51s · /api/source 0.51s</span></div>
+      <div class="stat-row"><span class="stat-label">Under load (8 streams held)</span><span class="stat-val" style="color:#ef4444">All three: TimeoutError at 25s</span></div>
+      <div class="stat-row"><span class="stat-label">Measured</span><span class="stat-val">2026-08-10, throwaway event probe, cleanup verified (0 rows remaining)</span></div>
+      <div class="stat-row"><span class="stat-label">Decision</span><span class="stat-val" style="color:#ef4444">Move SSE to its own Railway service before any live debate coverage (S9-001, D1)</span></div>
     </div>
+
+    <div style="font-size:11px;color:#4b5563;margin:-4px 0 16px">Retired 2026-05-23 k6 result: 100 concurrent (claimed), 0.00% error rate, 33,661/33,661 checks -- see the notice above for why this could not have measured what it claimed to.</div>
 
     <h2>SSE event types</h2>
     <div class="card">
       <table>
         <tr><th>Event</th><th>When</th><th>Key fields</th></tr>
-        <tr><td>connected</td><td>Immediately on connection</td><td>existing_claims[], is_ended, claim_count</td></tr>
+        <tr><td>connected</td><td>Immediately on connection</td><td>existing_claims[], existing_provisional[], is_ended, claim_count</td></tr>
         <tr><td>claim</td><td>New verified claim</td><td>id, claim_text, verdict, confidence_score, verdict_summary, speaker_id, speaker_name, is_provisional, first_seen, methodology_version</td></tr>
+        <tr><td>claim_provisional</td><td>New unverified claim (verdict pending)</td><td>id, claim_text, speaker_id, speaker_name, verdict_status='provisional', first_seen (S9-030: existed since June 4, missing from this table)</td></tr>
+        <tr><td>claim_update</td><td>A pending provisional claim receives its verdict</td><td>id, claim_text, verdict, confidence_score, verdict_summary, speaker_id, speaker_name, is_provisional=false, methodology_version (S9-030: existed since June 4, missing from this table)</td></tr>
         <tr><td>heartbeat</td><td>Every 15s</td><td>ts (unix timestamp)</td></tr>
         <tr><td>debate_ended</td><td>event_date passes</td><td>slug, ended_at</td></tr>
         <tr><td>error</td><td>Server error</td><td>message, code (NOT_FOUND stops reconnect)</td></tr>
@@ -7639,11 +7643,11 @@ def ops_mobile():
     </div>
   </div>
 
-  <!-- MAY 26 TAB -->
-  <div id="tab-may26" class="tab-content">
-    <h2>Event configuration (event_id=9)</h2>
+  <!-- LATEST EVENT TAB -->
+  <div id="tab-latest" class="tab-content">
+    <h2>Latest event configuration</h2>
     <div class="card">
-      {may26_html if may26_html else '<div style="color:#6b7280;font-size:12px">Event not found in DB</div>'}
+      {latest_event_html if latest_event_html else '<div style="color:#6b7280;font-size:12px">No events in DB</div>'}
     </div>
 
     <h2>Speaker configuration</h2>
@@ -7660,7 +7664,7 @@ def ops_mobile():
       <div class="endpoint-row"><span class="endpoint-path">Speakers configured with speaker_order</span><span class="badge badge-green">✓ Done</span></div>
       <div class="endpoint-row"><span class="endpoint-path">verdict_status='provisional' stamping in extract_debate_claims.py</span><span class="badge badge-green">✓ Patched</span></div>
       <div class="endpoint-row"><span class="endpoint-path">promote_provisional_verdicts() running every 5 minutes</span><span class="badge badge-green">✓ Active</span></div>
-      <div class="endpoint-row"><span class="endpoint-path">SSE load test passed (100 concurrent · 0% errors)</span><span class="badge badge-green">✓ Passed</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">SSE concurrency -- 8 max, needs D1 before live coverage (S9-001, S9-029)</span><span class="badge badge-red">⚠ Blocked</span></div>
       <div class="endpoint-row"><span class="endpoint-path">Mobile SSE stream endpoint live</span><span class="badge badge-green">✓ Live</span></div>
       <div class="endpoint-row"><span class="endpoint-path">Rev AI connection dry run</span><span class="badge badge-green">✓ Passed</span></div>
       <div class="endpoint-row"><span class="endpoint-path">YouTube live VIDEO_ID for CBS Colorado</span><span class="badge badge-amber">⚠ Day-of action (30 min before 7 PM MT)</span></div>
