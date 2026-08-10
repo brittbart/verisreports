@@ -1,0 +1,84 @@
+#!/bin/bash
+# D7 (Implementation Brief, Britt confirmed 2026-08-10): this hook's own
+# exit code used to always be 0 regardless of whether the syntax check
+# below passed or failed, because the git_log update block ran
+# unconditionally afterward and its own try/except always exits 0 --
+# bash reports the LAST command's exit status as the script's own, so
+# "Push blocked -- fix syntax errors first" printed but never actually
+# blocked anything (S9-027, confirmed by reproduction). Fixed below by
+# explicitly capturing and propagating the syntax check's exit status
+# before the git_log block runs, rather than a blanket `set -e` (which
+# would also make an unrelated failure, e.g. venv activation, fatal in
+# ways not intended here).
+#
+# This file is tracked in the repo (previously it only existed at
+# .git/hooks/pre-push on one machine, invisible to any other clone).
+# To activate it in a working copy, run once:
+#   git config core.hooksPath hooks
+# Git will then use this tracked file directly; no need to copy it into
+# .git/hooks/ or re-run the config command after future changes to it.
+#
+# Scope note: this session did NOT widen the four-file coverage
+# (api.py, extract_claims.py, verdict_engine.py, scheduler.py) --
+# that stays a separate, later decision per D7.
+
+echo "Running pre-push checks..."
+cd ~/projects/veris
+source venv/bin/activate 2>/dev/null
+python3 -c "
+import ast, sys
+files = ['api.py', 'extract_claims.py', 'verdict_engine.py', 'scheduler.py']
+failed = False
+for f in files:
+    try:
+        ast.parse(open(f).read())
+        print(f'  ✓ {f}')
+    except SyntaxError as e:
+        print(f'  ✗ {f}: {e}')
+        failed = True
+if failed:
+    print('Push blocked — fix syntax errors first')
+    sys.exit(1)
+print('All checks passed — pushing')
+"
+CHECK_STATUS=$?
+if [ $CHECK_STATUS -ne 0 ]; then
+    exit $CHECK_STATUS
+fi
+
+# Update git_log in DB on every push
+python3 - << 'PYEOF'
+import subprocess, sys
+try:
+    import psycopg2, os
+    from dotenv import dotenv_values
+    env = {**os.environ, **dotenv_values('/home/veris/projects/veris/.env')}
+    conn = psycopg2.connect(
+        host=env['DB_HOST'], port=env['DB_PORT'],
+        dbname=env['DB_NAME'], user=env['DB_USER'],
+        password=env['DB_PASSWORD']
+    )
+    cur = conn.cursor()
+    result = subprocess.run(
+        ['git', 'log', '--pretty=format:%H|%as|%s', '-n', '100'],
+        capture_output=True, text=True,
+        cwd='/home/veris/projects/veris'
+    )
+    commits = []
+    for line in result.stdout.strip().split('\n'):
+        if '|' not in line: continue
+        parts = line.split('|', 2)
+        if len(parts) == 3:
+            h, date, msg = parts
+            commits.append((h, h[:7], date, msg))
+    cur.execute("DELETE FROM git_log")
+    cur.executemany(
+        "INSERT INTO git_log (hash, short_hash, date, message) VALUES (%s, %s, %s, %s)",
+        commits
+    )
+    conn.commit()
+    conn.close()
+    print(f"  ✓ git_log updated ({len(commits)} commits)")
+except Exception as e:
+    print(f"  ⚠ git_log update failed (non-fatal): {e}")
+PYEOF

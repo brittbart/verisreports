@@ -431,11 +431,13 @@ def article_report(article_id):
         """, (article_id,))
         _scored, _attributed, _pending = cur.fetchone()
 
-        # Article score (reuse api_outlets score for now;
-        # per-article score computed server-side in future)
+        # D5 (2026-08-10, Britt): this used to substitute the outlet's
+        # aggregate score whenever an article had 3+ scored claims,
+        # presenting an outlet-level number as though it described this
+        # specific article. Stopped -- article_score stays None until a
+        # real per-article score is computed server-side. is_scored
+        # follows automatically (derives from article_score is not None).
         article_score = None
-        if len(claims_out) >= 3:
-            article_score = float(outlet_score) if outlet_score else None
 
         return ok({
             "article": {
