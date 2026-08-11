@@ -1825,7 +1825,12 @@
     var es;
 
     function connectSSE() {
-      var url = '/mobile/v1/debates/' + slug + '/stream?since_id=' + lastClaimId;
+      // B1 -- streams are served by the standalone veris-sse service, not by
+      // this app. Absolute URL is required (different origin); CORS on that
+      // service allow-lists both verumsignal.com and www.verumsignal.com.
+      // Route prefix is /v1, NOT /mobile/v1 -- the old prefix 404s there.
+      var SSE_BASE = 'https://stream.verumsignal.com';
+      var url = SSE_BASE + '/v1/debates/' + slug + '/stream?since_id=' + lastClaimId;
       es = new EventSource(url);
 
       es.addEventListener('connected', function(e) {
