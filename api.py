@@ -626,12 +626,22 @@ def get_source():
         return _rl
     # Aligned with api_leaderboard.compute_score / LEADERBOARD_SQL so the
     # extension and the public leaderboard never disagree.
-    from api_leaderboard import compute_score, compute_score_band, compute_tier, INCLUSION_THRESHOLD
+    from api_leaderboard import compute_score, compute_score_band, compute_tier, INCLUSION_THRESHOLD, EXCLUDED_DOMAINS
 
     domain = request.args.get('domain', '').strip()
     if not domain:
         return jsonify({'error': 'domain required'}), 400
     core = domain.replace('www.', '').lower()
+
+    # A2 -- non-news entities are excluded at the DATA layer, not only the
+    # leaderboard layer. Same frozenset the leaderboard uses: see
+    # EXCLUDED_DOMAINS in api_leaderboard.py.
+    if core in EXCLUDED_DOMAINS:
+        return jsonify({
+            'domain': domain,
+            'status': 'not_found',
+            'reason': 'excluded_non_news',
+        })
 
     try:
         conn = get_db()

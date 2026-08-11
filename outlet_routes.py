@@ -263,6 +263,17 @@ def register_outlet_routes(app, get_db_conn):
         if not domain:
             return jsonify({"error": "domain required"}), 400
         core = domain.replace("www.", "").lower()
+
+        # A2 -- see EXCLUDED_DOMAINS in api_leaderboard.py
+        from api_leaderboard import EXCLUDED_DOMAINS
+        if core in EXCLUDED_DOMAINS:
+            return jsonify({
+                "domain":              domain,
+                "as_of":               None,
+                "reason":              "excluded_non_news",
+                "methodology_version": PUBLIC_METHODOLOGY_VERSION,
+                "verdicts":            [],
+            })
         try:
             limit = int(request.args.get("limit", 20))
         except (TypeError, ValueError):
@@ -302,6 +313,16 @@ def register_outlet_routes(app, get_db_conn):
         if not domain:
             return jsonify({"error": "domain required"}), 400
         core = domain.replace("www.", "").lower()
+
+        # A2 -- see EXCLUDED_DOMAINS in api_leaderboard.py
+        from api_leaderboard import EXCLUDED_DOMAINS
+        if core in EXCLUDED_DOMAINS:
+            return jsonify({
+                "domain":              domain,
+                "reason":              "excluded_non_news",
+                "methodology_version": PUBLIC_METHODOLOGY_VERSION,
+                "history":             [],
+            })
         try:
             history = _get_score_history(get_db_conn, core)
             return jsonify({
