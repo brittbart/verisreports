@@ -12,6 +12,7 @@ Database
 Web
 *.bak
 *.bak.*
+*.bak[0-9]*
 pending_batch.txt
 gdelt_historical.log
 .vscode/
