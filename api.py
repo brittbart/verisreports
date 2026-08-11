@@ -3713,7 +3713,7 @@ def api_corpus_totals():
 # newest commit in git_log and says so on the page when they drift, so the
 # section going stale is visible instead of silent (it sat 11 weeks stale
 # before Session 7 noticed).
-_CURATED_LATEST = "2026-08-08"
+_CURATED_LATEST = "2026-08-11"
 
 _OPS_CHANGELOG_HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -3763,6 +3763,21 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 <h2>Deployments</h2>
 <div style="font-size:11px;color:var(--fg-dim);margin:-8px 0 16px">__CURATED_STALENESS__</div>
 
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">Aug 8, 2026</span>
+    <span class="deploy-label">Session 9 — Mobile app, live debate stream, build pipeline</span>
+    <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/06c8b69" target="_blank">06c8b69</a>
+  </div>
+  <ul class="deploy-items">
+    <li><strong>Live debate stream moved off the main app:</strong> the SSE route held a gunicorn worker thread for up to four hours. At 2 workers x 4 threads, eight concurrent viewers consumed every slot — measured 2026-08-08, the whole site became unreachable at 25s timeouts. Streams now served by a standalone service at stream.verumsignal.com, measured at 40 of 40 concurrent with the main site unaffected. Old route returns 410; a third caller (/ops/sse-test) was found by grep and repointed.</li>
+    <li><strong>Non-news exclusion was a leaderboard-only filter:</strong> /api/source, /api/source/verdicts and /api/source/history all served excluded domains. gao.gov returned score 94 with 38 verdicts, so the extension badged the Government Accountability Office's own pages. Now enforced at the data layer on all three. whitehouse.gov and justice.gov were below threshold only by coincidence of low inventory and would have crossed once the backlog processed.</li>
+    <li><strong>Stream reconnect only handled application errors:</strong> a transport failure — CORS, DNS, TLS, service down — produced an undefined payload, threw inside the handler and was swallowed by an empty catch. No reconnect, no message; the claim feed silently stopped. Now reconnects on connection close as well.</li>
+    <li><strong>Two public claims carried NOT SUPPORTED verdicts refuted by their own evidence:</strong> a June 4 attribution correction changed the speaker and left the analysis describing the previous one, so each card marked a politician wrong for a true statement about his own career. Both suppressed pending re-verification; nothing rewritten by hand.</li>
+    <li><strong>Speaker attribution repair attempted and rolled back:</strong> fourteen claims were realigned to the reattribution pipeline&#39;s output, then reverted when a transcript window read showed the pipeline had pushed a candidate&#39;s closing statement onto the moderator who introduced it. Event 16&#39;s transcript also holds duplicate utterances under conflicting speakers. Net data change zero; the underlying defect is unresolved and routed forward.</li>
+    <li><strong>Recorded as unverified:</strong> no Android device could be reached, so accessibility, performance and screen-state testing did not run. The stream repoint has not been browser-verified because every event is past. These are gaps, not passes.</li>
+  </ul>
+</div>
 <div class="deploy-entry">
   <div class="deploy-header">
     <span class="deploy-date">Aug 8, 2026</span>
@@ -7308,7 +7323,7 @@ def ops_mobile():
 </div>
 <div class="container">
   <h1>Mobile Ops</h1>
-  <div class="subtitle">verumsignal.com/ops/mobile &nbsp;·&nbsp; Verum Signal iOS + Android app &nbsp;·&nbsp; {generated_at}</div>
+  <div class="subtitle">verumsignal.com/ops/mobile &nbsp;·&nbsp; Verum Signal Android app &nbsp;·&nbsp; iOS not built &nbsp;·&nbsp; {generated_at}</div>
 
   <div class="tabs">
     <div class="tab active" onclick="showTab(this,'overview')">Overview</div>
@@ -7399,7 +7414,7 @@ def ops_mobile():
       <div class="endpoint-row"><span class="endpoint-path">Clerk (auth)</span><span class="badge badge-red">Blocked</span><span style="color:#6b7280;font-size:11px">Unblocks all 401 auth endpoints</span></div>
       <div class="endpoint-row"><span class="endpoint-path">Expo account</span><span class="badge badge-green">Done · brittbarton</span><span style="color:#6b7280;font-size:11px">EAS builds working</span></div>
       <div class="endpoint-row"><span class="endpoint-path">Apple Developer</span><span class="badge badge-red">Not started</span><span style="color:#6b7280;font-size:11px">Verum Signal LLC · DUNS required · 2–8 weeks</span></div>
-      <div class="endpoint-row"><span class="endpoint-path">Google Play</span><span class="badge badge-red">Not started</span><span style="color:#6b7280;font-size:11px">$25 one-time · 1–3 days</span></div>
+      <div class="endpoint-row"><span class="endpoint-path">Google Play</span><span class="badge badge-red">Not started</span><span style="color:#6b7280;font-size:11px">$25 one-time · closed testing required before production — verify current tester count and duration at the Play Console</span></div>
     </div>
   </div>
 
