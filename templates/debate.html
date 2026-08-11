@@ -1872,15 +1872,28 @@
 
       es.addEventListener('debate_ended', function() { es.close(); });
 
+      function scheduleReconnect() {
+        try { es.close(); } catch (ex) {}
+        setTimeout(connectSSE, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+      }
+
       es.addEventListener('error', function(e) {
-        try {
-          var data = JSON.parse(e.data);
-          if (data.code === 'TIMEOUT') {
-            es.close();
-            setTimeout(connectSSE, reconnectDelay);
-            reconnectDelay = Math.min(reconnectDelay * 2, 30000);
-          }
-        } catch(ex) {}
+        // Application-level error: the server sent a JSON payload.
+        var data = null;
+        try { data = JSON.parse(e.data); } catch (ex) {}
+
+        if (data) {
+          if (data.code === 'TIMEOUT') { scheduleReconnect(); }
+          return;
+        }
+
+        // No parseable payload means a TRANSPORT failure -- CORS rejection,
+        // DNS, TLS, or the service being down. The stream is cross-origin
+        // since B1, so these are real. Previously swallowed silently.
+        if (es.readyState === EventSource.CLOSED) {
+          scheduleReconnect();
+        }
       });
     }
 
