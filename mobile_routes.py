@@ -935,9 +935,36 @@ def register_mobile_routes(app, get_db_fn):
     mobile_bp.get_db = get_db_fn
 
     # Wire SSE stream routes
+    # B1 -- RETIRED 2026-08-11. This route held a gunicorn worker thread for the
+    # life of a stream (up to 4h). Production runs 2 workers x 4 threads, so eight
+    # concurrent viewers consumed every slot: measured 2026-08-08, the whole site
+    # became unreachable. Streams are now served by the standalone veris-sse
+    # service at stream.verumsignal.com/v1/debates/<slug>/stream.
+    #
+    # A 410 stub rather than removal: it closes immediately (no worker held, so
+    # the exhaustion path is gone) while telling unknown callers where to go and
+    # logging every hit. mobile_sse.py is deliberately NOT edited -- it is
+    # byte-for-byte shared with the veris-stream repo.
+    #
+    # DELIBERATE CONSEQUENCE: this breaks the debate screen in any installed
+    # mobile build. expo-updates was removed, so there is no over-the-air path
+    # and only a new store release reaches an installed user. Accepted at zero
+    # users; recorded as a choice, not an oversight.
     if SSE_ENABLED:
-        register_sse_routes(mobile_bp, get_db_fn)
-        app.logger.info("[mobile_routes] registered /mobile/v1/debates/<slug>/stream (SSE)")
+        @mobile_bp.route('/debates/<slug>/stream')
+        def debate_stream_retired(slug):
+            app.logger.warning(
+                "[mobile_routes] RETIRED SSE route hit: slug=%s ua=%s ip=%s",
+                slug,
+                request.headers.get('User-Agent', '-'),
+                request.headers.get('X-Forwarded-For', request.remote_addr or '-'),
+            )
+            return jsonify({
+                'error': 'gone',
+                'message': 'This stream endpoint has been retired.',
+                'stream_url': 'https://stream.verumsignal.com/v1/debates/%s/stream' % slug,
+            }), 410
+        app.logger.info("[mobile_routes] /mobile/v1/debates/<slug>/stream RETIRED (410) -- see stream.verumsignal.com")
     else:
         # S9-010: this was the primary finding -- a bare print() meant the
         # entire live-debate surface could silently degrade to no-SSE with

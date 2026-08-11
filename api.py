@@ -7413,7 +7413,7 @@ def ops_mobile():
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/outlets/&lt;domain&gt;</span><span class="badge badge-green">Working</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates</span><span class="badge badge-green">Working</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;</span><span class="badge badge-amber">Not tested in app</span></div>
-      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;/stream</span><span class="badge badge-red">SSE · 8 concurrent max (S9-001)</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/debates/&lt;slug&gt;/stream</span><span class="badge badge-red">RETIRED 410 · moved to stream.verumsignal.com/v1</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/methodology</span><span class="badge badge-green">Working</span><span style="color:#6b7280;font-size:11px;margin-left:8px">reads PUBLIC_METHODOLOGY_VERSIONS</span></div>
       <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/mobile/v1/health</span><span class="badge badge-green">Working</span></div>
     </div>
@@ -8117,7 +8117,10 @@ function connectSSE() {
   setStatus('connecting');
   log('system', 'Connecting to ' + slug + '...');
 
-  es = new EventSource('/mobile/v1/debates/' + slug + '/stream?since_id=0');
+  // B1 -- streams moved to the standalone veris-sse service. Absolute URL
+  // (different origin; CORS there allow-lists verumsignal.com and www).
+  // Prefix is /v1, NOT /mobile/v1 -- the old prefix 404s on that service.
+  es = new EventSource('https://stream.verumsignal.com/v1/debates/' + slug + '/stream?since_id=0');
 
   es.addEventListener('connected', function(e) {
     setStatus('connected');
