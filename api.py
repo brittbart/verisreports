@@ -3765,7 +3765,7 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 
 <div class="deploy-entry">
   <div class="deploy-header">
-    <span class="deploy-date">Aug 8, 2026</span>
+    <span class="deploy-date">Aug 8-11, 2026</span>
     <span class="deploy-label">Session 9 — Mobile app, live debate stream, build pipeline</span>
     <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/06c8b69" target="_blank">06c8b69</a>
   </div>
