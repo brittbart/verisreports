@@ -3708,12 +3708,42 @@ def api_corpus_totals():
         return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
 
 
-# Date of the newest hand-written entry in the Deployments section below.
-# UPDATE THIS whenever you add an entry. The page compares it against the
-# newest commit in git_log and says so on the page when they drift, so the
-# section going stale is visible instead of silent (it sat 11 weeks stale
-# before Session 7 noticed).
+# FALLBACK ONLY -- the live value is derived by _curated_latest() below, which
+# reads the first deploy-date out of the Deployments section itself. This
+# constant is used only if that parse fails, so the drift detector can never
+# take down the page it annotates.
+#
+# It used to be maintained by hand alongside the entries it described: two
+# hand-kept values that had to agree, which is the exact drift it exists to
+# detect. On 2026-08-11 the Session 9 entry was inserted above the Session 7
+# block and silently inherited its date span -- the constant and the section
+# disagreed within minutes of each other being edited.
 _CURATED_LATEST = "2026-08-11"
+
+
+def _curated_latest():
+    """Newest curated entry date, read from the Deployments section itself.
+
+    Parses the FIRST deploy-date span in _OPS_CHANGELOG_HTML. Handles single
+    dates ("May 21, 2026") and ranges ("Aug 8-11, 2026"), taking the END of a
+    range, which is what the hand-maintained constant always held. Returns an
+    ISO date string. Falls back to _CURATED_LATEST on any failure.
+    """
+    import re as _re, datetime as _dt
+    try:
+        m = _re.search(r'<span class="deploy-date">([^<]+)</span>', _OPS_CHANGELOG_HTML)
+        if not m:
+            return _CURATED_LATEST
+        dm = _re.match(
+            r'^([A-Za-z]{3,9})\s+(\d{1,2})(?:\s*[-\u2013]\s*(\d{1,2}))?,\s*(\d{4})$',
+            m.group(1).strip())
+        if not dm:
+            return _CURATED_LATEST
+        mon, d1, d2, yr = dm.groups()
+        month = _dt.datetime.strptime(mon[:3], '%b').month
+        return _dt.date(int(yr), month, int(d2 or d1)).isoformat()
+    except Exception:
+        return _CURATED_LATEST
 
 _OPS_CHANGELOG_HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -5733,13 +5763,14 @@ def ops_changelog():
         _cur.close(); _c.close()
         if newest:
             newest_s = str(newest)
-            gap = (dt.date.fromisoformat(newest_s) - dt.date.fromisoformat(_CURATED_LATEST)).days
+            curated_s = _curated_latest()
+            gap = (dt.date.fromisoformat(newest_s) - dt.date.fromisoformat(curated_s)).days
             if gap > 14:
                 note = ('<span style="color:var(--bad)">Curated entries are '
                         + str(gap) + ' days behind the newest commit ('
-                        + newest_s + '). Add an entry and update _CURATED_LATEST.</span>')
+                        + newest_s + '). Add an entry to the Deployments section.</span>')
             else:
-                note = 'Newest curated entry ' + _CURATED_LATEST + ' &middot; newest commit ' + newest_s
+                note = 'Newest curated entry ' + curated_s + ' &middot; newest commit ' + newest_s
     except Exception:
         pass
     html = html.replace('__CURATED_STALENESS__', note)
