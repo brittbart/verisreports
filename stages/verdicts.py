@@ -23,12 +23,11 @@ VERDICTS_PER_RUN = 20
 
 def main() -> int:
     with run_stage("verdicts") as ctx:
-        from verdict_engine import run_batch_verdict_engine, process_batch_results
+        from verdict_engine import run_batch_verdict_engine, process_batch_results, harvest_pending_batches
 
         # 1. Harvest pending batch if any.
-        if os.path.exists("pending_batch.txt"):
-            log.info("[verdicts] Processing pending batch results...")
-            process_batch_results()
+        log.info("[verdicts] Harvesting any pending batches...")
+        harvest_pending_batches()
 
         # 2. Submit a new batch.
         batch_id = run_batch_verdict_engine(limit=VERDICTS_PER_RUN)

@@ -14,7 +14,7 @@ from stages._common import run_stage
 VERDICTS_PER_RUN = 50
 
 def main() -> int:
-    from verdict_engine import (run_batch_verdict_engine, process_batch_results,
+    from verdict_engine import (run_batch_verdict_engine, process_batch_results, harvest_pending_batches,
                                  verify_debate_claims_sync, get_live_event_id)
 
     # ── Surge mode: auto-detect live debate ──────────────────────────────────
@@ -49,8 +49,7 @@ def main() -> int:
         # NOTE: pending_batch.txt won't persist between Railway cron runs
         # because the container filesystem is ephemeral. After migration is
         # stable, refactor to store batch IDs in DB instead.
-        if os.path.exists("pending_batch.txt"):
-            process_batch_results()
+        harvest_pending_batches()
         # Verify any unverified debate claims from recent events
         from verdict_engine import get_connection
         conn = get_connection()

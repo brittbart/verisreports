@@ -651,6 +651,18 @@ def run_batch_verdict_engine(limit=500, depth=None):
     print(f"Submitting batch of {len(requests)} claims...")
     batch = client.beta.messages.batches.create(requests=requests)
     print(f"Batch ID: {batch.id}")
+    # Durable record. pending_batch.txt is kept for local/manual runs, but the
+    # DB row is what the cron harvests -- an ephemeral container loses the file.
+    try:
+        _bc = get_connection(); _bcur = _bc.cursor()
+        _bcur.execute(
+            "INSERT INTO verdict_batches (batch_id, claim_count) VALUES (%s, %s) "
+            "ON CONFLICT (batch_id) DO NOTHING",
+            (batch.id, len(requests)))
+        _bc.commit(); _bcur.close(); _bc.close()
+        print(f"Batch {batch.id} recorded in verdict_batches ({len(requests)} claims)")
+    except Exception as _e:
+        print(f"WARNING: could not record batch in verdict_batches: {_e}")
     with open("pending_batch.txt", "w") as f:
         f.write(batch.id)
     print("Batch ID saved to pending_batch.txt")
@@ -670,7 +682,7 @@ def process_batch_results(batch_id=None):
     print(f"Status: {batch.processing_status}")
     if batch.processing_status != "ended":
         print(f"Not ready yet. Counts: {batch.request_counts}")
-        return
+        return None   # None means "not ready"; an int means "processed, n saved"
     conn = get_connection()
     cursor = conn.cursor()
     saved = 0
@@ -728,6 +740,48 @@ def process_batch_results(batch_id=None):
             print(f"  Claim {claim_id} failed: {result.result.type}")
     cursor.close()
     conn.close()
+    return saved
+
+
+def harvest_pending_batches(limit=10):
+    """Collect every unharvested batch, not just the newest.
+
+    The old file-based path could only hold one id. Batches take up to 24h and
+    the cron runs every 6, so several are routinely pending at once. A batch
+    that is not ready is left unstamped and retried on the next run.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT batch_id FROM verdict_batches WHERE harvested_at IS NULL "
+        "ORDER BY submitted_at ASC LIMIT %s", (limit,))
+    pending = [r[0] for r in cursor.fetchall()]
+    cursor.close(); conn.close()
+
+    if not pending:
+        print("No pending batches to harvest.")
+        return 0
+
+    print(f"Harvesting {len(pending)} pending batch(es)...")
+    total = 0
+    for bid in pending:
+        try:
+            saved = process_batch_results(bid)
+        except Exception as e:
+            print(f"  Batch {bid} harvest error: {e}")
+            continue
+        if saved is None:
+            print(f"  Batch {bid} not ready; will retry next run.")
+            continue
+        c2 = get_connection(); cur2 = c2.cursor()
+        cur2.execute(
+            "UPDATE verdict_batches SET harvested_at = NOW(), saved_count = %s "
+            "WHERE batch_id = %s", (saved, bid))
+        c2.commit(); cur2.close(); c2.close()
+        total += saved
+        print(f"  Batch {bid} harvested: {saved} verdicts saved.")
+    print(f"Harvest complete: {total} verdicts saved across {len(pending)} batch(es).")
+    return total
     print(f"Done. {saved} verdicts saved.")
     import os
     if os.path.exists("pending_batch.txt"):

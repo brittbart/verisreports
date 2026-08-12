@@ -163,12 +163,11 @@ def run_verdicts():
     """Submit batch of claims for verification (50% cost saving)."""
     log.info(f"Submitting batch verdict job ({VERDICTS_PER_RUN} claims)...")
     try:
-        from verdict_engine import run_batch_verdict_engine, process_batch_results
-        # First process any pending batch results
-        import os
-        if os.path.exists("pending_batch.txt"):
-            log.info("Processing pending batch results...")
-            process_batch_results()
+        from verdict_engine import (run_batch_verdict_engine, process_batch_results,
+                                    harvest_pending_batches)
+        # Harvest every unharvested batch, not just whatever a local file names.
+        log.info("Harvesting any pending batches...")
+        harvest_pending_batches()
         # Submit new batch
         batch_id = run_batch_verdict_engine(limit=VERDICTS_PER_RUN)
         if batch_id:
