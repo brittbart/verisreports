@@ -639,6 +639,13 @@ def run_batch_verdict_engine(limit=500, depth=None):
             "params": {
                 "model": "claude-sonnet-4-6",
                 "max_tokens": 1000,
+                # WITHOUT THIS the model gets no verdict taxonomy and no JSON
+                # schema, and returns markdown prose that the parser silently
+                # discards. Missing since 4bc70ec (2026-06-09) moved the
+                # methodology into _ACTIVE_PROMPT and updated only the
+                # synchronous path. Must stay in step with analyse_claim().
+                "system": [{"type": "text", "text": _ACTIVE_PROMPT,
+                            "cache_control": {"type": "ephemeral"}}],
                 "tools": [{"type": "web_search_20250305", "name": "web_search"}],
                 "messages": [{"role": "user", "content": prompt}]
             }
