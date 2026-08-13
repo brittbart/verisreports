@@ -683,10 +683,19 @@ def process_batch_results(batch_id=None):
     if batch.processing_status != "ended":
         print(f"Not ready yet. Counts: {batch.request_counts}")
         return None   # None means "not ready"; an int means "processed, n saved"
+    # processing_status flips to "ended" BEFORE results_url is populated.
+    # Observed 2026-08-13: three ended batches with no results_url yielded zero
+    # results and were stamped harvested with 0 saved, discarding 1,495 paid-for
+    # verdicts. Status alone is not a readiness signal.
+    if not getattr(batch, "results_url", None):
+        print("  Status is ended but results_url is not populated yet -- not ready, will retry.")
+        return None
     conn = get_connection()
     cursor = conn.cursor()
     saved = 0
+    seen = 0
     for result in client.beta.messages.batches.results(batch_id):
+        seen += 1
         claim_id = int(result.custom_id)
         if result.result.type == "succeeded":
             response_text = ""
@@ -740,6 +749,13 @@ def process_batch_results(batch_id=None):
             print(f"  Claim {claim_id} failed: {result.result.type}")
     cursor.close()
     conn.close()
+    # General form of the same failure: the iterator gave us nothing while the
+    # batch claims work succeeded. Never stamp that as harvested.
+    _succeeded = getattr(batch.request_counts, "succeeded", 0) or 0
+    if seen == 0 and _succeeded > 0:
+        print(f"  WARNING: batch reports {_succeeded} succeeded but the results "
+              f"iterator yielded nothing -- not ready, will retry.")
+        return None
     return saved
 
 
