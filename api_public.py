@@ -376,6 +376,7 @@ def claims():
     outlet   = request.args.get('outlet')
     verdict  = request.args.get('verdict')
     origin   = request.args.get('claim_origin')
+    query    = request.args.get('q')
 
     conn = get_db()
     cur = conn.cursor()
@@ -392,6 +393,13 @@ def claims():
         if origin:
             filters.append('claim_origin = %s')
             params.append(origin)
+        if query:
+            # Substring match on the claim text. Before this existed, an
+            # unrecognised q was silently dropped and the caller got an
+            # unfiltered page back with a 200 -- an agent had no way to tell
+            # its search had been ignored.
+            filters.append('claim_text ILIKE %s')
+            params.append('%' + query.replace('%', r'\%').replace('_', r'\_') + '%')
 
         where = ' AND '.join(filters)
         params.append(limit)
@@ -623,10 +631,20 @@ def debates():
     conn = get_db()
     cur = conn.cursor()
     try:
+        # Per-verdict counts are appended AFTER min_cursor deliberately:
+        # next_cursor below reads rows[-1][5] positionally, and inserting
+        # columns earlier would silently break pagination.
         cur.execute("""
             SELECT event_id, event_slug, event_name, event_date,
                    COUNT(*) AS claim_count,
-                   MIN(cursor_key) AS min_cursor
+                   MIN(cursor_key) AS min_cursor,
+                   COUNT(*) FILTER (WHERE verdict_label = 'supported')      AS v_supported,
+                   COUNT(*) FILTER (WHERE verdict_label = 'plausible')      AS v_plausible,
+                   COUNT(*) FILTER (WHERE verdict_label = 'corroborated')   AS v_corroborated,
+                   COUNT(*) FILTER (WHERE verdict_label = 'overstated')     AS v_overstated,
+                   COUNT(*) FILTER (WHERE verdict_label = 'disputed')       AS v_disputed,
+                   COUNT(*) FILTER (WHERE verdict_label = 'not_supported')  AS v_not_supported,
+                   COUNT(*) FILTER (WHERE verdict_label = 'not_verifiable') AS v_not_verifiable
             FROM api_debate_claims
             WHERE cursor_key > %s
             GROUP BY event_id, event_slug, event_name, event_date
@@ -637,13 +655,24 @@ def debates():
         rows = cur.fetchall()
         data = []
         for (event_id, event_slug, event_name, event_date,
-             claim_count, min_cursor) in rows:
+             claim_count, min_cursor,
+             v_supported, v_plausible, v_corroborated, v_overstated,
+             v_disputed, v_not_supported, v_not_verifiable) in rows:
             data.append({
                 'event_id': event_id,
                 'slug': event_slug,
                 'name': event_name,
                 'date': event_date.isoformat() if event_date else None,
                 'claim_count': claim_count,
+                'verdict_counts': {
+                    'supported': v_supported,
+                    'plausible': v_plausible,
+                    'corroborated': v_corroborated,
+                    'overstated': v_overstated,
+                    'disputed': v_disputed,
+                    'not_supported': v_not_supported,
+                    'not_verifiable': v_not_verifiable,
+                },
                 'claims_url': f'https://api.verumsignal.com/v1/debates/{event_slug}/claims',
                 'event_url': f'https://verumsignal.com/debates/{event_slug}',
             })

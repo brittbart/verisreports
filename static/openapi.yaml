@@ -111,6 +111,17 @@ paths:
           description: Filter by verdict label
           schema:
             $ref: "#/components/schemas/VerdictLabel"
+        - name: q
+          in: query
+          description: |
+            Filter to claims whose text contains this term (case-insensitive
+            substring match). Use this for topic questions — "what has been
+            claimed about tariffs" — rather than retrieving pages of claims and
+            filtering client-side. Combines with the other filters using AND.
+            `%` and `_` are treated as literal characters, not wildcards.
+          schema:
+            type: string
+            example: tariffs
         - name: claim_origin
           in: query
           description: |
@@ -582,6 +593,14 @@ components:
           nullable: true
         claim_count:
           type: integer
+        verdict_counts:
+          type: object
+          description: >
+            Claims from this debate broken down by verdict. Lets a ranking
+            question ("which debate had the most disputed claims") be answered
+            from this one call rather than fetching every debate's claims.
+          additionalProperties:
+            type: integer
         claims_url:
           type: string
           format: uri
