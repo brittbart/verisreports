@@ -312,19 +312,49 @@ def meta():
         cur.execute("SELECT COUNT(*) FROM api_outlets")
         outlets_count = cur.fetchone()[0]
 
+        # Tracked and scored are different numbers and the gap is large: an
+        # outlet is tracked as soon as it has any evaluated claim, but only
+        # carries a score once it meets the inclusion threshold. Reporting only
+        # the first made agents answer "how many outlets do you cover" with a
+        # number several times too large.
+        cur.execute("SELECT COUNT(*) FROM api_outlets WHERE score IS NOT NULL")
+        outlets_scored_count = cur.fetchone()[0]
+
         cur.execute("SELECT COUNT(DISTINCT event_id) FROM api_debate_claims")
         debates_count = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(*) FROM api_debate_claims")
+        debate_claims_count = cur.fetchone()[0]
 
         cur.execute("SELECT MAX(updated_at) FROM api_claims")
         last_refresh = cur.fetchone()[0]
 
+        # Separate clock from last_refresh, which tracks the article-claim sync.
+        # The two can sit months apart and both be correct, so an agent asking
+        # "is this current" needs to see which is which rather than guess.
+        cur.execute("SELECT MAX(last_evaluated_at) FROM api_outlets")
+        last_outlet_evaluation = cur.fetchone()[0]
+
         return jsonify({
             'methodology_versions_served': ['v1.6'],
             'methodology_url': 'https://verumsignal.com/methodology',
+            'methodology_summary': (
+                'Individual factual claims are extracted from news articles and '
+                'checked against sources. An outlet score aggregates only the '
+                'claims the outlet makes in its own voice; claims it attributes '
+                'to someone else are analysed but score nobody. An outlet is '
+                'scored once it has enough evaluated claims to meet the '
+                'inclusion threshold, and is listed as tracked before that.'
+            ),
             'outlets_count': outlets_count,
+            'outlets_scored_count': outlets_scored_count,
             'claims_count': claims_count,
+            'debate_claims_count': debate_claims_count,
             'debate_events_count': debates_count,
             'last_refresh': last_refresh.isoformat() if last_refresh else None,
+            'last_outlet_evaluation': (
+                last_outlet_evaluation.isoformat() if last_outlet_evaluation else None
+            ),
         })
     finally:
         cur.close()

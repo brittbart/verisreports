@@ -660,16 +660,35 @@ components:
         methodology_url:
           type: string
           format: uri
+        methodology_summary:
+          type: string
+          description: One-paragraph plain-language summary of how scoring works.
         outlets_count:
           type: integer
+          description: Outlets tracked, including those below the inclusion threshold.
+        outlets_scored_count:
+          type: integer
+          description: Outlets that carry a published score. Use this for coverage questions.
         claims_count:
           type: integer
+          description: Article claims carrying a verdict.
+        debate_claims_count:
+          type: integer
+          description: Debate claims carrying a verdict. Counted separately from claims_count.
         debate_events_count:
           type: integer
         last_refresh:
           type: string
           format: date-time
           nullable: true
+          description: When the article-claim cache last synced.
+        last_outlet_evaluation:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            When any outlet score was last recomputed. Can differ from
+            last_refresh by a long interval; both are correct for what they measure.
       required:
         - methodology_versions_served
         - methodology_url
