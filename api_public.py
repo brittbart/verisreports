@@ -381,8 +381,14 @@ def claims():
     conn = get_db()
     cur = conn.cursor()
     try:
-        filters = ['cursor_key > %s']
-        params  = [cursor]
+        # Newest first. cursor=0 is still "first page" -- translated here to
+        # "below the maximum" so a client that hardcodes 0 keeps working, while
+        # the rows it gets back are the most recent rather than the oldest.
+        # Before 2026-08-16 this ordered ascending from insertion order, so a
+        # request for recent claims returned April rows and the tool
+        # description saying "most recent first" was false.
+        filters = ['cursor_key < %s']
+        params  = [cursor if cursor else 9223372036854775807]
 
         if outlet:
             filters.append('outlet_id = %s')
@@ -412,7 +418,7 @@ def claims():
                    cursor_key
             FROM api_claims
             WHERE {where}
-            ORDER BY cursor_key
+            ORDER BY cursor_key DESC
             LIMIT %s
         """, params)
 
