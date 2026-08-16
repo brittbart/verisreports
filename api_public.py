@@ -489,13 +489,74 @@ def outlet_detail(outlet_id):
         """, (outlet_id.lower(),))
         row = cur.fetchone()
         if not row:
-            resp = jsonify({'error': f'Outlet not found: {outlet_id}'})
+            resp = jsonify(_outlet_not_found_body(cur, outlet_id))
             resp.status_code = 404
             return resp
         return jsonify(_format_outlet(row))
     finally:
         cur.close()
         conn.close()
+
+
+def _outlet_not_found_body(cur, outlet_id):
+    """Actionable 404 for an outlet lookup that missed.
+
+    The bare {"error": "Outlet not found: X"} gave an agent nothing to act on.
+    Measured by an external agent-readiness audit (Aug 2026): 27 of 27 execution
+    failures were this response, and models either gave up outright or burned
+    retries cycling domain variants that were guaranteed to fail too.
+
+    This body answers three questions the old one did not: why the lookup missed,
+    whether a different domain would work, and what to do instead. Every lookup
+    hits api_outlets (166 rows), so the near-match query is cheap, and it only
+    runs on the miss path.
+    """
+    normalized = (outlet_id or '').strip().lower()
+    if normalized.startswith('www.'):
+        normalized = normalized[4:]
+
+    suggestion = None
+    try:
+        # Same publisher under a different domain -- e.g. ap.org is not tracked
+        # but apnews.com is. Match on the first label, which is the publisher
+        # name in practice, and require 3+ chars so short labels do not match
+        # half the table.
+        label = normalized.split('.')[0]
+        # >=2 deliberately: 'ap' (ap.org -> apnews.com) is the exact case the
+        # audit found, and a 3-char floor silently excluded it.
+        if len(label) >= 2:
+            cur.execute("""
+                SELECT outlet_id FROM api_outlets
+                WHERE outlet_id LIKE %s AND outlet_id <> %s
+                ORDER BY (score IS NULL), total_evaluated_claims DESC
+                LIMIT 1
+            """, (label + '%', normalized))
+            hit = cur.fetchone()
+            if hit:
+                suggestion = hit[0]
+    except Exception:
+        suggestion = None
+
+    body = {
+        'error': f'Outlet not found: {outlet_id}',
+        'reason': 'not_in_scored_set',
+        'detail': ('This domain is not in the scored outlet set. An outlet appears '
+                   'here once it has enough scoreable claims to meet the inclusion '
+                   'threshold; below that, no score is published for it.'),
+        'domain_variants': ('Variants of the same domain (www., .eu, .co and similar) '
+                            'resolve to the same lookup and will also return 404. '
+                            'Retrying them will not succeed.'),
+        'recommended_action': ('Tell the user this outlet is not currently scored, '
+                               'then call GET /v1/outlets to list the outlets that are.'),
+        'list_outlets_url': '/v1/outlets',
+    }
+    if suggestion:
+        body['suggestion'] = suggestion
+        body['suggestion_detail'] = (
+            f'{suggestion} is in the scored set and may be the same publisher. '
+            f'Try GET /v1/outlets/{suggestion}.'
+        )
+    return body
 
 
 def _format_outlet(row):
