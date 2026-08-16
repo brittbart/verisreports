@@ -3795,6 +3795,35 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 
 <div class="deploy-entry">
   <div class="deploy-header">
+    <span class="deploy-date">Aug 12-16, 2026</span>
+    <span class="deploy-label">Verdict pipeline repair, agent readiness audit, public API changes</span>
+    <ul>
+      <li><strong>Verdict collection restored — three faults, each hiding the one before it.</strong>
+      Completed verification batches were never collected: the batch identifier was written to a
+      container filesystem that no longer existed by the time the next run looked for it. Fixing that
+      exposed a readiness race, where a batch reports complete a moment before its results become
+      fetchable. Fixing that exposed the root cause — since June 9 the batch path had not been sending
+      the instruction that tells the model what shape to answer in, so every result came back as prose
+      the parser silently discarded. Roughly 1,600 verdicts were paid for and never landed in June
+      alone. The claims themselves were never affected and remain re-verifiable.</li>
+
+      <li><strong>Independent agent readiness audit, and all nine recommendations shipped.</strong>
+      An external diagnostic ran six models over 630 observations against the public API and MCP
+      server, scoring 92 of 100. Every recommendation is live: outlet lookups that miss now explain
+      why and what to try instead rather than returning a bare error; <code>/v1/claims</code> accepts a
+      <code>q</code> parameter for topic search; <code>/v1/debates</code> returns per-debate verdict
+      counts so a ranking question resolves in one call instead of eleven; <code>/v1/meta</code>
+      reports coverage, an article/debate split and a methodology summary; and the MCP tool
+      descriptions were rewritten so models can tell which tool answers which kind of question.</li>
+
+      <li><strong>Three faults found while fixing those, none of them in the audit.</strong>
+      Unrecognised query parameters were silently dropped, so a search request returned an unfiltered
+      page with a success code — an agent received plausible results and no signal its filter had been
+      ignored. Three tool descriptions carried vocabulary this platform does not use about itself.
+      And the tier wording described a claim-count band as a judgement about the outlet; tiers reflect
+      how much evidence underlies a score and nothing else, so the description now says so.</li>
+    </ul>
+
     <span class="deploy-date">Aug 8-11, 2026</span>
     <span class="deploy-label">Session 9 — Mobile app, live debate stream, build pipeline</span>
     <a class="deploy-commit" href="https://github.com/brittbart/verisreports/commit/06c8b69" target="_blank">06c8b69</a>
