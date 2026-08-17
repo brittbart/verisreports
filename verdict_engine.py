@@ -734,6 +734,12 @@ def process_batch_results(batch_id=None):
                 continue
             try:
                 data = json.loads(response_text[start:end])
+                if not isinstance(data, dict):
+                    preview = repr(data)[:200]
+                    print(f"  MALFORMED claim {claim_id}: extracted JSON is a "
+                          f"{type(data).__name__}, not an object (paid, not saved). "
+                          f"value={preview}")
+                    continue
                 verdict = data.get("verdict", "not_verifiable")
                 confidence = min(data.get("confidence_score", 1), 3)
                 summary = data.get("verdict_summary", "")
