@@ -3816,6 +3816,27 @@ tr:hover td{background:rgba(168,85,247,0.04)}
       reports coverage, an article/debate split and a methodology summary; and the MCP tool
       descriptions were rewritten so models can tell which tool answers which kind of question.</li>
 
+      <li><strong>A retest, and three more faults it surfaced.</strong>
+      The same diagnostic was re-run against the fixed surface and scored 96, up from 92, with the
+      recovery measure moving from 63 to 100. One measure moved against us, and all three causes were
+      changes made while fixing the first round rather than anything in the original findings. Topic
+      search covered only one of the two claim collections, so a question about a debate returned
+      nothing and models reported that absence as fact &mdash; it now searches both, and a
+      multi-word search that finds nothing reports what each term does match rather than returning a
+      bare empty result. The outlet-listing tool returned every tracked outlet including the great
+      majority carrying no score, which models could not read; it now returns the scored set and says
+      how many more exist. And a result ordering that had been running oldest-first for two months,
+      while the tool description said the opposite, is now newest-first.</li>
+
+      <li><strong>One recommendation declined, with the reasoning published.</strong>
+      The auditor supplied plain-language descriptions for the maturity tiers &mdash; that a published
+      tier means a score is settled, that a tracked one is not yet reliable. Those were shipped, then
+      withdrawn, because the tiers reflect how many claims underlie a score and nothing else, and no
+      published methodology defines them at all. Looking for an honest replacement produced a finding
+      instead: the tier with the most evidence behind it has the widest score spread and contains the
+      lowest score on the platform. There is no accurate way to describe it as more settled, so the
+      plainer description stands and the cost to usability is accepted.</li>
+
       <li><strong>Three faults found while fixing those, none of them in the audit.</strong>
       Unrecognised query parameters were silently dropped, so a search request returned an unfiltered
       page with a success code — an agent received plausible results and no signal its filter had been
