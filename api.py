@@ -3603,7 +3603,8 @@ def api_token_usage():
                             SUM(input_tokens) * 3.00 / 1000000 +
                             SUM(output_tokens) * 15.00 / 1000000 +
                             SUM(cache_creation_input_tokens) * 3.75 / 1000000 +
-                            SUM(cache_read_input_tokens) * 0.30 / 1000000
+                            SUM(cache_read_input_tokens) * 0.30 / 1000000 +
+                            SUM(web_search_requests) * 0.01
                         )::numeric, 4) AS approx_usd,
                         MAX(timestamp) AS last_call
                     FROM token_usage
@@ -4712,11 +4713,13 @@ def api_pipeline_history():
         corpus = [{"day": str(r[0]), "new": r[1], "cumulative": r[2]} for r in cur.fetchall()]
         cur.execute("""
             SELECT DATE(timestamp) as day,
-                ROUND(SUM(
-                    (input_tokens * 3.0 + output_tokens * 15.0 +
-                     cache_creation_input_tokens * 3.75 +
-                     cache_read_input_tokens * 0.30) / 1000000.0
-                )::numeric, 2) as usd,
+                ROUND(
+                    SUM(
+                        (input_tokens * 3.0 + output_tokens * 15.0 +
+                         cache_creation_input_tokens * 3.75 +
+                         cache_read_input_tokens * 0.30) / 1000000.0
+                    ) + SUM(web_search_requests) * 0.01
+                ::numeric, 2) as usd,
                 COUNT(*) as calls
             FROM token_usage
             WHERE timestamp > NOW() - INTERVAL '14 days'
@@ -5207,7 +5210,8 @@ def _compute_cost_and_usage(cur):
                 input_tokens * 3.00 / 1000000.0 +
                 output_tokens * 15.00 / 1000000.0 +
                 COALESCE(cache_creation_input_tokens, 0) * 3.75 / 1000000.0 +
-                COALESCE(cache_read_input_tokens, 0) * 0.30 / 1000000.0
+                COALESCE(cache_read_input_tokens, 0) * 0.30 / 1000000.0 +
+                COALESCE(web_search_requests, 0) * 0.01
             )::numeric, 2) AS cost_30d
             FROM token_usage
             WHERE timestamp > NOW() - INTERVAL '30 days'
