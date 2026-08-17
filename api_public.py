@@ -450,13 +450,44 @@ def claims():
             })
 
         next_cursor = rows[-1][12] if rows else None
-        return jsonify({
+        payload = {
             'data': data,
             'pagination': {
                 'next_cursor': next_cursor,
                 'has_more': len(rows) == limit,
             }
-        })
+        }
+
+        # Debate claims live in their own table and were invisible to search
+        # until 2026-08-16: a topic question about a debate returned nothing and
+        # models reported that absence as fact. Separate array, not a union --
+        # the record shapes differ, the cursor sequences are independent, and a
+        # union ordered by cursor would put all 3,196 article claims ahead of
+        # every debate claim, so none would surface at a normal page size.
+        if query:
+            _like = '%' + query.replace('%', chr(92) + '%').replace('_', chr(92) + '_') + '%'
+            cur.execute("""
+                SELECT claim_id, claim_text, verdict_label,
+                       speaker_name, speaker_party,
+                       event_slug, event_name, event_date, event_url,
+                       evaluated_at, methodology_version
+                FROM api_debate_claims
+                WHERE claim_text ILIKE %s AND verdict_label IS NOT NULL
+                ORDER BY cursor_key DESC
+                LIMIT %s
+            """, (_like, limit))
+            payload['debate_matches'] = [{
+                'id': r[0],
+                'claim_text': r[1],
+                'verdict': r[2],
+                'speaker': {'name': r[3], 'party': r[4]},
+                'event': {'slug': r[5], 'name': r[6],
+                          'date': r[7].isoformat() if r[7] else None, 'url': r[8]},
+                'evaluated_at': r[9].isoformat() if r[9] else None,
+                'methodology_version': r[10],
+            } for r in cur.fetchall()]
+
+        return jsonify(payload)
     finally:
         cur.close()
         conn.close()
