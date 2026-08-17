@@ -487,6 +487,40 @@ def claims():
                 'methodology_version': r[10],
             } for r in cur.fetchall()]
 
+            # A phrase that matches nothing used to return an empty result with
+            # no explanation, and models reported that as "there are no claims
+            # about this". Report what each term matches instead, so the dead
+            # end explains itself. Relevance ranking was tested and rejected:
+            # OR-matching "iowa senate race" surfaces Colorado claims top,
+            # because senate and race are common and iowa is the discriminating
+            # term -- a confident wrong answer is worse than a confident empty
+            # one here.
+            if not data and not payload['debate_matches']:
+                _terms = [t for t in query.lower().split() if len(t) > 2][:5]
+                if len(_terms) > 1:
+                    _counts = {}
+                    for _t in _terms:
+                        _tl = '%' + _t.replace('%', chr(92) + '%').replace('_', chr(92) + '_') + '%'
+                        cur.execute("""
+                            SELECT (SELECT COUNT(*) FROM api_claims
+                                    WHERE claim_text ILIKE %s)
+                                 + (SELECT COUNT(*) FROM api_debate_claims
+                                    WHERE claim_text ILIKE %s AND verdict_label IS NOT NULL)
+                        """, (_tl, _tl))
+                        _n = cur.fetchone()[0]
+                        if _n:
+                            _counts[_t] = _n
+                    if _counts:
+                        payload['no_exact_match'] = {
+                            'query': query,
+                            'term_counts': _counts,
+                            'detail': ('No claim contains this exact phrase. The terms above '
+                                       'do appear, with the counts shown. Search a single '
+                                       'term to retrieve those claims, and tell the user the '
+                                       'phrase itself was not found rather than that no '
+                                       'related claims exist.'),
+                        }
+
         return jsonify(payload)
     finally:
         cur.close()
