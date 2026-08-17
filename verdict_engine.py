@@ -232,6 +232,8 @@ Try at least 2-3 distinct search queries before concluding not_verifiable."""
                     _s = _resp.find('{')
                     _en = _resp.rfind('}') + 1
                     if _s == -1 or _en == 0:
+                        print(f"    [API {e.status_code}] retry {_attempt+1}/3: no JSON object "
+                              f"in response, will retry. preview={_resp[:200]!r}")
                         continue
                     _result = json.loads(_resp[_s:_en])
                     VALID_VERDICTS = {'supported', 'plausible', 'corroborated', 'overstated',
@@ -278,8 +280,8 @@ def update_source_profile(cursor, source_name, verdict):
                 last_analysed = NOW()
             WHERE name = %s;
         """, (source_name,))
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"    update_source_profile FAILED for source_name={source_name!r}: {e}")
 
 
 def calculate_reliability_score(cursor, source_name, trigger_claim_id=None):
