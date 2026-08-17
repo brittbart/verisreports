@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 if os.path.exists(".env"):
     load_dotenv(override=False)
 from stages._common import run_stage
-VERDICTS_PER_RUN = 50
+from verdict_engine import VERDICTS_PER_RUN
 
 def main() -> int:
     from verdict_engine import (run_batch_verdict_engine, process_batch_results, harvest_pending_batches,

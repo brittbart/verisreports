@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 # How often to run each step (in hours)
 FETCH_INTERVAL_HOURS = 3
 VERDICT_INTERVAL_HOURS = 6
-VERDICTS_PER_RUN = 20
+from verdict_engine import VERDICTS_PER_RUN
 
 def run_fetch():
     """Fetch new articles."""

@@ -17,8 +17,7 @@ import os
 import sys
 
 from stages._common import run_stage, log
-
-VERDICTS_PER_RUN = 20
+from verdict_engine import VERDICTS_PER_RUN
 
 
 def main() -> int:
