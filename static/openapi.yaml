@@ -722,6 +722,55 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Claim"
+        debate_matches:
+          type: array
+          description: >
+            Matching claims from political debates. Present ONLY when `q` is
+            supplied. Debate claims live in a separate collection from article
+            claims and are returned alongside rather than merged, because the
+            record shapes differ and the two use independent cursor sequences.
+            Not paginated: the debate corpus is small enough that a search
+            returns a complete set.
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              claim_text: { type: string }
+              verdict: { $ref: "#/components/schemas/VerdictLabel" }
+              speaker:
+                type: object
+                properties:
+                  name: { type: string, nullable: true }
+                  party: { type: string, nullable: true }
+              event:
+                type: object
+                properties:
+                  slug: { type: string }
+                  name: { type: string }
+                  date: { type: string, format: date, nullable: true }
+                  url: { type: string, format: uri }
+              evaluated_at: { type: string, format: date-time, nullable: true }
+              methodology_version: { type: string }
+        no_exact_match:
+          type: object
+          description: >
+            Present ONLY when a multi-word `q` returns no claims at all. Reports
+            how many claims match each term individually, so a caller can tell
+            the user the phrase was not found rather than that no related claims
+            exist. Matching is a literal substring, so a natural-language phrase
+            often matches nothing while its terms match a great deal.
+          properties:
+            query:
+              type: string
+              description: The query as supplied.
+            term_counts:
+              type: object
+              description: Term to number of claims containing it, across both collections.
+              additionalProperties:
+                type: integer
+            detail:
+              type: string
+              description: Guidance on how to report the empty result.
         pagination:
           $ref: "#/components/schemas/Pagination"
       required: [data, pagination]
