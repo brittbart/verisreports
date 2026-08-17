@@ -98,6 +98,17 @@ def log_usage(stage, response, model="claude-sonnet-4-6"):
         cache_creation = getattr(usage, "cache_creation_input_tokens", 0) or 0
         cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
 
+        # T1.3: web search is billed separately from tokens ($10/1000 searches
+        # as of 2026-08-17, per Anthropic's web search tool docs -- this rate
+        # will drift, re-check before trusting an old cost figure). Reported
+        # as usage.server_tool_use.web_search_requests; absent entirely on
+        # responses that used no server tool, hence the two-step getattr.
+        server_tool_use = getattr(usage, "server_tool_use", None)
+        web_search_requests = (
+            getattr(server_tool_use, "web_search_requests", 0) or 0
+            if server_tool_use is not None else 0
+        )
+
         # Request ID for spot-checking against the Anthropic console
         request_id = getattr(response, "id", None)
 
@@ -109,12 +120,12 @@ def log_usage(stage, response, model="claude-sonnet-4-6"):
                     INSERT INTO token_usage
                         (stage, model, input_tokens, output_tokens,
                          cache_creation_input_tokens, cache_read_input_tokens,
-                         request_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                         web_search_requests, request_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         stage, model, input_tokens, output_tokens,
-                        cache_creation, cache_read, request_id,
+                        cache_creation, cache_read, web_search_requests, request_id,
                     ),
                 )
             conn.commit()
