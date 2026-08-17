@@ -714,6 +714,13 @@ def process_batch_results(batch_id=None):
         seen += 1
         claim_id = int(result.custom_id)
         if result.result.type == "succeeded":
+            # T1.2: batch usage is only knowable at harvest, per result -- log it
+            # here regardless of whether the verdict parses/saves downstream, so
+            # a paid-for call is never invisible to token_usage even when its
+            # response is malformed. Distinct stage so batch and sync spend are
+            # never conflated in the same panel.
+            from token_logging import log_usage
+            log_usage('verdicts_batch', result.result.message)
             response_text = ""
             for block in result.result.message.content:
                 if hasattr(block, "text"):
