@@ -14,6 +14,13 @@ _ACTIVE_PROMPT = build_verdict_prompt(STRUCTURED_SOURCES_LIVE)
 from dotenv import load_dotenv
 from api_leaderboard import METHODOLOGY_VERSION
 
+# Canonical batch size for the verdicts cron (Session 10, T6.2). Single
+# source of truth -- railway_verdicts.py, stages/verdicts.py, and
+# scheduler.py all import this rather than defining their own copy.
+# Confirmed via job_runs history as the value the deployed cron has
+# always used (June 20 through Aug 13 2026, every clean run).
+VERDICTS_PER_RUN = 50
+
 if os.path.exists(".env"):
     load_dotenv(override=False)
 # Patch 13: explicit timeout prevents indefinite block on wedged API connection
@@ -713,6 +720,8 @@ def process_batch_results(batch_id=None):
             start = response_text.find("{")
             end = response_text.rfind("}") + 1
             if start == -1 or end == 0:
+                print(f"  UNPARSEABLE claim {claim_id}: no JSON object in response "
+                      f"(paid, not saved). preview={response_text[:200]!r}")
                 continue
             try:
                 data = json.loads(response_text[start:end])
