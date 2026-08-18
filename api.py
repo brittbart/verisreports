@@ -3576,45 +3576,6 @@ def api_job_runs():
 
 
 
-@app.route('/api/ops/batch-save-rate', methods=['GET'])
-def api_ops_batch_save_rate():
-    """Recent harvested verdict batches and their save rate. Basic-auth protected.
-
-    T3.2: job_runs alone can't catch this -- harvest runs inside the same
-    run_stage("verdicts") block as submission, so a batch that saved 31/50
-    still reports status='ok'. This is the dashboard-visible signal for that.
-    """
-    auth_err = _ops_auth()
-    if auth_err is not None:
-        return auth_err
-    try:
-        conn = get_db()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT batch_id, submitted_at, harvested_at, claim_count, saved_count
-                    FROM verdict_batches
-                    WHERE harvested_at IS NOT NULL
-                    ORDER BY harvested_at DESC
-                    LIMIT 10
-                """)
-                cols = [d[0] for d in cur.description]
-                rows = []
-                for row in cur.fetchall():
-                    rec = dict(zip(cols, row))
-                    for k in ('submitted_at', 'harvested_at'):
-                        if rec.get(k) is not None:
-                            rec[k] = rec[k].isoformat()
-                    rec['save_rate'] = (rec['saved_count'] / rec['claim_count']) if rec['claim_count'] else None
-                    rows.append(rec)
-        finally:
-            conn.close()
-        return jsonify({'count': len(rows), 'batches': rows})
-    except Exception as e:
-        return jsonify({'error': type(e).__name__, 'detail': str(e)}), 500
-
-
-
 @app.route('/api/token-usage', methods=['GET'])
 def api_token_usage():
     """Return last 24h of token usage aggregated by stage. Basic-auth protected.
@@ -4348,15 +4309,6 @@ _OPS_HTML = """<!DOCTYPE html>
   <tbody><tr><td colspan="7" class="empty">loading…</td></tr></tbody>
 </table>
 
-<h2>Batch save rate <span id="batch-rate-badge" style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:normal;margin-left:8px;"></span></h2>
-<table id="batch-rate-table" style="margin-bottom:24px;">
-  <thead><tr>
-    <th>batch</th><th>harvested</th><th class="num">claims</th>
-    <th class="num">saved</th><th class="num">rate</th>
-  </tr></thead>
-  <tbody><tr><td colspan="5" class="empty">loading…</td></tr></tbody>
-</table>
-
 <h2>Costs (24h)<span class="cost-headline" id="cost-headline"></span></h2>
 <table id="cost-table">
   <thead><tr>
@@ -4507,16 +4459,6 @@ async function loadData() {
   } catch (err) {
     console.error('token-usage fetch error:', err);
   }
-
-  // Batch save rate (T3.2)
-  try {
-    const res = await fetch('/api/ops/batch-save-rate', { headers: { 'Authorization': 'Basic ' + OPS_AUTH } });
-    if (res.ok) {
-      renderBatchSaveRate(await res.json());
-    }
-  } catch (err) {
-    console.error('batch-save-rate fetch error:', err);
-  }
 }
 
 
@@ -4594,36 +4536,6 @@ function renderSchedule(runs) {
     badge.textContent = '✓ healthy';
     badge.style.color = 'var(--ok)';
   }
-}
-
-function renderBatchSaveRate(data) {
-  const batches = data.batches || [];
-  const tbody = document.querySelector('#batch-rate-table tbody');
-  const badge = document.getElementById('batch-rate-badge');
-  if (batches.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">no harvested batches yet</td></tr>';
-    if (badge) badge.textContent = '';
-    return;
-  }
-  const worst = Math.min(...batches.map(b => b.save_rate === null ? 1 : b.save_rate));
-  if (badge) {
-    if (worst < 0.7) {
-      badge.innerHTML = '<span class="status-failed">below 70% on at least one recent batch</span>';
-    } else {
-      badge.innerHTML = '<span class="status-ok">healthy</span>';
-    }
-  }
-  tbody.innerHTML = batches.map(b => {
-    const pct = b.save_rate === null ? null : Math.round(b.save_rate * 100);
-    const rateClass = pct === null ? '' : (pct < 70 ? 'status-failed' : 'status-ok');
-    return '<tr>'
-      + '<td>' + escapeHtml((b.batch_id || '').slice(0, 20)) + '…</td>'
-      + '<td>' + fmtTime(b.harvested_at) + '</td>'
-      + '<td class="num">' + b.claim_count + '</td>'
-      + '<td class="num">' + b.saved_count + '</td>'
-      + '<td class="num ' + rateClass + '">' + (pct === null ? '—' : pct + '%') + '</td>'
-      + '</tr>';
-  }).join('');
 }
 
 function renderRuns(data) {
