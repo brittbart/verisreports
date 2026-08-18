@@ -3576,6 +3576,31 @@ def api_job_runs():
 
 
 
+@app.route('/api/ops/debug-env', methods=['GET'])
+def api_ops_debug_env():
+    """T0.7: does THIS running process actually see DB_PASSWORD, independent
+    of what Railway's declared config (railway variables --json) reports?
+    Presence/length only, never the value -- same value-blind protocol as
+    every other credential check this session. Temporary diagnostic, safe to
+    remove once T0.7 is resolved.
+    """
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    import os as _os2
+    return jsonify({
+        'DB_PASSWORD_present': 'DB_PASSWORD' in _os2.environ,
+        'DB_PASSWORD_len': len(_os2.environ.get('DB_PASSWORD', '')),
+        'PGPASSWORD_present': 'PGPASSWORD' in _os2.environ,
+        'DATABASE_URL_present': 'DATABASE_URL' in _os2.environ,
+        'PGPASSFILE_present': 'PGPASSFILE' in _os2.environ,
+        'HOME': _os2.environ.get('HOME', ''),
+        'pid': _os2.getpid(),
+        'total_env_vars': len(_os2.environ),
+    })
+
+
+
 @app.route('/api/token-usage', methods=['GET'])
 def api_token_usage():
     """Return last 24h of token usage aggregated by stage. Basic-auth protected.
