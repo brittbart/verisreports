@@ -5830,7 +5830,7 @@ def ops_changelog():
     html = html.replace('__CURATED_STALENESS__', note)
 
     from flask import Response
-    return Response(html, mimetype='text/html')
+    return Response(html, mimetype='text/html', headers={'Cache-Control': 'no-store'})
 
 
 @app.route('/api/ops/git-log', methods=['GET'])
@@ -6755,7 +6755,7 @@ def ops_history():
     ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
     html = _OPS_HISTORY_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
     from flask import Response
-    return Response(html, mimetype='text/html')
+    return Response(html, mimetype='text/html', headers={'Cache-Control': 'no-store'})
 
 
 @app.route('/api/ops/stream-health', methods=['GET'])
@@ -7234,7 +7234,7 @@ def ops_dashboard():
     ops_pw = os.environ.get('OPS_PASSWORD', '')
     ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
     ops_html = _OPS_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
-    return Response(ops_html, mimetype='text/html')
+    return Response(ops_html, mimetype='text/html', headers={'Cache-Control': 'no-store'})
 
 
 
