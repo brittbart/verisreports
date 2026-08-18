@@ -3597,6 +3597,7 @@ def api_ops_debug_env():
         'HOME': _os2.environ.get('HOME', ''),
         'pid': _os2.getpid(),
         'total_env_vars': len(_os2.environ),
+        'all_var_names': sorted(_os2.environ.keys()),
     })
 
 
