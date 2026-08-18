@@ -279,7 +279,11 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
     MAX_WORKERS = 5  # Enough to cut wall time ~3-4x without hammering the API
 
     def _extract_one(row, idx, total):
-        """Run in a thread. Returns (row, claims, idx)."""
+        """Run in a thread. Returns (row, claims, idx, err).
+
+        err is None on success, else a short "Type: message" string so the
+        caller can report WHY, not just how many.
+        """
         article_dict = {
             "title": row["title"],
             "url": row["url"],
@@ -293,17 +297,20 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
         }
         title_preview = (row["title"] or "")[:60]
         print(f"[{idx}/{total}] {row['source_name']}: {title_preview}...")
+        err = None
         try:
             claims = extract_claims_from_article(
                 article_dict, raise_on_failure=True
             )
         except Exception as e:
             print(f"    Error extracting claims: {e}")
+            err = f"{type(e).__name__}: {e}"
             claims = None  # FAILURE sentinel - distinct from a genuine empty result
-        return row, claims, idx
+        return row, claims, idx, err
 
     results = []
     extraction_failures = 0
+    extraction_errors = []
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {
@@ -311,7 +318,7 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
             for i, row in enumerate(rows)
         }
         for future in as_completed(futures):
-            row, claims, idx = future.result()
+            row, claims, idx, err = future.result()
             if claims:
                 print(f"    Found {len(claims)} claims — writing to DB with article_id={row['id']}")
                 # Each DB write uses the shared connection on the main thread.
@@ -343,6 +350,8 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
                 # leaving extraction_attempted_at NULL keeps it in the queue.
                 print(f"    Extraction FAILED - not stamping, will be retried")
                 extraction_failures += 1
+                if err:
+                    extraction_errors.append(err)
             else:
                 print(f"    No claims extracted")
                 # stamp extraction_attempted_at so this article is not retried forever
@@ -366,9 +375,15 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
     # is still a legitimate ok. Partial failures stay ok - items_processed
     # carries that signal.
     if rows and not results and extraction_failures == len(rows):
+        _reasons = sorted({e for e in extraction_errors if e})
+        _detail = ""
+        if _reasons:
+            _shown = "; ".join(r[:200] for r in _reasons[:3])
+            _more = " ..." if len(_reasons) > 3 else ""
+            _detail = f" -- {len(_reasons)} distinct error(s): {_shown}{_more}"
         raise RuntimeError(
             f"extraction failed for all {len(rows)} attempted articles "
-            f"(0 succeeded, {extraction_failures} failed)"
+            f"(0 succeeded, {extraction_failures} failed){_detail}"
         )
 
     return results
