@@ -237,7 +237,17 @@ def process_articles_from_db(limit=50, min_content_chars=500, days_window=30):
               FROM claims
               WHERE article_id IS NOT NULL
           )
-        ORDER BY fetched_at DESC
+        -- T6.1: length-aware ordering. Articles within 2 days of falling out
+        -- of the days_window get absolute priority (oldest first) so nothing
+        -- silently expires unprocessed -- a real improvement over the old
+        -- fetched_at DESC scheme, which gave near-expiry articles zero
+        -- protection. Everything else is ordered by content length: long
+        -- articles yield ~3.5x the claims per API call (T0.5/T6.1 evidence),
+        -- so preferring them first is a genuine cost-efficiency win as long
+        -- as it never means skipping shorter content outright.
+        ORDER BY
+            CASE WHEN fetched_at < NOW() - INTERVAL '28 days' THEN fetched_at END ASC NULLS LAST,
+            LENGTH(content) DESC
         LIMIT %s
     """
 
