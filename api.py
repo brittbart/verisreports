@@ -7245,7 +7245,7 @@ document.getElementById('url-input').addEventListener('keydown', function(e) {
 });
 </script>
 </body></html>"""
-    return html, 200, {'Content-Type': 'text/html'}
+    return html, 200, {'Content-Type': 'text/html', 'Cache-Control': 'no-store'}
 
 
 @app.route('/ops', methods=['GET'])
@@ -8380,7 +8380,7 @@ function injectVerified() {
 </body>
 </html>"""
     from flask import Response
-    return Response(html, mimetype='text/html')
+    return Response(html, mimetype='text/html', headers={'Cache-Control': 'no-store'})
 
 
 @app.route('/api/ops/sse-test/inject', methods=['POST'])
