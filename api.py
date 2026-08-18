@@ -2819,6 +2819,15 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         confidence = int(c.get('confidence_score', 2) or 2)
         origin = c.get('claim_origin', 'outlet_claim') or 'outlet_claim'
         is_wire = origin == 'wire_reprint'
+        # wire_reprint was retired in Session 2 (zero live rows since
+        # 2026-07-11); attributed_claim is the live score-excluded category.
+        # Handling for both is deliberate -- the wire branch is kept for the
+        # historical rows the record says display logic should still tolerate.
+        is_attributed = origin == 'attributed_claim'
+        attrib_speaker = (c.get('speaker') or '').strip()
+        def _esc_attr(_s):
+            return (_s.replace('&', '&amp;').replace('<', '&lt;')
+                      .replace('>', '&gt;').replace('"', '&quot;'))
         # Confidence dots
         conf_dots = ''
         for d in range(3):
@@ -2833,6 +2842,10 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         conf_html = '<div class="vs-conf" title="' + conf_label + '">' + conf_num_html + conf_dots + '</div>'
         # Wire tag
         wire_html = '<span class="vs-wire">WIRE REPRINT &mdash; excluded from score</span>' if is_wire else ''
+        attrib_html = ('<span class="vs-attrib">ATTRIBUTED &mdash; excluded from outlet score</span>') if is_attributed else ''
+        attrib_speaker_html = ('<div class="vs-attrib-speaker">Attributed to '
+                               + _esc_attr(attrib_speaker) + '</div>') \
+                              if (is_attributed and attrib_speaker) else ''
         # Source pills — structured-first, prose fallback for legacy rows
         contradicts = v in ('disputed','not_supported','overstated')
         src_structured = parse_sources_structured(c.get('sources_structured'))
@@ -2931,8 +2944,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '<div class="vs-claim-main">'
             '<div class="vs-claim-top">'
             '<span class="vs-claim-num">CLAIM ' + str(idx) + '</span>'
-            + wire_html +
+            + wire_html + attrib_html +
             '</div>'
+            + attrib_speaker_html +
             '<div class="vs-claim-quote">' + text + '</div>'
             '<div class="vs-claim-brief">' + summary + '</div>'
             + ('<div class="vs-contested"><span class="vs-contested-label">What’s contested</span> ' + summary + '</div>' if contradicts and summary else '') +
@@ -2966,6 +2980,16 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         src_structured_free = parse_sources_structured(c.get('sources_structured'))
         confidence = int(c.get('confidence_score', 2) or 2)
         lbl = VLBL_FREE.get(v, v.upper())
+        # Free card carried no origin marker at all -- same two-paths-diverge
+        # pattern as the batch/sync prompt split. Keep both cards in step.
+        origin_free = c.get('claim_origin', 'outlet_claim') or 'outlet_claim'
+        speaker_free = (c.get('speaker') or '').strip()
+        def _esc_attr(_s):
+            return (_s.replace('&', '&amp;').replace('<', '&lt;')
+                      .replace('>', '&gt;').replace('"', '&quot;'))
+        attrib_free_html = ('<div class="claim-attrib">ATTRIBUTED &mdash; excluded from outlet score'
+                            + ((' &middot; Attributed to ' + _esc_attr(speaker_free)) if speaker_free else '')
+                            + '</div>') if origin_free == 'attributed_claim' else ''
         summary_html = ('<p class="claim-summary">' + smartquotes(summary) + '</p>') if summary else ''
         sources_html = (
             ''.join(
@@ -2980,6 +3004,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             '<div class="claim-header">'
             '<div class="claim-header-left">'
             '<div class="claim-num">CLAIM ' + str(idx) + '</div>'
+            + attrib_free_html +
             '<p class="claim-text">' + text + '</p>'
             '</div>'
             '<div class="claim-header-right">'
