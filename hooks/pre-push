@@ -18,34 +18,125 @@
 # Git will then use this tracked file directly; no need to copy it into
 # .git/hooks/ or re-run the config command after future changes to it.
 #
-# Scope note: this session did NOT widen the four-file coverage
-# (api.py, extract_claims.py, verdict_engine.py, scheduler.py) --
-# that stays a separate, later decision per D7.
-
+# S10.5 DoD 12 (2026-08-18): two changes, both to WHAT gets checked. The
+# blocking mechanism above is unchanged -- it was already correct.
+#
+#   1. Coverage is now the UNION of the four core files and every .py
+#      file in the push. D7 deferred widening as a later decision; this
+#      is that decision. A union rather than a replacement, so the hook
+#      can never check less than it did before -- a widening that
+#      accidentally narrowed coverage would be worse than none.
+#
+#   2. Each file is read from its COMMITTED content via `git show`, not
+#      from the working tree. `open(f).read()` attested to whatever sat
+#      on disk, which is not what is being pushed: on 2026-08-18 a push
+#      passed on an api.py carrying an uncommitted local patch. The
+#      reverse is worse -- a file broken in the commit but since fixed
+#      locally would pass.
+#
+# If git provides no refs on stdin (manual invocation), it falls back to
+# the original working-tree check of the four core files, so running the
+# hook by hand still does something sensible.
 echo "Running pre-push checks..."
 cd ~/projects/veris
 source venv/bin/activate 2>/dev/null
-python3 -c "
-import ast, sys
-files = ['api.py', 'extract_claims.py', 'verdict_engine.py', 'scheduler.py']
+
+# git feeds "<local ref> <local sha> <remote ref> <remote sha>" on stdin.
+# Capture it before the heredoc below takes stdin over.
+PREPUSH_REFS="$(cat)"
+export PREPUSH_REFS
+
+python3 - << 'PYEOF'
+import ast
+import os
+import subprocess
+import sys
+
+CORE = ['api.py', 'extract_claims.py', 'verdict_engine.py', 'scheduler.py']
+
+
+def git(*args):
+    r = subprocess.run(['git'] + list(args), capture_output=True, text=True)
+    return r.stdout, r.returncode
+
+
+def is_zero(sha):
+    return set(sha) == {'0'}
+
+
+refs = [l.split() for l in os.environ.get('PREPUSH_REFS', '').split('\n') if l.strip()]
+
+targets = {}   # path -> sha to read it from, or None meaning working tree
+
+for parts in refs:
+    if len(parts) < 4:
+        continue
+    local_sha, remote_sha = parts[1], parts[3]
+    if is_zero(local_sha):
+        continue                        # branch deletion, nothing to inspect
+
+    if is_zero(remote_sha):             # new branch: everything not already pushed
+        out, _ = git('rev-list', local_sha, '--not', '--remotes')
+        commits = out.split()
+        base, rc = (git('rev-parse', commits[-1] + '^') if commits else ('', 1))
+        if rc == 0:
+            out, rc = git('diff', '--name-only', '--diff-filter=d',
+                          base.strip(), local_sha)
+        else:
+            out, rc = git('ls-tree', '-r', '--name-only', local_sha)
+    else:
+        out, rc = git('diff', '--name-only', '--diff-filter=d',
+                      remote_sha, local_sha)
+
+    if rc != 0:
+        print('  ! could not diff refs -- checking the whole pushed tree')
+        out, _ = git('ls-tree', '-r', '--name-only', local_sha)
+
+    for path in out.split('\n'):
+        path = path.strip()
+        if path.endswith('.py'):
+            targets[path] = local_sha
+
+    for path in CORE:                   # union: core files always checked
+        targets.setdefault(path, local_sha)
+
+if not targets:                         # no refs on stdin - manual invocation
+    print('  (no refs on stdin - falling back to the working tree)')
+    for path in CORE:
+        targets[path] = None
+
 failed = False
-for f in files:
+checked = 0
+for path in sorted(targets):
+    sha = targets[path]
+    if sha is None:
+        try:
+            source = open(path).read()
+        except OSError:
+            continue
+    else:
+        r = subprocess.run(['git', 'show', '%s:%s' % (sha, path)],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            continue                    # not present in the pushed tree
+        source = r.stdout
+    checked += 1
     try:
-        ast.parse(open(f).read())
-        print(f'  ✓ {f}')
+        ast.parse(source, filename=path)
+        print('  \u2713 %s' % path)
     except SyntaxError as e:
-        print(f'  ✗ {f}: {e}')
+        print('  \u2717 %s: line %s: %s' % (path, e.lineno, e.msg))
         failed = True
+
 if failed:
-    print('Push blocked — fix syntax errors first')
+    print('Push blocked \u2014 fix syntax errors first')
     sys.exit(1)
-print('All checks passed — pushing')
-"
+print('All checks passed \u2014 pushing (%d file(s))' % checked)
+PYEOF
 CHECK_STATUS=$?
 if [ $CHECK_STATUS -ne 0 ]; then
     exit $CHECK_STATUS
 fi
-
 # Update git_log in DB on every push
 python3 - << 'PYEOF'
 import subprocess, sys
