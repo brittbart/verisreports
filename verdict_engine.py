@@ -642,7 +642,19 @@ def run_batch_verdict_engine(limit=500, depth=None):
     for claim_id, claim_text, speaker, claim_type, article_title, source_name, priority_score, claim_origin, attribution_context in claims:
         # Cache/consensus copying removed (Option B, 2026-05-28): every claim
         # falls through to fresh batch verification. See DECISIONS.md D-016.
-        prompt = build_prompt(claim_text, speaker, claim_type, article_title, source_name)
+        # T3.5: branch on claim_origin the same way analyse_claim() does.
+        # claim_origin was already being pulled from the DB right above and
+        # silently ignored -- every attributed claim in a batch was getting
+        # the generic web-search prompt instead of build_attributed_prompt().
+        # Same defect family as 4bc70ec: a fix landed on the sync path
+        # (analyse_claim) and was never ported to this one.
+        if claim_origin == 'attributed_claim':
+            core_claim = strip_attribution(claim_text, speaker or '')
+            prompt = build_attributed_prompt(
+                core_claim, claim_text, speaker, claim_type, article_title, source_name
+            )
+        else:
+            prompt = build_prompt(claim_text, speaker, claim_type, article_title, source_name)
         requests.append({
             "custom_id": str(claim_id),
             "params": {
