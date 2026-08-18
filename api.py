@@ -3753,7 +3753,7 @@ _OPS_CHANGELOG_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Veris Changelog</title>
-<script>const OPS_AUTH = "__OPS_AUTH_PLACEHOLDER__";</script>
+<script>const OPS_AUTH = btoa('admin:' + prompt('OPS_PASSWORD:'));</script>
 <style>
 :root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
 *{box-sizing:border-box}
@@ -4059,7 +4059,7 @@ _OPS_HISTORY_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Veris Pipeline History</title>
-<script>const OPS_AUTH = "__OPS_AUTH_PLACEHOLDER__";</script>
+<script>const OPS_AUTH = btoa('admin:' + prompt('OPS_PASSWORD:'));</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{--bg:#0a0a0a;--fg:#e8e8e8;--fg-dim:#888;--accent:#a855f7;--ok:#4ade80;--bad:#f87171;--yellow:#fbbf24;--blue:#60a5fa;--border:#1e1e1e;--card:#111;--mono:ui-monospace,'SF Mono',Menlo,monospace}
@@ -4168,7 +4168,7 @@ _OPS_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Veris Ops</title>
-<script>const OPS_AUTH = "__OPS_AUTH_PLACEHOLDER__";</script>
+<script>const OPS_AUTH = btoa('admin:' + prompt('OPS_PASSWORD:'));</script>
 <style>
   :root {
     --bg: #0a0a0a;
@@ -5801,10 +5801,7 @@ def ops_changelog():
     auth_err = _ops_auth()
     if auth_err is not None:
         return auth_err
-    import base64 as _b64
-    ops_pw = os.environ.get('OPS_PASSWORD', '')
-    ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
-    html = _OPS_CHANGELOG_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
+    html = _OPS_CHANGELOG_HTML
 
     # Surface curated-vs-actual drift on the page itself. Wrapped so a DB
     # failure hides the note rather than breaking the changelog.
@@ -6750,10 +6747,7 @@ def ops_history():
     auth_err = _ops_auth()
     if auth_err is not None:
         return auth_err
-    import base64 as _b64
-    ops_pw = os.environ.get('OPS_PASSWORD', '')
-    ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
-    html = _OPS_HISTORY_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
+    html = _OPS_HISTORY_HTML
     from flask import Response
     return Response(html, mimetype='text/html')
 
@@ -7230,10 +7224,7 @@ def ops_dashboard():
         return auth_err
 
     from flask import Response
-    import base64 as _b64
-    ops_pw = os.environ.get('OPS_PASSWORD', '')
-    ops_auth_b64 = _b64.b64encode(f'admin:{ops_pw}'.encode()).decode()
-    ops_html = _OPS_HTML.replace('__OPS_AUTH_PLACEHOLDER__', ops_auth_b64)
+    ops_html = _OPS_HTML
     return Response(ops_html, mimetype='text/html')
 
 
