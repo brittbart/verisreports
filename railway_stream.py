@@ -36,6 +36,66 @@ def write_heartbeat(status, event_id=None, error_msg=None):
     except Exception as e:
         log(f"Heartbeat write failed: {e}")
 
+# Advisory-lock namespace for debate capture. Arbitrary but fixed: paired with
+# event_id it forms the two-int key for pg_try_advisory_lock, so it must never
+# change or old and new holders would not see each other's locks.
+STREAM_LOCK_NAMESPACE = 918273
+
+
+def acquire_stream_lock(event_id):
+    """Take a session-scoped advisory lock for this event.
+
+    Returns the holding CONNECTION on success, or None if another process
+    already holds it. The connection must stay open for the whole capture —
+    closing it releases the lock, which is exactly why the caller keeps it.
+
+    Session-scoped is the right choice: if this container dies the connection
+    drops and Postgres frees the lock, so a replacement can take over. A
+    table-based lock would need timeout logic and would strand the event if a
+    container died holding it.
+    """
+    try:
+        from verdict_engine import get_connection
+        conn = get_connection()
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute("SELECT pg_try_advisory_lock(%s, %s)",
+                    (STREAM_LOCK_NAMESPACE, int(event_id)))
+        got = cur.fetchone()[0]
+        cur.close()
+        if got:
+            log(f"Capture lock ACQUIRED for event {event_id}")
+            return conn
+        conn.close()
+        log(f"Capture lock DENIED for event {event_id} — another process is "
+            f"already capturing it. Not starting a competing stream.")
+        return None
+    except Exception as e:
+        # Fail OPEN: a lock we cannot reach must not stop a live debate being
+        # captured. Say so loudly — this is the window in which the original
+        # concurrent-writer defect can still occur.
+        log(f"Capture lock UNAVAILABLE ({e}) — proceeding WITHOUT it. "
+            f"Concurrent capture is possible; check for duplicate "
+            f"utterance_order values afterwards.")
+        return 'NOLOCK'
+
+
+def release_stream_lock(handle, event_id):
+    """Release the advisory lock and close its connection."""
+    if handle in (None, 'NOLOCK'):
+        return
+    try:
+        cur = handle.cursor()
+        cur.execute("SELECT pg_advisory_unlock(%s, %s)",
+                    (STREAM_LOCK_NAMESPACE, int(event_id)))
+        cur.close()
+        handle.close()
+        log(f"Capture lock released for event {event_id}")
+    except Exception as e:
+        log(f"Capture lock release failed ({e}) — the session ending will "
+            f"free it regardless")
+
+
 def get_live_event():
     """Return (event_id, slug, stream_url, speaker_order) or None."""
     try:
@@ -172,8 +232,20 @@ def main():
         if event:
             event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vocabulary_id = event
             log(f"Live event detected: {event_id} ({slug})")
-            write_heartbeat('streaming', event_id=event_id)
-            run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vocabulary_id)
+            lock = acquire_stream_lock(event_id)
+            if lock is None:
+                # Another container is capturing this event. Keep polling
+                # rather than starting a second Rev AI job on the same stream —
+                # that is what produced 227 duplicated utterance_order slots on
+                # event 16 and made its transcript unresolvable.
+                write_heartbeat('lock_denied', event_id=event_id)
+                time.sleep(POLL_INTERVAL)
+                continue
+            try:
+                write_heartbeat('streaming', event_id=event_id)
+                run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vocabulary_id)
+            finally:
+                release_stream_lock(lock, event_id)
             write_heartbeat('idle')
             log("Stream ended — resuming poll")
         else:
