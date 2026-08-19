@@ -96,6 +96,47 @@ def release_stream_lock(handle, event_id):
             f"free it regardless")
 
 
+def touch_heartbeat():
+    """Refresh THIS container's current heartbeat row instead of inserting.
+
+    An INSERT per poll is what filled the volume on 2026-07-10 (83,909 rows,
+    96% of job_runs) and got the poll-loop write deleted in cb5bca3. An UPDATE
+    in place costs one row and never grows, so it can run at the full poll
+    interval and give a liveness signal fresh to 15 seconds.
+
+    Semantics of the refreshed row: started_at is when this state began,
+    finished_at is when the poller was last known alive. A reader compares
+    finished_at to NOW() to tell a sleeping poller from a dead one.
+
+    Returns True if a row was refreshed. False means there was nothing to
+    refresh — the caller inserts one so the next poll has a target.
+    """
+    try:
+        from verdict_engine import get_connection
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE job_runs
+                   SET finished_at = NOW(),
+                       duration_ms = GREATEST(0, EXTRACT(EPOCH FROM (NOW() - started_at)) * 1000)::bigint
+                 WHERE id = (
+                     SELECT id FROM job_runs
+                      WHERE stage = 'stream_heartbeat'
+                        AND hostname = %s
+                        AND status = 'idle'
+                      ORDER BY started_at DESC
+                      LIMIT 1
+                 )
+            """, (os.uname().nodename,))
+            refreshed = cur.rowcount > 0
+        conn.commit()
+        conn.close()
+        return refreshed
+    except Exception as e:
+        log(f"Liveness refresh failed: {e}")
+        return True  # do not spam inserts when the DB is unreachable
+
+
 def get_live_event():
     """Return (event_id, slug, stream_url, speaker_order) or None."""
     try:
@@ -227,6 +268,9 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vo
 def main():
     log("Verum Signal stream service started")
     log(f"Polling every {POLL_INTERVAL}s for live debate events")
+    # Seed a row for this container so the first poll has something to refresh
+    # and a freshly started poller is immediately visible as alive.
+    write_heartbeat('idle')
     while True:
         event = get_live_event()
         if event:
@@ -249,6 +293,11 @@ def main():
             write_heartbeat('idle')
             log("Stream ended — resuming poll")
         else:
+            # Refresh liveness every poll. Without this a sleeping poller and a
+            # dead one are indistinguishable — the ambiguity that made the
+            # 2026-07-11 heartbeat silence unreadable for two audit sessions.
+            if not touch_heartbeat():
+                write_heartbeat('idle')
             log("No live event — sleeping")
         time.sleep(POLL_INTERVAL)
 
