@@ -6790,15 +6790,116 @@ def api_ops_stream_health():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
+# Six missed polls at the poller's 15s interval. Long enough to ride through a
+# Railway redeploy (the container restarts well inside this), short enough that
+# a dead process is caught in under two minutes.
+HEARTBEAT_STALE_SECONDS = 90
+CAPTURE_STALL_SECONDS = 120    # live event, no utterance written
+EXTRACT_STALL_SECONDS = 300    # live event, utterances left unprocessed
+
+
 @app.route('/api/health/debate', methods=['GET'])
 def api_health_debate():
-    """Public endpoint for monitoring debate claim promotion.
-    Returns count of provisional claims older than 70 minutes.
-    Designed for uptime monitors (UptimeRobot, Better Stack).
-    Returns 200 if healthy, 503 if overdue provisionals exist."""
+    """Public endpoint for monitoring the debate pipeline, stage by stage.
+
+    The previous version watched one seam — provisional claims overdue past 70
+    minutes — and the corpus has none, so it returned 200 in the steady state
+    and could not fail. Zero overdue is not the same as zero attempted, and
+    every capture failure in the 2026-08 audit sat in a stage it could not see.
+
+    Four checks now, each failing differently:
+      poller   heartbeat older than HEARTBEAT_STALE_SECONDS   (always)
+      capture  live event with no utterance in 2 minutes      (live only)
+      extract  live event with utterances unprocessed 5 min   (live only)
+      verify   provisional claims overdue past 70 minutes     (always)
+
+    503 when any check fails; the body names which, so an alert is readable
+    without opening a terminal. Designed for UptimeRobot / Better Stack.
+    """
     try:
         conn = get_db()
         cur = conn.cursor()
+        checks = {}
+        failed = []
+
+        # ── stage 1: is the capture poller alive at all ────────────────────
+        cur.execute("""
+            SELECT hostname, status,
+                   ROUND(EXTRACT(EPOCH FROM (NOW() - finished_at)))::int
+            FROM job_runs
+            WHERE stage = 'stream_heartbeat'
+            ORDER BY finished_at DESC
+            LIMIT 1
+        """)
+        hb = cur.fetchone()
+        if hb is None:
+            checks['poller'] = {'ok': False, 'detail': 'no heartbeat row has '
+                                'ever been written'}
+            failed.append('poller')
+        else:
+            host, hb_status, age = hb
+            ok = age is not None and age <= HEARTBEAT_STALE_SECONDS
+            checks['poller'] = {
+                'ok': ok, 'age_seconds': age, 'host': host,
+                'last_status': hb_status,
+                'threshold_seconds': HEARTBEAT_STALE_SECONDS,
+                'detail': ('capture poller responding'
+                           if ok else
+                           f'no heartbeat for {age}s — the capture service may '
+                           f'be down, and a scheduled debate would be missed'),
+            }
+            if not ok:
+                failed.append('poller')
+
+        # ── is a debate live right now (gates stages 2 and 3) ─────────────
+        cur.execute("""
+            SELECT id, slug FROM events
+            WHERE is_public = TRUE
+              AND event_date = (NOW() AT TIME ZONE 'UTC')::date
+            ORDER BY id DESC LIMIT 1
+        """)
+        live = cur.fetchone()
+        live_event_id = live[0] if live else None
+        checks['live_event'] = {'event_id': live_event_id,
+                                'slug': live[1] if live else None}
+
+        if live_event_id is not None:
+            # ── stage 2: is capture actually producing rows ────────────────
+            cur.execute("""
+                SELECT ROUND(EXTRACT(EPOCH FROM (NOW() - MAX(created_at))))::int,
+                       COUNT(*)
+                FROM speaker_utterances WHERE event_id = %s
+            """, (live_event_id,))
+            u_age, u_count = cur.fetchone()
+            ok = u_count > 0 and u_age is not None and u_age <= CAPTURE_STALL_SECONDS
+            checks['capture'] = {
+                'ok': ok, 'utterances': u_count, 'seconds_since_last': u_age,
+                'detail': ('transcription flowing' if ok else
+                           'live event but no utterance written recently — '
+                           'the stream may be connected and silent, as event 17 '
+                           'was for 3.7 hours'),
+            }
+            if not ok:
+                failed.append('capture')
+
+            # ── stage 3: is extraction keeping up ──────────────────────────
+            cur.execute("""
+                SELECT COUNT(*) FROM speaker_utterances
+                WHERE event_id = %s AND processed_at IS NULL
+                  AND created_at < NOW() - INTERVAL '5 minutes'
+            """, (live_event_id,))
+            stalled = cur.fetchone()[0]
+            ok = stalled == 0
+            checks['extract'] = {
+                'ok': ok, 'unprocessed_over_5min': stalled,
+                'detail': ('extraction keeping up' if ok else
+                           f'{stalled} utterance(s) unextracted for over 5 min '
+                           f'— event 18 captured 371 and extracted none'),
+            }
+            if not ok:
+                failed.append('extract')
+
+        # ── stage 4: verification promoting on time (unchanged) ───────────
         cur.execute("""
             SELECT COUNT(*) FROM claims
             WHERE claim_origin = 'debate_claim'
@@ -6815,11 +6916,24 @@ def api_health_debate():
         """)
         total_provisional = cur.fetchone()[0]
         cur.close()
-        status_code = 200 if overdue == 0 else 503
+        checks['verify'] = {
+            'ok': overdue == 0, 'overdue': overdue,
+            'total_provisional': total_provisional,
+            'detail': ('verdicts promoting on time' if overdue == 0 else
+                       f'{overdue} claim(s) provisional beyond 70 minutes'),
+        }
+        if overdue:
+            failed.append('verify')
+
+        status_code = 200 if not failed else 503
         return jsonify({
-            'status': 'healthy' if overdue == 0 else 'overdue',
+            # legacy keys, kept so existing monitors keep parsing
+            'status': 'healthy' if not failed else 'degraded',
             'overdue_provisionals': overdue,
             'total_provisionals': total_provisional,
+            # staged detail
+            'failed_stages': failed,
+            'checks': checks,
         }), status_code
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
