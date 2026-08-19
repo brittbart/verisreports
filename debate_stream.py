@@ -175,6 +175,50 @@ def get_event_id(slug):
 # Confidence threshold below which speaker attribution is flagged as uncertain
 ATTRIBUTION_CONFIDENCE_THRESHOLD = 0.60
 
+def next_utterance_order(event_id):
+    """Return the next free utterance_order for this event.
+
+    utterance_order used to be a per-PROCESS counter starting at 0, so every
+    restart renumbered from zero and collided with the previous run's rows.
+    Duplicated order values break three downstream consumers:
+      * reattribute_llm.py keys a dict on utterance_order — duplicates
+        silently overwrite, hiding half the transcript from Layer 3
+      * reattribute_uncertain.py builds its context window with
+        utterance_order < %s / > %s — duplicates pull rows from both runs
+      * extract_debate_claims.py merges per-speaker fetches by utterance_order
+
+    Seeding from MAX+1 makes the column unique per event across restarts.
+    NOTE: this does NOT solve concurrency — two writers live at once would
+    both read the same MAX. Single-writer enforcement is a separate fix.
+
+    Fails OPEN to 0 (today's behaviour) rather than aborting a live capture,
+    but says so loudly so the condition is visible in the logs.
+    """
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COALESCE(MAX(utterance_order), -1) + 1 "
+            "FROM speaker_utterances WHERE event_id = %s",
+            (event_id,)
+        )
+        nxt = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+        nxt = int(nxt or 0)
+        if nxt:
+            print(f"  [ORDER] Resuming event {event_id} at utterance_order={nxt} "
+                  f"(existing rows found)")
+        else:
+            print(f"  [ORDER] Event {event_id} has no prior utterances — starting at 0")
+        return nxt
+    except Exception as e:
+        print(f"  [ORDER] *** COULD NOT SEED utterance_order for event {event_id}: {e}")
+        print(f"  [ORDER] *** Falling back to 0 — DUPLICATE ORDERS ARE LIKELY "
+              f"if this is a restart.")
+        return 0
+
+
 def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
                     timestamp_seconds=None, attribution_confidence=None,
                     force_uncertain=False):
@@ -306,7 +350,7 @@ def run_async(args, token, speaker_map, speaker_order, event_id):
     print("\n✓ Transcription complete. Fetching transcript...")
     transcript = client.get_transcript_object(job.id)
 
-    utterance_order = 0
+    utterance_order = next_utterance_order(event_id)
     written = 0
 
     for monologue in transcript.monologues:
@@ -362,7 +406,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     print(f"\nStarting live stream from: {args.url}")
     print("Press Ctrl+C to stop.\n")
 
-    utterance_order = [0]
+    utterance_order = [next_utterance_order(event_id)]
     buffer = {}  # speaker_idx -> text buffer
     written_count = [0]
     recent_speaker_ids = []  # rolling window for attribution collapse detection
@@ -414,9 +458,17 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             import numpy as np
             import os as _os
             from voice_verify import load_enrolled_embeddings, extract_embedding, cosine_distance
-            enrolled = load_enrolled_embeddings()
+            # Scope enrolment to THIS event's candidates. An unscoped set lets
+            # min(distance) confirm a speaker from another debate entirely.
+            _cands = [sid for sid in (speaker_order or []) if sid != 3]
+            enrolled = load_enrolled_embeddings(allowed_speaker_ids=_cands)
+            _missing = [sid for sid in _cands if sid not in enrolled]
+            print(f"  [VOICE ID] Enrolment coverage: {len(enrolled)}/{len(_cands)} "
+                  f"candidates for this event")
+            if _missing:
+                print(f"  [VOICE ID] NOT enrolled, cannot be identified: {_missing}")
             if not enrolled:
-                print("  [VOICE ID] No enrolled speakers found — skipping")
+                print("  [VOICE ID] No enrolled speakers for THIS event — skipping")
                 return
             if not _os.path.exists(audio_path):
                 print("  [VOICE ID] WAV file not found — skipping")
@@ -519,7 +571,8 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 # Prefer voice re-identification over order-based fallback
                 # Order-based is fragile — Rev AI index != speaker order in practice
                 from voice_verify import load_enrolled_embeddings
-                enrolled = load_enrolled_embeddings()
+                _cal = [sid for sid in (speaker_order or []) if sid != 3]
+                enrolled = load_enrolled_embeddings(allowed_speaker_ids=_cal)
                 if enrolled and not voice_id_done[0]:
                     print("  [CALIBRATION] Triggering voice re-identification instead of order-based fallback")
                     voice_id_done[0] = False

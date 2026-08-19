@@ -177,16 +177,32 @@ def cmd_enroll(args):
 # ---------------------------------------------------------------------------
 # VERIFY MODE
 # ---------------------------------------------------------------------------
-def load_enrolled_embeddings():
-    """Load all enrolled speaker embeddings."""
+def load_enrolled_embeddings(allowed_speaker_ids=None):
+    """Load enrolled speaker embeddings.
+
+    allowed_speaker_ids: optional iterable of DB speaker ids. When supplied,
+    ONLY those speakers are returned. Pass the event's own roster so a voice
+    comparison can never match somebody who is not in the room — min(distance)
+    always returns a nearest match, so an unscoped set cannot fail to produce
+    an answer, only a wrong one. Observed on event 16 (Arizona governor):
+    winning matches included speakers from Colorado and New York races.
+
+    Default None preserves the original load-everything behaviour.
+    """
     enrolled = {}
     if not os.path.exists(EMBEDDINGS_DIR):
         return enrolled
+    allowed = None
+    if allowed_speaker_ids is not None:
+        allowed = {int(s) for s in allowed_speaker_ids}
     for fname in os.listdir(EMBEDDINGS_DIR):
         if fname.startswith('speaker_') and fname.endswith('.json'):
             with open(os.path.join(EMBEDDINGS_DIR, fname)) as f:
                 data = json.load(f)
-            enrolled[data['speaker_id']] = {
+            sid = int(data['speaker_id'])
+            if allowed is not None and sid not in allowed:
+                continue
+            enrolled[sid] = {
                 'name': data['speaker_name'],
                 'embedding': np.array(data['embedding']),
             }
