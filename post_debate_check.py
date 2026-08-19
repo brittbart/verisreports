@@ -392,6 +392,59 @@ def main():
         print(f'  {mismatch_count} mismatch(es) — review above and correct if needed')
         print('  Run: python3 railway_api_refresh.py after corrections')
 
+    # ── 10d. Link integrity ───────────────────────────────────────────────
+    section('10d. Claim/utterance link integrity')
+    # A claim inherits timestamp_seconds from its linked utterance, and any
+    # reader (audit, acoustic check, seek feature) treats that link as the
+    # claim's location. When the link points at a different speaker's row the
+    # claim still displays correctly but every downstream read is wrong.
+    # Event 16 carried three such rows for three months before anyone looked.
+    cur.execute("""
+        SELECT c.id, s_c.name, s_u.name, su.utterance_order,
+               LEFT(c.claim_text, 60), LEFT(su.utterance_text, 60)
+        FROM claims c
+        JOIN speaker_utterances su ON su.id = c.utterance_id
+        LEFT JOIN speakers s_c ON s_c.id = c.speaker_id
+        LEFT JOIN speakers s_u ON s_u.id = su.speaker_id
+        WHERE c.event_id = %s
+          AND c.claim_origin = 'debate_claim'
+          AND su.speaker_id IS DISTINCT FROM c.speaker_id
+        ORDER BY c.id
+    """, (eid,))
+    crossed = cur.fetchall()
+    check('No claim links to another speaker\'s utterance', len(crossed) == 0,
+          f'{len(crossed)} crossed link(s)' if crossed else '')
+    for cid, cname, uname, uorder, ctext, utext in crossed:
+        print(f'    Claim {cid}: attributed to {cname}')
+        print(f'      claim: {ctext}')
+        print(f'      linked utterance [{uorder}] belongs to {uname}')
+        print(f'      utterance: {utext}')
+
+    cur.execute("""
+        SELECT COUNT(*) FROM claims
+        WHERE event_id = %s AND claim_origin = 'debate_claim'
+          AND utterance_id IS NULL
+    """, (eid,))
+    unlinked = cur.fetchone()[0]
+    check('Every claim has an utterance link', unlinked == 0,
+          f'{unlinked} claim(s) with no utterance_id' if unlinked else '')
+
+    cur.execute("""
+        SELECT COUNT(*) FROM claims c
+        JOIN speaker_utterances su ON su.id = c.utterance_id
+        WHERE c.event_id = %s AND c.claim_origin = 'debate_claim'
+          AND su.event_id IS DISTINCT FROM c.event_id
+    """, (eid,))
+    cross_event = cur.fetchone()[0]
+    check('No claim links to another event\'s utterance', cross_event == 0,
+          f'{cross_event} cross-event link(s)' if cross_event else '')
+
+    if crossed or unlinked or cross_event:
+        print('  → A crossed link does NOT by itself mean the claim is')
+        print('    misattributed. Read the utterance window before changing')
+        print('    claims.speaker_id — it is a stop-and-escalate column, and')
+        print('    Session 9 reverted a repair made on link evidence alone.')
+
     # ── 11. Summary ───────────────────────────────────────────────────────
     section('11. Next steps')
     if pending > 0:
