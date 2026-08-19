@@ -550,6 +550,74 @@ def fetch_politician_utterances(conn, event_id, limit=None):
         return all_rows
 
 
+CLAIM_LOCATE_THRESHOLD = 0.60
+
+
+def _norm_words(s):
+    """Lowercase alphanumeric word list, for containment matching."""
+    import re as _re
+    return [w for w in _re.sub(r'[^a-z0-9 ]', ' ', (s or '').lower()).split() if w]
+
+
+def _containment(claim_words, utt_words):
+    """Fraction of the claim's words present in the utterance text.
+
+    Containment rather than Jaccard: transcript utterances are short fragments
+    and a claim often spans two or three of them, so symmetric similarity
+    understates a true match.
+    """
+    if not claim_words:
+        return 0.0
+    from collections import Counter as _C
+    cw, uw = _C(claim_words), _C(utt_words)
+    return sum(min(n, uw.get(w, 0)) for w, n in cw.items()) / len(claim_words)
+
+
+def locate_claim_row(claim_text, member_rows, span=3):
+    """Return the member row whose text actually contains this claim.
+
+    A turn is the JOIN of consecutive same-speaker utterances, and the model
+    extracts claims from that joined text. Attributing every claim to the
+    turn's FIRST utterance (the historical behaviour) gives the claim the
+    turn's opening timestamp rather than its own — measured at 100% of
+    comparable claims.
+
+    Scans each starting position, joining up to `span` consecutive members,
+    and returns the row where containment peaks. Returns None when nothing
+    reaches CLAIM_LOCATE_THRESHOLD so the caller can fall back to first_uid;
+    that keeps behaviour no worse than before on claims whose text cannot be
+    located (18 exist platform-wide today).
+    """
+    if not member_rows:
+        return None
+    if len(member_rows) == 1:
+        return member_rows[0]
+    cw = _norm_words(claim_text)
+    if not cw:
+        return None
+    words = [_norm_words(r[1]) for r in member_rows]
+    n = len(member_rows)
+    # Widen only as needed. A single utterance containing the claim is a
+    # tighter, more truthful link than a three-utterance window that merely
+    # contains it — and scanning widest-first would let the turn opener take
+    # credit for text that appears two rows later, which is the exact defect
+    # this function exists to remove.
+    for width in range(1, span + 1):
+        best_score, best_i = 0.0, None
+        for i in range(n):
+            if i + width > n:
+                break
+            joined = []
+            for k in range(i, i + width):
+                joined.extend(words[k])
+            score = _containment(cw, joined)
+            if score > best_score:
+                best_score, best_i = score, i
+        if best_i is not None and best_score >= CLAIM_LOCATE_THRESHOLD:
+            return member_rows[best_i]
+    return None
+
+
 def utterance_to_article_dict(row, event_id):
     (uid, utext, uorder, speaker_id, speaker_name,
      speaker_type, party, event_name, event_date, event_slug,
@@ -676,6 +744,7 @@ def group_utterances_into_turns(utterances):
     current_speaker_id = None
     current_texts = []
     current_uids = []
+    current_rows = []      # every raw row in the turn, for per-claim locating
     current_row = None
 
     for row in utterances:
@@ -691,14 +760,17 @@ def group_utterances_into_turns(utterances):
                     'all_uids': current_uids,
                 'attribution_uncertain': attribution_uncertain,
                     'row': current_row,
+                    'member_rows': current_rows,
                 })
             current_speaker_id = speaker_id
             current_texts = [utext]
             current_uids = [uid]
+            current_rows = [row]
             current_row = row
         else:
             current_texts.append(utext)
             current_uids.append(uid)
+            current_rows.append(row)
 
     # Flush last turn
     if current_uids:
@@ -708,6 +780,7 @@ def group_utterances_into_turns(utterances):
             'speaker_name': current_row[4],
             'first_uid': current_uids[0],
             'all_uids': current_uids,
+            'member_rows': current_rows,
             'row': current_row,
         })
     return turns
@@ -826,9 +899,26 @@ def run_extraction(event_id, limit=None, dry_run=False):
             else:
                 print(f"  → {len(claims)} claim(s):")
                 for claim in claims:
-                    # Carry timestamp from utterance into claim for display
+                    # Attribute the claim to the utterance its TEXT came from,
+                    # not to the turn's opening utterance. Historically every
+                    # claim inherited first_uid and its timestamp, so a claim
+                    # made late in a long turn displayed the turn's start time
+                    # (measured: 100% of comparable claims). Falls back to the
+                    # turn opener when the text cannot be located, so behaviour
+                    # is never worse than before.
+                    _claim_uid = uid
+                    _claim_ts = article_dict.get('timestamp_seconds')
+                    _located = locate_claim_row(
+                        claim.get('claim_text', ''), turn.get('member_rows') or []
+                    )
+                    if _located is not None and _located[0] != uid:
+                        _claim_uid = _located[0]
+                        _claim_ts = _located[10]
+                        print(f"    [LINK] claim located at utterance {_claim_uid} "
+                              f"(turn opened at {uid})")
+                    # Carry timestamp from the located utterance into the claim
                     if 'timestamp_seconds' not in claim or claim['timestamp_seconds'] is None:
-                        claim['timestamp_seconds'] = article_dict.get('timestamp_seconds')
+                        claim['timestamp_seconds'] = _claim_ts
                     # Reconnect if connection was lost during API call
                     try:
                         conn.cursor().execute("SELECT 1")
@@ -836,7 +926,7 @@ def run_extraction(event_id, limit=None, dry_run=False):
                         print(f"  [reconnecting to DB...]")
                         conn = get_fresh_connection()
                     claim_id, outcome = insert_debate_claim(
-                        conn, claim, uid, speaker_id, event_id, speaker_name,
+                        conn, claim, _claim_uid, speaker_id, event_id, speaker_name,
                         attribution_uncertain=attribution_uncertain
                     )
                     ct = claim.get('claim_text', '')[:70]
