@@ -73,6 +73,13 @@ METHODOLOGY_VERSION = 'v1.7'
 SCOREABLE_SPEAKER_TYPES = {'politician', 'official'}
 GENERIC_MODERATOR_ID = 3  # Reserved ID for generic moderator — see speakers table
 
+# Turns of at least this many words skip the specificity heuristic entirely and
+# go to the model. Measured against 702 real rejections: at 25 the longest
+# still-rejected turns were genuine 24-word claims, so the gate sits at 15.
+# See the S11 filter analysis — expanding the keyword families instead was
+# tested and recovered mostly rhetoric.
+SPECIFICITY_GATE_WORDS = 15
+
 
 # ---------------------------------------------------------------------------
 # Layer 1 — Pre-filter
@@ -366,20 +373,35 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
     if first_word in INVALID_OPENERS:
         return True, f'fragment: invalid opener ({first_word})'
 
-    # No specificity markers
-    has_number    = bool(re.search(r'\b\d+(?:\.\d+)?%?\b', t))
-    has_dollar    = '$' in t
-    has_year      = bool(re.search(r'\b(19|20)\d{2}\b', t))
-    has_bill      = bool(re.search(r'\b(bill|act|law|legislation|amendment|resolution|budget|plan)\b', tl))
-    has_statistic = bool(re.search(r'\b(percent|million|billion|trillion|thousand|hundred)\b', tl))
+    # No specificity markers.
+    #
+    # This heuristic exists so an API call is not spent on "Thank you, Mr.
+    # Weiser." That holds for fragments; it does not hold for a substantial
+    # answer. 702 whole turns were discarded by it, including 24-word claims
+    # naming a state health fund and a specific allegation about stopped
+    # auditors. Above SPECIFICITY_GATE_WORDS we extract regardless and let
+    # the model apply §3.1/§3.2, because missing a real claim costs more than
+    # one extraction call.
+    #
+    # 15 was measured, not guessed: at 25 the longest still-rejected turns
+    # were real 24-word claims. Expanding the keyword families instead was
+    # tested and rejected — every candidate rule recovered mostly rhetoric.
+    if len(t.split()) >= SPECIFICITY_GATE_WORDS:
+        pass  # long enough to be worth asking about; skip the heuristic
+    else:
+        has_number    = bool(re.search(r'\b\d+(?:\.\d+)?%?\b', t))
+        has_dollar    = '$' in t
+        has_year      = bool(re.search(r'\b(19|20)\d{2}s?\b', t))
+        has_bill      = bool(re.search(r'\b(bill|act|law|legislation|amendment|resolution|budget|plan)\b', tl))
+        has_statistic = bool(re.search(r'\b(percent|million|billion|trillion|thousand|hundred)\b', tl))
 
-    has_ranking = bool(re.search(r'\b(leads?|leading|ranked?|ranking|highest|lowest|most|least|first|last|worst|best|top|bottom|ahead|behind|surpass)\b', tl))
-    has_policy  = bool(re.search(r'\b(tax|tariff|wage|medicare|medicaid|social security|insurance|subsid|foreclos|filibuster|immigration|healthcare|abortion|climate|energy|deficit|debt|budget|cut|reform|ban|mandate|repeal)\b', tl))
-    has_legal   = bool(re.search(r'\b(indict|unconstitutional|fraud|corrupt|investigation|audit|lawsuit|sued|fired|prosecut|criminal|violat|illegal|felony|misdemeanor|perjur)\b', tl))
-    has_agency  = bool(re.search(r'\b(cdot|fbi|cia|doj|epa|irs|fda|cdc|hhs|dhs|cms|gao|oig|inspector general|attorney general|department of|office of|nonpartisan|bipartisan)\b', tl))
-    if not any([has_number, has_dollar, has_year, has_bill, has_statistic, has_ranking, has_policy, has_legal, has_agency]):
-        _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'no specificity markers', t, conn=conn)
-        return True, 'no specificity markers'
+        has_ranking = bool(re.search(r'\b(leads?|leading|ranked?|ranking|highest|lowest|most|least|first|last|worst|best|top|bottom|ahead|behind|surpass)\b', tl))
+        has_policy  = bool(re.search(r'\b(tax|tariff|wage|medicare|medicaid|social security|insurance|subsid|foreclos|filibuster|immigration|healthcare|abortion|climate|energy|deficit|debt|budget|cut|reform|ban|mandate|repeal)\b', tl))
+        has_legal   = bool(re.search(r'\b(indict|unconstitutional|fraud|corrupt|investigation|audit|lawsuit|sued|fired|prosecut|criminal|violat|illegal|felony|misdemeanor|perjur)\b', tl))
+        has_agency  = bool(re.search(r'\b(cdot|fbi|cia|doj|epa|irs|fda|cdc|hhs|dhs|cms|gao|oig|inspector general|attorney general|department of|office of|nonpartisan|bipartisan)\b', tl))
+        if not any([has_number, has_dollar, has_year, has_bill, has_statistic, has_ranking, has_policy, has_legal, has_agency]):
+            _log_filtered(utterance_id, event_id, speaker_id, 'pre', 'no specificity markers', t, conn=conn)
+            return True, 'no specificity markers'
 
     return False, ''
 
