@@ -507,7 +507,14 @@ def _verify_single_claim(claim, event_id):
             return 0
 
         verdict = result.get('verdict', 'not_verifiable')
-        confidence = result.get('confidence', 2)
+        # The model returns 'confidence_score', not 'confidence'. Reading the
+        # wrong key made every debate claim fall through to the default: all
+        # 375 verdicted debate claims carried 2, while article claims spread
+        # across 1/2/3 because those paths (lines ~394 and ~756) read the
+        # correct key. Clamp and default now match them exactly — the article
+        # default is 1, meaning "low confidence when unknown", which is the
+        # honest reading of an unparseable value.
+        confidence = min(result.get('confidence_score', 1), 3)
         summary = result.get('verdict_summary', '')
         full_analysis = result.get('full_analysis', '')
 
