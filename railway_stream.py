@@ -96,6 +96,39 @@ def release_stream_lock(handle, event_id):
             f"free it regardless")
 
 
+def write_exit_event(event_id, exit_code, stderr_text, restarts):
+    """Persist WHY the capture subprocess died.
+
+    debate_stream.py's exit code and stderr were logged to stdout only, so
+    Railway's ephemeral logs held the only explanation and thousands of
+    restarts across five events discarded theirs. Without this the question
+    "why does capture keep failing" cannot be answered after the fact — which
+    is exactly the position the 2026-08 audit found itself in.
+
+    stderr is truncated to 500 chars: enough for a traceback's final frames,
+    small enough that a crash-loop cannot bloat the table.
+    """
+    try:
+        from verdict_engine import get_connection
+        snippet = (stderr_text or '').strip()
+        if len(snippet) > 500:
+            snippet = snippet[:500] + '...[truncated]'
+        if not snippet:
+            snippet = '(no stderr)'
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO job_runs (stage, started_at, finished_at, duration_ms,
+                                      status, items_processed, hostname, error_message)
+                VALUES ('stream_exit', NOW(), NOW(), 0, %s, %s, %s, %s)
+            """, (f'exit_{exit_code}', event_id or 0, os.uname().nodename,
+                  f'restart #{restarts} | code={exit_code} | {snippet}'))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log(f"Exit-event write failed: {e}")
+
+
 def touch_heartbeat():
     """Refresh THIS container's current heartbeat row instead of inserting.
 
@@ -186,6 +219,7 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vo
         return
     # Circuit breaker: max 5 restarts in 10 minutes
     restart_times = []
+    total_restarts = 0          # cumulative for this run_stream call
     CIRCUIT_BREAKER_WINDOW = 600  # 10 minutes
     CIRCUIT_BREAKER_MAX = 5
     cmd = [
@@ -214,16 +248,30 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vo
                 env=os.environ.copy()  # explicitly pass Railway env vars to subprocess
             )
             restart_times.append(time.time())
+            total_restarts += 1
             # Prune old restart times outside the circuit breaker window
             restart_times = [t for t in restart_times if time.time() - t < CIRCUIT_BREAKER_WINDOW]
             if len(restart_times) > CIRCUIT_BREAKER_MAX:
-                log(f"CIRCUIT BREAKER: {len(restart_times)} restarts in {CIRCUIT_BREAKER_WINDOW}s — stopping stream service")
-                write_heartbeat('circuit_broken', error_msg=f'{len(restart_times)} restarts in {CIRCUIT_BREAKER_WINDOW}s')
+                # NOTE: this returns from run_stream, it does not stop the
+                # service. main() polls again in POLL_INTERVAL seconds, finds
+                # the event still live, and calls run_stream with a FRESH
+                # counter — so the breaker trips repeatedly rather than once.
+                # On 2026-06-25 that produced ~60 breaks over three hours.
+                # total_restarts is the figure worth reading; the count in the
+                # message is always CIRCUIT_BREAKER_MAX+1 by construction.
+                log(f"CIRCUIT BREAKER: {len(restart_times)} restarts in "
+                    f"{CIRCUIT_BREAKER_WINDOW}s ({total_restarts} this run) — "
+                    f"returning to poll loop, which will start over")
+                write_heartbeat(
+                    'circuit_broken', event_id=event_id,
+                    error_msg=f'{len(restart_times)} in {CIRCUIT_BREAKER_WINDOW}s; '
+                              f'{total_restarts} restarts this run')
                 return
             while True:
                 ret = proc.poll()
                 if ret is not None:
                     # Capture and log stderr before doing anything else
+                    stderr_output = ''
                     try:
                         stderr_output = proc.stderr.read().decode('utf-8', errors='replace').strip()
                         if stderr_output:
@@ -232,6 +280,10 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vo
                             log("SUBPROCESS STDERR: (empty)")
                     except Exception as e:
                         log(f"Could not read stderr: {e}")
+                        stderr_output = f'(stderr unreadable: {e})'
+                    # Persist it. Railway's logs are ephemeral, so without this
+                    # the reason for each death is lost the moment it scrolls.
+                    write_exit_event(event_id, ret, stderr_output, total_restarts)
                     if ret == 2:
                         # Pre-live exit — do not count as circuit breaker failure
                         restart_times.pop()
