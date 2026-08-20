@@ -170,6 +170,48 @@ def touch_heartbeat():
         return True  # do not spam inserts when the DB is unreachable
 
 
+def is_event_still_live(event_id):
+    """Is THIS event still inside its live window?
+
+    Deliberately scoped to one event. The previous check asked "which event is
+    live?" and compared — so a second concurrent event ended the first one's
+    capture. Returns True on error: a transient DB failure must not kill a
+    live capture, and the stream's own max_duration still bounds it.
+    """
+    try:
+        from verdict_engine import get_live_event_id
+        # get_live_event_id returns one id; ask it repeatedly only to learn
+        # whether OUR id is among the live set. Cheap and avoids changing the
+        # shared helper's signature, which railway_verdicts.py also calls.
+        from verdict_engine import get_connection
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        _OFFS = {'ET': -4, 'EST': -5, 'EDT': -4, 'CT': -5, 'CST': -6, 'CDT': -5,
+                 'MT': -6, 'MST': -7, 'MDT': -6, 'PT': -7, 'PST': -8, 'PDT': -7}
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT event_date, start_time, timezone FROM events
+            WHERE id = %s AND is_public = TRUE AND start_time IS NOT NULL
+        """, (event_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return False
+        event_date, start_time, event_tz = row
+        if not event_date or not start_time:
+            return False
+        off = _OFFS.get(event_tz or 'CT', -5)
+        start = _dt.combine(event_date, start_time).replace(
+            tzinfo=_tz(_td(hours=off)))
+        now = _dt.now(_tz.utc)
+        return (start - _td(minutes=45)) <= now <= (start + _td(hours=3))
+    except Exception as e:
+        log(f"Liveness check failed for event {event_id} ({e}) — "
+            f"assuming still live rather than killing the capture")
+        return True
+
+
 def get_live_event():
     """Return (event_id, slug, stream_url, speaker_order) or None."""
     try:
@@ -302,10 +344,19 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vo
                         except Exception as e:
                             log(f"URL re-resolution failed: {e} — retrying with original")
                     break
-                # Check if event is still live
-                event = get_live_event()
-                if not event or event[0] != event_id:
-                    log("Event no longer live — stopping stream")
+                # Check if THIS event is still live.
+                #
+                # This used to call get_live_event() and compare the returned
+                # id against event_id. With two events live at once — which
+                # happened on 2026-06-08, events 13 and 15, the only
+                # live-window overlap in the platform's history — that call
+                # could return the OTHER event, so a healthy capture was told
+                # "your event ended" and terminated. Each termination is a
+                # restart, and six restarts in ten minutes trips the breaker.
+                # Event 13 was never captured; event 15 became the most
+                # heavily double-written transcript on the platform.
+                if not is_event_still_live(event_id):
+                    log(f"Event {event_id} no longer live — stopping stream")
                     proc.terminate()
                     proc.wait(timeout=10)
                     return

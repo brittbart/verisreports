@@ -606,6 +606,7 @@ def get_live_event_id():
               AND start_time IS NOT NULL
               AND event_date >= CURRENT_DATE - INTERVAL '1 day'
               AND event_date <= CURRENT_DATE + INTERVAL '1 day'
+            ORDER BY event_date, start_time, id
         """)
         rows = cursor.fetchall()
         cursor.close()
