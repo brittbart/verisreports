@@ -821,7 +821,40 @@ def get_fresh_connection():
     )
 
 
+EXTRACT_LOCK_NAMESPACE = 918274  # adjacent to railway_stream STREAM_LOCK_NAMESPACE 918273
+
+
 def run_extraction(event_id, limit=None, dry_run=False):
+    """Single-writer guard around extraction.
+
+    debate_stream.py spawns an extraction thread every 5 utterances with no
+    running-check. Two threads both clear the dedup in insert_debate_claim
+    before either commits - a check-then-act race, the same class the capture
+    advisory lock closed.
+
+    The lock is held on a DEDICATED connection: the inner function rebinds its
+    own conn on a mid-run reconnect, which would silently release a lock taken
+    on that connection.
+
+    A skipped run is harmless - the next trigger fires 5 utterances later and
+    the rows are still unprocessed.
+    """
+    lock_conn = get_connection()
+    lock_conn.autocommit = True
+    try:
+        with lock_conn.cursor() as _cur:
+            _cur.execute("SELECT pg_try_advisory_lock(%s, %s)",
+                         (EXTRACT_LOCK_NAMESPACE, event_id))
+            if not _cur.fetchone()[0]:
+                print(f"  [extract] another extraction holds the lock for event "
+                      f"{event_id} - skipping this trigger")
+                return
+        return _run_extraction_locked(event_id, limit=limit, dry_run=dry_run)
+    finally:
+        lock_conn.close()
+
+
+def _run_extraction_locked(event_id, limit=None, dry_run=False):
     print("=" * 68)
     print(f"Verum Signal — Debate claim extraction (v1.7)")
     print(f"Event ID: {event_id}  |  Mode: {'DRY RUN' if dry_run else 'APPLY'}")
