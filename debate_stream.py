@@ -221,7 +221,7 @@ def next_utterance_order(event_id):
 
 def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
                     timestamp_seconds=None, attribution_confidence=None,
-                    force_uncertain=False):
+                    force_uncertain=False, rev_speaker_idx=None):
     """Write a single utterance to speaker_utterances and queue for extraction.
 
     If attribution_confidence is below ATTRIBUTION_CONFIDENCE_THRESHOLD,
@@ -251,7 +251,7 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
 
     if dry_run:
         flag = ' [UNCERTAIN]' if attribution_uncertain else ''
-        print(f"  [DRY RUN]{flag} utterance: speaker_id={speaker_id} conf={attribution_confidence} | {text[:80]}")
+        print(f"  [DRY RUN]{flag} utterance: speaker_id={speaker_id} rev_idx={rev_speaker_idx} conf={attribution_confidence} | {text[:80]}")
         return -1
 
     conn = get_db_conn()
@@ -264,12 +264,14 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
         cur.execute("""
             INSERT INTO speaker_utterances
                 (speaker_id, event_id, utterance_text, utterance_order,
-                 timestamp_seconds, attribution_confidence, attribution_uncertain, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                 timestamp_seconds, attribution_confidence, attribution_uncertain, created_at,
+                 rev_speaker_idx)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
             ON CONFLICT DO NOTHING
             RETURNING id
         """, (effective_speaker_id, event_id, text, utterance_order,
-              timestamp_seconds, attribution_confidence, attribution_uncertain))
+              timestamp_seconds, attribution_confidence, attribution_uncertain,
+              rev_speaker_idx))
 
         row = cur.fetchone()
         uid = row[0] if row else None
@@ -857,6 +859,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 timestamp_seconds=ts_seconds,
                 attribution_confidence=mean_confidence,
                 force_uncertain=_used_fallback,
+                rev_speaker_idx=rev_speaker_idx,
             )
 
             if uid:
