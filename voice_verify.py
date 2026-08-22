@@ -39,6 +39,7 @@ import sys
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+import shutil
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -46,6 +47,11 @@ from pathlib import Path
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 EMBEDDINGS_DIR = os.path.join(SCRIPT_DIR, 'speaker_embeddings')
 AUDIO_DIR = os.path.join(SCRIPT_DIR, 'debate_audio')
+
+# Two enrolled speakers closer than this are not separable, and in practice
+# it means one clip did not contain the person it was labelled with. Three
+# prints written on 2026-06-17 sit 0.003-0.009 apart for that reason.
+ENROLL_MIN_SEPARATION = 0.55
 
 # ---------------------------------------------------------------------------
 # Model loading (lazy — only loads when needed)
@@ -123,6 +129,35 @@ def cosine_distance(a, b):
 # ---------------------------------------------------------------------------
 # ENROLL MODE
 # ---------------------------------------------------------------------------
+def _clip_provenance(paths):
+    """Duration, size and hash per clip.
+
+    Size alone distinguishes nothing: 1,920,078 bytes is the deterministic
+    size of 60 s of 16 kHz mono 16-bit PCM, so known-good reference clips and
+    known-bad debate cuts are byte-identical in length. Duration and hash are
+    what let a later reader tell two clips apart.
+    """
+    import hashlib
+    import soundfile as sf
+    out = []
+    for p in paths:
+        rec = {'path': os.path.abspath(p)}
+        try:
+            rec['bytes'] = os.path.getsize(p)
+            info = sf.info(p)
+            rec['seconds'] = round(float(info.frames) / float(info.samplerate), 2)
+            rec['samplerate'] = int(info.samplerate)
+            h = hashlib.sha1()
+            with open(p, 'rb') as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b''):
+                    h.update(chunk)
+            rec['sha1'] = h.hexdigest()
+        except Exception as e:
+            rec['error'] = str(e)
+        out.append(rec)
+    return out
+
+
 def cmd_enroll(args):
     """Create speaker embedding from reference audio."""
     os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
@@ -157,14 +192,54 @@ def cmd_enroll(args):
     # L2 normalize
     avg_embedding = avg_embedding / np.linalg.norm(avg_embedding)
 
-    # Save
+    # S11-5 distinctness check. Nothing previously compared a new embedding
+    # against the prints already on disk, which is how three different people
+    # came to sit 0.003 apart and pass every gate.
+    _existing = load_enrolled_embeddings()
+    _dists = [(float(cosine_distance(avg_embedding, _r['embedding'])), int(_s), _r['name'])
+              for _s, _r in sorted(_existing.items()) if int(_s) != int(speaker_id)]
+    _closest = min(_dists) if _dists else None
+    _clashes = [d for d in _dists if d[0] < ENROLL_MIN_SEPARATION]
+    if _closest:
+        print(f"  closest existing print: {_closest[0]:.4f} "
+              f"(speaker {_closest[1]} {_closest[2]})")
+    if _clashes:
+        print(f"\n  \u2717 REFUSED \u2014 not distinct from {len(_clashes)} existing print(s):")
+        for _d, _s, _n in sorted(_clashes):
+            print(f"      {_d:.4f}  speaker {_s} ({_n})  "
+                  f"threshold {ENROLL_MIN_SEPARATION}")
+        print("    Two different people this close means one of the two prints was")
+        print("    built from audio that did not contain the person it names \u2014 and it")
+        print("    may be the EXISTING one, not the clip you are enrolling now.")
+        for _d, _s, _n in sorted(_clashes):
+            print(f"      to replace a known-bad print, delete "
+                  f"{os.path.join(EMBEDDINGS_DIR, f'speaker_{_s}.json')} first")
+        if not getattr(args, 'allow_close', False):
+            print("    Nothing written. Pass --allow-close only if the clips are verified.")
+            raise SystemExit(1)
+        print("    --allow-close given: writing anyway, override recorded.")
+    
+    if len(embeddings) < 2:
+        print(f"  \u26a0 only {len(embeddings)} source clip(s) \u2014 "
+              f"pre_debate_check warns below 3")
+    
     out_path = os.path.join(EMBEDDINGS_DIR, f'speaker_{speaker_id}.json')
+    if os.path.exists(out_path):
+        _bak = out_path + '.bak.' + datetime.now().strftime('%Y%m%d_%H%M%S')
+        shutil.copy2(out_path, _bak)
+        print(f"  existing print backed up to {os.path.basename(_bak)}")
+    
     data = {
         'speaker_id': speaker_id,
         'speaker_name': speaker_name,
         'embedding': avg_embedding.tolist(),
         'num_sources': len(embeddings),
         'source_files': [os.path.basename(f) for f in audio_files],
+        'source_provenance': _clip_provenance(audio_files),
+        'closest_other_print': ({'distance': round(_closest[0], 4),
+                                 'speaker_id': _closest[1],
+                                 'name': _closest[2]} if _closest else None),
+        'distinctness_override': bool(_clashes),
         'enrolled_at': datetime.now().isoformat(),
     }
     with open(out_path, 'w') as f:
@@ -393,6 +468,9 @@ def main():
                                help='Reference audio file(s) — 16kHz WAV recommended')
     enroll_parser.add_argument('--speaker-id', type=int, required=True)
     enroll_parser.add_argument('--speaker-name', required=True)
+    enroll_parser.add_argument('--allow-close', action='store_true',
+                               help='write even when the new embedding is within '
+                                    'ENROLL_MIN_SEPARATION of an existing print')
 
     # Verify
     verify_parser = subparsers.add_parser('verify', help='Verify debate attributions')
