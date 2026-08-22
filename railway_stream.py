@@ -9,6 +9,8 @@ import sys
 import time
 import subprocess
 from datetime import datetime
+import threading
+import collections
 
 if os.path.exists(".env"):
     from dotenv import load_dotenv
@@ -112,7 +114,7 @@ def write_exit_event(event_id, exit_code, stderr_text, restarts):
         from verdict_engine import get_connection
         snippet = (stderr_text or '').strip()
         if len(snippet) > 500:
-            snippet = snippet[:500] + '...[truncated]'
+            snippet = '[truncated]...' + snippet[-500:]
         if not snippet:
             snippet = '(no stderr)'
         conn = get_connection()
@@ -283,12 +285,31 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vo
     from stream_utils import resolve_stream_url, PreLiveError
     try:
         while True:
+            _out_ring = collections.deque(maxlen=60)
             proc = subprocess.Popen(
                 cmd,
                 cwd=os.path.dirname(__file__),
-                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
                 env=os.environ.copy()  # explicitly pass Railway env vars to subprocess
             )
+
+            def _drain(_p=proc, _r=_out_ring):
+                # debate_stream.py reports every failure on STDOUT and exits 1, so
+                # stderr-only capture stored '(no stderr)' for all 82 deaths on
+                # 2026-08-22. Re-emit each line so Railway's live log is unchanged,
+                # and keep a bounded tail for write_exit_event.
+                try:
+                    for _line in _p.stdout:
+                        sys.stdout.write(_line)
+                        _r.append(_line)
+                    sys.stdout.flush()
+                except Exception as _e:
+                    _r.append(f'(drain failed: {_e})\n')
+
+            _drain_t = threading.Thread(target=_drain, daemon=True)
+            _drain_t.start()
             restart_times.append(time.time())
             total_restarts += 1
             # Prune old restart times outside the circuit breaker window
@@ -315,14 +336,15 @@ def run_stream(event_id, slug, stream_url, speaker_order, speaker_map, rev_ai_vo
                     # Capture and log stderr before doing anything else
                     stderr_output = ''
                     try:
-                        stderr_output = proc.stderr.read().decode('utf-8', errors='replace').strip()
+                        _drain_t.join(timeout=5)
+                        stderr_output = ''.join(_out_ring).strip()
                         if stderr_output:
-                            log(f"SUBPROCESS STDERR:\n{stderr_output}")
+                            log(f"SUBPROCESS OUTPUT (tail):\n{stderr_output}")
                         else:
-                            log("SUBPROCESS STDERR: (empty)")
+                            log("SUBPROCESS OUTPUT: (empty)")
                     except Exception as e:
-                        log(f"Could not read stderr: {e}")
-                        stderr_output = f'(stderr unreadable: {e})'
+                        log(f"Could not read subprocess output: {e}")
+                        stderr_output = f'(output unreadable: {e})'
                     # Persist it. Railway's logs are ephemeral, so without this
                     # the reason for each death is lost the moment it scrolls.
                     write_exit_event(event_id, ret, stderr_output, total_restarts)
