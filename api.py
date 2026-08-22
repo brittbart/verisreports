@@ -6852,16 +6852,35 @@ def api_health_debate():
                 failed.append('poller')
 
         # ── is a debate live right now (gates stages 2 and 3) ─────────────
+        # Window matches /ops/stream-status (c119016): 5 min before start_time to
+        # 3 hours after, evaluated in the EVENT's timezone. The date spans +/- 1 day
+        # because a US evening event's LOCAL date is a day behind the UTC date, which
+        # is what hid every western debate from the capture and extract stages.
+        # Events with no start_time keep the previous same-day behaviour.
+        # The LEFT JOIN resolves the timezone instead of casting it: an unrecognised
+        # value yields NULL and falls back to UTC, so bad data cannot 500 the monitor.
         cur.execute("""
-            SELECT id, slug FROM events
-            WHERE is_public = TRUE
-              AND event_date = (NOW() AT TIME ZONE 'UTC')::date
-            ORDER BY id DESC LIMIT 1
+            SELECT e.id, e.slug, (tz.tzname IS NULL AND e.timezone IS NOT NULL)
+            FROM events e
+            LEFT JOIN (SELECT name AS tzname FROM pg_timezone_names
+                       UNION SELECT abbrev FROM pg_timezone_abbrevs) tz
+                   ON tz.tzname = e.timezone
+            WHERE e.is_public = TRUE
+              AND (
+                    (e.start_time IS NULL AND e.event_date = CURRENT_DATE)
+                 OR (e.start_time IS NOT NULL
+                     AND e.event_date BETWEEN CURRENT_DATE - 1 AND CURRENT_DATE + 1
+                     AND (NOW() AT TIME ZONE COALESCE(tz.tzname, 'UTC'))
+                           BETWEEN (e.event_date + e.start_time - INTERVAL '5 minutes')
+                               AND (e.event_date + e.start_time + INTERVAL '3 hours'))
+                  )
+            ORDER BY e.id DESC LIMIT 1
         """)
         live = cur.fetchone()
         live_event_id = live[0] if live else None
         checks['live_event'] = {'event_id': live_event_id,
-                                'slug': live[1] if live else None}
+                                'slug': live[1] if live else None,
+                                'timezone_unrecognized': bool(live[2]) if live else False}
 
         if live_event_id is not None:
             # ── stage 2: is capture actually producing rows ────────────────
