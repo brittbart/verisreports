@@ -792,10 +792,10 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             # "Mr. Weiser, your response" → next speaker is Weiser, not current speaker
             # These patterns indicate the utterance is FROM the moderator TO a candidate
 
-            # SPEAKER RESOLUTION (priority order):
-            # 1. Name-confirmed (most reliable) — only if already locked
-            # 2. New Rev AI ID + pending name cue → lock it
-            # 3. Order-based fallback
+            # SPEAKER RESOLUTION, cluster-first. There is deliberately NO
+            # order-based fallback: the Nth Rev AI cluster is not the Nth
+            # candidate, and assuming it was wrote 193 of 198 utterances to a
+            # single speaker on event 20 — every one of them marked confident.
             # Resolve BEFORE reading this utterance's own name cue: a cue applies to
             # what comes next, and reading it first let a candidate's self-introduction
             # overwrite the moderator's still-unconsumed handoff.
