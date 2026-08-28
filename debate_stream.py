@@ -219,6 +219,62 @@ def next_utterance_order(event_id):
         return 0
 
 
+QUESTIONER_CUE = re.compile(
+    r"\b(comes\s+from|(?:question|questions|prompt)\s+(?:is\s+|comes\s+)?from)\b",
+    re.IGNORECASE)
+
+MODERATOR_CUE_CREDITS = 2   # accepted handoffs before a cluster is called moderator
+
+
+def resolve_cluster_speaker(rev_idx, confirmed, seen, pending, pending_from,
+                            cue_credit, moderator_id=3):
+    """Decide which DB speaker a Rev AI cluster belongs to. Cluster-first.
+
+    Mutates only what is handed to it; the caller logs and does the DB work.
+    Returns (speaker_id, event), event None or a tuple.
+
+      1. a labelled cluster never moves
+      2. a pending cue from a DIFFERENT cluster labels this one, once
+      3. a speaker already bound elsewhere is a CONFLICT - unbind both
+      4. the cluster issuing accepted cues is the moderator
+      5. otherwise NULL - an unattributed claim can be repaired, a
+         misattributed one gets published
+    """
+    if rev_idx in confirmed:
+        return confirmed[rev_idx], None
+
+    if pending[0] is not None and pending_from[0] != rev_idx:
+        sid = pending[0]
+        src_idx = pending_from[0]
+        pending[0] = None
+        pending_from[0] = None
+
+        clash = [k for k, v in confirmed.items() if v == sid and k != rev_idx]
+        if clash:
+            for k in clash:
+                confirmed.pop(k, None)
+                seen[k] = None
+            seen[rev_idx] = None
+            return None, ("CONFLICT", sid, clash, rev_idx)
+
+        confirmed[rev_idx] = sid
+        seen[rev_idx] = sid
+        event = ("BIND", sid, src_idx, rev_idx)
+        if src_idx is not None:
+            cue_credit[src_idx] = cue_credit.get(src_idx, 0) + 1
+            if (cue_credit[src_idx] >= MODERATOR_CUE_CREDITS
+                    and src_idx not in confirmed):
+                confirmed[src_idx] = moderator_id
+                seen[src_idx] = moderator_id
+                event = ("BIND+MOD", sid, src_idx, rev_idx)
+        return sid, event
+
+    if rev_idx not in seen:
+        seen[rev_idx] = None
+        return None, ("UNLABELLED", None, None, rev_idx)
+    return seen.get(rev_idx), None
+
+
 def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
                     timestamp_seconds=None, attribution_confidence=None,
                     force_uncertain=False, rev_speaker_idx=None):
@@ -415,6 +471,9 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     seen_speaker_ids = {}       # Rev AI ID -> DB speaker_id (order-based fallback)
     confirmed_speaker_ids = {}  # Rev AI ID -> DB speaker_id (name-confirmed, authoritative)
     pending_speaker_id = [None] # next speaker assigned this DB speaker_id
+    pending_from_idx = [None]   # cluster that ISSUED the cue - a cue inside
+                                # a cluster's own speech must never label it
+    cue_credit = {}             # cluster -> accepted handoffs it issued
 
     # Clear dg_speaker_map at stream start — Rev AI assigns new speaker IDs
     # on each job connection so persisted mappings from prior jobs are invalid.
@@ -732,6 +791,34 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             # ADDRESS PATTERN: moderator-style address at utterance start
             # "Mr. Weiser, your response" → next speaker is Weiser, not current speaker
             # These patterns indicate the utterance is FROM the moderator TO a candidate
+
+            # SPEAKER RESOLUTION (priority order):
+            # 1. Name-confirmed (most reliable) — only if already locked
+            # 2. New Rev AI ID + pending name cue → lock it
+            # 3. Order-based fallback
+            # Resolve BEFORE reading this utterance's own name cue: a cue applies to
+            # what comes next, and reading it first let a candidate's self-introduction
+            # overwrite the moderator's still-unconsumed handoff.
+            speaker_id, _ev = resolve_cluster_speaker(
+                rev_speaker_idx, confirmed_speaker_ids, seen_speaker_ids,
+                pending_speaker_id, pending_from_idx, cue_credit)
+            if _ev:
+                _kind, _sid, _srcidx, _cl = _ev
+                if _kind == 'CONFLICT':
+                    print(f"  [CONFLICT] speaker {_sid} already bound to cluster(s) {_cl};"
+                          f" cluster {rev_speaker_idx} claims it too - unbinding both")
+                elif _kind in ('BIND', 'BIND+MOD'):
+                    print(f"  [CONFIRMED] Rev AI {rev_speaker_idx} = DB speaker {_sid}"
+                          f" (cue from cluster {_srcidx})")
+                    persist_mapping(rev_speaker_idx, _sid)
+                    if _kind == 'BIND+MOD':
+                        print(f"  [MODERATOR] cluster {_srcidx} issued"
+                              f" {cue_credit.get(_srcidx)} accepted handoffs - moderator")
+                        persist_mapping(_srcidx, 3)
+                elif _kind == 'UNLABELLED':
+                    print(f"  [UNLABELLED] Rev AI {rev_speaker_idx} - no naming cue yet,"
+                          f" writing unattributed rather than guessing by order")
+
             import re as _re
             _address_patterns = [
                 r'^(mr\.?|mrs\.?|ms\.?|senator|attorney general|general)\s+\w+',
@@ -752,7 +839,10 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             )
 
             detected = detect_name_cue(text)
-            if detected is not None:
+            if detected is not None and _current_is_candidate:
+                # A candidate mentioning a name is a cross-reference, never a handoff.
+                print(f"  [NAME CUE] skipped (speaker is a confirmed candidate): {text[:60]}")
+            elif detected is not None:
                 tl_check = text.lower()
                 # Dynamically check if multiple candidate names are present
                 # Uses name_map built from actual event speakers (not hardcoded)
@@ -764,49 +854,23 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 both_present = len(speakers_mentioned) >= 2
                 if both_present and not is_calibrating():
                     print(f"  [NAME CUE] skipped (both names in utterance): {text[:60]}")
+                elif QUESTIONER_CUE.search(tl_check):
+                    # The cue attributes a QUESTION to someone off the roster, so the
+                    # next voice is the asker, not the candidate it names.
+                    print(f"  [NAME CUE] skipped (question attributed to a questioner): {text[:60]}")
                 elif _is_address:
                     # Moderator is addressing a candidate — set pending for NEXT speaker
                     # but do NOT lock current utterance to that candidate
                     pending_speaker_id[0] = detected
+                    pending_from_idx[0] = rev_speaker_idx
                     print(f"  [NAME CUE] address→pending={detected}: {text[:60]}")
                 else:
                     # During calibration, use first name mentioned
                     if both_present and is_calibrating():
                         print(f"  [CALIBRATION] Both names present — using first match: {detected}")
                     pending_speaker_id[0] = detected
+                    pending_from_idx[0] = rev_speaker_idx
                     print(f"  [NAME CUE] speaker={detected}: {text[:60]}")
-
-            # SPEAKER RESOLUTION (priority order):
-            # 1. Name-confirmed (most reliable) — only if already locked
-            # 2. New Rev AI ID + pending name cue → lock it
-            # 3. Order-based fallback
-            if rev_speaker_idx in confirmed_speaker_ids:
-                speaker_id = confirmed_speaker_ids[rev_speaker_idx]
-            elif rev_speaker_idx not in seen_speaker_ids and pending_speaker_id[0] is not None:
-                # New speaker ID appeared — assign pending name cue to it
-                speaker_id = pending_speaker_id[0]
-                confirmed_speaker_ids[rev_speaker_idx] = speaker_id
-                seen_speaker_ids[rev_speaker_idx] = speaker_id
-                pending_speaker_id[0] = None
-                print(f"  [CONFIRMED] Rev AI {rev_speaker_idx} = DB speaker {speaker_id}")
-                persist_mapping(rev_speaker_idx, speaker_id)
-            elif rev_speaker_idx not in seen_speaker_ids:
-                # Try order-based mapping first if speaker_order provided
-                if speaker_order and rev_speaker_idx < len(speaker_order):
-                    mapped = speaker_order[rev_speaker_idx]
-                    seen_speaker_ids[rev_speaker_idx] = mapped
-                    confirmed_speaker_ids[rev_speaker_idx] = mapped
-                    print(f"  [ORDER MAP] Rev AI {rev_speaker_idx} = DB speaker {mapped}")
-                    persist_mapping(rev_speaker_idx, mapped)
-                elif confirmed_speaker_ids:
-                    last_known = list(confirmed_speaker_ids.values())[-1]
-                    seen_speaker_ids[rev_speaker_idx] = last_known
-                    print(f"  [LAST_KNOWN] Rev AI {rev_speaker_idx} → speaker_id={last_known} (uncertain — flagged for review)")
-                else:
-                    seen_speaker_ids[rev_speaker_idx] = None  # unconfirmed — wait for name cue
-                speaker_id = seen_speaker_ids[rev_speaker_idx]
-            else:
-                speaker_id = seen_speaker_ids.get(rev_speaker_idx)
 
             # Grab timestamp from first text element (seconds from stream start)
             ts_seconds = next(
