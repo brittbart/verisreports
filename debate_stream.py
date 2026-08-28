@@ -660,6 +660,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
 
     # Build name detection map from speaker_order
     name_map = {}
+    roster_terms = []   # roster surnames ONLY, before any variant
     if speaker_order:
         try:
             conn = get_db_conn()
@@ -670,6 +671,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 for part in sname.lower().split():
                     if len(part) > 3:
                         name_map[part] = sid
+                        roster_terms.append(part)
             # Add common Rev AI misspellings
             # Dict format: {'variants': [...], 'whole_word_only': bool}
             # whole_word_only=True uses word-boundary regex to prevent substring collisions
@@ -684,6 +686,8 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 'marx':     {'variants': ['marx'], 'whole_word_only': True},   # 4 chars, whole-word prevents 'Marxist'/'Marxism'
                 'marks':    {'variants': ['marks'], 'whole_word_only': True},  # 5 chars but collides with 'remarkable'/'marksman'
                 'moderator':{'variants': ['moderator', 'the moderator'], 'whole_word_only': False},
+                'bien':     {'variants': ['bien'], 'whole_word_only': True},   # 4 chars: min_len=5 skipped it; boundary blocks 'ambience'
+                'degenfelder':{'variants': ['degen felder', 'degenfelder', 'degen phelder'], 'whole_word_only': False},  # Rev AI splits the surname
             }
             whole_word_set = set()
             for correct, entry in misspellings.items():
@@ -716,8 +720,11 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                     if new_s in name:
                         variants.append(name.replace(new_s, old_s))
                 return list(set(v for v in variants if len(v) >= 4 and v != name))
-            for sid, sname in [(sid, sname) for sname, sid in name_map.items()
-                               if len(sname.split()) == 1 and len(sname) > 3]:
+            # Roster surnames ONLY, captured before any variant was added. Iterating
+            # name_map generated variants OF variants in dict order, so the set
+            # depended on insertion sequence and was never audited.
+            for sname in roster_terms:
+                sid = name_map[sname]
                 last = sname.lower()
                 if last not in misspellings:
                     auto_variants = _gen_variants(last)

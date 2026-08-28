@@ -8,6 +8,8 @@ Usage:
     python3 pre_debate_check.py --event-slug colorado-governor-republican-primary-debate-round-3
 """
 import os, sys, argparse, subprocess
+import ast as _ast
+import re
 from datetime import datetime, timezone, timedelta
 
 if os.path.exists(".env"):
@@ -127,6 +129,132 @@ def main():
             check("Speaker context query", False, str(e))
 
     # ── 6. Voice enrollments
+    # 5b. Name-cue reachability
+    section("5b. Name-cue reachability")
+    # Two failures, both measured, both invisible before they cost a debate:
+    #   Bien        - 4 chars, not a misspellings entry, so min_len=5 skipped it
+    #                 and the moderator's handoff never fired.
+    #   Degenfelder - reachable as a string, but Rev AI renders it "Degen felder"
+    #                 and the space defeats the substring test.
+    # Check 1 catches the first class. Check 2 catches the second, and the
+    # Trobough class (Rev AI wrote "Tro off" and "John Augh", never the name),
+    # by asking whether a candidate's surname has EVER appeared in a transcript.
+    #
+    # The matcher is extracted from debate_stream.py rather than reimplemented,
+    # and the extraction asserts the shapes it mirrors, so this fails loudly if
+    # that file is restructured instead of silently testing stale logic.
+    _detect = None
+    _mis_src = None
+    try:
+        import textwrap as _tw
+        _ds = open('debate_stream.py', encoding='utf-8').read()
+        _tree = _ast.parse(_ds)
+        _dl = _ds.splitlines(keepends=True)
+
+        def _grab(pred, what):
+            hits = [n for n in _ast.walk(_tree) if pred(n)]
+            if len(hits) != 1:
+                raise RuntimeError("%s matched %d nodes" % (what, len(hits)))
+            n = hits[0]
+            return _tw.dedent(''.join(_dl[n.lineno - 1:n.end_lineno]))
+
+        _det_src = _grab(lambda n: isinstance(n, _ast.FunctionDef)
+                         and n.name == 'detect_name_cue', 'detect_name_cue')
+        _mis_src = _grab(lambda n: isinstance(n, _ast.Assign)
+                         and any(getattr(t, 'id', None) == 'misspellings'
+                                 for t in n.targets), 'misspellings assignment')
+        for _needle in ("name_map[part] = sid", "roster_terms.append(part)",
+                        "min_len = 4 if is_dict_entry else 5"):
+            if _ds.count(_needle) != 1:
+                raise RuntimeError("debate_stream.py shape changed: %r found %d times"
+                                   % (_needle, _ds.count(_needle)))
+        check("matcher extracted from debate_stream.py", True,
+              "detect_name_cue + misspellings, 3 shape assertions passed")
+    except Exception as _e:
+        check("matcher extracted from debate_stream.py", False, str(_e))
+        _det_src = None
+
+    _roster = []
+    if _det_src and conn and event:
+        try:
+            cur.execute("""SELECT s.id, s.name FROM event_speakers es
+                           JOIN speakers s ON s.id = es.speaker_id
+                           WHERE es.event_id = %s AND s.speaker_type = 'politician'
+                           ORDER BY s.id""", (event[0],))
+            _roster = cur.fetchall()
+            _ns = {'re': re}
+            exec(_mis_src, _ns)
+            _mis = _ns['misspellings']
+            _nm = {}
+            for _sid, _sn in _roster:
+                _nm[_sn.lower()] = _sid
+                for _p in _sn.lower().split():
+                    if len(_p) > 3:
+                        _nm[_p] = _sid
+            _wws = set()
+            for _c, _e2 in _mis.items():
+                if isinstance(_e2, list):
+                    _e2 = {'variants': _e2, 'whole_word_only': False}
+                if _c in _nm:
+                    for _v in _e2['variants']:
+                        _nm[_v] = _nm[_c]
+                        if _e2['whole_word_only']:
+                            _wws.add(_v)
+            _ns2 = {'re': re, 'name_map': _nm, 'whole_word_set': _wws,
+                    'misspellings': _mis}
+            exec(_det_src, _ns2)
+            _detect = _ns2['detect_name_cue']
+        except Exception as _e:
+            check("name map rebuilt for this roster", False, str(_e))
+
+    check("roster has politicians", bool(_roster),
+          "%d on this event" % len(_roster))
+
+    # Check 1 - the surname as spelled must be reachable by the real matcher.
+    if _detect:
+        for _sid, _sn in _roster:
+            _last = _sn.split()[-1]
+            _cue = "Thank you %s, you have ninety seconds" % _last
+            _got = _detect(_cue)
+            check("cue reachable: %s" % _sn, _got == _sid,
+                  ("resolves to %s" % _got) if _got == _sid else
+                  "detect_name_cue -> %s, expected %s - ADD A misspellings ENTRY"
+                  % (_got, _sid))
+
+    # Check 2 - has Rev AI ever actually rendered this surname? Zero hits across
+    # a prior debate this speaker took part in means no variant will save it and
+    # only a Rev AI custom vocabulary will.
+    if conn and _roster:
+        for _sid, _sn in _roster:
+            _last = _sn.split()[-1]
+            try:
+                # Word-boundary match, NOT substring. ILIKE '%Marx%' counted
+                # "Marxist" as the name being rendered and passed a candidate
+                # Rev AI has never actually written - the same collision the
+                # matcher guards with whole_word_only. \m and \M are Postgres
+                # word-start / word-end, matching the matcher's \b...\b.
+                cur.execute("""SELECT COUNT(DISTINCT su.event_id),
+                                      COUNT(*) FILTER (
+                                          WHERE su.utterance_text ~* ('\\m' || %s || '\\M'))
+                               FROM speaker_utterances su
+                               JOIN event_speakers es ON es.event_id = su.event_id
+                               WHERE es.speaker_id = %s AND su.event_id <> %s""",
+                            (_last, _sid, event[0]))
+                _events, _hits = cur.fetchone()
+                if not _events:
+                    check("prior transcript for %s" % _sn, True,
+                          "no earlier debate - cannot predict rendering",
+                          critical=False)
+                else:
+                    check("Rev AI renders %s" % _sn, _hits > 0,
+                          "%d mentions across %d prior event(s)" % (_hits, _events)
+                          if _hits else
+                          "NEVER rendered in %d prior event(s) - a variant cannot "
+                          "fix this, set a Rev AI vocabulary" % _events,
+                          critical=False)
+            except Exception as _e:
+                check("prior transcript for %s" % _sn, False, str(_e), critical=False)
+
     section("6. Voice enrollments")
     if conn and event:
         try:
