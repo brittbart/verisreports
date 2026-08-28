@@ -219,6 +219,8 @@ def next_utterance_order(event_id):
         return 0
 
 
+import re  # module scope: QUESTIONER_CUE below compiles at import time
+
 QUESTIONER_CUE = re.compile(
     r"\b(comes\s+from|(?:question|questions|prompt)\s+(?:is\s+|comes\s+)?from)\b",
     re.IGNORECASE)
