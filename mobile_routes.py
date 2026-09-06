@@ -639,6 +639,7 @@ def debates_list():
             LEFT JOIN speaker_utterances su ON su.event_id = e.id
             LEFT JOIN claims c ON c.event_id = e.id
               AND c.verdict IS NOT NULL
+            WHERE e.is_public = TRUE
             GROUP BY e.id, e.slug, e.event_name, e.event_subtitle,
                      e.event_date, e.venue, e.stream_url, e.notes
             ORDER BY e.event_date DESC NULLS LAST
@@ -704,7 +705,7 @@ def debate_detail(slug):
             SELECT id, slug, event_name, event_subtitle,
                    event_date, start_time, timezone, venue, stream_url, notes
             FROM events
-            WHERE slug = %s
+            WHERE slug = %s AND is_public = TRUE
         """, (slug,))
         row = cur.fetchone()
 
