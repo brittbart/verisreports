@@ -1,5 +1,5 @@
 
-from flask import Flask, jsonify, request, redirect, send_from_directory
+from flask import Flask, jsonify, request, redirect, send_from_directory, render_template, Response, abort
 from flask_cors import CORS
 import psycopg2
 import os
@@ -99,7 +99,7 @@ def get_db():
         **(dict(dsn=os.environ['DATABASE_URL']) if os.environ.get('DATABASE_URL') else dict(
             dbname=os.environ.get('DB_NAME', 'railway'),
             user=os.environ.get('DB_USER', 'postgres'),
-            password=os.environ.get('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+            password=os.environ['DB_PASSWORD'],
             host=os.environ.get('DB_HOST', 'shinkansen.proxy.rlwy.net'),
             port=os.environ.get('DB_PORT', '35370')
         ))
@@ -3719,7 +3719,7 @@ def api_corpus_totals():
 # detect. On 2026-08-11 the Session 9 entry was inserted above the Session 7
 # block and silently inherited its date span -- the constant and the section
 # disagreed within minutes of each other being edited.
-_CURATED_LATEST = "2026-08-11"
+_CURATED_LATEST = "2026-08-19"
 
 
 def _curated_latest():
@@ -3793,6 +3793,76 @@ tr:hover td{background:rgba(168,85,247,0.04)}
 
 <h2>Deployments</h2>
 <div style="font-size:11px;color:var(--fg-dim);margin:-8px 0 16px">__CURATED_STALENESS__</div>
+
+<div class="deploy-entry">
+  <div class="deploy-header">
+    <span class="deploy-date">Aug 19, 2026</span>
+    <span class="deploy-label">Session 11 — Debate capture, speaker attribution, pipeline monitoring</span>
+    <ul>
+      <li><strong>Speaker attribution measured, and the record corrected.</strong> The audit had
+      carried a finding that two debates had no reliable record of who said what, and that thirteen
+      public claims named a politician who did not make them. Measured across all 398 debate claims by
+      locating each claim's text in the transcript: the stored speaker agrees with where the words
+      actually sit in 335 of 343 cases. The real defect was the link between a claim and its position
+      in the transcript, not the speaker — and because a speaker's answer spans many transcript
+      fragments, a small positional error almost always lands inside the same person's turn.</li>
+
+      <li><strong>Claims now carry their own timestamp rather than their answer's opening time.</strong>
+      Extraction groups a speaker's consecutive fragments into one turn and asks the model about the
+      whole turn, then attributed every resulting claim to the turn's first fragment. Every claim with
+      a comparable timestamp carried its turn's start rather than the moment the claim was made — 183
+      of 183. Claims from one answer therefore shared a timestamp and ordered arbitrarily on the mobile
+      app. Each claim is now matched to the fragment its wording came from.</li>
+
+      <li><strong>Restarts no longer corrupt a transcript.</strong> The utterance counter was held in
+      memory and reset to zero every time the capture process started, so any restart renumbered from
+      the beginning and collided with what was already stored. Four of five live captures carry the
+      damage, the worst with 375 duplicated positions out of 756. The counter now resumes from where
+      the event left off, and a database lock ensures only one process captures a given event.</li>
+
+      <li><strong>One debate could end another's capture.</strong> The service checked every thirty
+      seconds whether "an event" was live and stopped if the answer was not the one it was recording.
+      With two debates running at once that check could return the other one and terminate a healthy
+      capture. Exactly one such overlap exists in this platform's history — two primaries on June 8,
+      165 minutes of overlap — and that night one debate was lost entirely while the other became the
+      most fragmented transcript on the platform. Each capture now asks only about its own event.</li>
+
+      <li><strong>The pipeline can now report that it is down.</strong> The debate health endpoint
+      counted claims awaiting a verdict past seventy minutes. With none awaiting, it returned healthy
+      in every steady state and could not fail — including through five weeks when nothing was
+      running. It now checks four stages separately: whether the capture service is alive, whether
+      transcription is producing during a live event, whether extraction is keeping up, and the
+      original verdict timing. It was observed returning a failure on demand before shipping.</li>
+
+      <li><strong>Why a capture fails is now recorded.</strong> Across five events the service logged
+      299 restart events, every one reading the same restart count and every one filed against no
+      event at all, because the count was a constant by construction and the event identifier was
+      never passed. The exit code and error output were captured to a log that does not persist, so
+      thousands of restarts each discarded their own explanation. Both are now written to the database
+      with the event they belong to.</li>
+
+      <li><strong>Substantial answers are no longer skipped before extraction.</strong> A filter
+      required a number, a policy term or a similar marker before spending an extraction call, which
+      is sound for "thank you, next question" and wrong for a full answer. It discarded 702 complete
+      speaker turns, including a 24-word allegation naming a specific state fund. Answers of fifteen
+      words or more now go to the model regardless. Expanding the keyword list was tested first and
+      rejected — measured against the real rejections, it recovered mostly rhetoric.</li>
+
+      <li><strong>Confidence scores were being discarded on debate claims.</strong> The debate path
+      read a differently-named field than the model returns, so every debate claim fell back to the
+      same default while article claims recorded a real range. Fixed, with the same bounds and default
+      the other paths already used.</li>
+
+      <li><strong>A transcript integrity check now runs after every event.</strong> Three claims on
+      one debate were correctly attributed while their transcript link pointed at the moderator's
+      introduction. That single mismatch produced a chain of misleading results across two audit
+      sessions. The post-event check now reports any claim whose linked passage belongs to someone
+      else, along with the caution that such a mismatch is not by itself evidence the attribution is
+      wrong.</li>
+    </ul>
+    <span class="deploy-label" style="display:none"></span>
+  </div>
+</div>
 
 <div class="deploy-entry">
   <div class="deploy-header">
@@ -8562,6 +8632,244 @@ register_billing_routes(app, get_db)
 # ── Attribution review ops page ─────────────────────────────────────────────
 from ops_attribution import bp as ops_attribution_bp
 app.register_blueprint(ops_attribution_bp)
+
+
+
+# ============================================================================
+# LIVE PAGE  (added 20260906_082829)
+# Gate on priority_score, order by recency. Ordering by priority would order by
+# verdict severity: not_verifiable 66.3 / not_supported 65.0 vs supported 47.8.
+# ============================================================================
+
+LIVE_PRIORITY_GATE = 65
+LIVE_PAGE_LIMIT = 25
+LIVE_SHOW_SOURCES = False   # flip once 30 sources_used entries have been read
+
+LIVE_VERDICT_LABELS = {
+    'supported': 'Supported', 'corroborated': 'Corroborated', 'plausible': 'Plausible',
+    'overstated': 'Overstated', 'disputed': 'Disputed', 'not_supported': 'Not supported',
+    'not_verifiable': 'Not verifiable', 'opinion': 'Opinion',
+}
+
+LIVE_ORIGINS = [
+    ('outlet_claim', "The publication's own words"),
+    ('attributed_claim', 'Reported from somebody else'),
+    ('debate_claim', 'Said at an event'),
+]
+
+
+def _live_when(ts):
+    from datetime import datetime as _d
+    if not ts:
+        return ''
+    delta = _d.now() - ts
+    secs = delta.total_seconds()
+    if secs < 3600:
+        m = max(1, int(secs // 60))
+        return '%d minute%s ago' % (m, '' if m == 1 else 's')
+    if secs < 86400:
+        h = int(secs // 3600)
+        return '%d hour%s ago' % (h, '' if h == 1 else 's')
+    if secs < 172800:
+        return 'Yesterday'
+    return ts.strftime('%B %-d')
+
+
+def _live_context(row):
+    """Origin rides in the context line. Only reported speech is marked."""
+    pub = row.get('source_name') or 'a publication'
+    if row['claim_origin'] == 'debate_claim':
+        who = row.get('speaker') or 'A participant'
+        ev = row.get('event_name')
+        return ('%s, at %s' % (who, ev)) if ev else who, '', ''
+    if row['claim_origin'] == 'attributed_claim':
+        who = row.get('attribution_context') or 'somebody else'
+        return '%s ' % pub, 'reported that', ' %s said this' % who
+    return '%s said this' % pub, '', ''
+
+
+def _live_fetch(publications=None, origins=None, events=None, limit=LIVE_PAGE_LIMIT):
+    sql = """
+        SELECT c.id, c.claim_text, c.verdict, c.claim_origin, c.last_checked,
+               c.speaker, c.event_id, c.attribution_context, c.claim_type,
+               c.verification_method, c.why_checkworthy, c.sources_used,
+               c.correction_note, c.first_seen,
+               a.source_name, e.event_name,
+               (c.last_checked < now() - interval '90 days') AS is_stale
+          FROM claims c
+     LEFT JOIN articles a ON a.id = c.article_id
+     LEFT JOIN events   e ON e.id = c.event_id
+         WHERE c.verdict IS NOT NULL
+           AND c.priority_score >= %s
+    """
+    params = [LIVE_PRIORITY_GATE]
+    if publications:
+        sql += ' AND a.source_name = ANY(%s)'
+        params.append(list(publications))
+    if origins:
+        sql += ' AND c.claim_origin = ANY(%s)'
+        params.append(list(origins))
+    if events:
+        sql += ' AND c.event_id = ANY(%s)'
+        params.append([int(x) for x in events])
+    sql += ' ORDER BY c.last_checked DESC LIMIT %s'
+    params.append(limit)
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            cols = [d[0] for d in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+    for r in rows:
+        r['verdict_label'] = LIVE_VERDICT_LABELS.get(r['verdict'], r['verdict'])
+        pre, mark, post = _live_context(r)
+        r['context_pre'], r['context_mark'], r['context_post'] = pre, mark, post
+        r['when_display'] = _live_when(r['last_checked'])
+        r['last_checked_display'] = r['last_checked'].strftime('%B %-d') if r['last_checked'] else ''
+    return rows
+
+
+def _live_events():
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT id, event_name, venue, slug, event_date, start_time, timezone
+                             FROM events WHERE is_public ORDER BY event_date DESC NULLS LAST LIMIT 40""")
+            cols = [d[0] for d in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+    from datetime import datetime as _d, timedelta as _td
+    now = _d.now()
+    for e in rows:
+        e['_starts'] = (_d.combine(e['event_date'], e['start_time'])
+                        if e.get('event_date') and e.get('start_time') else None)
+    running = next((e for e in rows if e['_starts']
+                    and e['_starts'] <= now <= e['_starts'] + _td(hours=3)), None)
+    nxt = None
+    upcoming = sorted([e for e in rows if e['_starts'] and e['_starts'] > now],
+                      key=lambda e: e['_starts'])
+    if upcoming:
+        nxt = upcoming[0]
+        nxt['when_display'] = nxt['_starts'].strftime('%B %-d, %-I%p').replace('AM', 'am').replace('PM', 'pm')
+    return rows, running, nxt
+
+
+def _live_publications(limit=25):
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT a.source_name, count(*) AS n
+                             FROM claims c JOIN articles a ON a.id = c.article_id
+                            WHERE c.verdict IS NOT NULL AND c.priority_score >= %s
+                              AND a.source_name IS NOT NULL
+                         GROUP BY a.source_name ORDER BY n DESC LIMIT %s""",
+                        (LIVE_PRIORITY_GATE, limit))
+            return [r[0] for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+@app.route('/live')
+def live_page():
+    pubs = request.args.getlist('publication')
+    origins = request.args.getlist('origin')
+    events_sel = [e for e in request.args.getlist('event') if e.isdigit()]
+    claims = _live_fetch(pubs, origins, events_sel)
+    all_events, running, nxt = _live_events()
+    return render_template(
+        'live.html',
+        claims=claims,
+        publications=_live_publications(),
+        origins=LIVE_ORIGINS,
+        events=[e for e in all_events if e['start_time']][:12],
+        selected_publications=pubs,
+        selected_origins=origins,
+        selected_events=[int(e) for e in events_sel],
+        running_event=running,
+        next_event=nxt,
+        show_sources=LIVE_SHOW_SOURCES,
+        seo_meta='',
+    )
+
+
+@app.route('/c/<int:claim_id>')
+def live_claim_permalink(claim_id):
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT c.id, c.claim_text, c.verdict, c.claim_origin, c.last_checked,
+                                  c.speaker, c.event_id, c.attribution_context, c.claim_type,
+                                  c.verification_method, c.why_checkworthy, c.sources_used,
+                                  c.correction_note, c.first_seen,
+                                  a.source_name, e.event_name,
+                                  (c.last_checked < now() - interval '90 days') AS is_stale
+                             FROM claims c
+                        LEFT JOIN articles a ON a.id = c.article_id
+                        LEFT JOIN events   e ON e.id = c.event_id
+                            WHERE c.id = %s AND c.verdict IS NOT NULL""", (claim_id,))
+            row = cur.fetchone()
+            if not row:
+                abort(404)
+            cols = [d[0] for d in cur.description]
+            r = dict(zip(cols, row))
+    finally:
+        conn.close()
+    r['verdict_label'] = LIVE_VERDICT_LABELS.get(r['verdict'], r['verdict'])
+    pre, mark, post = _live_context(r)
+    r['context_pre'], r['context_mark'], r['context_post'] = pre, mark, post
+    r['when_display'] = _live_when(r['last_checked'])
+    r['last_checked_display'] = r['last_checked'].strftime('%B %-d') if r['last_checked'] else ''
+    return render_template('live.html', claims=[r], publications=[], origins=LIVE_ORIGINS,
+                           events=[], selected_publications=[], selected_origins=[],
+                           selected_events=[], running_event=None, next_event=None,
+                           show_sources=LIVE_SHOW_SOURCES, seo_meta='')
+
+
+@app.route('/live/feed.json')
+def live_feed_json():
+    rows = _live_fetch(limit=40)
+    return jsonify({
+        'version': 'https://jsonfeed.org/version/1.1',
+        'title': 'Verum Signal - Live',
+        'home_page_url': request.url_root.rstrip('/') + '/live',
+        'feed_url': request.url_root.rstrip('/') + '/live/feed.json',
+        'description': 'Claims we have checked, most recent first.',
+        'items': [{
+            'id': str(r['id']),
+            'url': request.url_root.rstrip('/') + '/c/' + str(r['id']),
+            'title': r['claim_text'],
+            'content_text': '%s - %s' % (r['verdict_label'],
+                                         (r['context_pre'] + r['context_mark'] + r['context_post'])),
+            'date_published': r['last_checked'].isoformat() if r['last_checked'] else None,
+        } for r in rows],
+    })
+
+
+@app.route('/live/feed.xml')
+def live_feed_xml():
+    from xml.sax.saxutils import escape as _esc
+    rows = _live_fetch(limit=40)
+    root = request.url_root.rstrip('/')
+    items = []
+    for r in rows:
+        ctx = r['context_pre'] + r['context_mark'] + r['context_post']
+        items.append(
+            '<item><title>%s</title><link>%s/c/%d</link><guid isPermaLink="true">%s/c/%d</guid>'
+            '<description>%s</description><pubDate>%s</pubDate></item>' % (
+                _esc(r['claim_text'] or ''), root, r['id'], root, r['id'],
+                _esc('%s - %s' % (r['verdict_label'], ctx)),
+                r['last_checked'].strftime('%a, %d %b %Y %H:%M:%S +0000') if r['last_checked'] else ''))
+    xml = ('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>'
+           '<title>Verum Signal - Live</title><link>%s/live</link>'
+           '<description>Claims we have checked, most recent first.</description>%s'
+           '</channel></rss>' % (root, ''.join(items)))
+    return Response(xml, mimetype='application/rss+xml')
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

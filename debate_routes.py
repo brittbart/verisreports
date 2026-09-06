@@ -347,7 +347,7 @@ def _get_index_stats(get_db_conn):
         today = date.today()
         cur.execute("""
             SELECT event_date, start_time, timezone
-            FROM events WHERE is_public = TRUE
+            FROM events WHERE is_listed = TRUE
         """)
         rows = cur.fetchall()
         complete_count = live_count = upcoming_count = 0

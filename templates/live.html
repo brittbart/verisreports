@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live — Verum Signal</title>
+{{ seo_meta | safe }}
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="alternate" type="application/rss+xml" title="Verum Signal — Live" href="/live/feed.xml">
+<style>
+  /* ============== LIVE ============== */
+  .lv-wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  .lv-head { padding: 48px 0 28px; }
+  .lv-eyebrow {
+    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase; color: #a855f7; margin-bottom: 14px;
+  }
+  .lv-title {
+    font-family: var(--font-display, 'DM Serif Display', serif);
+    font-size: 46px; line-height: 1.05; letter-spacing: -0.01em; margin: 0 0 14px;
+  }
+  .lv-lede { font-size: 17px; line-height: 1.6; color: #b8b8bd; max-width: 620px; margin: 0; }
+
+  .lv-toolbar {
+    display: flex; flex-wrap: wrap; gap: 22px; align-items: center;
+    padding: 20px 0 26px; border-bottom: 1px solid var(--border, #232328);
+  }
+  .lv-toolbar-label {
+    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: #8b8b90;
+  }
+  .lv-feedlinks a {
+    font-family: ui-monospace, monospace; font-size: 12px; color: #a855f7;
+    text-decoration: none; margin-left: 10px;
+  }
+  .lv-feedlinks a:hover { text-decoration: underline; }
+
+  .lv-body { display: grid; grid-template-columns: 244px 1fr; gap: 40px; padding: 28px 0 80px; }
+  @media (max-width: 860px) { .lv-body { grid-template-columns: 1fr; } }
+
+  .lv-filters { font-size: 14px; }
+  .lv-fgroup { margin-bottom: 26px; }
+  .lv-fgroup h3 {
+    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: #8b8b90; margin: 0 0 10px; font-weight: 400;
+  }
+  .lv-fopt { display: block; padding: 5px 0; color: #c9c9ce; cursor: pointer; }
+  .lv-fopt input { margin-right: 8px; accent-color: #a855f7; }
+  .lv-fnote { font-size: 12px; line-height: 1.55; color: #8b8b90; margin-top: 18px; }
+  .lv-clear {
+    background: none; border: none; padding: 0; color: #a855f7;
+    font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+
+  .lv-event {
+    border: 1px solid var(--border, #232328); border-radius: 14px;
+    background: var(--surface, #131317); padding: 22px 24px; margin-bottom: 26px;
+  }
+  .lv-event.is-running { border-color: rgba(168,85,247,.45); }
+  .lv-event-flag {
+    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: #a855f7; margin-bottom: 10px;
+  }
+  .lv-event h2 {
+    font-family: var(--font-display, 'DM Serif Display', serif);
+    font-size: 26px; margin: 0 0 6px; line-height: 1.15;
+  }
+  .lv-event-meta { font-size: 13px; color: #8b8b90; margin-bottom: 12px; }
+  .lv-event p { font-size: 14px; line-height: 1.6; color: #b8b8bd; margin: 0 0 14px; }
+  .lv-event a.lv-open { font-size: 14px; color: #a855f7; text-decoration: none; }
+  .lv-event a.lv-open:hover { text-decoration: underline; }
+
+  .lv-card {
+    border: 1px solid var(--border, #232328); border-radius: 14px;
+    background: var(--surface, #131317); padding: 22px 24px; margin-bottom: 16px;
+  }
+  .lv-card-top { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; }
+  .lv-claim {
+    font-family: var(--font-display, 'DM Serif Display', serif);
+    font-size: 21px; line-height: 1.32; color: #ebebee; margin: 0; flex: 1;
+  }
+  .lv-verdict {
+    flex: none; font-size: 12px; font-weight: 500; padding: 5px 11px;
+    border-radius: 999px; white-space: nowrap;
+  }
+  .v-supported     { color: #4ade80; background: rgba(74,222,128,.12); }
+  .v-corroborated  { color: #34d399; background: rgba(52,211,153,.12); }
+  .v-plausible     { color: #86efac; background: rgba(134,239,172,.12); }
+  .v-overstated    { color: #fbbf24; background: rgba(251,191,36,.12); }
+  .v-disputed      { color: #fcd34d; background: rgba(252,211,77,.12); }
+  .v-not_supported { color: #f87171; background: rgba(248,113,113,.12); }
+  .v-not_verifiable{ color: #cbd5e1; background: rgba(203,213,225,.10); }
+  .v-opinion       { color: #9b72cf; background: rgba(155,114,207,.14); }
+
+  .lv-context { font-size: 13px; color: #8b8b90; margin: 12px 0 0; line-height: 1.55; }
+  .lv-context .lv-mark { color: #b8b8bd; font-style: italic; }
+  .lv-stale { font-size: 13px; color: #8b8b90; margin: 6px 0 0; }
+  .lv-foot { display: flex; gap: 18px; align-items: center; margin-top: 14px; }
+  .lv-foot button, .lv-foot a {
+    background: none; border: none; padding: 0; font-family: inherit;
+    font-size: 13px; color: #a855f7; text-decoration: none; cursor: pointer;
+  }
+  .lv-foot button:hover, .lv-foot a:hover { text-decoration: underline; }
+  .lv-time { font-size: 12px; color: #7f7f85; margin-left: auto; }
+
+  .lv-evidence {
+    display: none; margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid var(--border, #232328);
+  }
+  .lv-evidence.open { display: block; }
+  .lv-erow { display: flex; gap: 14px; padding: 7px 0; font-size: 13px; line-height: 1.55; }
+  .lv-ekey { flex: none; width: 150px; color: #8b8b90; }
+  .lv-eval { color: #c9c9ce; }
+  .lv-sources { white-space: pre-wrap; }
+
+  .lv-empty {
+    border: 1px dashed var(--border, #232328); border-radius: 14px;
+    padding: 40px 28px; text-align: center; color: #8b8b90; font-size: 14px; line-height: 1.6;
+  }
+  .lv-empty strong { display: block; color: #c9c9ce; font-size: 16px; margin-bottom: 8px; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <div class="nav-inner">
+    <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
+      <svg width="230" height="32" viewBox="0 0 185 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="25" cy="14" r="2.5" fill="#ec4899"/>
+        <text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text>
+        <text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5" transform="skewX(-6)">SIGNAL</text>
+      </svg>
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-controls="nav-menu" aria-expanded="false" type="button">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-menu">
+      <a href="/index.html">Home</a>
+      <a href="/how-it-works.html">How it works</a> <a href="/live" style="color: #a855f7; font-weight: 500;">Live</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/leaderboard.html">Leaderboard</a>
+      <a href="/debates">Debates</a>
+      <a href="#" class="nav-cta">Get the extension</a>
+    </div>
+  </div>
+</nav>
+
+<main class="lv-wrap">
+
+  <div class="lv-head">
+    <div class="lv-eyebrow">Live</div>
+    <h1 class="lv-title">Live</h1>
+    <p class="lv-lede">Claims we have checked, most recent first. Partial by design — this is what has come
+      through the checking process, not everything that was said.</p>
+  </div>
+
+  <div class="lv-toolbar">
+    <span class="lv-toolbar-label">Feed</span>
+    <span class="lv-feedlinks"><a href="/live/feed.xml">RSS</a><a href="/live/feed.json">JSON</a></span>
+  </div>
+
+  <div class="lv-body">
+
+    <form class="lv-filters" method="get" action="/live" id="lv-filters">
+
+      {% if publications %}
+      <div class="lv-fgroup">
+        <h3>Publication</h3>
+        {% for p in publications %}
+        <label class="lv-fopt">
+          <input type="checkbox" name="publication" value="{{ p }}"
+                 {% if p in selected_publications %}checked{% endif %}
+                 onchange="document.getElementById('lv-filters').submit()">{{ p }}
+        </label>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="lv-fgroup">
+        <h3>Where the words came from</h3>
+        {% for key, label in origins %}
+        <label class="lv-fopt">
+          <input type="checkbox" name="origin" value="{{ key }}"
+                 {% if key in selected_origins %}checked{% endif %}
+                 onchange="document.getElementById('lv-filters').submit()">{{ label }}
+        </label>
+        {% endfor %}
+      </div>
+
+      {% if events %}
+      <div class="lv-fgroup">
+        <h3>Event</h3>
+        {% for e in events %}
+        <label class="lv-fopt">
+          <input type="checkbox" name="event" value="{{ e.id }}"
+                 {% if e.id in selected_events %}checked{% endif %}
+                 onchange="document.getElementById('lv-filters').submit()">{{ e.event_name }}
+        </label>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if selected_publications or selected_origins or selected_events %}
+      <button type="button" class="lv-clear" onclick="window.location='/live'">Clear all</button>
+      {% endif %}
+
+      <p class="lv-fnote">There is no filter by person. A page narrowed to one individual is a claim history
+        about that individual, and we do not build those.</p>
+    </form>
+
+    <div class="lv-stream">
+
+      {% if running_event %}
+      <div class="lv-event is-running">
+        <div class="lv-event-flag">Live now</div>
+        <h2>{{ running_event.event_name }}</h2>
+        <div class="lv-event-meta">{{ running_event.venue }}</div>
+        <p>Turns are being checked as they are spoken. Checked claims appear above the rest while this runs.</p>
+        <a class="lv-open" href="/debates/{{ running_event.slug }}">Open the coverage</a>
+      </div>
+      {% elif next_event %}
+      <div class="lv-event">
+        <div class="lv-event-flag">Next event</div>
+        <h2>{{ next_event.event_name }}</h2>
+        <div class="lv-event-meta">{{ next_event.venue }}{% if next_event.when_display %} · {{ next_event.when_display }}{% endif %}</div>
+        <p>We will check turns as they are spoken. Claims appear here once they have been checked.</p>
+        <a class="lv-open" href="/debates/{{ next_event.slug }}">Open the coverage</a>
+      </div>
+      {% endif %}
+
+      {% for c in claims %}
+      <article class="lv-card" id="c{{ c.id }}">
+        <div class="lv-card-top">
+          <p class="lv-claim">{{ c.claim_text }}</p>
+          <span class="lv-verdict v-{{ c.verdict }}">{{ c.verdict_label }}</span>
+        </div>
+
+        <p class="lv-context">{{ c.context_pre }}{% if c.context_mark %}<span class="lv-mark">{{ c.context_mark }}</span>{% endif %}{{ c.context_post }}</p>
+
+        {% if c.is_stale %}
+        <p class="lv-stale">Not re-checked since {{ c.last_checked_display }}</p>
+        {% endif %}
+
+        <div class="lv-foot">
+          <button type="button" onclick="lvToggle({{ c.id }})">How it was checked</button>
+          <button type="button" onclick="lvCopy('{{ c.id }}', this)">Copy link</button>
+          <a href="/corrections/new?claim={{ c.id }}">Request a correction</a>
+          <span class="lv-time">{{ c.when_display }}</span>
+        </div>
+
+        <div class="lv-evidence" id="ev{{ c.id }}">
+          {% if c.verification_method %}
+          <div class="lv-erow"><span class="lv-ekey">How it was checked</span><span class="lv-eval">{{ c.verification_method }}</span></div>
+          {% endif %}
+          {% if c.claim_type %}
+          <div class="lv-erow"><span class="lv-ekey">Kind of claim</span><span class="lv-eval">{{ c.claim_type }}</span></div>
+          {% endif %}
+          {% if c.why_checkworthy %}
+          <div class="lv-erow"><span class="lv-ekey">Why we checked it</span><span class="lv-eval">{{ c.why_checkworthy }}</span></div>
+          {% endif %}
+          {% if show_sources and c.sources_used %}
+          <div class="lv-erow"><span class="lv-ekey">What we read</span><span class="lv-eval lv-sources">{{ c.sources_used }}</span></div>
+          {% endif %}
+          {% if c.correction_note %}
+          <div class="lv-erow"><span class="lv-ekey">Corrected</span><span class="lv-eval">{{ c.correction_note }}</span></div>
+          {% endif %}
+          <div class="lv-erow"><span class="lv-ekey"></span><span class="lv-eval"><a href="/methodology" style="color:#a855f7;text-decoration:none;">What this method involves</a></span></div>
+        </div>
+      </article>
+      {% else %}
+      <div class="lv-empty">
+        <strong>Nothing checked matches that combination</strong>
+        This page only carries claims we have finished checking, so a narrow filter empties quickly.
+        Widen it, or take a filter off.
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-brand">
+      <svg width="32" height="22" viewBox="0 0 54 40" fill="none">
+        <path d="M3 20 Q 11 4, 18 20 T 33 20" stroke="#a855f7" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <circle cx="37" cy="18" r="4.2" fill="#ec4899"/>
+      </svg>
+      <span class="site-footer-wordmark">VERUM <em>SIGNAL</em></span>
+    </div>
+    <div class="site-footer-tagline">We provide the signals. You decide.</div>
+    <nav class="site-footer-nav">
+      <a href="/methodology">Methodology</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/pricing">Pricing</a>
+    </nav>
+    <div class="site-footer-meta">Methodology v1.6 &middot; Automated &middot; Auditable</div>
+  </div>
+</footer>
+
+<script>
+function lvToggle(id) {
+  var el = document.getElementById('ev' + id);
+  if (el) el.classList.toggle('open');
+}
+function lvCopy(id, btn) {
+  var url = window.location.origin + '/c/' + id;
+  var done = function () {
+    var old = btn.textContent;
+    btn.textContent = 'Link copied';
+    setTimeout(function () { btn.textContent = old; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done, done);
+  } else {
+    var t = document.createElement('textarea');
+    t.value = url; document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(t); done();
+  }
+}
+</script>
+</body>
+</html>

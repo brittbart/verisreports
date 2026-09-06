@@ -67,6 +67,7 @@ window.VS_DATA = {
           ["Numerical specificity", "claims with precise figures score higher than vague assertions"],
         ]},
         { title: "4.2  Why a threshold exists", intro: "The 30-point threshold means entertainment, lifestyle, sports, and editorial opinion claims are generally excluded from the verification queue. This is intentional -- Verum Signal evaluates factual claims about public affairs, not all content an outlet publishes." },
+        { title: "4.3  A second threshold governs the Live page", intro: "Live shows checked claims that scored 65 or above. The score is assigned at extraction, before any checking has happened, so it says nothing about how a claim turned out. The 65 figure was set by measuring what it selects: at 65, claims found to be exaggerated or contradicted make up roughly a third of the page; at 70 they make up nearly two thirds. That is not because higher-scoring claims are more often wrong, but because claims specific and contestable enough to be worth checking are also more likely to be found wanting. A higher threshold would make Live read as a list of failures rather than a record of work. Live is ordered by when checking finished, most recent first, and is never ordered by verdict." },
       ],
     },
     {
