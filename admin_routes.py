@@ -387,7 +387,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <input type="text" id="speaker-search" placeholder="Search speakers..." style="margin-bottom:14px;" oninput="filterSpeakers()">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Name</th><th>Slug</th><th>Role</th><th>Party</th><th>Type</th></tr></thead>
+          <thead><tr><th>ID</th><th>Name</th><th>Slug</th><th>Role</th><th>Party</th><th>Type</th><th>Voice</th></tr></thead>
           <tbody id="speakers-tbody">
             <tr><td colspan="6" style="color:var(--text-3);text-align:center;padding:32px;">Loading...</td></tr>
           </tbody>
@@ -661,10 +661,27 @@ async function loadSpeakers() {
   renderSpeakers(allSpeakers);
 }
 
+function voiceStatusBadge(s) {
+  if (s.voice_num_sources === null || s.voice_num_sources === undefined) {
+    return '<span style="color:var(--text-3);font-size:11px;">Not enrolled</span>';
+  }
+  const dist = s.voice_nearest_distance;
+  let color = '#30a46c';
+  if (s.voice_is_collapse_risk) color = '#e5484d';
+  else if (dist !== null && dist < 0.62) color = '#f5a623';
+  const distStr = (dist !== null && dist !== undefined) ? Number(dist).toFixed(3) : '?';
+  const nearName = s.voice_nearest_name || '?';
+  let flags = '';
+  if (s.voice_is_collapse_risk) flags = ' \u26A0 collapse risk';
+  else if (s.voice_is_central) flags = ' central';
+  if (s.voice_is_thin) flags += ' (n=1)';
+  return `<span style="color:${color};font-size:11px;" title="nearest: ${nearName} (${distStr})">n=${s.voice_num_sources}, min ${distStr}${flags}</span>`;
+}
+
 function renderSpeakers(speakers) {
   const tbody = document.getElementById('speakers-tbody');
   if (!speakers.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-3);text-align:center;padding:32px;">No speakers</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-3);text-align:center;padding:32px;">No speakers</td></tr>';
     return;
   }
   tbody.innerHTML = speakers.map(s => `
@@ -675,6 +692,7 @@ function renderSpeakers(speakers) {
       <td style="font-size:12px;color:var(--text-2)">${s.role||'—'}</td>
       <td style="font-size:12px;">${s.party||'—'}</td>
       <td style="font-size:11px;color:var(--text-3)">${s.speaker_type||'—'}</td>
+      <td>${voiceStatusBadge(s)}</td>
     </tr>
   `).join('');
 }
@@ -1418,21 +1436,30 @@ def register_admin_routes(app, get_db_conn):
         try:
             cur = conn.cursor()
             id_filter = request.args.get('id')
+            base_query = """
+                SELECT s.id, s.name, s.slug, s.role, s.party, s.speaker_type,
+                       v.num_sources, v.mean_distance, v.nearest_speaker_id,
+                       v.nearest_distance, v.is_central, v.is_collapse_risk,
+                       v.is_thin, v.synced_at, n.name
+                FROM speakers s
+                LEFT JOIN speaker_voice_status v ON v.speaker_id = s.id
+                LEFT JOIN speakers n ON n.id = v.nearest_speaker_id
+            """
             if id_filter:
-                cur.execute("""
-                    SELECT id, name, slug, role, party, speaker_type
-                    FROM speakers WHERE id = %s
-                """, (int(id_filter),))
+                cur.execute(base_query + " WHERE s.id = %s", (int(id_filter),))
             else:
-                cur.execute("""
-                    SELECT id, name, slug, role, party, speaker_type
-                    FROM speakers ORDER BY name
-                """)
+                cur.execute(base_query + " ORDER BY s.name")
             rows = cur.fetchall()
             cur.close()
             return jsonify({'speakers': [
                 {'id': r[0], 'name': r[1], 'slug': r[2],
-                 'role': r[3], 'party': r[4], 'speaker_type': r[5]}
+                 'role': r[3], 'party': r[4], 'speaker_type': r[5],
+                 'voice_num_sources': r[6], 'voice_mean_distance': r[7],
+                 'voice_nearest_speaker_id': r[8], 'voice_nearest_distance': r[9],
+                 'voice_is_central': r[10], 'voice_is_collapse_risk': r[11],
+                 'voice_is_thin': r[12],
+                 'voice_synced_at': r[13].isoformat() if r[13] else None,
+                 'voice_nearest_name': r[14]}
                 for r in rows
             ]})
         finally:
