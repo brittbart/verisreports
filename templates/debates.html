@@ -406,7 +406,7 @@
         </div>
         <div class="dx-stat-cell">
           <div class="dx-stat-num is-done">{{ stats.complete_count }}</div>
-          <div class="dx-stat-label">Completed &middot; <span>{{ stats.total_claims }}</span> claims verified</div>
+          <div class="dx-stat-label">Completed &middot; <span>{{ stats.total_claims }}</span> claims checked</div>
         </div>
       </div>
 
@@ -414,7 +414,7 @@
       {% if not live_events and not upcoming_events and not complete_events %}
       <div class="dx-empty">
         <div class="dx-empty-title">No public events yet.</div>
-        <p>Check back soon &mdash; debates and hearings will appear here as they are transcribed and verified.</p>
+        <p>Check back soon &mdash; debates and hearings will appear here as they are transcribed and checked.</p>
       </div>
       {% else %}
       <div class="dx-list-wrap">
@@ -445,7 +445,7 @@
           </div>
           <div class="dx-right">
             <span class="dx-status is-live">Live now</span>
-            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims verified</span>
+            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims checked</span>
           </div>
         </a>
         {% endfor %}
@@ -509,7 +509,7 @@
           </div>
           <div class="dx-right">
             <span class="dx-status is-complete">Complete</span>
-            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims verified</span>
+            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims checked</span>
           </div>
         </a>
         {% endfor %}
@@ -526,7 +526,7 @@
         </p>
         <p class="dx-note">
           <strong>What doesn&apos;t.</strong>
-          Private events, embargoed transcripts, and events where rights restrictions prevent us from publishing a verified record. Non-public events are excluded server-side.
+          Private events, embargoed transcripts, and events where rights restrictions prevent us from publishing a checked record. Non-public events are excluded server-side.
         </p>
         <p class="dx-note">
           <strong>No event scores.</strong>

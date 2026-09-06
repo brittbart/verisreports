@@ -1721,7 +1721,7 @@
       var verdictPillClass = 'v-pill--' + verdictKey.replace(/_/g, '-');
 
       var verdictHtml = isProvisional
-        ? '<span class="vs-badge-provisional" title="Being verified now"><span class="prov-dot"></span>verifying</span>'
+        ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>verifying</span>'
         : '<span class="v-pill ' + verdictPillClass + '">' + verdictLabel + '</span>' +
           (claim.is_provisional ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>verifying</span>' : '');
 
