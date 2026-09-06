@@ -8683,7 +8683,9 @@ def _live_context(row):
         ev = row.get('event_name')
         return ('%s, at %s' % (who, ev)) if ev else who, '', ''
     if row['claim_origin'] == 'attributed_claim':
-        who = row.get('attribution_context') or 'somebody else'
+        who = (row.get('attribution_context') or 'somebody else').strip().rstrip(',')
+        import re as _re
+        who = _re.sub(r'\s+(said|says|stated|announced|reported|told\s+\w+)$', '', who, flags=_re.I)
         return '%s ' % pub, 'reported that', ' %s said this' % who
     return '%s said this' % pub, '', ''
 
@@ -8701,6 +8703,7 @@ def _live_fetch(publications=None, origins=None, events=None, limit=LIVE_PAGE_LI
      LEFT JOIN events   e ON e.id = c.event_id
          WHERE c.verdict IS NOT NULL
            AND c.priority_score >= %s
+           AND (c.event_id IS NULL OR e.is_public)
     """
     params = [LIVE_PRIORITY_GATE]
     if publications:
