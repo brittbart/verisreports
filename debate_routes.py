@@ -37,11 +37,11 @@ def _get_all_public_events(get_db_conn):
                 e.id, e.slug, e.event_type, e.event_name,
                 e.event_date, e.start_time, e.timezone, e.event_subtitle, e.venue, e.transcript_source,
                 e.methodology_version, e.is_public,
-                COUNT(c.id) FILTER (WHERE c.verdict IS NOT NULL) AS claim_count
+                COUNT(c.id) FILTER (WHERE c.verdict IS NOT NULL AND e.is_public) AS claim_count
             FROM events e
             LEFT JOIN claims c ON c.event_id = e.id
                 AND c.claim_origin = 'debate_claim'
-            WHERE e.is_public = TRUE
+            WHERE e.is_listed = TRUE
             GROUP BY e.id, e.slug, e.event_type, e.event_name,
                      e.event_date, e.venue, e.transcript_source,
                      e.methodology_version, e.is_public
@@ -50,6 +50,10 @@ def _get_all_public_events(get_db_conn):
         rows = cur.fetchall()
         # Fetch all participants for all events in one query
         eid_list = [r[0] for r in rows]
+        # Claims-derived data (breakdown/latest/top) must only ever be computed
+        # for events that are actually is_public -- a listed-but-not-public
+        # event must never leak claim content via these sub-queries.
+        public_eid_list = [r[0] for r in rows if r[11]]
         participants_by_event = {eid: [] for eid in eid_list}
         if eid_list:
             cur.execute("""
@@ -72,7 +76,7 @@ def _get_all_public_events(get_db_conn):
                 })
         # Verdict breakdown per event (for mobile distribution bars)
         breakdown_by_event = {eid: [] for eid in eid_list}
-        if eid_list:
+        if public_eid_list:
             cur.execute("""
                 SELECT event_id, verdict, COUNT(*) AS n
                 FROM claims
@@ -81,13 +85,13 @@ def _get_all_public_events(get_db_conn):
                   AND verdict IS NOT NULL
                 GROUP BY event_id, verdict
                 ORDER BY event_id
-            """, (eid_list,))
+            """, (public_eid_list,))
             for ev_id, verdict, n in cur.fetchall():
                 breakdown_by_event[ev_id].append({'v': verdict, 'n': n})
 
         # Latest claim per event (for live hero quote line)
         latest_by_event = {}
-        if eid_list:
+        if public_eid_list:
             cur.execute("""
                 SELECT DISTINCT ON (c.event_id)
                     c.event_id, c.claim_text, s.name, c.speaker_id
@@ -97,7 +101,7 @@ def _get_all_public_events(get_db_conn):
                   AND c.claim_origin = 'debate_claim'
                   AND c.verdict IS NOT NULL
                 ORDER BY c.event_id, c.timestamp_seconds DESC NULLS LAST, c.first_seen DESC NULLS LAST
-            """, (eid_list,))
+            """, (public_eid_list,))
             for ev_id, text, spk_name, spk_id in cur.fetchall():
                 # Compute speaker ordinal from participants list
                 parts = participants_by_event.get(ev_id, [])
@@ -110,7 +114,7 @@ def _get_all_public_events(get_db_conn):
 
         # Most contested claim per event (for feature card)
         top_by_event = {}
-        if eid_list:
+        if public_eid_list:
             cur.execute("""
                 SELECT DISTINCT ON (c.event_id)
                     c.event_id, c.claim_text, c.verdict, s.name
@@ -131,7 +135,7 @@ def _get_all_public_events(get_db_conn):
                         WHEN 'supported' THEN 8
                         ELSE 9
                     END
-            """, (eid_list,))
+            """, (public_eid_list,))
             for ev_id, text, verdict, spk_name in cur.fetchall():
                 top_by_event[ev_id] = {
                     'verdict': verdict,
@@ -161,7 +165,7 @@ def _get_all_public_events(get_db_conn):
                 'event_start_iso':     (event_date.strftime('%Y-%m-%dT') + start_time.strftime('%H:%M:00') + {'CT': '-05:00', 'CST': '-06:00', 'CDT': '-05:00', 'ET': '-04:00', 'EST': '-05:00', 'EDT': '-04:00', 'MT': '-06:00', 'MST': '-07:00', 'MDT': '-06:00', 'PT': '-07:00', 'PST': '-08:00', 'PDT': '-07:00'}.get(timezone or 'CT', '-05:00')) if (event_date and start_time) else '',
                 'venue':               venue or '',
                 'transcript_source':   transcript_source or '',
-                'methodology_version': PUBLIC_METHODOLOGY_VERSION,
+                'methodology_version': PUBLIC_METHODOLOGY_VERSION if is_public else None,
                 'claim_count':         claim_count or 0,
                 'status':              status,
                 'start_time':          start_time.strftime('%H:%M') if start_time else None,
@@ -189,7 +193,7 @@ def _get_event_by_slug(get_db_conn, slug):
                    transcript_url, transcript_source, is_public,
                    methodology_version, notes, stream_url
             FROM events
-            WHERE slug = %s AND is_public = TRUE
+            WHERE slug = %s AND is_listed = TRUE
         """, (slug,))
         row = cur.fetchone()
         if not row:
@@ -215,7 +219,8 @@ def _get_event_by_slug(get_db_conn, slug):
             'venue':               venue or '',
             'transcript_url':      transcript_url or '',
             'transcript_source':   transcript_source or '',
-            'methodology_version': PUBLIC_METHODOLOGY_VERSION,
+            'methodology_version': PUBLIC_METHODOLOGY_VERSION if is_public else None,
+            'is_public':           is_public,
             'notes':               notes or '',
             'status':              status,
             'is_live':             status == 'live',
@@ -267,7 +272,9 @@ def _get_event_by_slug(get_db_conn, slug):
             })
         event['participants'] = participants
 
-        # Fetch verified claims for this event
+        # Fetch verified claims for this event -- the "AND %s" is the
+        # is_public gate: a listed-but-not-public event returns zero claim
+        # rows here rather than skipping the query and re-indenting the loop.
         cur.execute("""
             SELECT
                 c.id, c.claim_text, c.verdict, c.verdict_summary,
@@ -282,10 +289,11 @@ def _get_event_by_slug(get_db_conn, slug):
             LEFT JOIN speakers s ON s.id = c.speaker_id
             LEFT JOIN articles a ON a.id = c.article_id
             WHERE c.event_id = %s
+              AND %s
               AND c.verdict IS NOT NULL
               AND c.claim_origin = 'debate_claim'
             ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC
-        """, (eid,))
+        """, (eid, is_public))
         raw_claims = []
         for c in cur.fetchall():
             (cid, claim_text, verdict, verdict_summary, confidence,

@@ -602,7 +602,7 @@ def get_live_event_id():
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, event_date, start_time, timezone FROM events
-            WHERE is_public = TRUE
+            WHERE capture_enabled = TRUE
               AND start_time IS NOT NULL
               AND event_date >= CURRENT_DATE - INTERVAL '1 day'
               AND event_date <= CURRENT_DATE + INTERVAL '1 day'
