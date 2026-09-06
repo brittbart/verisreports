@@ -248,6 +248,16 @@ def cmd_enroll(args):
     print(f"\n  ✓ Enrollment saved to: {out_path}")
     print(f"  ✓ Averaged {len(embeddings)} embedding(s)")
 
+    try:
+        from s11_sync_voice_status import run_sync
+        _sync_rc = run_sync(apply=True)
+        if _sync_rc != 0:
+            print("  \u26a0 auto-sync completed with errors (see above) \u2014 the enrollment"
+                  " above still succeeded; run s11_sync_voice_status.py --apply manually")
+    except (Exception, SystemExit) as _e:
+        print(f"  \u26a0 auto-sync failed ({_e}) \u2014 the enrollment above still succeeded;"
+              f" run s11_sync_voice_status.py --apply manually")
+
 
 # ---------------------------------------------------------------------------
 # VERIFY MODE

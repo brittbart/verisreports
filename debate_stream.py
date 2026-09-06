@@ -277,6 +277,50 @@ def resolve_cluster_speaker(rev_idx, confirmed, seen, pending, pending_from,
     return seen.get(rev_idx), None
 
 
+VOICE_ID_THRESHOLD = 0.55
+MIN_EVIDENCE_SAMPLES = 2  # S12 2026-09-02: measured finding on CD7 -- a
+# crosstalk index (index 4, 28 words spread across all speakers) reached n=1
+# and CONFIRMED at 0.285, well under threshold, because averaging over one
+# sample gives none of the noise-reduction the design relies on. Requiring
+# more evidence, per the pre-registered plan -- not a threshold change.
+# Module-level (not local to run_voice_identification) so s11_score_dg_voiceid.py
+# reads the same values it is scoring against instead of holding a copy that
+# can silently drift -- exactly what happened once already today.
+
+
+def dg_score_speaker(ts_list, total_secs, embedder, enrolled, cosine_distance,
+                      min_evidence_samples=MIN_EVIDENCE_SAMPLES,
+                      threshold=VOICE_ID_THRESHOLD):
+    """Score one Deepgram index's collected timestamps against enrolled
+    prints. Pure function, no printing, no side effects -- shared by
+    run_voice_identification and s11_score_dg_voiceid.py so the naming
+    decision cannot drift between what ships and what gets scored.
+    Returns (sid_or_None, dist_or_None, verdict, valid_ts, distances) where
+    verdict is one of 'no_timestamps', 'insufficient_evidence',
+    'embedding_failed', 'confirmed', 'abstain'."""
+    if not ts_list:
+        return None, None, "no_timestamps", [], {}
+    valid_ts = [ts for ts in ts_list if ts is not None and ts + 8 < total_secs][:5]
+    if not valid_ts:
+        return None, None, "no_timestamps", [], {}
+    if len(valid_ts) < min_evidence_samples:
+        return None, None, "insufficient_evidence", valid_ts, {}
+    import numpy as np
+    embs = [embedder.embed(ts, ts + 8) for ts in valid_ts]
+    embs = [e for e in embs if e is not None]
+    if not embs:
+        return None, None, "embedding_failed", valid_ts, {}
+    avg_emb = np.mean(embs, axis=0)
+    avg_emb = avg_emb / np.linalg.norm(avg_emb)
+    distances = {sid: cosine_distance(avg_emb, data["embedding"])
+                 for sid, data in enrolled.items()}
+    best_sid = min(distances, key=distances.get)
+    best_dist = distances[best_sid]
+    if best_dist < threshold:
+        return best_sid, best_dist, "confirmed", valid_ts, distances
+    return None, best_dist, "abstain", valid_ts, distances
+
+
 def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
                     timestamp_seconds=None, attribution_confidence=None,
                     force_uncertain=False, rev_speaker_idx=None):
@@ -444,11 +488,13 @@ def run_async(args, token, speaker_map, speaker_order, event_id):
 # ---------------------------------------------------------------------------
 def run_live(args, token, speaker_map, speaker_order, event_id):
     try:
-        from rev_ai.streamingclient import RevAiStreamingClient
-        from rev_ai.models import MediaConfig
+        import websockets.sync.client as ws_client
     except ImportError:
-        print("ERROR: rev-ai streaming requires websocket-client. Run:")
-        print("  pip install rev-ai --break-system-packages")
+        print("ERROR: Deepgram live streaming requires the websockets package. Run:")
+        print("  pip install websockets --break-system-packages")
+        sys.exit(1)
+    if not os.environ.get("DEEPGRAM_API_KEY"):
+        print("ERROR: DEEPGRAM_API_KEY not set in .env")
         sys.exit(1)
 
     # Check yt-dlp
@@ -502,119 +548,117 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             print(f"  [PERSIST] WARNING: Could not persist mapping {rev_idx}->{speaker_id}: {_we}")
     # Calibration phase — first 3 minutes, aggressive name detection
 
-    # Voice re-identification — fires once at 90s after stream start
-    # Extracts embeddings from WAV file for each detected Rev AI speaker
-    # and matches against enrolled embeddings to populate confirmed_speaker_ids.
-    # Runs in background thread — does not block streaming.
-    voice_id_done = [False]
+    # Voice re-identification — runs continuously as a persistent loop (S12,
+    # 2026-09-02), starting 60s after stream start. Extracts embeddings from
+    # the WAV file for each unconfirmed Rev AI speaker and matches against
+    # enrolled embeddings to populate confirmed_speaker_ids. Runs in a
+    # background thread — does not block streaming.
     # Track which audio time segments belong to each Rev AI speaker index
     # Used by voice re-identification to sample correct audio without relying on DB speaker_id
     rev_speaker_timestamps = {}  # rev_idx -> [timestamp_seconds, ...]
 
     def run_voice_identification():
         import time as _time
-        _time.sleep(60)  # wait 60s for audio to accumulate
-        if voice_id_done[0]:
-            return
-        # NOTE: voice_id_done set True only on completion — early returns don't suppress re-ID
-        try:
-            import numpy as np
-            import os as _os
-            from voice_verify import load_enrolled_embeddings, extract_embedding, cosine_distance
-            # Scope enrolment to THIS event's candidates. An unscoped set lets
-            # min(distance) confirm a speaker from another debate entirely.
-            _cands = [sid for sid in (speaker_order or []) if sid != 3]
-            enrolled = load_enrolled_embeddings(allowed_speaker_ids=_cands)
-            _missing = [sid for sid in _cands if sid not in enrolled]
-            print(f"  [VOICE ID] Enrolment coverage: {len(enrolled)}/{len(_cands)} "
-                  f"candidates for this event")
-            if _missing:
-                print(f"  [VOICE ID] NOT enrolled, cannot be identified: {_missing}")
-            if not enrolled:
-                print("  [VOICE ID] No enrolled speakers for THIS event — skipping")
-                return
-            if not _os.path.exists(audio_path):
-                print("  [VOICE ID] WAV file not found — skipping")
-                return
-            import soundfile as sf
-            info = sf.info(audio_path)
-            total_secs = info.duration
-            if total_secs < 30:
-                print(f"  [VOICE ID] Only {total_secs:.0f}s of audio — need 30s minimum")
-                return
-            # Find Rev AI speakers not yet confirmed
-            unconfirmed = [rid for rid in seen_speaker_ids
-                           if rid not in confirmed_speaker_ids]
-            # Also verify all expected DB speakers for this event are confirmed.
-            # Without this, a single mapped Rev AI index causes premature skip.
-            event_candidate_ids = [sid for sid in (speaker_order or []) if sid != 3]
-            confirmed_db_sids = set(confirmed_speaker_ids.values())
-            missing_db = [sid for sid in event_candidate_ids if sid not in confirmed_db_sids]
-            if not unconfirmed and not missing_db:
-                print("  [VOICE ID] All speakers already confirmed — skipping")
-                voice_id_done[0] = True
-                return
-            if unconfirmed:
-                print(f"  [VOICE ID] {len(unconfirmed)} unconfirmed Rev AI speaker(s): {unconfirmed}")
-            if missing_db:
-                print(f"  [VOICE ID] {len(missing_db)} expected DB speaker(s) not yet seen: {missing_db}")
-            print(f"  [VOICE ID] Running for Rev AI speakers: {unconfirmed} ({total_secs:.0f}s audio available)")
-            VOICE_ID_THRESHOLD = 0.55
-            id_results = {}
-            for rev_idx in unconfirmed:
-                # Use timestamps collected live in rev_speaker_timestamps
-                # This is independent of DB speaker_id — avoids the misattribution problem
-                ts_list = rev_speaker_timestamps.get(rev_idx, [])
-                if not ts_list:
-                    print(f"  [VOICE ID] No timestamps tracked for Rev AI {rev_idx} — skipping")
+        from voice_verify import load_enrolled_embeddings, cosine_distance
+        from s11_embed_fast import FastEmbedder
+        _insufficient_evidence_logged = set()
+        TICK_SECS = 60  # S12 2026-09-02: not evidence-derived, adjust if needed
+        _time.sleep(60)  # wait 60s for audio to accumulate before the first tick
+        while True:
+            try:
+                import os as _os
+                _cands = [sid for sid in (speaker_order or []) if sid != 3]
+                enrolled = load_enrolled_embeddings(allowed_speaker_ids=_cands)
+                _missing = [sid for sid in _cands if sid not in enrolled]
+                if _missing:
+                    print(f"  [VOICE ID] NOT enrolled, cannot be identified: {_missing}")
+                if not enrolled:
+                    print("  [VOICE ID] No enrolled speakers for THIS event — stopping loop")
+                    return
+                unconfirmed = [rid for rid in seen_speaker_ids
+                               if rid not in confirmed_speaker_ids]
+                event_candidate_ids = [sid for sid in (speaker_order or []) if sid != 3]
+                confirmed_db_sids = set(confirmed_speaker_ids.values())
+                missing_db = [sid for sid in event_candidate_ids if sid not in confirmed_db_sids]
+                if not unconfirmed:
+                    # Nothing SEEN yet to embed, even if a candidate hasn't spoken
+                    # at all (missing_db). Skip the FastEmbedder load entirely --
+                    # there is no rev_idx to score without an utterance first.
+                    if missing_db:
+                        print(f"  [VOICE ID] {len(missing_db)} expected DB speaker(s) not yet seen: {missing_db}")
+                    _time.sleep(TICK_SECS)
                     continue
-                # Take up to 5 timestamps within available audio
-                valid_ts = [ts for ts in ts_list if ts is not None and ts + 8 < total_secs]
-                valid_ts = valid_ts[:5]
-                if not valid_ts:
-                    print(f"  [VOICE ID] No valid timestamps for Rev AI {rev_idx}")
+                if not _os.path.exists(audio_path):
+                    print("  [VOICE ID] WAV file not found — skipping this tick")
+                    _time.sleep(TICK_SECS)
                     continue
-                embs = []
-                for ts in valid_ts:
-                    emb = extract_embedding(audio_path, start_sec=ts, end_sec=ts+8)
-                    if emb is not None:
-                        embs.append(emb)
-                if not embs:
-                    print(f"  [VOICE ID] Could not extract embedding for Rev AI {rev_idx}")
+                import soundfile as sf
+                info = sf.info(audio_path)
+                total_secs = info.duration
+                if total_secs < 30:
+                    print(f"  [VOICE ID] Only {total_secs:.0f}s of audio — need 30s minimum")
+                    _time.sleep(TICK_SECS)
                     continue
-                avg_emb = np.mean(embs, axis=0)
-                avg_emb = avg_emb / np.linalg.norm(avg_emb)
-                distances = {sid: cosine_distance(avg_emb, data["embedding"])
-                             for sid, data in enrolled.items()}
-                best_sid = min(distances, key=distances.get)
-                best_dist = distances[best_sid]
-                dist_str = ", ".join(f"spk{k}={v:.3f}" for k, v in distances.items())
-                print(f"  [VOICE ID] Rev AI {rev_idx}: {dist_str}")
-                if best_dist < VOICE_ID_THRESHOLD:
-                    id_results[rev_idx] = best_sid
-                    print(f"  [VOICE ID] CONFIRMED: Rev AI {rev_idx} = speaker_{best_sid} (dist={best_dist:.3f})")
-                else:
-                    print(f"  [VOICE ID] No confident match for Rev AI {rev_idx} (best={best_dist:.3f})")
-            # Apply results — only map each DB speaker once (prevent duplicates)
-            already_mapped = set(confirmed_speaker_ids.values())
-            for rev_idx, db_sid in id_results.items():
-                if db_sid not in already_mapped:
-                    confirmed_speaker_ids[rev_idx] = db_sid
-                    seen_speaker_ids[rev_idx] = db_sid
-                    persist_mapping(rev_idx, db_sid)
-                    already_mapped.add(db_sid)
-                    print(f"  [VOICE ID] Mapped Rev AI {rev_idx} -> speaker_{db_sid} (persisted)")
-                else:
-                    print(f"  [VOICE ID] SKIP Rev AI {rev_idx} -> speaker_{db_sid} already mapped")
-            if id_results:
-                print(f"  [VOICE ID] Complete — {len(id_results)} speaker(s) identified")
-            else:
-                print("  [VOICE ID] Complete — no confident identifications")
-            voice_id_done[0] = True  # mark done only on successful completion
-        except Exception as _ve:
-            import traceback
-            print(f"  [VOICE ID] ERROR: {_ve}")
-            traceback.print_exc()
+                if unconfirmed:
+                    print(f"  [VOICE ID] {len(unconfirmed)} unconfirmed Rev AI speaker(s): {unconfirmed}")
+                if missing_db:
+                    print(f"  [VOICE ID] {len(missing_db)} expected DB speaker(s) not yet seen: {missing_db}")
+                embedder = FastEmbedder(audio_path, verbose=False)
+                id_results = {}
+                for rev_idx in unconfirmed:
+                    ts_list = rev_speaker_timestamps.get(rev_idx, [])
+                    sid, dist, verdict, valid_ts, distances = dg_score_speaker(
+                        ts_list, total_secs, embedder, enrolled, cosine_distance,
+                        MIN_EVIDENCE_SAMPLES, VOICE_ID_THRESHOLD)
+                    if verdict == "no_timestamps":
+                        continue
+                    if verdict == "insufficient_evidence":
+                        if rev_idx not in _insufficient_evidence_logged:
+                            print(f"  [VOICE ID] Rev AI {rev_idx}: only {len(valid_ts)} sample(s),"
+                                  f" need {MIN_EVIDENCE_SAMPLES} -- insufficient evidence, not scoring")
+                            _insufficient_evidence_logged.add(rev_idx)
+                        continue
+                    if verdict == "embedding_failed":
+                        print(f"  [VOICE ID] Could not extract embedding for Rev AI {rev_idx}")
+                        continue
+                    dist_str = ", ".join(f"spk{k}={v:.3f}" for k, v in distances.items())
+                    print(f"  [VOICE ID] Rev AI {rev_idx}: {dist_str}")
+                    if verdict == "confirmed":
+                        id_results[rev_idx] = sid
+                        print(f"  [VOICE ID] CONFIRMED: Rev AI {rev_idx} = speaker_{sid} (dist={dist:.3f})")
+                    else:
+                        print(f"  [VOICE ID] No confident match for Rev AI {rev_idx} (best={dist:.3f})")
+                already_mapped = set(confirmed_speaker_ids.values())
+                for rev_idx, db_sid in id_results.items():
+                    if db_sid not in already_mapped:
+                        confirmed_speaker_ids[rev_idx] = db_sid
+                        seen_speaker_ids[rev_idx] = db_sid
+                        persist_mapping(rev_idx, db_sid)
+                        already_mapped.add(db_sid)
+                        print(f"  [VOICE ID] Mapped Rev AI {rev_idx} -> speaker_{db_sid} (persisted)")
+                        if not args.dry_run:
+                            try:
+                                _bc = get_db_conn(); _bu = _bc.cursor()
+                                _bu.execute(
+                                    "UPDATE speaker_utterances SET speaker_id = %s "
+                                    "WHERE event_id = %s AND rev_speaker_idx = %s "
+                                    "AND speaker_id IS NULL AND processed_at IS NULL",
+                                    (db_sid, event_id, rev_idx)
+                                )
+                                _backfilled = _bu.rowcount
+                                _bc.commit(); _bu.close(); _bc.close()
+                                print(f"  [BACKFILL] {_backfilled} row(s) for Rev AI {rev_idx} -> speaker_{db_sid}")
+                            except Exception as _be:
+                                print(f"  [BACKFILL] WARNING: could not backfill Rev AI {rev_idx}: {_be}")
+                    else:
+                        print(f"  [VOICE ID] SKIP Rev AI {rev_idx} -> speaker_{db_sid} already mapped")
+                if id_results:
+                    print(f"  [VOICE ID] Tick complete — {len(id_results)} speaker(s) identified")
+            except Exception as _ve:
+                import traceback
+                print(f"  [VOICE ID] ERROR: {_ve}")
+                traceback.print_exc()
+            _time.sleep(TICK_SECS)
 
     threading.Thread(target=run_voice_identification, daemon=True).start()
 
@@ -631,16 +675,16 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                        if sid not in confirmed_speaker_ids.values()]
             if missing:
                 print(f"  [CALIBRATION] 3min elapsed. Missing speakers: {missing}")
-                # Prefer voice re-identification over order-based fallback
-                # Order-based is fragile — Rev AI index != speaker order in practice
+                # S12 2026-09-02: voice re-identification now runs as a persistent
+                # loop (see run_voice_identification) instead of a one-shot
+                # re-trigger, so this branch no longer spawns it. The order-based
+                # fallback below is UNCHANGED and stays dormant while every
+                # candidate is enrolled -- do not remove it or alter its condition.
                 from voice_verify import load_enrolled_embeddings
                 _cal = [sid for sid in (speaker_order or []) if sid != 3]
                 enrolled = load_enrolled_embeddings(allowed_speaker_ids=_cal)
-                if enrolled and not voice_id_done[0]:
-                    print("  [CALIBRATION] Triggering voice re-identification instead of order-based fallback")
-                    voice_id_done[0] = False
-                    import threading as _ct
-                    _ct.Thread(target=run_voice_identification, daemon=True).start()
+                if enrolled:
+                    print("  [CALIBRATION] Voice re-identification already running continuously -- no action needed")
                 elif not enrolled:
                     print("  [CALIBRATION] No voice enrollments — using order-based fallback")
                     unconfirmed_rev_ids = [rid for rid in seen_speaker_ids
@@ -652,8 +696,6 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                                 seen_speaker_ids[rid] = sid
                                 print(f"  [CALIBRATION] Order fallback: Rev AI {rid} = DB speaker {sid}")
                                 break
-                else:
-                    print("  [CALIBRATION] Voice re-ID already ran — accepting current state")
             else:
                 print(f"  [CALIBRATION] Complete — all speakers confirmed")
             calibration_done[0] = True
@@ -670,10 +712,19 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             cur.execute("SELECT id, name FROM speakers WHERE id = ANY(%s)", (speaker_order,))
             for sid, sname in cur.fetchall():
                 name_map[sname.lower()] = sid
-                for part in sname.lower().split():
-                    if len(part) > 3:
-                        name_map[part] = sid
-                        roster_terms.append(part)
+                _parts = sname.lower().split()
+                for _i, part in enumerate(_parts):
+                    if len(part) <= 3:
+                        continue
+                    # Bare FIRST names do not bind. "Senator Kevin" in an unrelated
+                    # debate bound Kevin Thompson at 0.967 (LD3, 2026-09-01). Index the
+                    # last token plus the full name; a handoff says "Mr. Thompson" or
+                    # "Kevin Thompson", never "Kevin" alone. Missing a first-name-only
+                    # handoff is coverage loss; binding the wrong candidate is not.
+                    if len(_parts) > 1 and _i < len(_parts) - 1:
+                        continue
+                    name_map[part] = sid
+                    roster_terms.append(part)
             # Add common Rev AI misspellings
             # Dict format: {'variants': [...], 'whole_word_only': bool}
             # whole_word_only=True uses word-boundary regex to prevent substring collisions
@@ -690,6 +741,9 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 'moderator':{'variants': ['moderator', 'the moderator'], 'whole_word_only': False},
                 'bien':     {'variants': ['bien'], 'whole_word_only': True},   # 4 chars: min_len=5 skipped it; boundary blocks 'ambience'
                 'degenfelder':{'variants': ['degen felder', 'degenfelder', 'degen phelder'], 'whole_word_only': False},  # Rev AI splits the surname
+                'pratte':   {'variants': ['pratt', 'prat', 'pratte'], 'whole_word_only': True},  # measured: Rev AI never writes the trailing e; _gen_variants cannot drop it
+                'clara':    {'variants': ['clara', 'claire'], 'whole_word_only': True},  # measured first-name mangling
+                'hill':     {'variants': ['hilla'], 'whole_word_only': True},  # 'Jonathan Hilla'; bare 'hill' deliberately absent - English word
             }
             whole_word_set = set()
             for correct, entry in misspellings.items():
@@ -868,16 +922,15 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                     # next voice is the asker, not the candidate it names.
                     print(f"  [NAME CUE] skipped (question attributed to a questioner): {text[:60]}")
                 elif _is_address:
-                    # Moderator is addressing a candidate — set pending for NEXT speaker
-                    # but do NOT lock current utterance to that candidate
-                    pending_speaker_id[0] = detected
+                    # PROPOSE-ONLY (S12, 2026-09-02): logs the address, does not
+                    # bind speaker_id -- voice ID is the only path to CONFIRMED now.
                     pending_from_idx[0] = rev_speaker_idx
                     print(f"  [NAME CUE] address→pending={detected}: {text[:60]}")
                 else:
                     # During calibration, use first name mentioned
                     if both_present and is_calibrating():
                         print(f"  [CALIBRATION] Both names present — using first match: {detected}")
-                    pending_speaker_id[0] = detected
+                    # PROPOSE-ONLY (S12, 2026-09-02): logged only, see note above.
                     pending_from_idx[0] = rev_speaker_idx
                     print(f"  [NAME CUE] speaker={detected}: {text[:60]}")
 
@@ -967,13 +1020,13 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                         if pct >= 0.80:
                             print(f"  [ATTRIBUTION WARNING] {pct:.0%} of last {len(non_mod)} utterances"
                                   f" attributed to speaker_{top_sid} — possible collapse")
-                            print(f"  [ATTRIBUTION WARNING] Resetting voice ID to re-identify speakers")
-                            # Reset voice ID flag so it fires again
-                            voice_id_done[0] = False
-                            threading.Thread(
-                                target=run_voice_identification,
-                                daemon=True
-                            ).start()
+                            # S12 2026-09-02: the old re-trigger here was ALREADY a
+                            # no-op -- the suspect index sits in confirmed_speaker_ids,
+                            # so it was excluded from `unconfirmed` and the retriggered
+                            # pass found nothing to score. Diagnostic only for now:
+                            # auto-un-confirming risks dropping a legitimately dominant
+                            # speaker (a long uninterrupted answer) on an unvalidated
+                            # rolling-window heuristic. Flag for a human, take no action.
                             recent_speaker_ids.clear()
             utterance_order[0] += 1
 
@@ -1001,17 +1054,6 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         print(f"ERROR: yt_dlp resolution failed: {e}")
         sys.exit(1)
 
-    # Configure Rev AI streaming
-    config = MediaConfig(
-        content_type='audio/x-raw',
-        layout='interleaved',
-        rate=16000,
-        audio_format='S16LE',
-        channels=1,
-    )
-
-    client = RevAiStreamingClient(token, config)
-
     # Save debate audio to disk for post-debate voice verification
     audio_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debate_audio')
     os.makedirs(audio_dir, exist_ok=True)
@@ -1038,42 +1080,119 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         stderr=subprocess.DEVNULL
     )
 
-    def audio_generator():
-        chunk_size = 8000  # 0.25s at 16kHz 16-bit mono
-        while True:
-            chunk = ffmpeg_proc.stdout.read(chunk_size)
-            if not chunk:
-                break
-            yield chunk
-
-    print("Connecting to Rev AI streaming...")
+    print("Connecting to Deepgram streaming...")
+    dg_key = os.environ.get("DEEPGRAM_API_KEY", "")
+    vocab_id = args.vocabulary_id if args.vocabulary_id else None
+    if vocab_id:
+        print(f"  [WARNING] --vocabulary-id is ignored on the Deepgram live path (no keyterm wiring, per 2026-09-01 decision)")
+    dg_url = ("wss://api.deepgram.com/v1/listen"
+              "?model=nova-3"
+              "&encoding=linear16"
+              "&sample_rate=16000"
+              "&channels=1"
+              "&diarize=true"
+              "&punctuate=true"
+              "&interim_results=false"
+              "&endpointing=500")
+    def dg_connect():
+        hdr = {"Authorization": "Token %s" % dg_key}
+        try:
+            s = ws_client.connect(dg_url, additional_headers=hdr,
+                                  open_timeout=20, close_timeout=5, ping_interval=None)
+            print("  Deepgram connected (additional_headers)")
+            return s
+        except TypeError:
+            s = ws_client.connect(dg_url, extra_headers=hdr,
+                                  open_timeout=20, close_timeout=5, ping_interval=None)
+            print("  Deepgram connected (extra_headers)")
+            return s
+    dg_sock = dg_connect()
+    KEEPALIVE = json.dumps({"type": "KeepAlive"})
+    dg_stop = threading.Event()
+    dg_receive_error = [None]
+    def dg_emit_run(spk, words):
+        elements = []
+        for w in words:
+            elements.append({
+                "type": "text",
+                "value": w.get("punctuated_word") or w.get("word") or "",
+                "ts": w.get("start"),
+                "confidence": w.get("confidence"),
+            })
+        on_final({"type": "final", "speaker_id": spk, "elements": elements})
+    def dg_split_and_dispatch(words):
+        spks = set(w.get("speaker") for w in words)
+        if len(spks) > 1:
+            print(f"  [DG SPLIT] final spanned speakers {spks} -- splitting into per-speaker runs")
+        run = []
+        run_spk = None
+        started = False
+        for w in words:
+            spk = w.get("speaker")
+            if started and spk != run_spk:
+                dg_emit_run(run_spk, run)
+                run = []
+            run.append(w)
+            run_spk = spk
+            started = True
+        if run:
+            dg_emit_run(run_spk, run)
+    def dg_receive():
+        while not dg_stop.is_set():
+            try:
+                raw = dg_sock.recv(timeout=15)
+            except TimeoutError:
+                continue
+            except Exception as e:
+                if not dg_stop.is_set():
+                    dg_receive_error[0] = e
+                return
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                continue
+            if msg.get("type") == "Metadata":
+                continue
+            alt = (msg.get("channel", {}).get("alternatives") or [{}])[0]
+            text = (alt.get("transcript") or "").strip()
+            if not text or not msg.get("is_final"):
+                continue
+            words = alt.get("words") or []
+            if words:
+                dg_split_and_dispatch(words)
+            else:
+                on_final({"type": "final", "speaker_id": None,
+                          "elements": [{"type": "text", "value": text,
+                                        "ts": msg.get("start"), "confidence": None}]})
+    dg_thread = threading.Thread(target=dg_receive, daemon=True)
+    dg_thread.start()
     try:
-        # Patch URL to enable speaker switch detection (not exposed by SDK)
-        _orig_connect = client.client.connect
-        def _patched_connect(url, **kwargs):
-            if 'enable_speaker_switch' not in url:
-                url += '&enable_speaker_switch=true'
-            print(f"  Rev AI streaming with speaker switch detection enabled")
-            return _orig_connect(url, **kwargs)
-        client.client.connect = _patched_connect
-
-        vocab_id = args.vocabulary_id if args.vocabulary_id else None
-        if vocab_id:
-            print(f"  Using custom vocabulary: {vocab_id}")
-        response_gen = client.start(audio_generator(), custom_vocabulary_id=vocab_id)
-        for response in response_gen:
-            if hasattr(response, 'type'):
-                if response.type == 'partial':
-                    on_partial(response)
-                elif response.type == 'final':
-                    on_final(response.__dict__ if hasattr(response, '__dict__') else response)
-            elif isinstance(response, str):
-                try:
-                    data = json.loads(response)
-                    if data.get('type') == 'final':
-                        on_final(data)
-                except Exception:
-                    pass
+        primer = ffmpeg_proc.stdout.read(32000)
+        if not primer or len(primer) < 32000:
+            raise RuntimeError(f"ffmpeg produced insufficient audio to prime the socket ({len(primer) if primer else 0} bytes)")
+        dg_sock.send(primer)
+        send_start = time.time()
+        last_ka = send_start
+        sent_bytes = [len(primer)]
+        while True:
+            if dg_receive_error[0] is not None:
+                raise dg_receive_error[0]
+            if not dg_thread.is_alive():
+                raise RuntimeError("Deepgram receive thread exited without an error -- treating as a dead connection")
+            chunk = ffmpeg_proc.stdout.read(4096)
+            if not chunk:
+                print("  [ffmpeg ended]")
+                break
+            dg_sock.send(chunk)
+            sent_bytes[0] += len(chunk)
+            audio_secs = sent_bytes[0] / 32000.0
+            drift = audio_secs - (time.time() - send_start)
+            if drift > 0.5:
+                time.sleep(min(drift, 2.0))
+            if time.time() - last_ka > 5:
+                dg_sock.send(KEEPALIVE)
+                last_ka = time.time()
+        trigger_extraction(event_id, args.dry_run)
     except KeyboardInterrupt:
         print("\n\nStopped by user.")
         ffmpeg_proc.terminate()
@@ -1082,6 +1201,12 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         print(f"\nStream error: {e}")
         ffmpeg_proc.terminate()
         raise
+    finally:
+        dg_stop.set()
+        try:
+            dg_sock.close()
+        except Exception:
+            pass
 
 # ---------------------------------------------------------------------------
 # Entry point
