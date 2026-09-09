@@ -445,7 +445,8 @@
           </div>
           <div class="dx-right">
             <span class="dx-status is-live">Live now</span>
-            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims checked</span>
+            {% if e.is_public %}<span class="dx-count"><strong>{{ e.claim_count }}</strong> claims checked</span>
+            {% else %}<span class="dx-count">Capturing now</span>{% endif %}
           </div>
         </a>
         {% endfor %}
@@ -509,7 +510,8 @@
           </div>
           <div class="dx-right">
             <span class="dx-status is-complete">Complete</span>
-            <span class="dx-count"><strong>{{ e.claim_count }}</strong> claims checked</span>
+            {% if e.is_public %}<span class="dx-count"><strong>{{ e.claim_count }}</strong> claims checked</span>
+            {% else %}<span class="dx-count">Pending review</span>{% endif %}
           </div>
         </a>
         {% endfor %}
