@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ event.event_name }} — Verum Signal</title>
 {{ seo_meta | safe }}
+{% if ops_token %}<script>window.VS_OPS_TOKEN={{ ops_token|tojson }};window.VS_OPS_Q='?ops_token='+encodeURIComponent(window.VS_OPS_TOKEN);</script>{% endif %}
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1072,6 +1073,7 @@
 
 <!-- ============= NAV ============= -->
 <a href="#claim-feed" class="skip-nav">Skip to claims</a>
+{% if ops_preview %}<div style="background:#7c2d12;color:#fde68a;font-family:var(--font-mono);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;text-align:center;padding:8px 16px;">Ops preview &mdash; this event is not public. Claims on this page are visible only with ops credentials.</div>{% endif %}
 <nav class="nav" aria-label="Site">
   <div class="nav-inner">
     <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">
@@ -1372,7 +1374,7 @@
           {% for p in event.participants %}
           {% set bd = breakdown.get(p.id, {}) %}
           {% set cand = ['a','b','c','d'][loop.index0] if loop.index0 < 4 else 'a' %}
-          <div class="dt-side-card cand-{{ cand }}">
+          <div class="dt-side-card cand-{{ cand }}" data-side-speaker-id="{{ p.id }}">
             <div class="dt-side-head">
               <div class="dt-side-mono">{{ p.initials }}</div>
               <div>
@@ -1393,7 +1395,7 @@
             </div>
             <div class="dt-side-counts">
               {% for v, label, color in [('supported','Supported','var(--c-supported)'),('plausible','Plausible','var(--c-plausible)'),('corroborated','Corroborated','var(--c-corroborated)'),('overstated','Overstated','var(--c-overstated)'),('disputed','Disputed','var(--c-disputed)'),('not_supported','Not supported','var(--c-not-supported)')] %}
-              <div class="dt-side-count {% if bd.get(v,0) == 0 %}is-zero{% endif %}">
+              <div class="dt-side-count {% if bd.get(v,0) == 0 %}is-zero{% endif %}" data-verdict="{{ v }}">
                 <span class="dot" style="background:{{ color }};"></span>
                 <span class="name">{{ label }}</span>
                 <span class="num">{{ bd.get(v, 0) }}</span>
@@ -1537,7 +1539,7 @@
     if (!isLive) return;
     var slug = window.location.pathname.split('/').pop();
     function checkStreamActive() {
-      fetch('/api/debates/' + slug + '/stats')
+      fetch('/api/debates/' + slug + '/stats' + (window.VS_OPS_Q || ''))
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.stream_active === false) {
@@ -1564,12 +1566,34 @@
     if (!isLive) return;
     var slug = window.location.pathname.split('/').pop();
     var STATS_INTERVAL = 20000; // 20 seconds
+    var SIDE_COLORS = {supported:'var(--c-supported)',plausible:'var(--c-plausible)',corroborated:'var(--c-corroborated)',overstated:'var(--c-overstated)',disputed:'var(--c-disputed)',not_supported:'var(--c-not-supported)'};
+    function updateSideCard(spk) {
+      var side = document.querySelector('[data-side-speaker-id="' + spk.speaker_id + '"]');
+      if (!side || !spk.verdicts) return;
+      var total = side.querySelector('.dt-side-total');
+      if (total) total.textContent = spk.total || 0;
+      side.querySelectorAll('.dt-side-count[data-verdict]').forEach(function(row) {
+        var v = row.getAttribute('data-verdict'), n = spk.verdicts[v] || 0;
+        var num = row.querySelector('.num'); if (num) num.textContent = n;
+        row.classList.toggle('is-zero', n === 0);
+      });
+      var bar = side.querySelector('.dt-side-bar');
+      if (bar) {
+        var html = '';
+        Object.keys(SIDE_COLORS).forEach(function(v) {
+          var n = spk.verdicts[v] || 0;
+          if (n > 0) html += '<div class="seg" style="background:' + SIDE_COLORS[v] + ';flex:' + n + ';" title="' + v.replace(/_/g, ' ') + ': ' + n + '"></div>';
+        });
+        bar.innerHTML = html;
+      }
+    }
     function updateSpeakerCounts() {
-      fetch('/api/debates/' + slug + '/stats')
+      fetch('/api/debates/' + slug + '/stats' + (window.VS_OPS_Q || ''))
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (!data.speakers) return;
           data.speakers.forEach(function(spk) {
+            updateSideCard(spk);
             var card = document.querySelector('[data-speaker-id="' + spk.speaker_id + '"]');
             if (!card) return;
             var finalNum = card.querySelector('.dt-p-final-num');
@@ -1585,7 +1609,7 @@
         .catch(function() {});
     }
     function updateLiveExtras() {
-      fetch('/api/debates/' + slug + '/stats')
+      fetch('/api/debates/' + slug + '/stats' + (window.VS_OPS_Q || ''))
         .then(function(r) { return r.json(); })
         .then(function(data) {
           // Active speaker card
@@ -1829,7 +1853,7 @@
       // service allow-lists both verumsignal.com and www.verumsignal.com.
       // Route prefix is /v1, NOT /mobile/v1 -- the old prefix 404s there.
       var SSE_BASE = 'https://stream.verumsignal.com';
-      var url = SSE_BASE + '/v1/debates/' + slug + '/stream?since_id=' + lastClaimId;
+      var url = SSE_BASE + '/v1/debates/' + slug + '/stream?since_id=' + lastClaimId + (window.VS_OPS_TOKEN ? '&ops_token=' + encodeURIComponent(window.VS_OPS_TOKEN) : '');
       es = new EventSource(url);
 
       es.addEventListener('connected', function(e) {

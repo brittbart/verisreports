@@ -16,6 +16,9 @@ SSE event types emitted:
 
 import time
 import json
+import os
+import hmac
+import hashlib
 from datetime import datetime, timezone
 from flask import Response, request
 
@@ -126,17 +129,28 @@ def _event_has_ended(event_date, start_time, tz_name, _now=None):
         return now_utc > start + timedelta(hours=ENDED_GRACE_HOURS)
     return event_date < now_utc.astimezone(event_tz).date()
 
+def _ops_token_ok(event_id, token):
+    """exp.hexdigest -- HMAC-SHA256 over 'ops:<event_id>:<exp>' keyed by OPS_PASSWORD; unset key -> never ok."""
+    key = os.environ.get('OPS_PASSWORD')
+    if not key or not token or '.' not in token:
+        return False
+    exp_s, sig = token.split('.', 1)
+    if not exp_s.isdigit() or int(exp_s) < time.time():
+        return False
+    good = hmac.new(key.encode(), f"ops:{event_id}:{exp_s}".encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(sig, good)
+
 def _get_event(slug: str, get_db):
     db = get_db()
     cur = db.cursor()
     try:
-        cur.execute("SELECT id, event_name, event_date, start_time, timezone FROM events WHERE slug = %s", (slug,))
+        cur.execute("SELECT id, event_name, event_date, start_time, timezone, is_public FROM events WHERE slug = %s", (slug,))
         row = cur.fetchone()
         if not row:
             return None
-        event_id, event_name, event_date, start_time, tz_name = row
+        event_id, event_name, event_date, start_time, tz_name, is_public = row
         is_ended = _event_has_ended(event_date, start_time, tz_name)
-        return event_id, event_name, is_ended
+        return event_id, event_name, is_ended, bool(is_public)
     finally:
         cur.close()
         db.close()
@@ -236,6 +250,7 @@ def _get_claim_updates(event_id: int, pending_ids: list, get_db) -> list:
 
 def debate_stream_generator(slug: str, get_db,
                              since_id: int = 0,
+                             ops_token=None,
                              poll_interval: int = 5,
                              heartbeat_interval: int = 15,
                              max_duration: int = 14400):
@@ -244,7 +259,10 @@ def debate_stream_generator(slug: str, get_db,
         yield _sse_event("error", {"code": "NOT_FOUND", "message": f"Debate '{slug}' not found"})
         return
 
-    event_id, event_name, is_ended = event_info
+    event_id, event_name, is_ended, is_public = event_info
+    if not is_public and not _ops_token_ok(event_id, ops_token):
+        yield _sse_event("error", {"code": "NOT_PUBLIC", "message": "This event is not public."})
+        return
 
     last_claim_id = since_id
     last_provisional_id = since_id
@@ -345,7 +363,8 @@ def register_sse_routes(mobile_bp, get_db):
             since_id = 0
 
         def generate():
-            yield from debate_stream_generator(slug, get_db, since_id=since_id)
+            yield from debate_stream_generator(slug, get_db, since_id=since_id,
+                                               ops_token=request.args.get('ops_token'))
 
         return Response(
             generate(),

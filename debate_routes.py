@@ -183,8 +183,42 @@ def _get_all_public_events(get_db_conn):
             pass
 
 
-def _get_event_by_slug(get_db_conn, slug):
-    """Return a single public event by slug, or None."""
+OPS_TOKEN_TTL_SECONDS = 6 * 3600
+def _ops_basic_auth_ok():
+    """Same contract as /ops: username 'admin', password OPS_PASSWORD; unset -> never ok."""
+    import os
+    from flask import request
+    expected = os.environ.get('OPS_PASSWORD')
+    auth = request.authorization
+    if not expected or not auth or auth.type != 'basic':
+        return False
+    import hmac
+    return auth.username == 'admin' and hmac.compare_digest(auth.password or '', expected)
+def _ops_token(event_id):
+    """exp.hexdigest -- HMAC-SHA256 over 'ops:<event_id>:<exp>' keyed by OPS_PASSWORD."""
+    import os, time, hmac, hashlib as _h
+    key = os.environ.get('OPS_PASSWORD')
+    if not key:
+        return None
+    exp = int(time.time()) + OPS_TOKEN_TTL_SECONDS
+    sig = hmac.new(key.encode(), f"ops:{event_id}:{exp}".encode(), _h.sha256).hexdigest()
+    return f"{exp}.{sig}"
+def _ops_token_ok(event_id, token):
+    import os, time, hmac, hashlib as _h
+    key = os.environ.get('OPS_PASSWORD')
+    if not key or not token or '.' not in token:
+        return False
+    exp_s, sig = token.split('.', 1)
+    if not exp_s.isdigit() or int(exp_s) < time.time():
+        return False
+    good = hmac.new(key.encode(), f"ops:{event_id}:{exp_s}".encode(), _h.sha256).hexdigest()
+    return hmac.compare_digest(sig, good)
+def _ops_reveal(event_id):
+    """True when the caller may see a non-public event's claims: valid token or basic auth."""
+    from flask import request
+    return _ops_token_ok(event_id, request.args.get('ops_token')) or _ops_basic_auth_ok()
+def _get_event_by_slug(get_db_conn, slug, reveal=False):
+    """Return a single listed event by slug, or None. Claims are gated on is_public unless reveal (ops preview)."""
     conn = get_db_conn()
     try:
         cur = conn.cursor()
@@ -293,7 +327,7 @@ def _get_event_by_slug(get_db_conn, slug):
               AND c.verdict IS NOT NULL
               AND c.claim_origin = 'debate_claim'
             ORDER BY COALESCE(c.timestamp_seconds, EXTRACT(EPOCH FROM c.first_seen)::INTEGER) DESC
-        """, (eid, is_public))
+        """, (eid, bool(is_public or reveal)))
         raw_claims = []
         for c in cur.fetchall():
             (cid, claim_text, verdict, verdict_summary, confidence,
@@ -615,9 +649,18 @@ def register_debate_routes(app, get_db_conn):
         slug = slug.lower()
         if not SLUG_RE.match(slug):
             abort(400)
-        event, claims = _get_event_by_slug(get_db_conn, slug)
+        from flask import request as _rq, Response as _Rs
+        ops_preview = False
+        if _rq.args.get('ops'):
+            if not _ops_basic_auth_ok():
+                return _Rs('Ops credentials required', 401,
+                                {'WWW-Authenticate': 'Basic realm="Verum Signal Ops"'})
+            ops_preview = True
+        event, claims = _get_event_by_slug(get_db_conn, slug, reveal=ops_preview)
         if event is None:
             abort(404)
+        ops_preview = ops_preview and not event.get('is_public')
+        ops_token = _ops_token(event['id']) if ops_preview else None
 
         # Per-participant verdict breakdown
         breakdown = {}
@@ -644,6 +687,8 @@ def register_debate_routes(app, get_db_conn):
             event=event,
             claims=claims,
             breakdown=breakdown,
+            ops_preview=ops_preview,
+            ops_token=ops_token,
             methodology_version=PUBLIC_METHODOLOGY_VERSION,
             seo_meta=debate_meta(event["event_name"], slug, len(claims), event.get("event_date_str", "")),
         )
@@ -701,6 +746,16 @@ def register_debate_routes(app, get_db_conn):
             if not row:
                 return jsonify({'error': 'Event not found'}), 404
             event_id, is_public = row
+            if not is_public and not _ops_reveal(event_id):
+                cur.execute("""
+                    SELECT COUNT(*) FROM speaker_utterances
+                    WHERE event_id = %s AND created_at > NOW() - INTERVAL '3 minutes'
+                """, (event_id,))
+                restricted_active = (cur.fetchone()[0] or 0) > 0
+                cur.close()
+                conn.close()
+                return jsonify({'event_id': event_id, 'slug': slug, 'is_public': False,
+                                'restricted': True, 'stream_active': restricted_active})
             # Utterance stats
             cur.execute("""
                 SELECT
@@ -773,12 +828,24 @@ def register_debate_routes(app, get_db_conn):
                 GROUP BY c.speaker_id, s.name
             """, (event_id,))
             speaker_rows = cur.fetchall()
+            # Per-speaker verdict breakdown for the sidebar (keys normalised like _format_claim)
+            cur.execute("""
+                SELECT c.speaker_id, lower(replace(c.verdict, ' ', '_')) AS v, COUNT(*)
+                FROM claims c
+                WHERE c.event_id = %s AND c.claim_origin = 'debate_claim' AND c.verdict IS NOT NULL
+                GROUP BY c.speaker_id, v
+            """, (event_id,))
+            per_speaker_verdicts = {}
+            for sid, v, n in cur.fetchall():
+                per_speaker_verdicts.setdefault(sid, {})[v] = n
             speakers_breakdown = [
                 {
                     'speaker_id': row[0],
                     'name': row[1],
                     'claims_provisional': row[2],
                     'claims_final': row[3],
+                    'verdicts': per_speaker_verdicts.get(row[0], {}),
+                    'total': sum(per_speaker_verdicts.get(row[0], {}).values()),
                 }
                 for row in speaker_rows
             ]
