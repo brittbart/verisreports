@@ -361,10 +361,10 @@ def register_sse_routes(mobile_bp, get_db):
             since_id = int(request.args.get('since_id', 0))
         except (ValueError, TypeError):
             since_id = 0
+        ops_token = request.args.get('ops_token')
 
         def generate():
-            yield from debate_stream_generator(slug, get_db, since_id=since_id,
-                                               ops_token=request.args.get('ops_token'))
+            yield from debate_stream_generator(slug, get_db, since_id=since_id, ops_token=ops_token)
 
         return Response(
             generate(),
