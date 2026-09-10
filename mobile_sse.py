@@ -105,17 +105,37 @@ CLAIM_UPDATE_QUERY = """
     ORDER BY c.id DESC
 """
 
+_TZ_OFFSETS = {
+    'ET': -4, 'EST': -5, 'EDT': -4,
+    'CT': -5, 'CST': -6, 'CDT': -5,
+    'MT': -6, 'MST': -7, 'MDT': -6,
+    'PT': -7, 'PST': -8, 'PDT': -7,
+}
+ENDED_GRACE_HOURS = 4  # matches debate_stream_generator max_duration (14400 s)
+def _event_has_ended(event_date, start_time, tz_name, _now=None):
+    """Ended in the EVENT's timezone, not the server's UTC date.
+    With a start_time: ended once now > start + ENDED_GRACE_HOURS.
+    Without one: ended once the event's local date has passed."""
+    if not event_date:
+        return False
+    from datetime import timedelta
+    event_tz = timezone(timedelta(hours=_TZ_OFFSETS.get(tz_name or 'CT', -5)))
+    now_utc = _now if _now is not None else datetime.now(timezone.utc)
+    if start_time is not None:
+        start = datetime.combine(event_date, start_time).replace(tzinfo=event_tz)
+        return now_utc > start + timedelta(hours=ENDED_GRACE_HOURS)
+    return event_date < now_utc.astimezone(event_tz).date()
+
 def _get_event(slug: str, get_db):
     db = get_db()
     cur = db.cursor()
     try:
-        cur.execute("SELECT id, event_name, event_date FROM events WHERE slug = %s", (slug,))
+        cur.execute("SELECT id, event_name, event_date, start_time, timezone FROM events WHERE slug = %s", (slug,))
         row = cur.fetchone()
         if not row:
             return None
-        event_id, event_name, event_date = row
-        today = datetime.now(timezone.utc).date()
-        is_ended = event_date and event_date < today
+        event_id, event_name, event_date, start_time, tz_name = row
+        is_ended = _event_has_ended(event_date, start_time, tz_name)
         return event_id, event_name, is_ended
     finally:
         cur.close()
