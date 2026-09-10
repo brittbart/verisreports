@@ -1615,8 +1615,10 @@
           // Active speaker card
           var nameEl = document.getElementById('live-speaker-name');
           var countEl = document.getElementById('live-claim-count');
-          if (nameEl && data.most_recent_speaker) {
+          var streamFresh = window._vsSpeakerFromStream && (Date.now() - window._vsSpeakerFromStream < 60000);
+          if (nameEl && data.most_recent_speaker && !streamFresh) {
             nameEl.textContent = data.most_recent_speaker.name;
+            nameEl.style.opacity = '';
           }
           if (countEl) {
             var total = data.claims_with_verdict || 0;
@@ -1891,6 +1893,20 @@
         var claim = JSON.parse(e.data);
         lastClaimId = Math.max(lastClaimId, claim.id);
         updateCard(claim);
+      });
+
+      es.addEventListener('speaker', function(e) {
+        var sp = JSON.parse(e.data);
+        var nameEl = document.getElementById('live-speaker-name');
+        if (!nameEl) return;
+        if (sp.speaker_id === null || sp.speaker_id === undefined) {
+          nameEl.textContent = 'Identifying speaker\u2026';
+          nameEl.style.opacity = '0.6';
+        } else {
+          nameEl.textContent = sp.name || 'Unknown';
+          nameEl.style.opacity = '';
+        }
+        window._vsSpeakerFromStream = Date.now();
       });
 
       es.addEventListener('debate_ended', function() { es.close(); });

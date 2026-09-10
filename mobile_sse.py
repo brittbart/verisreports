@@ -230,6 +230,32 @@ def _get_provisional_claims_since(event_id: int, since_id: int, get_db) -> list:
         cur.close()
         db.close()
 
+LATEST_SPEAKER_QUERY = """
+    SELECT su.utterance_order, su.speaker_id, s.name, su.created_at
+    FROM speaker_utterances su
+    LEFT JOIN speakers s ON s.id = su.speaker_id
+    WHERE su.event_id = %s
+    ORDER BY su.utterance_order DESC NULLS LAST, su.created_at DESC
+    LIMIT 1
+"""
+
+def _get_latest_speaker(event_id: int, get_db):
+    db = get_db()
+    cur = db.cursor()
+    try:
+        cur.execute(LATEST_SPEAKER_QUERY, (event_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {"utterance_order": row[0], "speaker_id": row[1], "name": row[2],
+                "at": row[3].isoformat() if row[3] else None}
+    except Exception as e:
+        print(f"[mobile_sse] DB error fetching latest speaker: {e}")
+        return None
+    finally:
+        cur.close()
+        db.close()
+
 def _get_claim_updates(event_id: int, pending_ids: list, get_db) -> list:
     if not pending_ids:
         return []
@@ -267,6 +293,7 @@ def debate_stream_generator(slug: str, get_db,
     last_claim_id = since_id
     last_provisional_id = since_id
     pending_provisional_ids = set()
+    last_speaker_sid = object()  # sentinel: the first poll always emits
 
     existing_claims = _get_claims_since(event_id, last_claim_id, get_db)
     existing_provisional = _get_provisional_claims_since(event_id, last_provisional_id, get_db)
@@ -307,6 +334,12 @@ def debate_stream_generator(slug: str, get_db,
 
         if now - last_poll >= poll_interval:
             try:
+                # 0. Speaker change on the latest utterance (null = not yet confirmed by voice ID)
+                sp = _get_latest_speaker(event_id, get_db)
+                if sp is not None and sp['speaker_id'] != last_speaker_sid:
+                    yield _sse_event("speaker", sp)
+                    last_speaker_sid = sp['speaker_id']
+                    last_heartbeat = time.time()
                 # 1. Check pending provisional claims for verdict updates
                 if pending_provisional_ids:
                     updated = _get_claim_updates(event_id, list(pending_provisional_ids), get_db)
