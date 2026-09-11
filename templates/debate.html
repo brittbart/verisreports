@@ -1214,6 +1214,8 @@
             <button class="dt-filter-pill" data-verdict="overstated">Overstated</button>
             <button class="dt-filter-pill" data-verdict="disputed">Disputed</button>
             <button class="dt-filter-pill" data-verdict="not_supported">Not supported</button>
+            <button class="dt-filter-pill" data-verdict="opinion">Opinion</button>
+            <button class="dt-filter-pill" data-verdict="not_verifiable">Not verifiable</button>
           </div>
         </div>
 
@@ -1387,14 +1389,14 @@
               </div>
             </div>
             <div class="dt-side-bar">
-              {% for v, color in [('supported','var(--c-supported)'),('plausible','var(--c-plausible)'),('corroborated','var(--c-corroborated)'),('overstated','var(--c-overstated)'),('disputed','var(--c-disputed)'),('not_supported','var(--c-not-supported)')] %}
+              {% for v, color in [('supported','var(--c-supported)'),('plausible','var(--c-plausible)'),('corroborated','var(--c-corroborated)'),('overstated','var(--c-overstated)'),('disputed','var(--c-disputed)'),('not_supported','var(--c-not-supported)'),('opinion','var(--text-3)'),('not_verifiable','var(--text-3)')] %}
               {% if bd.get(v, 0) > 0 %}
               <div class="seg" style="background:{{ color }};flex:{{ bd.get(v,0) }};" title="{{ v|replace('_',' ')|capitalize }}: {{ bd.get(v,0) }}"></div>
               {% endif %}
               {% endfor %}
             </div>
             <div class="dt-side-counts">
-              {% for v, label, color in [('supported','Supported','var(--c-supported)'),('plausible','Plausible','var(--c-plausible)'),('corroborated','Corroborated','var(--c-corroborated)'),('overstated','Overstated','var(--c-overstated)'),('disputed','Disputed','var(--c-disputed)'),('not_supported','Not supported','var(--c-not-supported)')] %}
+              {% for v, label, color in [('supported','Supported','var(--c-supported)'),('plausible','Plausible','var(--c-plausible)'),('corroborated','Corroborated','var(--c-corroborated)'),('overstated','Overstated','var(--c-overstated)'),('disputed','Disputed','var(--c-disputed)'),('not_supported','Not supported','var(--c-not-supported)'),('opinion','Opinion','var(--text-3)'),('not_verifiable','Not verifiable','var(--text-3)')] %}
               <div class="dt-side-count {% if bd.get(v,0) == 0 %}is-zero{% endif %}" data-verdict="{{ v }}">
                 <span class="dot" style="background:{{ color }};"></span>
                 <span class="name">{{ label }}</span>
@@ -1566,7 +1568,7 @@
     if (!isLive) return;
     var slug = window.location.pathname.split('/').pop();
     var STATS_INTERVAL = 20000; // 20 seconds
-    var SIDE_COLORS = {supported:'var(--c-supported)',plausible:'var(--c-plausible)',corroborated:'var(--c-corroborated)',overstated:'var(--c-overstated)',disputed:'var(--c-disputed)',not_supported:'var(--c-not-supported)'};
+    var SIDE_COLORS = {supported:'var(--c-supported)',plausible:'var(--c-plausible)',corroborated:'var(--c-corroborated)',overstated:'var(--c-overstated)',disputed:'var(--c-disputed)',not_supported:'var(--c-not-supported)',opinion:'var(--text-3)',not_verifiable:'var(--text-3)'};
     function updateSideCard(spk) {
       var side = document.querySelector('[data-side-speaker-id="' + spk.speaker_id + '"]');
       if (!side || !spk.verdicts) return;
