@@ -143,9 +143,9 @@ def analyse_claim(claim_text, speaker, claim_type,
         return {"verdict":"opinion","confidence_score":1,"verdict_summary":"Prediction or editorial opinion.","full_analysis":"Pre-classified by local filter.","sources_used":"Local filter","sources_structured":[]}
 
     claim_origin = kwargs.get('claim_origin', 'outlet_claim')
-    if claim_origin == 'attributed_claim':
-        core_claim = strip_attribution(claim_text, speaker or '')
-        print(f"  -> Attributed claim verification (core: {core_claim[:60]}...)")
+    if claim_origin in ('attributed_claim', 'debate_claim'):
+        core_claim = strip_attribution(claim_text, speaker or '') if claim_origin == 'attributed_claim' else claim_text
+        print(f"  -> Attributed claim verification [{claim_origin}] (core: {core_claim[:60]}...)")
         prompt = build_attributed_prompt(
             core_claim, claim_text, speaker, claim_type, article_title, source_name
         )
@@ -470,7 +470,8 @@ def _verify_single_claim(claim, event_id):
                     claim_type or 'factual',
                     event_name,
                     'Debate transcript',
-                    stage='verdicts-debate'
+                    stage='verdicts-debate',
+                    claim_origin='debate_claim'
                 )
             except anthropic.APIStatusError as _api_err:
                 if _api_err.status_code == 529 and _attempt < 2:
@@ -656,8 +657,8 @@ def run_batch_verdict_engine(limit=500, depth=None):
         # the generic web-search prompt instead of build_attributed_prompt().
         # Same defect family as 4bc70ec: a fix landed on the sync path
         # (analyse_claim) and was never ported to this one.
-        if claim_origin == 'attributed_claim':
-            core_claim = strip_attribution(claim_text, speaker or '')
+        if claim_origin in ('attributed_claim', 'debate_claim'):
+            core_claim = strip_attribution(claim_text, speaker or '') if claim_origin == 'attributed_claim' else claim_text
             prompt = build_attributed_prompt(
                 core_claim, claim_text, speaker, claim_type, article_title, source_name
             )
