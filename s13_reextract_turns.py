@@ -17,6 +17,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--event-id', type=int, required=True)
 ap.add_argument('--call-api', action='store_true')
 ap.add_argument('--cap-chars', type=int, default=0)
+ap.add_argument('--relaxed-prefilter', action='store_true', help='turns >= 200 chars skip the pre-filter (proposed production rule)')
+ap.add_argument('--admitted-only', action='store_true', help='with --call-api: only call on turns the strict pre-filter would drop')
 args = ap.parse_args()
 
 conn = psycopg2.connect(dbname=os.environ['DB_NAME'], user=os.environ['DB_USER'],
@@ -66,13 +68,19 @@ print(f"  frags/turn  p25 {q(frags,.25)}  median {q(frags,.5)}  p75 {q(frags,.75
 by_spk = collections.Counter(t['speaker_name'] for t in cand)
 print("  turns by speaker:", dict(by_spk))
 
-pre_reasons = collections.Counter(); kept = []
+pre_reasons = collections.Counter(); kept = []; admitted = set()
 for t in cand:
+    if args.relaxed_prefilter and len(t['text']) >= 200:
+        s0, _ = X.pre_filter_utterance(t['text'], utterance_id=t['first_uid'], event_id=args.event_id, speaker_id=t['speaker_id'], is_debate=True, conn=None)
+        if s0: admitted.add(t['first_uid'])
+        kept.append(t); continue
     skip, reason = X.pre_filter_utterance(t['text'], utterance_id=t['first_uid'], event_id=args.event_id,
                                           speaker_id=t['speaker_id'], is_debate=True, conn=None)
     if skip: pre_reasons[reason] += 1
     else: kept.append(t)
 print(f"\npre-filter: {len(cand) - len(kept)} dropped, {len(kept)} would reach the model")
+if args.relaxed_prefilter: print(f"  relaxed rule admitted {len(admitted)} long turns the strict filter dropped")
+if args.admitted_only: kept = [t for t in kept if t['first_uid'] in admitted]
 for r, n in pre_reasons.most_common(): print(f"  {n:4d}  {r}")
 
 if not args.call_api:
