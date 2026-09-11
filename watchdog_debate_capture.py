@@ -70,17 +70,21 @@ def _child_ffmpeg_alive(pid):
     return r.returncode == 0
 
 
-def _find_child_wav(started_at):
-    """The wav this child is writing: newest AUDIO_DIR/event_*.wav modified
-    at or after the child started. None until it exists."""
+def _find_child_wav(preexisting):
+    """The wav this child is writing: newest AUDIO_DIR/event_*.wav that did NOT
+    exist when the child started. A previous run's file is never a candidate,
+    however recently it was written (Sept 11 rehearsal: an orphaned ffmpeg kept
+    writing run 0's wav after a restart and the check adopted it, then killed a
+    healthy run 1 when that file froze). None until the child's own wav exists."""
     cands = []
     for p in glob.glob(os.path.join(AUDIO_DIR, "event_*.wav")):
+        if p in preexisting:
+            continue
         try:
             m = os.stat(p).st_mtime
         except OSError:
             continue
-        if m >= started_at - 1:
-            cands.append((m, p))
+        cands.append((m, p))
     return max(cands)[1] if cands else None
 
 
@@ -89,6 +93,7 @@ def run_child(args):
     buffer when it is killed) and wait for it, polling wav growth. Returns
     the exit code, or 143-style negative/positive code after a stall kill."""
     started_at = time.time()
+    preexisting = set(glob.glob(os.path.join(AUDIO_DIR, "event_*.wav")))  # never watch these
     proc = subprocess.Popen([sys.executable, "-u", "debate_stream.py"] + args)
     wav = None
     last_size = -1
@@ -99,7 +104,7 @@ def run_child(args):
         except subprocess.TimeoutExpired:
             pass
         if wav is None:
-            wav = _find_child_wav(started_at)
+            wav = _find_child_wav(preexisting)
             if wav is None:
                 continue
             log(f"liveness: watching {wav}")
