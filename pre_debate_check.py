@@ -422,7 +422,7 @@ def main():
                 check("Cron errors: " + _svc, False, "railway CLI not on PATH - scan skipped", critical=False); continue
             except subprocess.TimeoutExpired:
                 check("Cron errors: " + _svc, False, "railway deployment list timed out - scan skipped", critical=False); continue
-            _deps = []
+            _deps = []; _seen_any = False
             for _line in (_dl.stdout or "").splitlines():
                 _m = _dep_re.match(_line)
                 if not _m: continue
@@ -430,7 +430,8 @@ def main():
                     _t = _dt.strptime(_m.group(3), "%Y-%m-%d %H:%M:%S %z")
                 except ValueError:
                     continue
-                if _t >= _cutoff: _deps.append((_m.group(1), _m.group(2), _t))
+                if _t >= _cutoff or not _deps and not _seen_any: _deps.append((_m.group(1), _m.group(2), _t))
+                _seen_any = True
             if not _deps:
                 check("Cron errors: " + _svc, False, "no deployments/runs listed in last 24h", critical=False); continue
             _deps = _deps[:30]; _hits = []; _scanned = 0
