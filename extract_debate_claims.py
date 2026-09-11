@@ -279,6 +279,9 @@ def _log_filtered(utterance_id, event_id, speaker_id, stage, reason, text, conn=
         pass  # never block extraction for logging
 
 
+DEBATE_LONG_TURN_CHARS = 200  # a debate turn this long is not a fragment; only the per-claim post-filter applies
+
+
 def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id=None, is_debate=False, conn=None) -> tuple:
     """
     Return (should_skip: bool, reason: str).
@@ -287,6 +290,8 @@ def pre_filter_utterance(text: str, utterance_id=None, event_id=None, speaker_id
     t = text.strip()
     tl = t.lower()
     words = t.split()
+    if is_debate and len(t) >= DEBATE_LONG_TURN_CHARS:
+        return False, ''
 
     # Minimum word count (debate utterances are shorter than articles — 8 word minimum)
     if len(words) < 8:
