@@ -73,7 +73,7 @@ def main():
                 eid, slug, name, edate, stime, tz, stream_url, is_public = event
                 check("Next event found", True, f"{name} ({edate})")
                 check("Event is public", bool(is_public), f"is_public={is_public}")
-                check("Stream URL set", bool(stream_url), stream_url or "MISSING", critical=False)
+                check("Stream URL set", bool(stream_url), stream_url or "MISSING - pin the ENGLISH stream id before debate day")
             else:
                 check("Next event found", False, "No upcoming events in DB")
         except Exception as e:
@@ -407,6 +407,44 @@ def main():
         check("Stream service heartbeat fresh", not stale, f"status={status}, {int(age/60)}m ago")
     except Exception as e:
         check("Stream health endpoint", False, str(e), critical=False)
+
+    # ── 10b. Cron error scan (every deployment/run of the last 24h) ─────────
+    section("10b. Cron error scan")
+    try:
+        import re as _re
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        _now = _dt.now(_tz.utc); _cutoff = _now - _td(hours=24)
+        _dep_re = _re.compile(r"^\s*([0-9a-f-]{36})\s*\|\s*(\w+)\s*\|\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2})")
+        for _svc in ("veris-extract", "veris-verdicts"):
+            try:
+                _dl = subprocess.run(["railway", "deployment", "list", "--service", _svc], capture_output=True, text=True, timeout=60)
+            except FileNotFoundError:
+                check("Cron errors: " + _svc, False, "railway CLI not on PATH - scan skipped", critical=False); continue
+            except subprocess.TimeoutExpired:
+                check("Cron errors: " + _svc, False, "railway deployment list timed out - scan skipped", critical=False); continue
+            _deps = []
+            for _line in (_dl.stdout or "").splitlines():
+                _m = _dep_re.match(_line)
+                if not _m: continue
+                try:
+                    _t = _dt.strptime(_m.group(3), "%Y-%m-%d %H:%M:%S %z")
+                except ValueError:
+                    continue
+                if _t >= _cutoff: _deps.append((_m.group(1), _m.group(2), _t))
+            if not _deps:
+                check("Cron errors: " + _svc, False, "no deployments/runs listed in last 24h", critical=False); continue
+            _deps = _deps[:30]; _hits = []; _scanned = 0
+            for _id, _status, _t in _deps:
+                try:
+                    _r = subprocess.run(["railway", "logs", "--service", _svc, "--deployment", _id], capture_output=True, text=True, timeout=60)
+                except subprocess.TimeoutExpired:
+                    continue
+                _scanned += 1
+                for _l in (_r.stdout or "").splitlines():
+                    if "[stages] ERROR" in _l: _hits.append(_t.astimezone(_tz.utc).strftime("%m-%d %H:%M") + "Z " + _l.strip()[:120])
+            check("Cron errors: " + _svc, not _hits, (str(_scanned) + " run(s) scanned, no [stages] ERROR in last 24h") if not _hits else (str(len(_hits)) + " error line(s) across " + str(_scanned) + " run(s); latest: " + _hits[0]))
+    except Exception as e:
+        check("Cron error scan", False, str(e), critical=False)
 
     # ── Summary ─────────────────────────────────────────────────────────────
     print(f"\n{'='*50}")
