@@ -501,6 +501,91 @@ def get_connection():
     )
 
 
+CLOSED_TURN_GRACE_SECONDS = 60
+
+
+def fetch_closed_turn_utterances(conn, event_id, max_turns=None, grace_seconds=CLOSED_TURN_GRACE_SECONDS):
+    """Fetch unprocessed candidate utterances as WHOLE, CLOSED speaker turns.
+
+    A turn is the run of consecutive utterances by one confirmed speaker. It is
+    closed when a later utterance by a DIFFERENT confirmed speaker exists, or when
+    its newest fragment is older than grace_seconds (end of debate, long pauses).
+    Unconfirmed rows (speaker_id NULL) neither join nor close a turn -- they may be
+    the same person still talking, waiting on voice ID.
+
+    Returns rows in the same 12-column shape as fetch_politician_utterances, so
+    group_utterances_into_turns() rebuilds exactly these turns. max_turns bounds
+    turns per run (chronological), not fragments -- a closed turn is a whole unit,
+    so no speaker can starve.
+    """
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT MIN(su.utterance_order)
+            FROM speaker_utterances su
+            JOIN speakers s ON s.id = su.speaker_id
+            WHERE su.event_id = %s
+              AND s.speaker_type IN ('politician', 'official')
+              AND su.processed_at IS NULL
+              AND su.id NOT IN (
+                  SELECT utterance_id FROM claims
+                  WHERE utterance_id IS NOT NULL
+                    AND event_id = %s
+                    AND claim_origin = 'debate_claim'
+              )
+        """, (event_id, event_id))
+        r = cur.fetchone()
+        if not r or r[0] is None:
+            return []
+        start_order = r[0]
+        cur.execute("""
+            SELECT
+                su.id, su.utterance_text, su.utterance_order,
+                su.speaker_id, s.name, s.speaker_type, s.party,
+                e.event_name, e.event_date, e.slug,
+                su.timestamp_seconds,
+                su.attribution_uncertain,
+                su.processed_at,
+                EXTRACT(EPOCH FROM (NOW() - su.created_at))
+            FROM speaker_utterances su
+            LEFT JOIN speakers s ON s.id = su.speaker_id
+            JOIN events e ON e.id = su.event_id
+            WHERE su.event_id = %s
+              AND su.utterance_order >= %s
+            ORDER BY su.utterance_order ASC
+        """, (event_id, start_order))
+        rows = cur.fetchall()
+
+    turns = []            # (speaker_id, [rows], closed)
+    cur_sid, cur_rows = None, []
+    for row in rows:
+        sid = row[3]
+        if sid is None:
+            continue
+        if cur_rows and sid != cur_sid:
+            turns.append((cur_sid, cur_rows, True))
+            cur_rows = []
+        cur_sid = sid
+        cur_rows.append(row)
+    if cur_rows:
+        newest_age = min(float(r[13] or 0) for r in cur_rows)
+        turns.append((cur_sid, cur_rows, newest_age >= grace_seconds))
+
+    out, taken = [], 0
+    for sid, trows, closed in turns:
+        if not closed:
+            continue
+        if trows[0][5] not in ('politician', 'official') or sid == GENERIC_MODERATOR_ID:
+            continue
+        fresh = [r[:12] for r in trows if r[12] is None]
+        if not fresh:
+            continue
+        out.extend(fresh)
+        taken += 1
+        if max_turns and taken >= max_turns:
+            break
+    return out
+
+
 def fetch_politician_utterances(conn, event_id, limit=None):
     """Fetch unprocessed politician utterances using round-robin per speaker.
 
@@ -824,7 +909,7 @@ def get_fresh_connection():
 EXTRACT_LOCK_NAMESPACE = 918274  # adjacent to railway_stream STREAM_LOCK_NAMESPACE 918273
 
 
-def run_extraction(event_id, limit=None, dry_run=False):
+def run_extraction(event_id, limit=None, dry_run=False, by_turns=True):
     """Single-writer guard around extraction.
 
     debate_stream.py spawns an extraction thread every 5 utterances with no
@@ -849,12 +934,12 @@ def run_extraction(event_id, limit=None, dry_run=False):
                 print(f"  [extract] another extraction holds the lock for event "
                       f"{event_id} - skipping this trigger")
                 return
-        return _run_extraction_locked(event_id, limit=limit, dry_run=dry_run)
+        return _run_extraction_locked(event_id, limit=limit, dry_run=dry_run, by_turns=by_turns)
     finally:
         lock_conn.close()
 
 
-def _run_extraction_locked(event_id, limit=None, dry_run=False):
+def _run_extraction_locked(event_id, limit=None, dry_run=False, by_turns=True):
     print("=" * 68)
     print(f"Verum Signal — Debate claim extraction (v1.7)")
     print(f"Event ID: {event_id}  |  Mode: {'DRY RUN' if dry_run else 'APPLY'}")
@@ -863,8 +948,12 @@ def _run_extraction_locked(event_id, limit=None, dry_run=False):
     print("=" * 68)
 
     conn = get_connection()
-    utterances = fetch_politician_utterances(conn, event_id, limit)
-    print(f"\nFound {len(utterances)} unprocessed politician utterances\n")
+    if by_turns:
+        utterances = fetch_closed_turn_utterances(conn, event_id, max_turns=limit)
+        print(f"\nFound {len(utterances)} unprocessed politician utterances in closed turns (limit = turns per run)\n")
+    else:
+        utterances = fetch_politician_utterances(conn, event_id, limit)
+        print(f"\nFound {len(utterances)} unprocessed politician utterances (legacy slice fetch)\n")
 
     if not utterances:
         print("Nothing to process.")
