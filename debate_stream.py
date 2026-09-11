@@ -513,6 +513,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     print("Press Ctrl+C to stop.\n")
 
     utterance_order = [next_utterance_order(event_id)]
+    run_start_order = utterance_order[0]  # first row of THIS run; backfill must never cross a restart
     buffer = {}  # speaker_idx -> text buffer
     written_count = [0]
     recent_speaker_ids = []  # rolling window for attribution collapse detection
@@ -642,8 +643,9 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                                 _bu.execute(
                                     "UPDATE speaker_utterances SET speaker_id = %s "
                                     "WHERE event_id = %s AND rev_speaker_idx = %s "
+                                    "AND utterance_order >= %s "
                                     "AND speaker_id IS NULL AND processed_at IS NULL",
-                                    (db_sid, event_id, rev_idx)
+                                    (db_sid, event_id, rev_idx, run_start_order)
                                 )
                                 _backfilled = _bu.rowcount
                                 _bc.commit(); _bu.close(); _bc.close()
