@@ -39,6 +39,9 @@ through, e.g.
 Do not pass --dry-run for the real event unless a dry run repeated on
 every restart is actually what's wanted."""
 import sys
+import os
+import glob
+import signal
 import subprocess
 import time
 from datetime import datetime
@@ -47,11 +50,79 @@ MAX_RESTARTS = 20
 CRASH_BACKOFF_SECONDS = 5
 PRELIVE_RETRY_SECONDS = 30
 PRELIVE_EXIT_CODE = 2
+LIVENESS_POLL_SECONDS = 10      # how often the child and its wav are checked
+STALL_SECONDS = 90              # wav not growing this long, ffmpeg still alive -> child is frozen
+STALL_KILL_GRACE_SECONDS = 15   # SIGTERM -> SIGKILL if the child does not exit
+AUDIO_DIR = "debate_audio"
 
 
 def log(msg):
     ts = datetime.now().strftime("%H:%M:%S")
     print(f"\n=== [{ts}] WATCHDOG: {msg} ===")
+
+
+def _child_ffmpeg_alive(pid):
+    """True if the child still has an ffmpeg process of its own. Once the
+    child has closed ffmpeg deliberately (stream ended, sweep running) a
+    frozen wav is expected and must not trigger a kill."""
+    r = subprocess.run(["pgrep", "-P", str(pid), "-x", "ffmpeg"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return r.returncode == 0
+
+
+def _find_child_wav(started_at):
+    """The wav this child is writing: newest AUDIO_DIR/event_*.wav modified
+    at or after the child started. None until it exists."""
+    cands = []
+    for p in glob.glob(os.path.join(AUDIO_DIR, "event_*.wav")):
+        try:
+            m = os.stat(p).st_mtime
+        except OSError:
+            continue
+        if m >= started_at - 1:
+            cands.append((m, p))
+    return max(cands)[1] if cands else None
+
+
+def run_child(args):
+    """Start debate_stream.py (-u: child output must not sit in a pipe
+    buffer when it is killed) and wait for it, polling wav growth. Returns
+    the exit code, or 143-style negative/positive code after a stall kill."""
+    started_at = time.time()
+    proc = subprocess.Popen([sys.executable, "-u", "debate_stream.py"] + args)
+    wav = None
+    last_size = -1
+    last_growth = started_at
+    while True:
+        try:
+            return proc.wait(timeout=LIVENESS_POLL_SECONDS)
+        except subprocess.TimeoutExpired:
+            pass
+        if wav is None:
+            wav = _find_child_wav(started_at)
+            if wav is None:
+                continue
+            log(f"liveness: watching {wav}")
+            last_growth = time.time()
+        try:
+            size = os.stat(wav).st_size
+        except OSError:
+            continue
+        if size != last_size:
+            last_size = size
+            last_growth = time.time()
+            continue
+        stalled = time.time() - last_growth
+        if stalled >= STALL_SECONDS and _child_ffmpeg_alive(proc.pid):
+            log(f"liveness: {wav} has not grown for {int(stalled)}s with ffmpeg still running "
+                f"-- child is frozen. Sending SIGTERM (pid {proc.pid}).")
+            proc.send_signal(signal.SIGTERM)
+            try:
+                return proc.wait(timeout=STALL_KILL_GRACE_SECONDS)
+            except subprocess.TimeoutExpired:
+                log(f"liveness: child ignored SIGTERM for {STALL_KILL_GRACE_SECONDS}s. Sending SIGKILL.")
+                proc.kill()
+                return proc.wait()
 
 
 def main():
@@ -62,8 +133,7 @@ def main():
     while True:
         log(f"starting debate_stream.py (crash-retry {crash_attempt}/{MAX_RESTARTS})")
         print(f"=== command: python3 debate_stream.py {' '.join(args)} ===\n")
-        result = subprocess.run([sys.executable, "-u", "debate_stream.py"] + args)  # -u: child output must not sit in a pipe buffer when it is killed
-        code = result.returncode
+        code = run_child(args)
         if code == 0:
             log("debate_stream.py exited cleanly (code 0). Not restarting.")
             return 0
