@@ -110,6 +110,8 @@ Examples:
 TYPE: {claim_type}
 ARTICLE: {article_title}
 
+TAXONOMY NOTE: if the CORE CLAIM is an inference about a person's or organisation's motives, intentions, or likely future behaviour (e.g. "they would not be fighting for X if it were not Y"), the verdict is opinion, even when the premise behind it is supported. Only verify the premise if the claim asserts it as a fact in its own right.
+
 Try at least 2-3 distinct search queries before concluding not_verifiable."""
 
 
