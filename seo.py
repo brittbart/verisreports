@@ -56,7 +56,7 @@ def report_meta(source, title, score, url, short_hash=None):
 def outlet_meta(domain, score, tier, scoreable_count):
     """Meta tags for an outlet detail page."""
     score_str = f"Score: {score}/100" if score is not None else "Not yet scored"
-    desc = f"{domain} — {score_str}. {scoreable_count} claims verified. {tier} tier. Verum Signal outlet reliability profile."
+    desc = f"{domain} — {score_str}. {scoreable_count} claims evaluated. {tier} tier. Verum Signal outlet reliability profile."
     page_title = f"{domain} — {score_str} — Verum Signal"
     page_url = f"{SITE_URL}/outlet/{domain}"
     og_img = f"{SITE_URL}/api/og/outlet?domain={_urlenc(domain)}&score={score or ''}"
@@ -70,7 +70,7 @@ def outlet_meta(domain, score, tier, scoreable_count):
 
 def debate_meta(event_name, slug, claim_count, event_date_str):
     """Meta tags for a debate detail page."""
-    desc = f"{event_name} — {claim_count} claims verified in real time. Verum Signal live debate coverage."
+    desc = f"{event_name} — {claim_count} claims evaluated in real time. Verum Signal live debate coverage."
     page_title = f"{event_name} — Verum Signal"
     page_url = f"{SITE_URL}/debates/{slug}"
     og_img = f"{SITE_URL}/api/og/debate?name={_urlenc(event_name)}&claims={claim_count}"
@@ -84,7 +84,7 @@ def debate_meta(event_name, slug, claim_count, event_date_str):
 
 def debates_index_meta(total_events, total_claims):
     """Meta tags for the debates listing page."""
-    desc = f"Live debate coverage — {total_events} events tracked, {total_claims} claims verified. Verum Signal."
+    desc = f"Live debate coverage — {total_events} events tracked, {total_claims} claims evaluated. Verum Signal."
     return meta_tags(
         title="Debates — Verum Signal",
         description=desc,

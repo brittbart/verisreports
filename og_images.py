@@ -216,7 +216,7 @@ def generate_debate_og(name, claims):
     # Claims count
     claims_str = str(claims or 0)
     draw.text((48, y + 30), claims_str, fill=VIOLET, font=FONT_SERIF(72))
-    draw.text((48 + len(claims_str) * 42 + 10, y + 65), "claims verified", fill=TEXT2, font=FONT_REG(22))
+    draw.text((48 + len(claims_str) * 42 + 10, y + 65), "claims evaluated", fill=TEXT2, font=FONT_REG(22))
 
     draw.text((48, 560), "verumsignal.com", fill=TEXT3, font=FONT_MONO(14))
     draw.text((48, 580), "Signal through the noise", fill=TEXT3, font=FONT_REG(13))
