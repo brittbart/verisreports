@@ -382,16 +382,38 @@ def write_utterance(event_id, speaker_id, text, utterance_order, dry_run=False,
     finally:
         conn.close()
 
+_verify_thread = [None]  # at most one live-verification thread at a time
+
+
+def _verify_in_background(event_id):
+    try:
+        from verdict_engine import verify_debate_claims_sync
+        n = verify_debate_claims_sync(event_id, limit=10)
+        print(f"  [verdicts] {n} debate claim(s) verified live")
+    except Exception as e:
+        print(f"  [verdicts] Error: {e}")
+
+
 def trigger_extraction(event_id, dry_run=False):
     """
-    Run extract_debate_claims quality pipeline on new utterances.
-    Replaces raw utterance insertion with proper claim extraction.
+    Run extract_debate_claims quality pipeline on new utterances, then verify the
+    resulting claims in a background thread (one at a time; skipped if the previous
+    verification is still running). The 6-hour verdicts cron remains the sweep.
     """
     try:
         from extract_debate_claims import run_extraction
         run_extraction(event_id, limit=20, dry_run=dry_run)
     except Exception as e:
         print(f"  [extraction] Error: {e}")
+    if dry_run:
+        return
+    t = _verify_thread[0]
+    if t is not None and t.is_alive():
+        print("  [verdicts] previous verification still running -- will catch up next cadence")
+        return
+    import threading
+    _verify_thread[0] = threading.Thread(target=_verify_in_background, args=(event_id,), daemon=False)
+    _verify_thread[0].start()
 
 # ---------------------------------------------------------------------------
 # ASYNC MODE — submit URL to Rev AI, poll for completion
