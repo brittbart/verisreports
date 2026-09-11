@@ -218,7 +218,8 @@ def _ops_reveal(event_id):
     from flask import request
     return _ops_token_ok(event_id, request.args.get('ops_token')) or _ops_basic_auth_ok()
 def _get_event_by_slug(get_db_conn, slug, reveal=False):
-    """Return a single listed event by slug, or None. Claims are gated on is_public unless reveal (ops preview)."""
+    """Return a single event by slug, or None. Unlisted events are returned only when reveal (ops preview);
+    claims are gated on is_public unless reveal."""
     conn = get_db_conn()
     try:
         cur = conn.cursor()
@@ -227,8 +228,8 @@ def _get_event_by_slug(get_db_conn, slug, reveal=False):
                    transcript_url, transcript_source, is_public,
                    methodology_version, notes, stream_url
             FROM events
-            WHERE slug = %s AND is_listed = TRUE
-        """, (slug,))
+            WHERE slug = %s AND (is_listed = TRUE OR %s)
+        """, (slug, bool(reveal)))
         row = cur.fetchone()
         if not row:
             cur.close()
