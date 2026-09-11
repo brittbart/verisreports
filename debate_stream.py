@@ -1103,6 +1103,15 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL
     )
+    import signal as _signal
+    def _on_sigterm(signum, frame):
+        print(f"\n  [signal {signum}] terminating ffmpeg and exiting")
+        try:
+            ffmpeg_proc.terminate()
+        except Exception:
+            pass
+        raise SystemExit(128 + signum)
+    _signal.signal(_signal.SIGTERM, _on_sigterm)
 
     print("Connecting to Deepgram streaming...")
     dg_key = os.environ.get("DEEPGRAM_API_KEY", "")
