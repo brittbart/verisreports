@@ -28,6 +28,9 @@ def due_events(cur, now):
         if w0 <= now <= start + HARD_STOP:
             out.append((eid, slug, url, w0, w1, start))
     return out
+def _enabled(cur, eid):
+    cur.execute("SELECT capture_enabled FROM events WHERE id = %s", (eid,)); r = cur.fetchone()
+    return bool(r and r[0])
 def roster(cur, eid):
     cur.execute("SELECT speaker_id FROM event_speakers WHERE event_id = %s ORDER BY speaker_order", (eid,))
     return ','.join(str(r[0]) for r in cur.fetchall())
@@ -64,6 +67,8 @@ def main():
                     upsert(cur, eid, state='exited', exit_code=rc, last_seen=now); log(f'event {eid} child exited rc={rc}')
                 elif now > start_dt + HARD_STOP:
                     os.killpg(p.pid, signal.SIGTERM); upsert(cur, eid, state='killed', last_seen=now); log(f'event {eid} hard stop at start+4h')
+                elif not _enabled(cur, eid):
+                    os.killpg(p.pid, signal.SIGTERM); upsert(cur, eid, state='stopped', last_seen=now); log(f'event {eid} capture_enabled is FALSE - stopping (ops panel)')
                 else:
                     upsert(cur, eid, state='running', last_seen=now)
             if not stopping:

@@ -8632,6 +8632,8 @@ register_billing_routes(app, get_db)
 # ── Attribution review ops page ─────────────────────────────────────────────
 from ops_attribution import bp as ops_attribution_bp
 app.register_blueprint(ops_attribution_bp)
+from ops_capture import bp as ops_capture_bp
+app.register_blueprint(ops_capture_bp)
 
 
 
