@@ -16,7 +16,13 @@ udt = cur.fetchone()[0]; adapt = (lambda v: v) if udt.startswith('_') else Json
 rollback = []
 for sid, new in spec.items():
     cur.execute("SELECT id, exclusive_keywords, roles, generated_by FROM speaker_event_context WHERE event_id = %s AND speaker_id = %s", (a.event_id, sid))
-    rows = cur.fetchall(); assert len(rows) == 1, f'speaker {sid}: {len(rows)} row(s) for event {a.event_id}'
+    rows = cur.fetchall(); assert len(rows) <= 1, f'speaker {sid}: {len(rows)} rows for event {a.event_id}'
+    if not rows:
+        print(f'speaker {sid}: no row for event {a.event_id} - will INSERT (generated_by=manual)')
+        if a.apply:
+            cur.execute("INSERT INTO speaker_event_context (event_id, speaker_id, exclusive_keywords, roles, generated_by) VALUES (%s, %s, %s, %s, 'manual') RETURNING id", (a.event_id, sid, adapt(new['keywords']), adapt(new['roles'])))
+            rid = cur.fetchone()[0]; rollback.append(f"DELETE FROM speaker_event_context WHERE id = {rid};")
+        continue
     rid, old_kw, old_roles, old_gen = rows[0]
     print(f"speaker {sid} row {rid} BEFORE ({old_gen}): roles={old_roles} keywords={old_kw}\n  NEW: roles={new['roles']} keywords={new['keywords']}")
     rollback.append(f"UPDATE speaker_event_context SET exclusive_keywords = '{json.dumps(old_kw)}'::jsonb, roles = '{json.dumps(old_roles)}'::jsonb, generated_by = '{old_gen}' WHERE id = {rid};")
