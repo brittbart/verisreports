@@ -88,6 +88,25 @@ def _find_child_wav(preexisting):
     return max(cands)[1] if cands else None
 
 
+_current_child = [None]   # the running debate_stream.py, for SIGTERM forwarding
+
+
+def _forward_term(signum, frame):
+    """kill -TERM <watchdog> stops the whole tree: forward to the child, wait, exit 143."""
+    proc = _current_child[0]
+    if proc is not None and proc.poll() is None:
+        log(f"received signal {signum}: forwarding SIGTERM to debate_stream.py (pid {proc.pid})")
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=STALL_KILL_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            log(f"child ignored SIGTERM for {STALL_KILL_GRACE_SECONDS}s. Sending SIGKILL.")
+            proc.kill()
+            proc.wait()
+    log(f"exiting on signal {signum} (not restarting).")
+    raise SystemExit(128 + signum)
+
+
 def run_child(args):
     """Start debate_stream.py (-u: child output must not sit in a pipe
     buffer when it is killed) and wait for it, polling wav growth. Returns
@@ -95,6 +114,7 @@ def run_child(args):
     started_at = time.time()
     preexisting = set(glob.glob(os.path.join(AUDIO_DIR, "event_*.wav")))  # never watch these
     proc = subprocess.Popen([sys.executable, "-u", "debate_stream.py"] + args)
+    _current_child[0] = proc
     wav = None
     last_size = -1
     last_growth = started_at
@@ -135,6 +155,7 @@ def main():
     if not args:
         sys.exit("usage: watchdog_debate_capture.py <same arguments as debate_stream.py>")
     crash_attempt = 0
+    signal.signal(signal.SIGTERM, _forward_term)
     while True:
         log(f"starting debate_stream.py (crash-retry {crash_attempt}/{MAX_RESTARTS})")
         print(f"=== command: python3 debate_stream.py {' '.join(args)} ===\n")
