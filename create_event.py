@@ -28,8 +28,11 @@ def main():
     ap.add_argument('--notes', default=''); ap.add_argument('--methodology', default='v1.7'); ap.add_argument('--threshold', type=float, default=0.60)
     ap.add_argument('--apply', action='store_true')
     a = ap.parse_args()
-    if not event_time.is_postgres_zone(a.tz):
-        sys.exit(f"REFUSED: timezone {a.tz!r} is not accepted by Postgres AT TIME ZONE - use an IANA name (America/Phoenix, America/New_York, America/Chicago, America/Denver)")
+    FIXED = {'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'}
+    if a.tz not in FIXED:
+        sys.exit(f"REFUSED: timezone {a.tz!r} - store a fixed abbreviation from {sorted(FIXED)}: Postgres rejects ET/CT/MT/PT and mobile_sse "
+                 f"(the stream service) falls back to CT for IANA names. Use the daylight form (EDT/CDT/MDT/PDT) for events before 2026-11-01, "
+                 f"standard after; MST for Arizona always.")
     if not re.fullmatch(r'[a-z0-9-]+', a.slug): sys.exit(f'REFUSED: slug {a.slug!r} must be lowercase letters, digits, hyphens')
     ev_date = datetime.date.fromisoformat(a.date); ev_time = datetime.time.fromisoformat(a.time)
     w0, w1 = event_time.window(ev_date, ev_time, a.tz)
