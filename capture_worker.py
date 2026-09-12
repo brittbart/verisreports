@@ -40,6 +40,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--interval', type=int, default=60); ap.add_argument('--stagger', type=int, default=20)
     ap.add_argument('--max-concurrent', type=int, default=2); ap.add_argument('--once', action='store_true'); ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--no-uploader', action='store_true', help='do not start the wav_uploader sidecar (laptop rehearsals without R2)')
     a = ap.parse_args()
     os.makedirs(os.path.join(HERE, 'logs'), exist_ok=True)
     children = {}   # eid -> (Popen, logfile, started_at, start_dt)
@@ -79,6 +80,10 @@ def main():
                     lf = open(log_path, 'a')
                     p = subprocess.Popen(cmd, cwd=HERE, stdout=lf, stderr=subprocess.STDOUT, start_new_session=True)
                     children[eid] = (p, lf, now, start)
+                    if not a.no_uploader:
+                        ulog = open(os.path.join(HERE, 'logs', f'event_{eid}_upload_{stamp}.log'), 'a')
+                        u = subprocess.Popen([sys.executable, '-u', os.path.join(HERE, 'wav_uploader.py'), '--event-id', str(eid), '--watch-pid', str(p.pid)], cwd=HERE, stdout=ulog, stderr=subprocess.STDOUT, start_new_session=True)
+                        log(f'event {eid}: uploader sidecar pid {u.pid}')
                     upsert(cur, eid, state='running', pid=p.pid, host=HOST, started_at=now, last_seen=now, exit_code=None, log_path=log_path, dry_run=a.dry_run)
                     log(f"event {eid} {slug}: started pid {p.pid} roster {order} window {w0.isoformat()}..{w1.isoformat()} log {os.path.basename(log_path)}")
                     time.sleep(a.stagger)
