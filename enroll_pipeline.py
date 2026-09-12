@@ -16,12 +16,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
 SELF_ID = ['my name', "i'm running", 'i am running', 'i was born', 'thank you for having me', 'thanks for having me', 'welcome', 'thank you for joining', 'my husband', 'my wife', 'my district', 'as a']
 def run(cmd, tail=None, check=True):
+    """Run a step, streaming its output line by line as it happens (so a long transcription shows progress), and
+    return the full output for the gates. tail is kept for signature compatibility; everything is shown live."""
     print('$', ' '.join(cmd), flush=True)
-    r = subprocess.run(cmd, cwd=HERE, text=True, capture_output=True)
-    out = r.stdout + r.stderr
-    print('\n'.join(out.splitlines()[-tail:]) if tail else out, flush=True)
-    if check and r.returncode != 0:
-        sys.exit(f'STOP: {cmd[1] if len(cmd) > 1 else cmd[0]} exited {r.returncode}')
+    p = subprocess.Popen(cmd, cwd=HERE, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+    lines = []
+    for line in p.stdout:
+        print('  ' + line.rstrip(), flush=True); lines.append(line)
+    rc = p.wait(); out = ''.join(lines)
+    if check and rc != 0:
+        sys.exit(f'STOP: {cmd[1] if len(cmd) > 1 else cmd[0]} exited {rc}')
     return out
 def prep(man, phrases):
     for c in man['clips']:
