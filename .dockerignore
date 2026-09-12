@@ -1,0 +1,14 @@
+.git
+venv
+debate_audio
+logs
+docs
+node_modules
+.speechbrain_cache
+*.wav
+*.mp4
+*.m4a
+*.bak.*
+*_raw_revai.json
+*_async.json
+*_async_offset.json
