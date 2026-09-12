@@ -58,7 +58,7 @@ AUDIO_DIR = "debate_audio"
 
 def log(msg):
     ts = datetime.now().strftime("%H:%M:%S")
-    print(f"\n=== [{ts}] WATCHDOG: {msg} ===")
+    print(f"\n=== [{ts}] WATCHDOG: {msg} ===", flush=True)
 
 
 def _child_ffmpeg_alive(pid):
