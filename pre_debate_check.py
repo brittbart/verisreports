@@ -290,6 +290,10 @@ def main():
             from debate_routes import _derive_status
             from datetime import date, time as dtime
             eid, slug, name, edate, stime, tz, stream_url, is_public = event
+            _known_tz = {'ET', 'EST', 'EDT', 'CT', 'CST', 'CDT', 'MT', 'MST', 'MDT', 'PT', 'PST', 'PDT'}
+            check("timezone is an abbreviation the page/stream understand", tz in _known_tz,
+                  f"'{tz}' -- anything else falls back to CT (-5) in _derive_status and mobile_sse; "
+                  f"use one of {sorted(_known_tz)}")
             status = _derive_status(edate, None, stime, tz)
             check("_derive_status returns 'upcoming'", status == 'upcoming', f"got '{status}'")
         except Exception as e:
