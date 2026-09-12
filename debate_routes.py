@@ -11,6 +11,7 @@ from flask import render_template, abort, jsonify
 from api_leaderboard import METHODOLOGY_VERSION, VERDICT_LABELS
 import ast as _ast, os as _os
 from seo import debate_meta, debates_index_meta
+import event_time
 # Public-facing methodology version — gated by attorney approval.
 # Derived from PUBLIC_METHODOLOGY_VERSIONS env var (same source as mobile_routes.py).
 # Internal METHODOLOGY_VERSION may be ahead of what's publicly published.
@@ -162,7 +163,7 @@ def _get_all_public_events(get_db_conn):
                 'event_date_year':     event_date.strftime('%Y') if event_date else '',
                 'start_time_str':      (start_time.strftime('%-I:%M %p') + ' ' + (timezone or 'ET')) if start_time else 'TBD',
                 'event_subtitle':      event_subtitle or '',
-                'event_start_iso':     (event_date.strftime('%Y-%m-%dT') + start_time.strftime('%H:%M:00') + {'CT': '-05:00', 'CST': '-06:00', 'CDT': '-05:00', 'ET': '-04:00', 'EST': '-05:00', 'EDT': '-04:00', 'MT': '-06:00', 'MST': '-07:00', 'MDT': '-06:00', 'PT': '-07:00', 'PST': '-08:00', 'PDT': '-07:00'}.get(timezone or 'CT', '-05:00')) if (event_date and start_time) else '',
+                'event_start_iso':     event_time.start_iso(event_date, start_time, timezone),
                 'venue':               venue or '',
                 'transcript_source':   transcript_source or '',
                 'methodology_version': PUBLIC_METHODOLOGY_VERSION if is_public else None,
@@ -250,7 +251,7 @@ def _get_event_by_slug(get_db_conn, slug, reveal=False):
             'event_date_str':      event_date.strftime('%B %-d, %Y') if event_date else '',
             'start_time_str':      (start_time.strftime('%-I:%M %p') + ' ' + (timezone or 'ET')) if start_time else 'TBD',
             'event_subtitle':      event_subtitle or '',
-            'event_start_iso':     (event_date.strftime('%Y-%m-%dT') + start_time.strftime('%H:%M:00') + {'CT': '-05:00', 'CST': '-06:00', 'CDT': '-05:00', 'ET': '-04:00', 'EST': '-05:00', 'EDT': '-04:00', 'MT': '-06:00', 'MST': '-07:00', 'MDT': '-06:00', 'PT': '-07:00', 'PST': '-08:00', 'PDT': '-07:00'}.get(timezone or 'CT', '-05:00')) if (event_date and start_time) else '',
+            'event_start_iso':     event_time.start_iso(event_date, start_time, timezone),
             'venue':               venue or '',
             'transcript_url':      transcript_url or '',
             'transcript_source':   transcript_source or '',
@@ -528,15 +529,7 @@ def _derive_status(event_date, today, start_time=None, timezone=None, _now=None)
     if event_date is None:
         return 'complete'
     from datetime import datetime, timedelta, timezone as tz
-    # UTC offsets for event timezone
-    tz_offsets = {
-        'ET': -4, 'EST': -5, 'EDT': -4,
-        'CT': -5, 'CST': -6, 'CDT': -5,
-        'MT': -6, 'MST': -7, 'MDT': -6,
-        'PT': -7, 'PST': -8, 'PDT': -7,
-    }
-    offset_hours = tz_offsets.get(timezone or 'CT', -5)
-    event_tz = tz(timedelta(hours=offset_hours))
+    event_tz = event_time.zone(timezone)
     now_utc = _now if _now is not None else datetime.now(tz.utc)
     # Derive today in the event's local timezone (not server UTC)
     today_local = now_utc.astimezone(event_tz).date()
@@ -610,7 +603,6 @@ def register_debate_routes(app, get_db_conn):
 
         # Group by status
         from datetime import datetime, timedelta, timezone as tz
-        TZ_OFFSETS = {'ET':-4,'EST':-5,'EDT':-4,'CT':-5,'CST':-6,'CDT':-5,'MT':-6,'MST':-7,'MDT':-6,'PT':-7,'PST':-8,'PDT':-7}
         now_utc = datetime.now(tz.utc)
         def _is_soon(e):
             """True if event starts within 24 hours."""
@@ -619,8 +611,7 @@ def register_debate_routes(app, get_db_conn):
             etz = e.get('timezone') or 'CT'
             if not ed or not st:
                 return False
-            offset = TZ_OFFSETS.get(etz, -5)
-            event_tz_obj = tz(timedelta(hours=offset))
+            event_tz_obj = event_time.zone(etz)
             # ed and st may be strings after JSON serialization fix — parse if needed
             if isinstance(ed, str):
                 ed = datetime.strptime(ed, '%Y-%m-%d').date()
