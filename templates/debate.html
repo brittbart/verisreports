@@ -381,6 +381,8 @@
     gap: 14px;
   }
   body.is-live .live-now-card { display: flex; }
+  .live-now-card .speaker-status { font-size: 12px; opacity: 0.7; margin-top: 3px; max-width: 34em; }
+  .live-now-card.has-speaker .speaker-status { display: none; }
   .live-now-card .pulse-dot {
     width: 10px; height: 10px; border-radius: 50%;
     background: #4ade80; flex-shrink: 0;
@@ -1270,6 +1272,7 @@
           <div>
             <div class="speaker-label">Last spoke</div>
             <div class="speaker-name" id="live-speaker-name">—</div>
+            <div class="speaker-status" id="live-speaker-status">Listening. Speaker names appear about a minute after each candidate first speaks.</div>
           </div>
           <div class="claim-count" id="live-claim-count"></div>
         </div>
@@ -1907,6 +1910,8 @@
         } else {
           nameEl.textContent = sp.name || 'Unknown';
           nameEl.style.opacity = '';
+          var lnc = document.getElementById('live-now-card');
+          if (lnc) lnc.classList.add('has-speaker');
         }
         window._vsSpeakerFromStream = Date.now();
       });
