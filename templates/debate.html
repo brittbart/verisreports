@@ -394,6 +394,8 @@
   }
   .live-now-card:not(.has-speaker) .pulse-dot { width: 12px; height: 12px; }
   .live-now-card:not(.has-speaker) .claim-count { display: none; }
+  .live-now-card:not(.has-speaker) .speaker-label { display: none; }
+  .live-now-card:not(.has-speaker) .speaker-name:empty { display: none; }
   .live-now-card:not(.has-speaker) .speaker-status { font-size: 14px; opacity: 0.85; max-width: 40em; margin: 6px auto 0; }
   .live-now-card .pulse-dot {
     width: 10px; height: 10px; border-radius: 50%;
@@ -1283,7 +1285,7 @@
           <div class="pulse-dot"></div>
           <div>
             <div class="speaker-label">Last spoke</div>
-            <div class="speaker-name" id="live-speaker-name">—</div>
+            <div class="speaker-name" id="live-speaker-name"></div>
             <div class="speaker-status" id="live-speaker-status">Listening. Speaker names appear about a minute after each candidate first speaks.</div>
           </div>
           <div class="claim-count" id="live-claim-count"></div>
