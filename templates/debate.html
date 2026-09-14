@@ -267,6 +267,14 @@
     text-transform: uppercase;
     color: var(--text-3);
   }
+  /* Counts sit in their own column at the right edge; the name column wraps instead of colliding with them. */
+  .dt-participant .dt-p-id { flex: 1 1 auto; min-width: 0; }
+  .dt-participant .dt-p-name { overflow-wrap: anywhere; }
+  .dt-participant .dt-p-counts {
+    position: static; flex: 0 0 auto; margin-left: auto;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  }
+  .dt-participant .dt-p-count-provisional { white-space: nowrap; }
   .dt-p-counts strong {
     font-family: var(--font-display);
     font-size: 26px;
@@ -1176,7 +1184,7 @@
             {% set prov_ct = breakdown[p.id].provisional_count if p.id in breakdown else 0 %}
             {% if final_ct > 0 or prov_ct > 0 %}
             <span class="dt-p-count-final">
-              <strong class="dt-p-final-num">{{ final_ct }}</strong>
+              <strong class="dt-p-final-num">{{ final_ct + prov_ct }}</strong>
               <span>Claims</span>
             </span>
             {% else %}
@@ -1618,7 +1626,7 @@
             var finalNum = card.querySelector('.dt-p-final-num');
             var provNum = card.querySelector('.dt-p-provisional-num');
             var provBadge = card.querySelector('.dt-p-count-provisional');
-            if (finalNum) finalNum.textContent = spk.claims_final;
+            if (finalNum) finalNum.textContent = (Number(spk.claims_final) || 0) + (Number(spk.claims_provisional) || 0);
             if (provNum) provNum.textContent = spk.claims_provisional;
             if (provBadge) {
               provBadge.style.display = spk.claims_provisional > 0 ? 'inline-flex' : 'none';
