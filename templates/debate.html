@@ -268,8 +268,8 @@
     color: var(--text-3);
   }
   /* Counts sit in their own column at the right edge; the name column wraps instead of colliding with them. */
-  .dt-participant .dt-p-id { flex: 1 1 auto; min-width: 0; }
-  .dt-participant .dt-p-name { overflow-wrap: anywhere; }
+  .dt-participant .dt-p-id { flex: 1 1 0; min-width: 0; }
+  .dt-participant .dt-p-name { overflow-wrap: normal; word-break: normal; hyphens: none; }
   .dt-participant .dt-p-counts {
     position: static; flex: 0 0 auto; margin-left: auto;
     display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
