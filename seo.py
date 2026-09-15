@@ -94,7 +94,7 @@ def debates_index_meta(total_events, total_claims):
 
 def leaderboard_meta(scored_count, total_verdicts):
     """Meta tags for the leaderboard page."""
-    desc = f"Outlet reliability rankings — {scored_count} outlets scored across {total_verdicts} verified claims. Verum Signal."
+    desc = f"Outlet reliability rankings — {scored_count} outlets scored across {total_verdicts} claims evaluated. Verum Signal."
     return meta_tags(
         title="Leaderboard — Verum Signal",
         description=desc,

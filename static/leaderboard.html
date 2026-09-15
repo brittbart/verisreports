@@ -672,7 +672,7 @@
     <div class="hero-meta">
       <span><span class="live-dot"></span><strong id="hero-updated">Updated just now</strong></span>
       <span class="dot">·</span>
-      <span>Methodology v1.6</span>
+      <span>Methodology v1.7.1</span>
       <span class="dot">·</span>
       <span><strong id="hero-counts">— outlets scored</strong></span>
     </div>
@@ -747,20 +747,20 @@
         </p>
         <p class="lb-note">
           <strong>Tracked but not yet scored.</strong>
-          <span id="excluded-line">— outlets are tracked but have fewer than 20 verified verdicts.</span>
+          <span id="excluded-line">— outlets are tracked but have fewer than 20 verdicts.</span>
           Outlets enter the leaderboard at 20 verdicts (Limited Data tier).
         </p>
         <p class="lb-note">
           <strong>Scores are not endorsements.</strong>
-          Reliability scores reflect factual accuracy of claims as verified against independent sources. They are not endorsements of an outlet's editorial perspective.
+          Reliability scores reflect factual accuracy of claims as evaluated against independent sources. They are not endorsements of an outlet's editorial perspective.
         </p>
         <p class="lb-note">
-          <strong>Score formula (v1.6).</strong>
+          <strong>Score formula (v1.7.1).</strong>
           <code>score = clamp((Σ weight×count / scoreable + 1.5) ÷ 2.5 × 100, 0, 100)</code>.
           Excludes <em>not_verifiable</em> and <em>opinion</em> verdicts.
         </p>
         <p class="lb-note lb-note--span">
-          Generated under Methodology v1.6. <a href="/methodology">View methodology</a> · <a href="mailto:disputes@verumsignal.com">Submit a correction</a>
+          Generated under Methodology v1.7.1. <a href="/methodology">View methodology</a> · <a href="mailto:disputes@verumsignal.com">Submit a correction</a>
         </p>
       </div>
 
@@ -786,7 +786,7 @@
           <a href="/developers">Developers</a>
       <a href="/status">Status</a>
     </nav>
-    <div class="site-footer-meta">Methodology v1.6 · Automated · Auditable</div>
+    <div class="site-footer-meta">Methodology v1.7.1 · Automated · Auditable</div>
   </div>
 </footer>
 
@@ -942,7 +942,7 @@ function renderBreakdown(o) {
           <div class="bd-counts">${counts}</div>
         </div>
         <div>
-          <div class="bd-section-label">Score computation · v1.6 §6.1</div>
+          <div class="bd-section-label">Score computation · v1.7.1 §07</div>
           <div class="bd-formula">
             <div><span class="lbl">weighted_sum</span> <span class="val">${weighted.toFixed(1)}</span></div>
             <div><span class="lbl">scoreable_count</span> <span class="val">${o.scoreable_count}</span></div>
@@ -999,7 +999,7 @@ function renderTierSection(tierId, tierName, description, outlets) {
 }
 
 function getEmptyCopy(tierId) {
-  if (tierId === 'published') return `<strong>No outlets in the Published tier yet.</strong><br>Verum Signal publishes scores at this confidence level only after 100+ verified verdicts have been accumulated.`;
+  if (tierId === 'published') return `<strong>No outlets in the Published tier yet.</strong><br>Verum Signal publishes scores at this confidence level only after 100+ verdicts have been accumulated.`;
   if (tierId === 'stabilizing') return `<strong>No outlets currently in the Stabilizing tier (50–99 verdicts).</strong>`;
   return `<strong>No outlets currently in the Limited Data tier (20–49 verdicts).</strong>`;
 }
@@ -1017,13 +1017,13 @@ function render() {
   const showLim = state.tier === 'all';
   const html = [
     showPub ? renderTierSection('published', 'Published',
-      'Outlets with 100+ verified verdicts. Scores at this tier reflect substantial data depth.',
+      'Outlets with 100+ verdicts. Scores at this tier reflect substantial data depth.',
       byTier.Published) : '',
     showStab ? renderTierSection('stabilizing', 'Stabilizing',
-      'Outlets with 50–99 verified verdicts. Scores are converging but data depth is still developing.',
+      'Outlets with 50–99 verdicts. Scores are converging but data depth is still developing.',
       byTier.Stabilizing) : '',
     showLim ? renderTierSection('limited', 'Limited Data',
-      'Outlets with 20–49 verified verdicts. Caveat: small samples; treat scores as preliminary.',
+      'Outlets with 20–49 verdicts. Caveat: small samples; treat scores as preliminary.',
       byTier['Limited Data']) : ''
   ].join('');
   document.getElementById('lb-sections').innerHTML = html;
@@ -1051,7 +1051,7 @@ function renderHeaderMeta() {
   document.getElementById('stat-lim').textContent = t.outlets_in_limited;
   document.getElementById('stat-excl').textContent = t.outlets_excluded;
   document.getElementById('excluded-line').textContent =
-    `${t.outlets_excluded} outlets are tracked but have fewer than 20 verified verdicts.`;
+    `${t.outlets_excluded} outlets are tracked but have fewer than 20 verdicts.`;
 }
 
 document.querySelectorAll('#window-pills .filter-pill').forEach(p => {

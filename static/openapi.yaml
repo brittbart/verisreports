@@ -222,8 +222,8 @@ paths:
       summary: List debate events
       description: |
         Returns debate events that have been approved for public display and have
-        at least one verified claim under the documented methodology. Upcoming
-        events without verified claims and events not yet approved for public
+        at least one claim with a verdict under the documented methodology. Upcoming
+        events without verdicts and events not yet approved for public
         display are not exposed.
       tags: [Debates]
       security:

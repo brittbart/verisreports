@@ -715,7 +715,7 @@
   <div class="hero-grid"></div>
   <div class="hero-glow" style="top: 55%;"></div>
   <div class="container hiw-hero-content">
-    <div class="hiw-version fu"><span class="dot"></span>Methodology v1.6 · May 2026</div>
+    <div class="hiw-version fu"><span class="dot"></span>Methodology v1.7.1 · September 2026</div>
     <h1 class="fu2">How Verum Signal <em>works.</em></h1>
     <p class="fu3">Documented. Versioned. Same standards applied to every outlet. Built to answer the questions skeptics actually ask.</p>
   </div>
@@ -724,10 +724,10 @@
 <!-- TOP-OF-PAGE EXPLAINER (cycling video) -->
 <section class="hiw-exp-section">
   <div class="container">
-    <div class="hiw-exp" aria-label="Animated explainer of Verum Signal methodology v1.6">
+    <div class="hiw-exp" aria-label="Animated explainer of Verum Signal methodology v1.7.1">
       <div class="he-grid"></div>
       <div class="he-glow"></div>
-      <div class="he-stamp">METHODOLOGY v1.6</div>
+      <div class="he-stamp">METHODOLOGY v1.7.1</div>
 
       <div class="he-cap-frame">
         <div class="he-cap-eyebrow">The pipeline at a glance</div>
@@ -1056,9 +1056,37 @@
         <div class="qa-changelog">
           <div class="qa-version">
             <div class="qa-version-head">
+              <div class="qa-version-num">v1.7.1</div>
+              <div class="qa-version-date">September 2026</div>
+              <div class="qa-version-tag">Current</div>
+            </div>
+            <ul>
+              <li>Speaker Attribution (Debates) added as Section 2.6: acoustic voice confirmation against enrolled candidate prints, abstention when no print matches, and an independent post-event check before publication.</li>
+              <li>Quoted claims are checked only when a reader requests an article's report; they never count toward an outlet's score. This was the engine's behaviour, now written down.</li>
+              <li>Verdicts Can Change (7.5) distinguishes a correction (verdict reset, claim re-checked) from a repair (records aligned, verdict kept); both propagate to every surface within one refresh cycle.</li>
+              <li>The date requirement and 6-hour gate are applied identically wherever a score is published — web, mobile and API.</li>
+            </ul>
+          </div>
+
+          <div class="qa-version">
+            <div class="qa-version-head">
+              <div class="qa-version-num">v1.7</div>
+              <div class="qa-version-date">July 2026</div>
+              <div class="qa-version-tag" style="background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text-3);">Archived</div>
+            </div>
+            <ul>
+              <li>Verification pipeline rewritten to match the live engine: an opinion pre-filter, then web-search verification. The cache and consensus steps described in v1.6 were removed from the engine in May.</li>
+              <li>Corroborated weight corrected from +0.5 to +0.75, so corroborated and plausible are no longer tied.</li>
+              <li>The 30-point priority threshold documented as governing the background queue only; on-demand reports check claims regardless of priority.</li>
+              <li>Wire-reprint exclusion retired: wire content published under an outlet's own byline is scored as an ordinary outlet claim.</li>
+            </ul>
+          </div>
+
+          <div class="qa-version">
+            <div class="qa-version-head">
               <div class="qa-version-num">v1.6</div>
               <div class="qa-version-date">May 5, 2026</div>
-              <div class="qa-version-tag">Current</div>
+              <div class="qa-version-tag" style="background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text-3);">Archived</div>
             </div>
             <ul>
               <li>Single source of truth for scoring constants — verdict weights, scoreable verdict types, tier thresholds, formula divisor — consolidated to one module.</li>
@@ -1231,10 +1259,10 @@
 <!-- FINAL CTA -->
 <section class="qa-cta">
   <div class="container">
-    <h3>Read the full <em>Methodology v1.6.</em></h3>
+    <h3>Read the full <em>Methodology v1.7.1.</em></h3>
     <p>The complete reference — implementation details, scoring constants, the unabridged changelog, and every rule that produces a verdict.</p>
     <div class="qa-cta-row">
-      <a href="/methodology" class="qa-cta-btn primary">Methodology v1.6</a>
+      <a href="/methodology" class="qa-cta-btn primary">Methodology v1.7.1</a>
       <a href="/leaderboard.html" class="qa-cta-btn secondary">View the leaderboard</a>
     </div>
   </div>
@@ -1260,7 +1288,7 @@
           <a href="/developers">Developers</a>
       <a href="/status">Status</a>
     </nav>
-    <div class="site-footer-meta">Methodology v1.6 · Automated · Auditable</div>
+    <div class="site-footer-meta">Methodology v1.7.1 · Automated · Auditable</div>
   </div>
 </footer>
 <script src="chrome.js?v=1778145000"></script>
