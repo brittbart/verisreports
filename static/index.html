@@ -513,6 +513,34 @@
 </style>
 </head>
 <body data-page="home">
+<!-- LIVE_EVENT_BANNER: hidden unless /api/live-event reports a running debate -->
+<a id="vs-live-banner" href="/debates" hidden
+   style="display:none;align-items:center;justify-content:center;gap:10px;padding:12px 20px;
+          background:#0d1a12;color:#ebebee;border-top:1px solid #4ade80;border-bottom:1px solid #4ade80;text-decoration:none;font-size:15px;font-weight:500;">
+  <span style="width:8px;height:8px;border-radius:999px;background:#4ade80;box-shadow:0 0 8px #4ade80;animation:vsLivePulse 1.4s ease-in-out infinite;"></span>
+  <span><span style="color:#4ade80;font-weight:600">Live now</span> &mdash; <span id="vs-live-banner-name"></span>. Claims are being checked as they&rsquo;re made. <span style="color:#4ade80;font-weight:600">Follow along &rarr;</span></span>
+</a>
+<style>
+  @keyframes vsLivePulse { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+  @media (prefers-reduced-motion: reduce) { #vs-live-banner span { animation:none !important; } }
+</style>
+<script>
+(function () {
+  var el = document.getElementById('vs-live-banner');
+  var nm = document.getElementById('vs-live-banner-name');
+  function check() {
+    fetch('/api/live-event', {cache: 'no-store'}).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.running) {
+        nm.textContent = j.name || 'debate';
+        el.href = j.url || '/debates';
+        el.hidden = false; el.style.display = 'flex';
+      } else { el.hidden = true; el.style.display = 'none'; }
+    }).catch(function () {});
+  }
+  check(); setInterval(check, 60000);
+})();
+</script>
+
 <nav class="nav" aria-label="Site">
   <div class="nav-inner">
     <a href="/index.html" class="nav-logo" aria-label="Verum Signal home">

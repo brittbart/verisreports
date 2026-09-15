@@ -8900,6 +8900,51 @@ def live_feed_xml():
     return Response(xml, mimetype='application/rss+xml')
 
 
+
+# --- LIVE_EVENT_BANNER: read-only; timezone-aware; consumed by static/index.html ---
+@app.route('/api/live-event')
+def api_live_event():
+    """{running: false} or {running: true, name, slug, url}. No writes, no model calls."""
+    from flask import jsonify
+    from datetime import datetime as _d, timedelta as _td
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        ZoneInfo = None
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT event_name, slug, event_date, start_time, timezone
+                             FROM events WHERE is_public AND event_date IS NOT NULL
+                              AND start_time IS NOT NULL
+                            ORDER BY event_date DESC LIMIT 40""")
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+    now_utc = _d.now(ZoneInfo('UTC')) if ZoneInfo else _d.utcnow()
+    _ABBR = {'MST': 'America/Phoenix', 'MDT': 'America/Denver', 'EDT': 'America/New_York',
+             'EST': 'America/New_York', 'CDT': 'America/Chicago', 'CST': 'America/Chicago',
+             'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles'}
+    for name, slug, d, t, tz in rows:
+        tz = _ABBR.get(tz, tz)
+        starts = _d.combine(d, t)
+        if ZoneInfo and tz:
+            try:
+                starts = starts.replace(tzinfo=ZoneInfo(tz))
+            except Exception:
+                starts = starts.replace(tzinfo=ZoneInfo('UTC'))
+        elif ZoneInfo:
+            starts = starts.replace(tzinfo=ZoneInfo('UTC'))
+        if starts <= now_utc <= starts + _td(hours=3):
+            resp = jsonify(running=True, name=name, slug=slug,
+                           url=('/debates/' + slug) if slug else '/debates')
+            resp.headers['Cache-Control'] = 'no-cache'
+            return resp
+    resp = jsonify(running=False)
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+# --- end LIVE_EVENT_BANNER ---
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
