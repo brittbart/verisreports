@@ -451,6 +451,24 @@ def main():
     except Exception as e:
         check("Cron error scan", False, str(e), critical=False)
 
+    # ── 10c. Speaker divergence ──────────────────────────────────────────────
+    section("10c. Speaker divergence (claims / utterances / public API)")
+    if conn:
+        try:
+            from speaker_divergence import divergence, summary as _dsum
+            _eid = event[0] if event else None
+            _d = divergence(cur, _eid)
+            _own = (_d['fk_by_event'].get(_eid, 0) + _d['api_by_event'].get(_eid, 0)) if _eid else 0
+            check("This event: claims / utterances / API agree", _own == 0,
+                  f"{_own} divergent row(s) on event {_eid}" if _own else "0 / 0")
+            _other = _d['fk_total'] + _d['api_total'] - _own
+            check("Other events: no speaker divergence", _other == 0,
+                  _dsum(_d) if _other else "platform-wide 0 / 0", critical=False)
+        except Exception as e:
+            check("Speaker divergence", False, str(e), critical=False)
+    else:
+        check("Speaker divergence", False, "no DB connection", critical=False)
+
     # ── Summary ─────────────────────────────────────────────────────────────
     print(f"\n{'='*50}")
     critical_fails = [r for r in results if not r[1] and r[2]]

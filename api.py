@@ -2806,7 +2806,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         v = c.get('verdict') or 'pending'
         VBAR = {'supported':'#4ade80','plausible':'#60a5fa','corroborated':'#34d399','overstated':'#fb923c','disputed':'#f87171','not_supported':'#ef4444','opinion':'rgba(255,255,255,0.1)','not_verifiable':'rgba(255,255,255,0.1)','pending':'rgba(255,255,255,0.06)'}
         VPILL = {'supported':'p-sup','plausible':'p-pla','corroborated':'p-cor','overstated':'p-ove','disputed':'p-dis','not_supported':'p-nsu','opinion':'p-opi','not_verifiable':'p-nve','pending':'p-pend'}
-        VLBL = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'NOT YET VERIFIED'}
+        VLBL = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'PENDING'}
         bar_col = VBAR.get(v, 'rgba(255,255,255,0.1)')
         pill_cls = VPILL.get(v, 'p-opi')
         lbl = VLBL.get(v, v.upper())
@@ -2958,7 +2958,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     # Phase 5: simpler claim card for free report template
     def claim_row_free(c, idx):
         v = c.get('verdict') or 'pending'
-        VLBL_FREE = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'NOT YET VERIFIED'}
+        VLBL_FREE = {'supported':'SUPPORTED','plausible':'PLAUSIBLE','corroborated':'CORROBORATED','overstated':'OVERSTATED','disputed':'DISPUTED','not_supported':'NOT SUPPORTED','opinion':'OPINION','not_verifiable':'NOT VERIFIABLE','pending':'PENDING'}
         text = smartquotes(c.get('claim_text', ''))
         text = text[:1].upper() + text[1:] if text else text
         summary = c.get('verdict_summary', '') or ''
@@ -6437,7 +6437,7 @@ tr:hover td{background:rgba(168,85,247,0.03)}
 <div class="grid">
   <div class="card">
     <div class="label">Visitors today</div>
-    <div class="value">{{ today.visitors }}</div>
+    <div class="value">{{ today.visitors }} <span style="font-size:13px;color:#6b7280;font-weight:400">· {{ today.unique }} unique (IP)</span></div>
   </div>
   <div class="card">
     <div class="label">Page views today</div>
@@ -6456,7 +6456,7 @@ tr:hover td{background:rgba(168,85,247,0.03)}
 <div class="grid">
   <div class="card">
     <div class="label">7-day visitors</div>
-    <div class="value">{{ week.visitors }}</div>
+    <div class="value">{{ week.visitors }} <span style="font-size:13px;color:#6b7280;font-weight:400">· {{ week.unique }} unique (IP)</span></div>
   </div>
   <div class="card">
     <div class="label">7-day page views</div>
@@ -6464,7 +6464,7 @@ tr:hover td{background:rgba(168,85,247,0.03)}
   </div>
   <div class="card">
     <div class="label">30-day visitors</div>
-    <div class="value">{{ month.visitors }}</div>
+    <div class="value">{{ month.visitors }} <span style="font-size:13px;color:#6b7280;font-weight:400">· {{ month.unique }} unique (IP)</span></div>
   </div>
   <div class="card">
     <div class="label">30-day page views</div>
@@ -6508,11 +6508,12 @@ tr:hover td{background:rgba(168,85,247,0.03)}
 <!-- Daily breakdown -->
 <h2>Daily views (last 14 days)</h2>
 <table>
-<tr><th>Date</th><th>Visitors</th><th>Views</th><th>Avg duration</th><th>App calls</th></tr>
+<tr><th>Date</th><th>Visitors</th><th>Unique (IP)</th><th>Views</th><th>Avg duration</th><th>App calls</th></tr>
 {% for d in daily %}
 <tr>
   <td>{{ d.date }}</td>
   <td>{{ d.visitors }}</td>
+  <td>{{ d.unique }}</td>
   <td>{{ d.views }}</td>
   <td style="color:#6b7280">{{ d.avg_dur }}</td>
   <td style="color:#6b7280">{{ d.api_calls }}</td>
@@ -6574,12 +6575,14 @@ def ops_main():
             SELECT
                 COUNT(DISTINCT session_id) AS visitors,
                 COUNT(*) AS views,
-                ROUND(AVG(duration_ms) FILTER (WHERE duration_ms > 0))::int AS avg_dur
+                ROUND(AVG(duration_ms) FILTER (WHERE duration_ms > 0))::int AS avg_dur,
+                COUNT(DISTINCT ip) AS unique_visitors
             FROM page_views
             WHERE created_at > NOW() - INTERVAL '%s days'
+              AND path NOT LIKE '/ops/%%' AND path NOT LIKE '%%ops=1%%'
         """ % days)
         r = cur.fetchone()
-        return {'visitors': r[0] or 0, 'views': r[1] or 0, 'avg_duration': _fmt_dur(r[2])}
+        return {'visitors': r[0] or 0, 'views': r[1] or 0, 'avg_duration': _fmt_dur(r[2]), 'unique': r[3] or 0}
 
     today = _period_stats(1)
     week = _period_stats(7)
@@ -6616,12 +6619,14 @@ def ops_main():
             created_at::date AS day,
             COUNT(DISTINCT session_id) AS visitors,
             COUNT(*) AS views,
-            ROUND(AVG(duration_ms) FILTER (WHERE duration_ms > 0))::int AS avg_dur
+            ROUND(AVG(duration_ms) FILTER (WHERE duration_ms > 0))::int AS avg_dur,
+            COUNT(DISTINCT ip) AS unique_visitors
         FROM page_views
         WHERE created_at > NOW() - INTERVAL '14 days'
+          AND path NOT LIKE '/ops/%' AND path NOT LIKE '%ops=1%'
         GROUP BY day ORDER BY day DESC
     """)
-    pv_daily = {str(r[0]): {'date': str(r[0]), 'visitors': r[1], 'views': r[2], 'avg_dur': _fmt_dur(r[3])} for r in cur.fetchall()}
+    pv_daily = {str(r[0]): {'date': str(r[0]), 'visitors': r[1], 'views': r[2], 'avg_dur': _fmt_dur(r[3]), 'unique': r[4]} for r in cur.fetchall()}
 
     # API calls per day
     try:
@@ -7274,6 +7279,16 @@ def status_page():
             WHERE status = 'failed' AND started_at > NOW() - INTERVAL '24 hours'
         """)
         error_count = cur.fetchone()[0]
+        # Speaker attribution consistency: claims / speaker_utterances / api_debate_claims
+        # must carry the same speaker for every debate claim (16 rows diverged on
+        # 2026-09-14, 13 of them on public pages). None = check unavailable.
+        try:
+            from speaker_divergence import divergence as _sdiv, summary as _ssum
+            _sd = _sdiv(cur)
+            div_total = _sd['fk_total'] + _sd['api_total']
+            div_detail = _ssum(_sd)
+        except Exception as _sde:
+            div_total, div_detail = None, "check unavailable"
         cur.close(); conn.close()
 
         now = _dt.datetime.now(_dt.timezone.utc)
@@ -7309,6 +7324,14 @@ def status_page():
                       and error_count == 0)
         oc = "#4ade80" if overall_ok else "#fbbf24"
         ol = "All systems operational" if overall_ok else "Partial degradation"
+        if div_total:
+            overall_ok = False; oc = "#fbbf24"; ol = "Partial degradation"
+        if div_total is None:
+            dvs, dvc = "unknown", "#888"
+        elif div_total == 0:
+            dvs, dvc = "consistent", "#4ade80"
+        else:
+            dvs, dvc = f"{div_total} divergent", "#f87171"
         fi = stages.get("fetch", {})
         ei = stages.get("extract", {})
         vi = stages.get("verdicts", {})
@@ -7357,6 +7380,7 @@ footer a{{color:var(--dim);text-decoration:none}}footer a:hover{{color:var(--fg)
 <div class="comp"><div><div class="cn">Claim extraction</div><div class="cd">Last run: {age_str(ei.get("last_ok"))} &middot; {ei.get("last_count") or 0} claims</div></div><div class="cs"><div class="dot" style="background:{ec}"></div>{es}</div></div>
 <div class="comp"><div><div class="cn">Claim verification</div><div class="cd">Last run: {age_str(vi.get("last_ok"))} &middot; {vi.get("last_count") or 0} verdicts</div></div><div class="cs"><div class="dot" style="background:{vc}"></div>{vs}</div></div>
 <div class="comp"><div><div class="cn">Public API</div><div class="cd">api.verumsignal.com/v1/* &middot; cache refreshed {api_cache_age}</div></div><div class="cs"><div class="dot" style="background:{apc}"></div>{aps}</div></div>
+<div class="comp"><div><div class="cn">Speaker attribution</div><div class="cd">debate claims &middot; page, source rows and API agree &middot; {div_detail}</div></div><div class="cs"><div class="dot" style="background:{dvc}"></div>{dvs}</div></div>
 </div>
 <h2>Incidents</h2>
 <div class="inc">{incident_msg}</div>

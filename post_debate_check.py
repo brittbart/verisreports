@@ -445,6 +445,25 @@ def main():
         print('    claims.speaker_id — it is a stop-and-escalate column, and')
         print('    Session 9 reverted a repair made on link evidence alone.')
 
+    # ── 10e. Public API speaker sync + duplicate counts ───────────────────
+    section('10e. Public API speaker sync / duplicate counts')
+    # api_debate_claims is refreshed from speaker_utterances.speaker_id, not from
+    # claims. A correction written to claims alone therefore never reaches
+    # api.verumsignal.com or the MCP (event 11, June 4 -> found Sept 14).
+    try:
+        from speaker_divergence import divergence
+        _d = divergence(cur, eid)
+        _api = _d['api_by_event'].get(eid, 0)
+        check('api_debate_claims.speaker_id matches claims.speaker_id', _api == 0,
+              (f'{_api} row(s) differ - refresh runs every 5 min; if it persists, '
+               f'the utterance side was not corrected with the claim') if _api else '')
+        check('No duplicate utterance_order slots', _d['dup_slots'] == 0,
+              f"{_d['dup_slots']} duplicate slot(s) - double-write family" if _d['dup_slots'] else '')
+        check('No claim text under more than one speaker', _d['dup_texts'] == 0,
+              f"{_d['dup_texts']} text(s) under 2+ speakers" if _d['dup_texts'] else '')
+    except Exception as _e:
+        check('Speaker divergence module', False, str(_e))
+
     # ── 11. Summary ───────────────────────────────────────────────────────
     section('11. Next steps')
     if pending > 0:
