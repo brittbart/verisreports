@@ -38,8 +38,8 @@ function TOC({ sections, activeId, onJump }) {
             <text x="88" y="19" fontFamily="Trebuchet MS,sans-serif" fontSize="13" fontWeight="400" fontStyle="italic" fill="#c084fc" letterSpacing="1.5" transform="skewX(-6)">SIGNAL</text>
           </svg>
         </div>
-        <div className="vs-toc__meta">Methodology \u00b7 v1.6</div>
-        <div className="vs-toc__meta">April 25, 2026</div>
+        <div className="vs-toc__meta">Methodology {"\u00b7"} {window.VS_DATA.meta.version}</div>
+        <div className="vs-toc__meta">{window.VS_DATA.meta.date}</div>
       </div>
     </nav>
   );
@@ -72,7 +72,7 @@ function PipelineDiagram() {
     { n: "01", title: "Ingestion",    note: "URL \u2192 article text" },
     { n: "02", title: "Extraction",   note: "Sonnet \u2192 claim list" },
     { n: "03", title: "Priority",     note: "score \u2265 30 \u2192 queue" },
-    { n: "04", title: "Verification", note: "cache \u00b7 consensus \u00b7 web" },
+    { n: "04", title: "Verification", note: "opinion pre-filter \u00b7 web search" },
   ];
   const [active, setActive] = useState(0);
   useEffect(() => {

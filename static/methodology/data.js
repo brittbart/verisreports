@@ -4,14 +4,14 @@ window.VS_DATA = {
     brand: "VERUM SIGNAL",
     title: "Article Analysis Methodology",
     subtitle: "How Verum Signal Evaluates a Single Article",
-    version: "v1.7",
-    date: "July 2026",
+    version: "v1.7.1",
+    date: "September 2026",
     principle: "We provide the signals. You decide.",
   },
   sections: [
     {
       id: "overview", num: "01", title: "Overview", kind: "prose",
-      body: ["When a user submits an article URL to Verum Signal, the system extracts factual claims from the article, scores them for verification priority, and runs each claim through a three-step verification pipeline. The result is a claim-level verdict report alongside the outlet's overall reliability score.",
+      body: ["When a user submits an article URL to Verum Signal, the system extracts factual claims from the article, scores them for verification priority, and runs each claim through a two-step verification pipeline. The result is a claim-level verdict report alongside the outlet's overall reliability score.",
              "This document describes exactly what happens at each stage, what decisions are made, and what the user sees at the end."],
       callout: { label: "Brand principle", text: "Verum Signal never describes itself as a fact-checker. It evaluates claims on evidence. We provide the signals. You decide." },
     },
@@ -32,7 +32,55 @@ window.VS_DATA = {
       attribution: [
         ["Quoted claims", "when an outlet reports what someone else said, the outlet is evaluated on whether the quote is accurate, not on whether the speaker's claim is true."],
       ],
-      bodyAfter: "Verbatim wire-service content published under an outlet's own byline is scored as an ordinary outlet claim -- the outlet selected it, headlined it, and published it under its masthead. This policy ensures outlets are scored on what they themselves originated or, for quoted claims, on the accuracy of their reporting.",
+      bodyAfter: "Verbatim wire-service content published under an outlet's own byline is scored as an ordinary outlet claim -- the outlet selected it, headlined it, and published it under its masthead. This policy ensures outlets are scored on what they themselves originated or, for quoted claims, on the accuracy of their reporting. Quoted claims are checked only when a reader requests the article's report; the background queue does not check them, and they never count toward an outlet's score.",
+    },
+    {
+      id: "speakers", num: "2.6", title: "Speaker Attribution (Debates)", kind: "prose",
+      body: [
+        "This section applies to debate coverage only. Every claim extracted from a debate carries the identity of the person who said it, and that identity is decided before extraction, not after: an utterance with no confirmed speaker is never extracted, and a claim is never re-attributed once it exists. Claim Attribution (2.5) concerns the origin of claims in articles and is unaffected.",
+        "Crediting a candidate with words they did not say can publish a false claim against them; leaving a candidate's words unattributed only loses coverage. Every rule below prefers the second failure to the first. Where a decision is marginal, the system abstains.",
+      ],
+      sub: [
+        { title: "2.6.1  Voice prints and roster scoping", intro: "Attribution is acoustic. Each candidate on an event's roster is enrolled before the event with a voice print: a speaker embedding built from at least two audio clips from two independent sources, never from the event being covered. Each clip is checked by re-transcribing it against its source. A print is refused at enrolment if it sits too close to any print already in the store, and the clip responsible is re-sourced rather than overridden.", items: [
+          ["Roster scoping", "matching is restricted to the prints of the speakers on the event's roster. Removing this restriction on a test event produced ten confident matches against people in other states."],
+          ["All-or-none coverage", "either every candidate on the roster is enrolled or the event is captured without published attribution. A missing print would publish claims against some candidates and none against another."],
+          ["Moderators are not enrolled", "moderators share a single generic speaker row and are excluded from extraction. An unenrolled voice receives no name rather than the nearest one."],
+        ]},
+        { title: "2.6.2  Live attribution during capture", intro: "Audio is captured from the event's English stream and transcribed live with per-word speaker diarization. Each transcript segment is split into runs of a single diarizer speaker index, so no stored utterance mixes two voices. Every utterance is stored with its diarizer index, its position in the stream, and its timestamp.", items: [
+          ["Voice confirmation", "an index is confirmed as a roster speaker only by voice: after at least 30 seconds of that index's audio, several short windows are embedded, averaged and compared to the roster prints. A cosine distance below 0.55 confirms the index; anything at or above 0.55 confirms nothing. Each roster speaker may be confirmed on at most one index at a time. On confirmation, earlier utterances of the same index within the same capture run inherit the speaker; utterances of an unconfirmed index remain unattributed."],
+          ["Text cues propose, voice binds", "a moderator handing to a candidate by surname may propose a speaker for the index that speaks next. Cues match only curated roster surnames and full names as whole words. A cue never overrides a voice confirmation."],
+          ["Capture restarts", "if capture restarts mid-event the diarizer's indices restart at zero. Every back-fill is scoped to the run in which the confirmation was made; a confirmation in a later run cannot relabel rows written in an earlier one."],
+        ]},
+        { title: "2.6.3  What live attribution does not do", items: [
+          ["No fallback by order", "it does not assign a speaker by speaking order, by most recent speaker, or by any fallback. Those paths were removed in August 2026 after they were shown to write a moderator's introduction to a candidate as a confident attribution."],
+          ["No custom vocabulary", "it does not bias the recognizer toward strings chosen before the candidates speak; attribution is acoustic and does not read the text. Name spelling is corrected afterwards against the known roster, where it is auditable."],
+          ["No downward re-attribution", "an utterance confirmed by voice keeps that speaker unless the post-event check corrects it before publication."],
+        ]},
+        { title: "2.6.4  Claim extraction depends on attribution", intro: "Claim extraction operates on whole speaker turns -- consecutive utterances of one confirmed speaker -- and selects only turns whose speaker is a candidate. An utterance with no confirmed speaker neither joins nor closes a turn, and the selection joins on the speaker row, so an unattributed utterance cannot produce a claim by construction. Moderator turns are never selected." },
+        { title: "2.6.5  Post-event independent check", intro: "Before an event's claims are published, the saved capture audio is diarized again by an independent method, which partitions the recording into speaker clusters without reference to the live indices. Each cluster is voice-identified once against the roster prints and every live utterance inside that cluster inherits the result. Clusters are classed as named (a clear match to exactly one roster print), weak, no match (this voice matches nobody enrolled), or no evidence (no turn long enough to embed). A live utterance labelled as a candidate whose cluster matches nobody enrolled is counted as wrong, not as abstained. That count must be zero before publication; any non-zero count is inspected row by row. Corrections are applied to utterances before extraction runs on them, never after." },
+        { title: "2.6.6  Measured performance", intro: "Every figure is from a named recording, so the results can be reproduced. None of these recordings was used to build a print.", items: [
+          ["Wyoming gubernatorial debate, 2026-08-21", "112 hand-labelled speech spans: 112/112 correct; the moderator (28/28) and panelists (9/9), who have no print, abstained; 0 false attributions. 380 rolling windows straddling speaker changes: 0 attributions to anyone absent from the roster. Cluster-level, run 1: 279/279 correct, 0 wrong, 0 abstained."],
+          ["Cross-state control", "three Arizona candidates scored against three Wyoming prints: 3/3 abstained."],
+          ["Arizona congressional rehearsal (two enrolled candidates, unenrolled moderator)", "acoustic clusters correct in two replays. Before the cue fix the text-cue path produced 16 misattributed utterances and 2 claims from them (kept as evidence; never published); after it, 1 misattributed utterance and 0 claims."],
+          ["Arizona Corporation Commission debate, 2026-09-09 (first production event)", "capture restarted after the host machine suspended. Run 0: 112 correct, 14 wrong -- the moderator's opening relabelled to a candidate when a confirmation in run 1 back-filled index rows from run 0. Run 1: 521/521. Live voice identification was correct in both runs; the back-fill crossed the run boundary. The rows were corrected before publication, no claim had been extracted from them, and back-fill was scoped to the current run before the event was published."],
+          ["Restart rehearsal, 2026-09-10", "deliberate kill and restart after run 0 had two confirmed indices: run 0's index map unchanged after run 1 confirmed; back-fill did not cross the restart."],
+        ]},
+        { title: "2.6.7  Known limitations", items: [
+          ["Turn-boundary contamination", "if the independent diarizer merges a moderator's short handoff into the following candidate's cluster, the cluster's acoustics are the candidate's, the majority label agrees with the live label, and both are wrong about the moderator's words. One such case was found on the 2026-09-09 event by reading the transcript. No cluster-level method catches this; it is reported here rather than solved."],
+          ["The threshold is measured on few fixtures", "0.55 was chosen from the Wyoming sweep, where accuracy was flat from 0.50 to 0.70 with a clear gap between correct and incorrect distances, and has since held on the rehearsals and the first production event. It is a fixed constant, not tuned per event."],
+          ["The moderator-preference rule has never fired", "on a decision within 0.05 between a candidate and the moderator the design prefers the moderator; every measured decision to date was clear enough not to need it, so it is stated as a rule and not as a tested one."],
+          ["Two similar voices in one race", "two candidates can sit below the confirmation threshold even when each is enrolled from independent sources. The remedies are re-enrolment from additional independent sources (one such pair was resolved this way in September 2026) or transcript-only coverage for that event, decided before the event. The internal attribution record names the voices; this page does not."],
+          ["Moderators abstain rather than being named", "because moderators are not enrolled, a moderator's voice matches nobody. This is the intended safe direction; a moderator who never issues a recognized handoff has no label at all."],
+          ["A restart produces a coverage gap", "each capture run writes its own recording and the post-event check runs per recording. Utterances during the restart window are lost."],
+        ]},
+        { title: "2.6.8  What this section does not claim", items: [
+          ["Human review of every attribution", "the post-event check is automated; a human reviews its non-zero counts and the transcript around them."],
+          ["A false-attribution rate of zero in production", "it claims zero on the fixtures in 2.6.6 and one measured incident on 2026-09-09 whose cause is fixed and whose rows were corrected before publication."],
+          ["Reliability of the text-cue path on its own", "its role is to propose; voice confirmation binds."],
+          ["Anything about articles", "speaker attribution applies to debate claims only."],
+        ]},
+      ],
+      callout: { label: "Consistent on every surface", text: "A claim's speaker is held in three places -- the claim, the utterance it came from, and the public API record -- and the platform checks nightly that all three agree. Corrections propagate to every surface within one refresh cycle." },
     },
     {
       id: "extraction", num: "03", title: "Stage 2 — Claim Extraction", kind: "stage", stageIndex: 2,
@@ -103,12 +151,15 @@ window.VS_DATA = {
           { label: "normalised",   expr: "(weighted_sum / scoreable + 1.5) / 2.5", highlight: true },
           { label: "score",        expr: "min(max( normalised \u00d7 100, 0), 100)" },
         ],
-        note: "Divisor fixed at 2.5 (v1.6).",
+        note: "Divisor fixed at 2.5, unchanged since v1.5.",
       },
     },
     {
       id: "changes", num: "7.5", title: "Verdicts Can Change", kind: "prose",
-      body: ["Verdicts are not permanent. They are reviewed when new editions of the methodology are released or when a verdict dispute is submitted."],
+      body: [
+        "Verdicts are not permanent. They are reviewed when new editions of the methodology are released or when a verdict dispute is submitted.",
+        "A correction changes who a claim is attributed to or what its evidence shows; when a claim's speaker is corrected, its verdict is reset and the claim is checked again. A repair aligns records that disagree about a claim without changing the claim itself, and does not reset the verdict. Both are logged against the claim with a reason and a date, and both propagate to every surface that shows the claim within one refresh cycle.",
+      ],
     },
     {
       id: "tiers", num: "08", title: "Outlet Inclusion & Tiers", kind: "prose",
@@ -136,6 +187,13 @@ window.VS_DATA = {
       id: "changelog", num: "11", title: "Changelog", kind: "prose",
       body: ["This page is the public methodology document."],
       sub: [
+        { title: "v1.7.1 \u2014 September 2026", intro: "Speaker Attribution (Debates) added as Section 2.6 after the first production debate; verdict-change rules stated; page corrected where it had drifted from the engine. Scoring rules, verdict types and outlet methodology are unchanged; the version stamp on claims remains v1.7.", items: [
+          ["Section 2.6 added", "The live method is documented as built -- streaming diarization with per-index voice confirmation and run-scoped back-fill -- with the post-event independent check, measured performance on named recordings, and the known limitations. As with v1.7 itself, the code preceded this text."],
+          ["Quoted claims", "Section 2.5 now states that quoted claims are checked only when a reader requests an article's report and never count toward an outlet's score. This was the engine's behaviour; it was not written down."],
+          ["Verdicts Can Change", "Section 7.5 distinguishes a correction (verdict reset, claim re-checked) from a repair (records aligned, verdict kept), and states that both propagate to every surface within one refresh cycle. A nightly check that the claim, its source utterance and the public API record agree on the speaker was added in September 2026."],
+          ["Same inclusion rule on every surface", "The date requirement and the 6-hour gate in Section 02 are applied identically wherever a score is published -- web leaderboard, mobile app and public API. Before September 2026 the API and mobile aggregates omitted both, so 18 of 27 published outlet scores differed from the web by up to 5 points. Aligned; the web figures were the correct ones."],
+          ["Page corrected", "The Overview described a three-step pipeline (two-step since July); the formula note cited v1.6 for a divisor unchanged since v1.5."],
+        ]},
         { title: "v1.7 \u2014 July 2026", intro: "Verification pipeline rewritten to match the live engine; corroborated weight corrected; priority threshold and language detection described accurately; wire-reprint exclusion retired.", items: [
           ["Corroborated weight corrected", "corroborated changed from +0.5 to +0.75, matching the engine since a Session 3 change. Rationale: v1.6 gave plausible and corroborated identical weight, erasing the distinction the verdict definitions themselves draw."],
           ["Verification Pipeline rewritten", "The three-step cache/consensus/web-search process described in v1.6 no longer reflects the engine. Both short-circuits were removed in code May 28, 2026. Verification is now described as the two-step process it actually is."],
