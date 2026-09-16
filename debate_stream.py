@@ -67,6 +67,7 @@ def get_db_conn():
         host=os.environ.get('DB_HOST', 'shinkansen.proxy.rlwy.net'),
         port=os.environ.get('DB_PORT', '35370'),
         connect_timeout=10,
+        keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
         application_name='veris-debate-stream',
     )
 
@@ -720,6 +721,95 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 traceback.print_exc()
             _time.sleep(TICK_SECS)
 
+    # S13 2026-09-15: DB writes leave the Deepgram handler. The handler claims the
+    # order and enqueues; _db_writer commits with retries so a proxy stall cannot
+    # block audio intake (event 26: three restarts from exactly that).
+    import queue as _queue
+    _db_q = _queue.Queue(maxsize=2000)
+    def _enqueue_utterance(item):
+        try:
+            _db_q.put_nowait(item)
+        except _queue.Full:
+            print(f"  [DB] queue full -- DROPPED order={item['order']}")
+    def _write_with_retry(*a, **kw):
+        for _att in range(3):
+            try:
+                return write_utterance(*a, **kw)
+            except Exception as _we:
+                print(f"  [DB] write attempt {_att + 1}/3 failed: {_we}")
+                if _att < 2:
+                    time.sleep(2)
+        print(f"  [DB] DROPPED order={a[3]} after 3 attempts")
+        return None
+    def _commit_utterance(item):
+        speaker_id = item['speaker_id']; text = item['text']; _order = item['order']
+        ts_seconds = item['ts_seconds']; mean_confidence = item['mean_confidence']
+        _used_fallback = item['force_uncertain']; rev_speaker_idx = item['rev_speaker_idx']
+        uid = _write_with_retry(
+            event_id, speaker_id, text,
+            _order, args.dry_run,
+            timestamp_seconds=ts_seconds,
+            attribution_confidence=mean_confidence,
+            force_uncertain=_used_fallback,
+            rev_speaker_idx=rev_speaker_idx,
+        )
+
+        if uid:
+            written_count[0] += 1
+            label = f"Speaker {rev_speaker_idx}" if speaker_id is None else f"speaker_id={speaker_id}"
+            ts = datetime.now().strftime('%H:%M:%S')
+            print(f"  [{ts}] [{label}] {text[:80]}")
+
+            # Trigger extraction every 5 utterances
+            if written_count[0] % 5 == 0:
+                threading.Thread(
+                    target=trigger_extraction,
+                    args=(event_id, args.dry_run),
+                    daemon=True
+                ).start()
+
+            # Attribution collapse detector — fires every 25 utterances
+            # If 80%+ of recent utterances went to one non-moderator speaker
+            # in a multi-speaker debate, attribution has likely collapsed
+            if speaker_id is not None:
+                recent_speaker_ids.append(speaker_id)
+                if len(recent_speaker_ids) > 30:
+                    recent_speaker_ids.pop(0)
+            if written_count[0] % 25 == 0 and written_count[0] > 0:
+                non_mod = [sid for sid in recent_speaker_ids if sid != 3]
+                candidate_sids = [sid for sid in (speaker_order or []) if sid != 3]
+                if len(non_mod) >= 10 and len(candidate_sids) > 1:
+                    from collections import Counter
+                    counts = Counter(non_mod)
+                    top_sid, top_count = counts.most_common(1)[0]
+                    pct = top_count / len(non_mod)
+                    if pct >= 0.80:
+                        print(f"  [ATTRIBUTION WARNING] {pct:.0%} of last {len(non_mod)} utterances"
+                              f" attributed to speaker_{top_sid} — possible collapse")
+                        # S12 2026-09-02: the old re-trigger here was ALREADY a
+                        # no-op -- the suspect index sits in confirmed_speaker_ids,
+                        # so it was excluded from `unconfirmed` and the retriggered
+                        # pass found nothing to score. Diagnostic only for now:
+                        # auto-un-confirming risks dropping a legitimately dominant
+                        # speaker (a long uninterrupted answer) on an unvalidated
+                        # rolling-window heuristic. Flag for a human, take no action.
+                        recent_speaker_ids.clear()
+    def _db_writer():
+        while True:
+            item = _db_q.get()
+            try:
+                _commit_utterance(item)
+            except Exception as _ce:
+                print(f"  [DB] writer error: {_ce}")
+            finally:
+                _db_q.task_done()
+    def _drain_db_queue(timeout=15.0):
+        _deadline = time.time() + timeout
+        while not _db_q.empty() and time.time() < _deadline:
+            time.sleep(0.2)
+        print(f"  [DB] drained, {_db_q.qsize()} row(s) left")
+    threading.Thread(target=_db_writer, daemon=True).start()
+
     threading.Thread(target=run_voice_identification, daemon=True).start()
 
     calibration_start = [time.time()]
@@ -1039,56 +1129,11 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                 and rev_speaker_idx not in confirmed_speaker_ids
             )
 
-            uid = write_utterance(
-                event_id, speaker_id, text,
-                utterance_order[0], args.dry_run,
-                timestamp_seconds=ts_seconds,
-                attribution_confidence=mean_confidence,
-                force_uncertain=_used_fallback,
-                rev_speaker_idx=rev_speaker_idx,
-            )
-
-            if uid:
-                written_count[0] += 1
-                label = f"Speaker {rev_speaker_idx}" if speaker_id is None else f"speaker_id={speaker_id}"
-                ts = datetime.now().strftime('%H:%M:%S')
-                print(f"  [{ts}] [{label}] {text[:80]}")
-
-                # Trigger extraction every 5 utterances
-                if written_count[0] % 5 == 0:
-                    threading.Thread(
-                        target=trigger_extraction,
-                        args=(event_id, args.dry_run),
-                        daemon=True
-                    ).start()
-
-                # Attribution collapse detector — fires every 25 utterances
-                # If 80%+ of recent utterances went to one non-moderator speaker
-                # in a multi-speaker debate, attribution has likely collapsed
-                if speaker_id is not None:
-                    recent_speaker_ids.append(speaker_id)
-                    if len(recent_speaker_ids) > 30:
-                        recent_speaker_ids.pop(0)
-                if written_count[0] % 25 == 0 and written_count[0] > 0:
-                    non_mod = [sid for sid in recent_speaker_ids if sid != 3]
-                    candidate_sids = [sid for sid in (speaker_order or []) if sid != 3]
-                    if len(non_mod) >= 10 and len(candidate_sids) > 1:
-                        from collections import Counter
-                        counts = Counter(non_mod)
-                        top_sid, top_count = counts.most_common(1)[0]
-                        pct = top_count / len(non_mod)
-                        if pct >= 0.80:
-                            print(f"  [ATTRIBUTION WARNING] {pct:.0%} of last {len(non_mod)} utterances"
-                                  f" attributed to speaker_{top_sid} — possible collapse")
-                            # S12 2026-09-02: the old re-trigger here was ALREADY a
-                            # no-op -- the suspect index sits in confirmed_speaker_ids,
-                            # so it was excluded from `unconfirmed` and the retriggered
-                            # pass found nothing to score. Diagnostic only for now:
-                            # auto-un-confirming risks dropping a legitimately dominant
-                            # speaker (a long uninterrupted answer) on an unvalidated
-                            # rolling-window heuristic. Flag for a human, take no action.
-                            recent_speaker_ids.clear()
+            _order = utterance_order[0]
             utterance_order[0] += 1
+            _enqueue_utterance(dict(speaker_id=speaker_id, text=text, order=_order,
+                                    ts_seconds=ts_seconds, mean_confidence=mean_confidence,
+                                    force_uncertain=_used_fallback, rev_speaker_idx=rev_speaker_idx))
 
         except Exception as e:
             print(f"  [WARNING] Error processing response: {e}")
@@ -1142,6 +1187,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
     import signal as _signal
     def _on_sigterm(signum, frame):
         print(f"\n  [signal {signum}] terminating ffmpeg and exiting")
+        _drain_db_queue(15.0)
         try:
             ffmpeg_proc.terminate()
         except Exception:
@@ -1261,9 +1307,11 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             if time.time() - last_ka > 5:
                 dg_sock.send(KEEPALIVE)
                 last_ka = time.time()
+        _drain_db_queue(15.0)
         trigger_extraction(event_id, args.dry_run)
     except KeyboardInterrupt:
         print("\n\nStopped by user.")
+        _drain_db_queue(15.0)
         ffmpeg_proc.terminate()
         trigger_extraction(event_id, args.dry_run)
     except Exception as e:
