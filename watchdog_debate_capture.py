@@ -70,6 +70,28 @@ def _child_ffmpeg_alive(pid):
     return r.returncode == 0
 
 
+def _child_ffmpeg_pids(pid):
+    """pids of ffmpeg processes whose parent is the child right now. Taken
+    just before a SIGKILL: a killed debate_stream.py cannot clean up its own
+    ffmpeg, which otherwise keeps feeding the wav from HLS until the terminal
+    goes (event 26, 2026-09-15: three orphans)."""
+    r = subprocess.run(["pgrep", "-P", str(pid), "-x", "ffmpeg"],
+                       capture_output=True, text=True)
+    return [int(x) for x in r.stdout.split()] if r.returncode == 0 else []
+
+
+def _kill_orphan_ffmpeg(pids):
+    """SIGKILL exactly the pids collected by _child_ffmpeg_pids, if still alive."""
+    for p in pids:
+        try:
+            os.kill(p, signal.SIGKILL)
+            log(f"orphan ffmpeg {p} killed")
+        except ProcessLookupError:
+            pass
+        except Exception as e:
+            log(f"could not kill orphan ffmpeg {p}: {e}")
+
+
 def _find_child_wav(preexisting):
     """The wav this child is writing: newest AUDIO_DIR/event_*.wav that did NOT
     exist when the child started. A previous run's file is never a candidate,
@@ -101,8 +123,10 @@ def _forward_term(signum, frame):
             proc.wait(timeout=STALL_KILL_GRACE_SECONDS)
         except subprocess.TimeoutExpired:
             log(f"child ignored SIGTERM for {STALL_KILL_GRACE_SECONDS}s. Sending SIGKILL.")
+            _orphans = _child_ffmpeg_pids(proc.pid)
             proc.kill()
             proc.wait()
+            _kill_orphan_ffmpeg(_orphans)
     log(f"exiting on signal {signum} (not restarting).")
     raise SystemExit(128 + signum)
 
@@ -146,8 +170,11 @@ def run_child(args):
                 return proc.wait(timeout=STALL_KILL_GRACE_SECONDS)
             except subprocess.TimeoutExpired:
                 log(f"liveness: child ignored SIGTERM for {STALL_KILL_GRACE_SECONDS}s. Sending SIGKILL.")
+                _orphans = _child_ffmpeg_pids(proc.pid)
                 proc.kill()
-                return proc.wait()
+                _rc = proc.wait()
+                _kill_orphan_ffmpeg(_orphans)
+                return _rc
 
 
 def main():
