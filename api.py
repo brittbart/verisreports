@@ -8747,6 +8747,7 @@ def _live_where(publications=None, origins=None, events=None, since=None):
          WHERE c.verdict IS NOT NULL
            AND c.priority_score >= %s
            AND (c.event_id IS NULL OR e.is_public)
+           AND c.verdict <> 'not_verifiable'
     """
     params = [LIVE_PRIORITY_GATE]
     if publications:
