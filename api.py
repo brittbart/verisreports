@@ -8709,6 +8709,19 @@ def _live_zone(tz):
         return ZoneInfo('UTC')
 
 
+def _live_recent_utterance(event_id, minutes=3):
+    """True while capture is producing for this event (an utterance in the last N minutes).
+    2026-09-15 rule: "running" tracks capture, not the calendar window -- event 26 showed live 3 h after it ended."""
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT 1 FROM speaker_utterances
+                            WHERE event_id = %s AND created_at > NOW() - INTERVAL '%s minutes' LIMIT 1""", (event_id, minutes))
+            return cur.fetchone() is not None
+    finally:
+        conn.close()
+
+
 def _event_starts_utc(event_date, start_time, tz):
     """Aware UTC datetime for an event start given its stored local date/time and timezone label."""
     from datetime import datetime as _d
@@ -8911,7 +8924,8 @@ def _live_events():
     for e in rows:
         e['_starts'] = _event_starts_utc(e.get('event_date'), e.get('start_time'), e.get('timezone'))
     running = next((e for e in rows if e['_starts']
-                    and e['_starts'] <= now <= e['_starts'] + _td(hours=3)), None)
+                    and e['_starts'] <= now <= e['_starts'] + _td(hours=3)
+                    and _live_recent_utterance(e['id'])), None)
     if running:
         running['started_display'] = running['_starts'].astimezone(_live_zone(running.get('timezone'))).strftime('%-I:%M %p').lower()
     nxt = None
@@ -9082,7 +9096,7 @@ def api_live_event():
     conn = get_db()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT event_name, slug, event_date, start_time, timezone
+            cur.execute("""SELECT id, event_name, slug, event_date, start_time, timezone
                              FROM events WHERE is_public AND event_date IS NOT NULL
                               AND start_time IS NOT NULL
                             ORDER BY event_date DESC LIMIT 40""")
@@ -9090,9 +9104,9 @@ def api_live_event():
     finally:
         conn.close()
     now_utc = _d.now(_tz.utc)
-    for name, slug, d, t, tz in rows:
+    for eid, name, slug, d, t, tz in rows:
         starts = _event_starts_utc(d, t, tz)
-        if starts and starts <= now_utc <= starts + _td(hours=3):
+        if starts and starts <= now_utc <= starts + _td(hours=3) and _live_recent_utterance(eid):
             resp = jsonify(running=True, name=name, slug=slug,
                            url=('/debates/' + slug) if slug else '/debates')
             resp.headers['Cache-Control'] = 'no-cache'
