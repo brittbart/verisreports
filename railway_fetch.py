@@ -26,6 +26,27 @@ def main() -> int:
         count = fetch_articles.fetch_articles_to_db()
         ctx.record(items_processed=count)
 
+    # Phase 1b (2026-09-16): fetch full article bodies for feed-summary stubs.
+    # articles.content had only ever held the RSS summary, so extraction's
+    # 500-char gate never saw most major outlets. Direct scrape -> Jina only;
+    # no Anthropic client, no model credits. Anonymous Jina => 4 workers.
+    with run_stage("bodies") as ctx:
+        import subprocess, sys as _sys
+        try:
+            r = subprocess.run([_sys.executable, "enrich_article_bodies.py", "--apply",
+                                "--limit", "120", "--workers", "4", "--hours", "24"],
+                               capture_output=True, text=True, timeout=1500)
+            tail = (r.stdout or "").strip().splitlines()[-1:] or [""]
+            print(f"[bodies] rc={r.returncode} {tail[0]}")
+            if r.returncode != 0:
+                print((r.stderr or "")[-2000:])
+            import re as _re
+            m = _re.search(r"full=(\d+)", tail[0])
+            ctx.record(items_processed=int(m.group(1)) if m else 0)
+        except Exception as e:
+            print(f"[bodies] failed (non-fatal): {e}")
+            ctx.record(items_processed=0)
+
     # Phase 2: backfill published_at for new articles
     with run_stage("backfill") as ctx:
         from scripts.backfill_published_at import backfill_recent_articles
