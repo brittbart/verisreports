@@ -882,7 +882,7 @@ function renderRow(o, rank) {
       <td>
         <a class="lb-outlet-link" href="/outlet/${o.domain}">
           <div class="lb-outlet-name">${escapeHtml(o.name)}<span class="lb-outlet-arrow">→</span></div>
-          <div class="lb-outlet-meta">${o.domain} · ${o.verdict_count} verdicts · ${o.scoreable_count} scoreable</div>
+          <div class="lb-outlet-meta">${o.domain} · ${o.verdict_count} verdicts · ${o.scoreable_count} scoreable${o.last_verdict_at ? ' · scored through ' + new Date(o.last_verdict_at).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : ''}</div>
         </a>
       </td>
       <td>
