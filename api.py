@@ -8690,7 +8690,8 @@ LIVE_DAY_TZ = 'America/Denver'     # day separators ("Today"/"Yesterday") and ra
 
 LIVE_TZ_ABBR = {'MST': 'America/Phoenix', 'MDT': 'America/Denver', 'EDT': 'America/New_York',
                 'EST': 'America/New_York', 'CDT': 'America/Chicago', 'CST': 'America/Chicago',
-                'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles'}
+                'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles',
+                'AKDT': 'America/Anchorage', 'AKST': 'America/Anchorage', 'HST': 'Pacific/Honolulu'}
 
 LIVE_MARKS = {
     'outlet_claim': '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="#c084fc"/></svg>',
