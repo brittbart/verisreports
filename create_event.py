@@ -10,7 +10,7 @@ Replaces the per-event create_event_sept23/sept15 scripts. Dry run by default; -
 Roster order = moderator, then speakers in the order given on the command line = the --speaker-order argument.
 Refuses: existing slug; a --speaker whose normalized_name or slug already exists (use --speaker-id); a timezone
 Postgres will not accept (ET/CT/MT/PT - store IANA names); a --speaker-id that does not exist.
-Flags written: event_type debate, is_public FALSE, is_listed TRUE, capture_enabled FALSE, methodology v1.7,
+Flags written: event_type debate, is_public TRUE (publish-first, 2026-09-15), is_listed TRUE, capture_enabled FALSE, methodology v1.7,
 attribution_confidence_threshold 0.60, stream_url NULL (pin later). Prints the rollback SQL on --apply."""
 import argparse, os, re, sys, datetime
 import psycopg2
@@ -78,7 +78,7 @@ def main():
             cur.execute("INSERT INTO speakers (name, normalized_name, slug, speaker_type) VALUES (%s, %s, %s, 'politician') RETURNING id", (name, nn, sl))
             sid = cur.fetchone()[0]; new_ids.append(sid); roster[i] = ('new', sid, name, st)
     cur.execute("""INSERT INTO events (slug, event_type, event_name, event_date, start_time, timezone, is_public, is_listed, capture_enabled,
-                   methodology_version, attribution_confidence_threshold, notes) VALUES (%s,'debate',%s,%s,%s,%s,FALSE,TRUE,FALSE,%s,%s,%s) RETURNING id""",
+                   methodology_version, attribution_confidence_threshold, notes) VALUES (%s,'debate',%s,%s,%s,%s,TRUE,TRUE,FALSE,%s,%s,%s) RETURNING id""",
                 (a.slug, a.name, ev_date, ev_time, a.tz, a.methodology, a.threshold, a.notes))
     eid = cur.fetchone()[0]
     for i, (kind, sid, name, st) in enumerate(roster):

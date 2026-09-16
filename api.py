@@ -8914,18 +8914,29 @@ def api_live_event():
     conn = get_db()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT event_name, slug, event_date, start_time, timezone
+            cur.execute("""SELECT id, event_name, slug, event_date, start_time, timezone
                              FROM events WHERE is_public AND event_date IS NOT NULL
                               AND start_time IS NOT NULL
                             ORDER BY event_date DESC LIMIT 40""")
             rows = cur.fetchall()
     finally:
         conn.close()
+    def _recent_utterance(eid):
+        # 2026-09-15: same predicate as the page's stream_active -- the banner
+        # tracks capture, not the calendar window (event 26 showed "live" 3 h after it ended).
+        c2 = get_db()
+        try:
+            with c2.cursor() as cur:
+                cur.execute("""SELECT 1 FROM speaker_utterances
+                                WHERE event_id = %s AND created_at > NOW() - INTERVAL '3 minutes' LIMIT 1""", (eid,))
+                return cur.fetchone() is not None
+        finally:
+            c2.close()
     now_utc = _d.now(ZoneInfo('UTC')) if ZoneInfo else _d.utcnow()
     _ABBR = {'MST': 'America/Phoenix', 'MDT': 'America/Denver', 'EDT': 'America/New_York',
              'EST': 'America/New_York', 'CDT': 'America/Chicago', 'CST': 'America/Chicago',
              'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles'}
-    for name, slug, d, t, tz in rows:
+    for eid, name, slug, d, t, tz in rows:
         tz = _ABBR.get(tz, tz)
         starts = _d.combine(d, t)
         if ZoneInfo and tz:
@@ -8935,7 +8946,7 @@ def api_live_event():
                 starts = starts.replace(tzinfo=ZoneInfo('UTC'))
         elif ZoneInfo:
             starts = starts.replace(tzinfo=ZoneInfo('UTC'))
-        if starts <= now_utc <= starts + _td(hours=3):
+        if starts <= now_utc <= starts + _td(hours=3) and _recent_utterance(eid):
             resp = jsonify(running=True, name=name, slug=slug,
                            url=('/debates/' + slug) if slug else '/debates')
             resp.headers['Cache-Control'] = 'no-cache'
