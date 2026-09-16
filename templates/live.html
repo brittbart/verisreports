@@ -31,9 +31,13 @@
   @keyframes lfDrift { from { transform: translateX(-56%); } to { transform: translateX(-44%); } }
   .lf-page > * { position: relative; z-index: 1; }
 
-  .page-hero.lf-hero { padding-bottom: 8px; }
+  /* same hero padding as pricing/leaderboard/how-it-works (nav.nav is position: fixed) */
+  .page-hero { position: relative; padding: 180px 0 40px; text-align: center; overflow: hidden; }
+  .page-hero-content { position: relative; z-index: 2; max-width: 800px; margin: 0 auto; }
+  .page-hero h1 { margin-bottom: 24px; }
   .page-hero.lf-hero.is-live .sub { display: none; }
-  .page-hero.lf-hero.is-live { padding-bottom: 0; }
+  .page-hero.lf-hero.is-live { padding-bottom: 16px; }
+  @media (max-width: 768px) { .page-hero { padding: 140px 0 32px; } }
 
   /* status banner */
   .lf-banner {
