@@ -89,11 +89,19 @@ def _load_context(event_id):
                 }
             _context_cache[event_id] = context
             return context
-    except Exception:
-        pass
-    # Fallback to hardcoded dict
+    except Exception as _e:
+        print("  [speaker_context] WARNING: context load failed for event %s (%s) -"
+              " attribution guards are INACTIVE for this call" % (event_id, _e))
+        return EVENT_SPEAKER_CONTEXT.get(event_id)
+    # Fallback to hardcoded dict. Deliberately NOT cached when empty: extraction runs
+    # on a cadence inside a long-lived process, and caching a miss would disable both
+    # guards for the rest of the capture even after the rows are seeded.
     context = EVENT_SPEAKER_CONTEXT.get(event_id)
-    _context_cache[event_id] = context
+    if context:
+        _context_cache[event_id] = context
+    else:
+        print("  [speaker_context] NOTE: no speaker context for event %s -"
+              " attribution guards will not flag anything for this event" % event_id)
     return context
 
 

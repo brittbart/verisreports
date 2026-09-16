@@ -82,15 +82,17 @@ For each speaker, generate two lists:
 
 1. **roles**: Official titles and positions UNIQUE to this speaker (e.g., "attorney general", "senator", "superintendent"). These should be roles that ONLY this speaker holds — not shared titles.
 
-2. **exclusive_keywords**: Phrases that would strongly indicate this speaker is talking about their OWN record or experience. These should be terms that, if found in a claim attributed to a DIFFERENT speaker, would suggest a misattribution. Include:
-   - Their unique institutional affiliations
-   - Programs or initiatives they are known for
-   - Specific accomplishments tied to their role
-   - Phrases combining first-person language with their role ("as attorney general", "my time in the senate")
+2. **exclusive_keywords**: FIRST-PERSON phrases in which this speaker claims their OWN record. Every keyword MUST contain first-person framing - "as", "my", "when I", "during my", "I led". A phrase without it is a topic, and a topic is worthless here: a candidate criticising an opponent says "you supported his reelection for attorney general", which matches a bare "attorney general" and produces a FALSE misattribution flag. Measured on real data - 3 false positives in 70 claims, every one caused by a bare topic keyword.
+   The test for every keyword: could this phrase appear in a sentence ABOUT someone else? If yes it is not exclusive - leave it out.
+   - GOOD: "as attorney general", "my time in the senate", "when i led the ag office", "during my eight years", "i served on the governing board"
+   - BAD: "attorney general", "consumer protection", "denver public schools", "solicitor general" - all sayable by anyone about anyone
 
 IMPORTANT RULES:
 - Only include terms that are genuinely EXCLUSIVE to one speaker
+- EVERY exclusive_keyword must contain first-person framing. A keyword that reads naturally in a sentence about a third party will be discarded by the checker.
 - Do NOT include generic policy terms (e.g., "education", "healthcare") — both candidates can discuss these
+- Do NOT include bare institution, office or programme names - pair them with first-person framing or omit them
+- Returning FEWER, stronger keywords is better than returning many weak ones. Two or three is a good answer.
 - Do NOT include the speaker's name — the system already handles name detection separately
 - Keep keywords lowercase
 - Prefer 2-4 word phrases over single words (more specific = fewer false positives)
@@ -99,11 +101,11 @@ Respond with ONLY a JSON object mapping speaker_id to their context:
 {{
   "190": {{
     "roles": ["senator", "superintendent"],
-    "exclusive_keywords": ["denver public schools", "as a senator", "largest school district"]
+    "exclusive_keywords": ["as a senator", "my time in the senate", "when i ran denver public schools"]
   }},
   "191": {{
     "roles": ["attorney general"],
-    "exclusive_keywords": ["attorney general", "ag office", "consumer protection"]
+    "exclusive_keywords": ["as attorney general", "my time as ag", "during my eight years leading"]
   }}
 }}
 

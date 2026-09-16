@@ -16,6 +16,9 @@ class PreLiveError(Exception):
     """Raised when YouTube reports the stream hasn't started yet."""
     pass
 
+class VideoNotFoundError(PreLiveError):
+    """Gone or never existed - will NEVER go live."""
+    pass
 def _extract_video_id(youtube_url):
     """Extract YouTube video ID from a URL."""
     patterns = [
@@ -48,7 +51,7 @@ def _check_live_via_api(video_id, api_key):
 
     items = data.get('items', [])
     if not items:
-        raise Exception(f"YouTube Data API: video {video_id} not found")
+        raise VideoNotFoundError(f"video {video_id} not found - NOT pre-live")
 
     item = items[0]
     snippet = item.get('snippet', {})
@@ -121,6 +124,8 @@ def resolve_stream_url(youtube_url):
         raise
     except yt_dlp.utils.DownloadError as e:
         msg = str(e).lower()
-        if 'will begin' in msg or 'not started' in msg or 'upcoming' in msg or 'premiere' in msg or 'unavailable' in msg or 'removed by' in msg or 'not found' in msg or 'video unavailable' in msg:
+        if ('unavailable' in msg or 'removed by' in msg or 'not found' in msg or 'private' in msg):
+            raise VideoNotFoundError(f"Video gone or never existed: {e}")
+        if ('will begin' in msg or 'not started' in msg or 'upcoming' in msg or 'premiere' in msg):
             raise PreLiveError(f"Stream not yet live: {e}")
         raise

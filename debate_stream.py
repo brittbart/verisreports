@@ -175,6 +175,14 @@ def get_event_id(slug):
 # Confidence threshold below which speaker attribution is flagged as uncertain
 ATTRIBUTION_CONFIDENCE_THRESHOLD = 0.60
 
+# S13 2026-09-15 (event 26 post-event check): live confirmations are scored on
+# the first few 8 s samples of an index. A match in the weak band
+# [VOICE_ID_STRONG_DIST, VOICE_ID_THRESHOLD) is re-scored on a larger sample
+# spread across everything the index has said before it is accepted.
+VOICE_ID_STRONG_DIST = 0.40
+VOICE_ID_WEAK_RESCORE_SAMPLES = 12
+VOICE_ID_MAX_TIMESTAMPS = 60
+
 def next_utterance_order(event_id):
     """Return the next free utterance_order for this event.
 
@@ -290,7 +298,7 @@ MIN_EVIDENCE_SAMPLES = 2  # S12 2026-09-02: measured finding on CD7 -- a
 
 def dg_score_speaker(ts_list, total_secs, embedder, enrolled, cosine_distance,
                       min_evidence_samples=MIN_EVIDENCE_SAMPLES,
-                      threshold=VOICE_ID_THRESHOLD):
+                      threshold=VOICE_ID_THRESHOLD, max_samples=5, spread=False):
     """Score one Deepgram index's collected timestamps against enrolled
     prints. Pure function, no printing, no side effects -- shared by
     run_voice_identification and s11_score_dg_voiceid.py so the naming
@@ -300,7 +308,12 @@ def dg_score_speaker(ts_list, total_secs, embedder, enrolled, cosine_distance,
     'embedding_failed', 'confirmed', 'abstain'."""
     if not ts_list:
         return None, None, "no_timestamps", [], {}
-    valid_ts = [ts for ts in ts_list if ts is not None and ts + 8 < total_secs][:5]
+    valid_all = [ts for ts in ts_list if ts is not None and ts + 8 < total_secs]
+    if spread and len(valid_all) > max_samples:
+        _step = (len(valid_all) - 1) / float(max_samples - 1)
+        valid_ts = [valid_all[int(round(i * _step))] for i in range(max_samples)]
+    else:
+        valid_ts = valid_all[:max_samples]
     if not valid_ts:
         return None, None, "no_timestamps", [], {}
     if len(valid_ts) < min_evidence_samples:
@@ -628,6 +641,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                     print(f"  [VOICE ID] {len(missing_db)} expected DB speaker(s) not yet seen: {missing_db}")
                 embedder = FastEmbedder(audio_path, verbose=False)
                 id_results = {}
+                id_dists = {}
                 for rev_idx in unconfirmed:
                     ts_list = rev_speaker_timestamps.get(rev_idx, [])
                     sid, dist, verdict, valid_ts, distances = dg_score_speaker(
@@ -646,14 +660,36 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
                         continue
                     dist_str = ", ".join(f"spk{k}={v:.3f}" for k, v in distances.items())
                     print(f"  [VOICE ID] Rev AI {rev_idx}: {dist_str}")
+                    if verdict == "confirmed" and dist >= VOICE_ID_STRONG_DIST:
+                        # S13 2026-09-15 (event 26): weak-band match -> re-score on a
+                        # larger sample spread across everything this index has said.
+                        _sid2, _dist2, _verdict2, _vts2, _d2 = dg_score_speaker(
+                            ts_list, total_secs, embedder, enrolled, cosine_distance,
+                            MIN_EVIDENCE_SAMPLES, VOICE_ID_THRESHOLD,
+                            max_samples=VOICE_ID_WEAK_RESCORE_SAMPLES, spread=True)
+                        _d2s = "None" if _dist2 is None else f"{_dist2:.3f}"
+                        print(f"  [VOICE ID] WEAK match for Rev AI {rev_idx} (dist={dist:.3f} >= "
+                              f"{VOICE_ID_STRONG_DIST}): re-scored on {len(_vts2)} spread sample(s)"
+                              f" -> {_verdict2} (dist={_d2s})")
+                        if _verdict2 == "confirmed" and _sid2 == sid:
+                            dist = _dist2
+                        else:
+                            verdict = "abstain"
+                            if _dist2 is not None:
+                                dist = _dist2
                     if verdict == "confirmed":
                         id_results[rev_idx] = sid
+                        id_dists[rev_idx] = dist
                         print(f"  [VOICE ID] CONFIRMED: Rev AI {rev_idx} = speaker_{sid} (dist={dist:.3f})")
                     else:
                         print(f"  [VOICE ID] No confident match for Rev AI {rev_idx} (best={dist:.3f})")
                 already_mapped = set(confirmed_speaker_ids.values())
-                for rev_idx, db_sid in id_results.items():
-                    if db_sid not in already_mapped:
+                # S13 2026-09-15: best distance first, so a strong index is never
+                # blocked by a weaker one earlier in the same tick; a second index
+                # for an already-mapped speaker is accepted only when strong-band.
+                for rev_idx, db_sid in sorted(id_results.items(),
+                                              key=lambda kv: id_dists.get(kv[0], 1.0)):
+                    if db_sid not in already_mapped or id_dists.get(rev_idx, 1.0) < VOICE_ID_STRONG_DIST:
                         confirmed_speaker_ids[rev_idx] = db_sid
                         seen_speaker_ids[rev_idx] = db_sid
                         persist_mapping(rev_idx, db_sid)
@@ -969,7 +1005,7 @@ def run_live(args, token, speaker_map, speaker_order, event_id):
             if ts_seconds is not None and rev_speaker_idx is not None:
                 if rev_speaker_idx not in rev_speaker_timestamps:
                     rev_speaker_timestamps[rev_speaker_idx] = []
-                if len(rev_speaker_timestamps[rev_speaker_idx]) < 10:
+                if len(rev_speaker_timestamps[rev_speaker_idx]) < VOICE_ID_MAX_TIMESTAMPS:
                     rev_speaker_timestamps[rev_speaker_idx].append(ts_seconds)
 
             # Compute mean word-level confidence for this segment
