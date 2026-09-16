@@ -315,6 +315,14 @@ def refresh_outlets(cur) -> int:
 # REFRESH: api_debate_claims
 # ---------------------------------------------------------------------------
 
+# 2026-09-15: a post-event speaker correction changes speaker_utterances, not
+# claims.last_checked, so the watermark below never re-upserts the corrected
+# claim. `--full` (argv) or API_REFRESH_FULL=1 (env) re-upserts every public
+# debate claim; run once after any correction pass on a published event.
+_FULL_REFRESH = ('--full' in __import__('sys').argv
+                 or __import__('os').environ.get('API_REFRESH_FULL') == '1')
+
+
 def refresh_debate_claims(cur) -> int:
     """
     Upsert debate claims evaluated since the last refresh.
@@ -323,6 +331,9 @@ def refresh_debate_claims(cur) -> int:
     """
     cur.execute("SELECT COALESCE(MAX(evaluated_at), '1970-01-01'::timestamp) FROM api_debate_claims")
     since = cur.fetchone()[0]
+    if _FULL_REFRESH:
+        since = '1970-01-01'
+        log.info("refresh_debate_claims: FULL refresh -- re-upserting every public debate claim")
     log.info(f"refresh_debate_claims: fetching claims evaluated after {since}")
 
     versions_tuple = tuple(PUBLIC_METHODOLOGY_VERSIONS)
