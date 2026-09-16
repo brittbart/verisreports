@@ -41,8 +41,8 @@
           {% if c.verdict_summary %}
           <div class="lf-erow"><span class="lf-ekey">What we found</span><span class="lf-eval">{{ c.verdict_summary }}</span></div>
           {% endif %}
-          {% if show_sources and c.sources_used %}
-          <div class="lf-erow"><span class="lf-ekey">Sources checked</span><span class="lf-eval lf-sources">{{ c.sources_used }}</span></div>
+          {% if show_sources and c.sources_lines %}
+          <div class="lf-erow"><span class="lf-ekey">Sources checked</span><span class="lf-eval"><ul class="lf-srcs">{% for line in c.sources_lines %}<li>{{ line }}</li>{% endfor %}</ul></span></div>
           {% endif %}
           {% if c.correction_note %}
           <div class="lf-erow"><span class="lf-ekey">Corrected</span><span class="lf-eval">{{ c.correction_note }}</span></div>

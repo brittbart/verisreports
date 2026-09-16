@@ -8669,7 +8669,7 @@ app.register_blueprint(ops_capture_bp)
 
 LIVE_PRIORITY_GATE = 65
 LIVE_PAGE_LIMIT = 12
-LIVE_SHOW_SOURCES = False   # flip once 30 sources_used entries have been read
+LIVE_SHOW_SOURCES = True    # 30-sample read passed 0/30 wrong-source, 2026-09-16
 
 LIVE_VERDICT_LABELS = {
     'supported': 'Supported', 'corroborated': 'Corroborated', 'plausible': 'Plausible',
@@ -8792,6 +8792,29 @@ def _live_day_label(ts, now):
     return d.strftime('%-d %B')
 
 
+def _live_sources_lines(src):
+    """sources_used is stored in four shapes (numbered, semicolon, dict repr, prose). Return display lines.
+    Display-only; never parsed for counts, never used to rank anything."""
+    import ast, re
+    s = (src or '').strip()
+    if not s:
+        return []
+    if s.startswith('{'):
+        try:
+            d = ast.literal_eval(s)
+            if isinstance(d, dict):
+                return [f"{k} \u2014 {v}" for k, v in d.items()]
+        except Exception:
+            pass
+    parts = re.split(r'(?:^|\s)(?:\d{1,2}[.)]\s+)', s)
+    parts = [p.strip(' ;') for p in parts if p and p.strip(' ;')]
+    if len(parts) >= 2:
+        return parts
+    if s.count(';') >= 2:
+        return [p.strip() for p in s.split(';') if p.strip()]
+    return [s]
+
+
 def _live_decorate(rows, running=None):
     """Every display field the Live Feed templates read. No model calls; pure formatting."""
     from datetime import timedelta as _td, timezone as _tz
@@ -8811,6 +8834,7 @@ def _live_decorate(rows, running=None):
         r['day_label'] = _live_day_label(ts, now)
         r['is_just_in'] = bool(ts and (now - ts) < _td(minutes=LIVE_JUST_IN_MINUTES))
         r['origin_label'] = LIVE_ORIGIN_LABELS.get(r.get('claim_origin'), '')
+        r['sources_lines'] = _live_sources_lines(r.get('sources_used'))
         r['rail_clock'] = ''
         if run_id and r.get('event_id') == run_id and ts:
             r['rail_clock'] = ts.replace(tzinfo=_tz.utc).astimezone(run_zone).strftime('%-I:%M %p')
