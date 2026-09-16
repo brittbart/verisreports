@@ -290,7 +290,7 @@ def main():
             from debate_routes import _derive_status
             from datetime import date, time as dtime
             eid, slug, name, edate, stime, tz, stream_url, is_public = event
-            _known_tz = {'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'}
+            _known_tz = {'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT', 'AKST', 'AKDT', 'HST'}
             check("timezone is a fixed abbreviation Postgres AND mobile_sse both accept", tz in _known_tz,
                   f"'{tz}' -- ET/CT/MT/PT are rejected by Postgres AT TIME ZONE (api.py:7048 raises); IANA names fall back to "
                   f"CT (-5) in mobile_sse; use one of {sorted(_known_tz)} (daylight forms until 2026-11-01)")

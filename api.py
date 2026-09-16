@@ -8935,7 +8935,8 @@ def api_live_event():
     now_utc = _d.now(ZoneInfo('UTC')) if ZoneInfo else _d.utcnow()
     _ABBR = {'MST': 'America/Phoenix', 'MDT': 'America/Denver', 'EDT': 'America/New_York',
              'EST': 'America/New_York', 'CDT': 'America/Chicago', 'CST': 'America/Chicago',
-             'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles'}
+             'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles',
+             'AKDT': 'America/Anchorage', 'AKST': 'America/Anchorage', 'HST': 'Pacific/Honolulu'}
     for eid, name, slug, d, t, tz in rows:
         tz = _ABBR.get(tz, tz)
         starts = _d.combine(d, t)

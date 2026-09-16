@@ -28,7 +28,7 @@ def main():
     ap.add_argument('--notes', default=''); ap.add_argument('--methodology', default='v1.7'); ap.add_argument('--threshold', type=float, default=0.60)
     ap.add_argument('--apply', action='store_true')
     a = ap.parse_args()
-    FIXED = {'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'}
+    FIXED = {'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT', 'AKST', 'AKDT', 'HST'}
     if a.tz not in FIXED:
         sys.exit(f"REFUSED: timezone {a.tz!r} - store a fixed abbreviation from {sorted(FIXED)}: Postgres rejects ET/CT/MT/PT and mobile_sse "
                  f"(the stream service) falls back to CT for IANA names. Use the daylight form (EDT/CDT/MDT/PDT) for events before 2026-11-01, "

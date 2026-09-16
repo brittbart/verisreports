@@ -12,7 +12,8 @@ log = logging.getLogger(__name__)
 WINDOW_BEFORE = timedelta(minutes=30)
 WINDOW_AFTER = timedelta(hours=3)
 _IANA_FOR_GENERIC = {'ET': 'America/New_York', 'CT': 'America/Chicago', 'MT': 'America/Denver', 'PT': 'America/Los_Angeles'}
-_FIXED_HOURS = {'EST': -5, 'EDT': -4, 'CST': -6, 'CDT': -5, 'MST': -7, 'MDT': -6, 'PST': -8, 'PDT': -7, 'UTC': 0, 'GMT': 0, 'Z': 0}
+_FIXED_HOURS = {'EST': -5, 'EDT': -4, 'CST': -6, 'CDT': -5, 'MST': -7, 'MDT': -6, 'PST': -8, 'PDT': -7,
+                'AKST': -9, 'AKDT': -8, 'HST': -10, 'UTC': 0, 'GMT': 0, 'Z': 0}
 def zone(tz_value):
     """tzinfo for an events.timezone value. Never raises; unknown -> UTC with a log line."""
     v = (tz_value or '').strip()
