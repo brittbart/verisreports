@@ -8668,7 +8668,7 @@ app.register_blueprint(ops_capture_bp)
 # ============================================================================
 
 LIVE_PRIORITY_GATE = 65
-LIVE_PAGE_LIMIT = 25
+LIVE_PAGE_LIMIT = 12
 LIVE_SHOW_SOURCES = False   # flip once 30 sources_used entries have been read
 
 LIVE_VERDICT_LABELS = {
@@ -8682,6 +8682,139 @@ LIVE_ORIGINS = [
     ('attributed_claim', 'Reported from somebody else'),
     ('debate_claim', 'Said at an event'),
 ]
+
+
+# ---- Live Feed (design pass 03) helpers ----
+LIVE_JUST_IN_MINUTES = 15          # rail reads "Just in" while now - last_checked < this
+LIVE_DAY_TZ = 'America/Denver'     # day separators ("Today"/"Yesterday") and rail clock times outside events
+
+LIVE_TZ_ABBR = {'MST': 'America/Phoenix', 'MDT': 'America/Denver', 'EDT': 'America/New_York',
+                'EST': 'America/New_York', 'CDT': 'America/Chicago', 'CST': 'America/Chicago',
+                'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles'}
+
+LIVE_MARKS = {
+    'outlet_claim': '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="#c084fc"/></svg>',
+    'attributed_claim': '<svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="5" cy="7" r="3.2" fill="#38bdf8"/><circle cx="10" cy="7" r="3.2" fill="none" stroke="#38bdf8" stroke-width="1.5"/></svg>',
+    'debate_claim': '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2.5 L11.5 9.5 H2.5 Z" fill="#818cf8"/><rect x="2" y="11" width="10" height="1.5" rx=".75" fill="#818cf8"/></svg>',
+}
+LIVE_ORIGIN_LABELS = dict(LIVE_ORIGINS)
+
+
+def _live_zone(tz):
+    from zoneinfo import ZoneInfo
+    name = LIVE_TZ_ABBR.get(tz, tz) if tz else 'UTC'
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return ZoneInfo('UTC')
+
+
+def _event_starts_utc(event_date, start_time, tz):
+    """Aware UTC datetime for an event start given its stored local date/time and timezone label."""
+    from datetime import datetime as _d
+    from zoneinfo import ZoneInfo
+    if not event_date or not start_time:
+        return None
+    local = _d.combine(event_date, start_time).replace(tzinfo=_live_zone(tz))
+    return local.astimezone(ZoneInfo('UTC'))
+
+
+def _live_utcnow():
+    from datetime import datetime as _d, timezone as _tz
+    return _d.now(_tz.utc).replace(tzinfo=None)   # naive UTC, same convention as claims.last_checked
+
+
+def _live_parse_since(s):
+    """ISO 8601 -> naive UTC datetime, or None if missing/invalid."""
+    from datetime import datetime as _d, timezone as _tz
+    if not s:
+        return None
+    try:
+        v = _d.fromisoformat(s.strip().replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if v.tzinfo is not None:
+        v = v.astimezone(_tz.utc).replace(tzinfo=None)
+    return v
+
+
+def _live_where(publications=None, origins=None, events=None, since=None):
+    """The one WHERE clause the page, the partial and /live/pending all share."""
+    sql = """
+          FROM claims c
+     LEFT JOIN articles a ON a.id = c.article_id
+     LEFT JOIN events   e ON e.id = c.event_id
+         WHERE c.verdict IS NOT NULL
+           AND c.priority_score >= %s
+           AND (c.event_id IS NULL OR e.is_public)
+    """
+    params = [LIVE_PRIORITY_GATE]
+    if publications:
+        sql += ' AND a.source_name = ANY(%s)'
+        params.append(list(publications))
+    if origins:
+        sql += ' AND c.claim_origin = ANY(%s)'
+        params.append(list(origins))
+    if events:
+        sql += ' AND c.event_id = ANY(%s)'
+        params.append([int(x) for x in events])
+    if since is not None:
+        sql += ' AND c.last_checked > %s'
+        params.append(since)
+    return sql, params
+
+
+def _live_rail(ts, now):
+    """Short rail time: '14 min', '2 hr', else a clock time in LIVE_DAY_TZ."""
+    from datetime import timezone as _tz
+    if not ts:
+        return ''
+    secs = (now - ts).total_seconds()
+    if secs < 3600:
+        return '%d min' % max(1, int(secs // 60))
+    if secs < 86400:
+        return '%d hr' % int(secs // 3600)
+    local = ts.replace(tzinfo=_tz.utc).astimezone(_live_zone(LIVE_DAY_TZ))
+    return local.strftime('%-I:%M %p').lower()
+
+
+def _live_day_label(ts, now):
+    from datetime import timezone as _tz
+    if not ts:
+        return ''
+    z = _live_zone(LIVE_DAY_TZ)
+    d = ts.replace(tzinfo=_tz.utc).astimezone(z).date()
+    today = now.replace(tzinfo=_tz.utc).astimezone(z).date()
+    if d == today:
+        return 'Today'
+    if (today - d).days == 1:
+        return 'Yesterday'
+    return d.strftime('%-d %B')
+
+
+def _live_decorate(rows, running=None):
+    """Every display field the Live Feed templates read. No model calls; pure formatting."""
+    from datetime import timedelta as _td, timezone as _tz
+    now = _live_utcnow()
+    run_id = running['id'] if running else None
+    run_zone = _live_zone(running.get('timezone')) if running else None
+    for r in rows:
+        ts = r.get('last_checked')
+        r['verdict_label'] = LIVE_VERDICT_LABELS.get(r['verdict'], r['verdict'])
+        pre, mark, post = _live_context(r)
+        r['context_pre'], r['context_mark'], r['context_post'] = pre, mark, post
+        r['when_display'] = _live_when(ts)
+        r['last_checked_display'] = ts.strftime('%B %-d') if ts else ''
+        r['last_checked_iso'] = ts.replace(tzinfo=_tz.utc).isoformat().replace('+00:00', 'Z') if ts else ''
+        r['cite_date'] = ts.strftime('%-d %B %Y') if ts else ''
+        r['rail_time'] = _live_rail(ts, now)
+        r['day_label'] = _live_day_label(ts, now)
+        r['is_just_in'] = bool(ts and (now - ts) < _td(minutes=LIVE_JUST_IN_MINUTES))
+        r['origin_label'] = LIVE_ORIGIN_LABELS.get(r.get('claim_origin'), '')
+        r['rail_clock'] = ''
+        if run_id and r.get('event_id') == run_id and ts:
+            r['rail_clock'] = ts.replace(tzinfo=_tz.utc).astimezone(run_zone).strftime('%-I:%M %p')
+    return rows
 
 
 def _live_when(ts):
@@ -8716,34 +8849,17 @@ def _live_context(row):
     return '%s said this' % pub, '', ''
 
 
-def _live_fetch(publications=None, origins=None, events=None, limit=LIVE_PAGE_LIMIT):
+def _live_fetch(publications=None, origins=None, events=None, limit=None, since=None, running=None):
+    where, params = _live_where(publications, origins, events, since)
     sql = """
         SELECT c.id, c.claim_text, c.verdict, c.claim_origin, c.last_checked,
                c.speaker, c.event_id, c.attribution_context, c.claim_type,
-               c.verification_method, c.why_checkworthy, c.sources_used,
+               c.verification_method, c.why_checkworthy, c.verdict_summary, c.sources_used,
                c.correction_note, c.first_seen,
                a.source_name, e.event_name,
                (c.last_checked < now() - interval '90 days') AS is_stale
-          FROM claims c
-     LEFT JOIN articles a ON a.id = c.article_id
-     LEFT JOIN events   e ON e.id = c.event_id
-         WHERE c.verdict IS NOT NULL
-           AND c.priority_score >= %s
-           AND (c.event_id IS NULL OR e.is_public)
-    """
-    params = [LIVE_PRIORITY_GATE]
-    if publications:
-        sql += ' AND a.source_name = ANY(%s)'
-        params.append(list(publications))
-    if origins:
-        sql += ' AND c.claim_origin = ANY(%s)'
-        params.append(list(origins))
-    if events:
-        sql += ' AND c.event_id = ANY(%s)'
-        params.append([int(x) for x in events])
-    sql += ' ORDER BY c.last_checked DESC LIMIT %s'
-    params.append(limit)
-
+    """ + where + ' ORDER BY c.last_checked DESC LIMIT %s'
+    params.append(limit if limit is not None else LIVE_PAGE_LIMIT)
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -8752,14 +8868,7 @@ def _live_fetch(publications=None, origins=None, events=None, limit=LIVE_PAGE_LI
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
     finally:
         conn.close()
-
-    for r in rows:
-        r['verdict_label'] = LIVE_VERDICT_LABELS.get(r['verdict'], r['verdict'])
-        pre, mark, post = _live_context(r)
-        r['context_pre'], r['context_mark'], r['context_post'] = pre, mark, post
-        r['when_display'] = _live_when(r['last_checked'])
-        r['last_checked_display'] = r['last_checked'].strftime('%B %-d') if r['last_checked'] else ''
-    return rows
+    return _live_decorate(rows, running)
 
 
 def _live_events():
@@ -8772,19 +8881,21 @@ def _live_events():
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
     finally:
         conn.close()
-    from datetime import datetime as _d, timedelta as _td
-    now = _d.now()
+    from datetime import datetime as _d, timedelta as _td, timezone as _tz
+    now = _d.now(_tz.utc)
     for e in rows:
-        e['_starts'] = (_d.combine(e['event_date'], e['start_time'])
-                        if e.get('event_date') and e.get('start_time') else None)
+        e['_starts'] = _event_starts_utc(e.get('event_date'), e.get('start_time'), e.get('timezone'))
     running = next((e for e in rows if e['_starts']
                     and e['_starts'] <= now <= e['_starts'] + _td(hours=3)), None)
+    if running:
+        running['started_display'] = running['_starts'].astimezone(_live_zone(running.get('timezone'))).strftime('%-I:%M %p').lower()
     nxt = None
     upcoming = sorted([e for e in rows if e['_starts'] and e['_starts'] > now],
                       key=lambda e: e['_starts'])
     if upcoming:
         nxt = upcoming[0]
-        nxt['when_display'] = nxt['_starts'].strftime('%B %-d, %-I%p').replace('AM', 'am').replace('PM', 'pm')
+        local = nxt['_starts'].astimezone(_live_zone(nxt.get('timezone')))
+        nxt['when_display'] = local.strftime('%-d %B, %-I:%M %p').replace('AM', 'am').replace('PM', 'pm')
     return rows, running, nxt
 
 
@@ -8805,25 +8916,63 @@ def _live_publications(limit=25):
 
 @app.route('/live')
 def live_page():
+    from urllib.parse import urlencode
     pubs = request.args.getlist('publication')
     origins = request.args.getlist('origin')
     events_sel = [e for e in request.args.getlist('event') if e.isdigit()]
-    claims = _live_fetch(pubs, origins, events_sel)
+    partial = request.args.get('partial') == '1'
+    since = _live_parse_since(request.args.get('since')) if partial else None
     all_events, running, nxt = _live_events()
+    claims = _live_fetch(pubs, origins, events_sel, since=since, running=running)
+    common = dict(claims=claims, origins=LIVE_ORIGINS, marks=LIVE_MARKS,
+                  selected_publications=pubs, selected_origins=origins,
+                  selected_events=[int(e) for e in events_sel], show_sources=LIVE_SHOW_SOURCES)
+    if partial:
+        from flask import make_response
+        resp = make_response(render_template('live_stream.html', partial=True, **common))
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
+    newest = claims[0]['last_checked'] if claims else None
+    q = [('publication', p) for p in pubs] + [('origin', o) for o in origins] + [('event', e) for e in events_sel]
     return render_template(
         'live.html',
-        claims=claims,
         publications=_live_publications(),
-        origins=LIVE_ORIGINS,
         events=[e for e in all_events if e['start_time']][:12],
-        selected_publications=pubs,
-        selected_origins=origins,
-        selected_events=[int(e) for e in events_sel],
         running_event=running,
         next_event=nxt,
-        show_sources=LIVE_SHOW_SOURCES,
+        newest_iso=claims[0]['last_checked_iso'] if claims else '',
+        newest_rel=_live_when(newest) if newest else '',
+        newest_quiet=bool(newest is None or (_live_utcnow() - newest).total_seconds() > 86400),
+        just_in_minutes=LIVE_JUST_IN_MINUTES,
+        filter_query=urlencode(q),
+        partial=False,
         seo_meta='',
+        **common,
     )
+
+
+@app.route('/live/pending')
+def live_pending():
+    """Count of gate-passing claims newer than `since` under the same filters as the page. Read-only."""
+    since = _live_parse_since(request.args.get('since'))
+    if since is None:
+        return jsonify(error='since must be an ISO 8601 timestamp'), 400
+    pubs = request.args.getlist('publication')
+    origins = request.args.getlist('origin')
+    events_sel = [e for e in request.args.getlist('event') if e.isdigit()]
+    where, params = _live_where(pubs, origins, events_sel, since)
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute('SELECT COUNT(*), MAX(c.last_checked)' + where, params)
+            n, latest = cur.fetchone()
+    finally:
+        conn.close()
+    from datetime import timezone as _tz
+    resp = jsonify(count=int(n or 0),
+                   latest=latest.replace(tzinfo=_tz.utc).isoformat().replace('+00:00', 'Z') if latest else None)
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
 
 
 @app.route('/c/<int:claim_id>')
@@ -8833,7 +8982,7 @@ def live_claim_permalink(claim_id):
         with conn.cursor() as cur:
             cur.execute("""SELECT c.id, c.claim_text, c.verdict, c.claim_origin, c.last_checked,
                                   c.speaker, c.event_id, c.attribution_context, c.claim_type,
-                                  c.verification_method, c.why_checkworthy, c.sources_used,
+                                  c.verification_method, c.why_checkworthy, c.verdict_summary, c.sources_used,
                                   c.correction_note, c.first_seen,
                                   a.source_name, e.event_name,
                                   (c.last_checked < now() - interval '90 days') AS is_stale
@@ -8848,14 +8997,12 @@ def live_claim_permalink(claim_id):
             r = dict(zip(cols, row))
     finally:
         conn.close()
-    r['verdict_label'] = LIVE_VERDICT_LABELS.get(r['verdict'], r['verdict'])
-    pre, mark, post = _live_context(r)
-    r['context_pre'], r['context_mark'], r['context_post'] = pre, mark, post
-    r['when_display'] = _live_when(r['last_checked'])
-    r['last_checked_display'] = r['last_checked'].strftime('%B %-d') if r['last_checked'] else ''
-    return render_template('live.html', claims=[r], publications=[], origins=LIVE_ORIGINS,
+    _live_decorate([r])
+    return render_template('live.html', claims=[r], publications=[], origins=LIVE_ORIGINS, marks=LIVE_MARKS,
                            events=[], selected_publications=[], selected_origins=[],
                            selected_events=[], running_event=None, next_event=None,
+                           newest_iso=r['last_checked_iso'], newest_rel=r['when_display'], newest_quiet=False,
+                           just_in_minutes=LIVE_JUST_IN_MINUTES, filter_query='', partial=False,
                            show_sources=LIVE_SHOW_SOURCES, seo_meta='')
 
 
@@ -8864,7 +9011,7 @@ def live_feed_json():
     rows = _live_fetch(limit=40)
     return jsonify({
         'version': 'https://jsonfeed.org/version/1.1',
-        'title': 'Verum Signal - Live',
+        'title': 'Verum Signal - Live Feed',
         'home_page_url': request.url_root.rstrip('/') + '/live',
         'feed_url': request.url_root.rstrip('/') + '/live/feed.json',
         'description': 'Claims we have checked, most recent first.',
@@ -8894,7 +9041,7 @@ def live_feed_xml():
                 _esc('%s - %s' % (r['verdict_label'], ctx)),
                 r['last_checked'].strftime('%a, %d %b %Y %H:%M:%S +0000') if r['last_checked'] else ''))
     xml = ('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>'
-           '<title>Verum Signal - Live</title><link>%s/live</link>'
+           '<title>Verum Signal - Live Feed</title><link>%s/live</link>'
            '<description>Claims we have checked, most recent first.</description>%s'
            '</channel></rss>' % (root, ''.join(items)))
     return Response(xml, mimetype='application/rss+xml')
@@ -8906,48 +9053,21 @@ def live_feed_xml():
 def api_live_event():
     """{running: false} or {running: true, name, slug, url}. No writes, no model calls."""
     from flask import jsonify
-    from datetime import datetime as _d, timedelta as _td
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:
-        ZoneInfo = None
+    from datetime import datetime as _d, timedelta as _td, timezone as _tz
     conn = get_db()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT id, event_name, slug, event_date, start_time, timezone
+            cur.execute("""SELECT event_name, slug, event_date, start_time, timezone
                              FROM events WHERE is_public AND event_date IS NOT NULL
                               AND start_time IS NOT NULL
                             ORDER BY event_date DESC LIMIT 40""")
             rows = cur.fetchall()
     finally:
         conn.close()
-    def _recent_utterance(eid):
-        # 2026-09-15: same predicate as the page's stream_active -- the banner
-        # tracks capture, not the calendar window (event 26 showed "live" 3 h after it ended).
-        c2 = get_db()
-        try:
-            with c2.cursor() as cur:
-                cur.execute("""SELECT 1 FROM speaker_utterances
-                                WHERE event_id = %s AND created_at > NOW() - INTERVAL '3 minutes' LIMIT 1""", (eid,))
-                return cur.fetchone() is not None
-        finally:
-            c2.close()
-    now_utc = _d.now(ZoneInfo('UTC')) if ZoneInfo else _d.utcnow()
-    _ABBR = {'MST': 'America/Phoenix', 'MDT': 'America/Denver', 'EDT': 'America/New_York',
-             'EST': 'America/New_York', 'CDT': 'America/Chicago', 'CST': 'America/Chicago',
-             'PDT': 'America/Los_Angeles', 'PST': 'America/Los_Angeles',
-             'AKDT': 'America/Anchorage', 'AKST': 'America/Anchorage', 'HST': 'Pacific/Honolulu'}
-    for eid, name, slug, d, t, tz in rows:
-        tz = _ABBR.get(tz, tz)
-        starts = _d.combine(d, t)
-        if ZoneInfo and tz:
-            try:
-                starts = starts.replace(tzinfo=ZoneInfo(tz))
-            except Exception:
-                starts = starts.replace(tzinfo=ZoneInfo('UTC'))
-        elif ZoneInfo:
-            starts = starts.replace(tzinfo=ZoneInfo('UTC'))
-        if starts <= now_utc <= starts + _td(hours=3) and _recent_utterance(eid):
+    now_utc = _d.now(_tz.utc)
+    for name, slug, d, t, tz in rows:
+        starts = _event_starts_utc(d, t, tz)
+        if starts and starts <= now_utc <= starts + _td(hours=3):
             resp = jsonify(running=True, name=name, slug=slug,
                            url=('/debates/' + slug) if slug else '/debates')
             resp.headers['Cache-Control'] = 'no-cache'

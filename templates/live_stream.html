@@ -1,0 +1,73 @@
+{# Live Feed stream. Included by live.html; rendered alone for /live?partial=1 (filter swap and arrival insert). #}
+{% set ns = namespace(day=None) %}
+{% for c in claims %}
+  {% if c.day_label != ns.day %}
+    {% set ns.day = c.day_label %}
+    <div class="lf-day"><span>{{ c.day_label }}</span></div>
+  {% endif %}
+  <div class="lf-row{% if c.is_just_in %} is-just-in{% endif %}" data-iso="{{ c.last_checked_iso }}" id="row{{ c.id }}">
+    <div class="lf-rail">
+      <span class="lf-node" aria-hidden="true"></span>
+      {% if c.rail_clock %}
+      <span class="lf-rail-time" data-clock="1">{{ c.rail_clock }}</span>
+      {% else %}
+      <span class="lf-rail-time">{% if c.is_just_in %}Just in{% else %}{{ c.rail_time }}{% endif %}</span>
+      {% endif %}
+    </div>
+    <article class="lf-card" id="c{{ c.id }}">
+      <div class="lf-card-top">
+        <span class="lf-mark o-{{ c.claim_origin }}" title="{{ c.origin_label }}" aria-label="{{ c.origin_label }}">{{ marks.get(c.claim_origin, marks.outlet_claim) | safe }}</span>
+        <p class="lf-claim">{{ c.claim_text }}</p>
+        <span class="lf-verdict v-{{ c.verdict }}">{{ c.verdict_label }}</span>
+      </div>
+
+      <p class="lf-context">{{ c.context_pre }}{% if c.context_mark %}<span class="lf-who">{{ c.context_mark }}</span>{% endif %}{{ c.context_post }}</p>
+      <span class="lf-mob-time">{% if c.is_just_in %}Just in{% else %}{{ c.rail_time }}{% endif %}</span>
+
+      {% if c.is_stale %}
+      <p class="lf-stale">Not re-checked since {{ c.last_checked_display }}</p>
+      {% endif %}
+
+      <details class="lf-ev"{% if loop.first and not partial %} open{% endif %}>
+        <summary>
+          <span>Why this verdict</span>
+          <span class="lf-cue"><span class="lf-cue-view">View evidence</span><span class="lf-cue-hide">Hide evidence</span>
+            <svg class="lf-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>
+        </summary>
+        <div class="lf-ev-body">
+          {% if c.why_checkworthy %}
+          <div class="lf-erow"><span class="lf-ekey">Why we checked it</span><span class="lf-eval">{{ c.why_checkworthy }}</span></div>
+          {% endif %}
+          {% if c.verdict_summary %}
+          <div class="lf-erow"><span class="lf-ekey">What we found</span><span class="lf-eval">{{ c.verdict_summary }}</span></div>
+          {% endif %}
+          {% if show_sources and c.sources_used %}
+          <div class="lf-erow"><span class="lf-ekey">Sources checked</span><span class="lf-eval lf-sources">{{ c.sources_used }}</span></div>
+          {% endif %}
+          {% if c.correction_note %}
+          <div class="lf-erow"><span class="lf-ekey">Corrected</span><span class="lf-eval">{{ c.correction_note }}</span></div>
+          {% endif %}
+        </div>
+      </details>
+
+      <div class="lf-foot">
+        <button type="button" data-copy="link" data-id="{{ c.id }}">Copy link</button>
+        <button type="button" data-copy="citation" data-id="{{ c.id }}" data-claim="{{ c.claim_text }}" data-verdict="{{ c.verdict_label }}" data-date="{{ c.cite_date }}">Copy citation</button>
+        <a href="/corrections/new?claim={{ c.id }}">Request a correction</a>
+      </div>
+    </article>
+  </div>
+{% else %}
+  {% if not partial %}
+  <div class="lf-empty">
+    {% if selected_publications or selected_origins or selected_events %}
+    <strong>Nothing on the page matches these filters.</strong>
+    Try removing one, or <a href="/live" data-clear-filters="1">clear all filters</a>.
+    <div class="lf-note">There is no filter by person. A page narrowed to one individual is a claim history about that individual, and we do not build those.</div>
+    {% else %}
+    <strong>Nothing checked yet.</strong>
+    Claims are checked in bursts, so quiet days are normal. This page fills as they come through.
+    {% endif %}
+  </div>
+  {% endif %}
+{% endfor %}

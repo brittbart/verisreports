@@ -3,91 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live — Verum Signal</title>
+<title>Live Feed — Verum Signal</title>
 {{ seo_meta | safe }}
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;&lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;%230A0A0F&quot;/&gt;&lt;path d=&quot;M8 32 Q16 16 24 32 Q32 48 40 32 Q48 16 56 32&quot; fill=&quot;none&quot; stroke=&quot;%23a855f7&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot;/&gt;&lt;circle cx=&quot;58&quot; cy=&quot;32&quot; r=&quot;4&quot; fill=&quot;%23ec4899&quot;/&gt;&lt;/svg&gt;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/styles.css">
-<link rel="alternate" type="application/rss+xml" title="Verum Signal — Live" href="/live/feed.xml">
+<link rel="alternate" type="application/rss+xml" title="Verum Signal — Live Feed" href="/live/feed.xml">
 <style>
-  /* ============== LIVE ============== */
-  .lv-wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  /* ============== LIVE FEED (design pass 03) ============== */
+  .lf-wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; position: relative; }
+  .lf-page { position: relative; }
+  .lf-page .lf-grid {
+    position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background-image: linear-gradient(rgba(168,85,247,.045) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(168,85,247,.045) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.25) 60%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.25) 60%, transparent);
+  }
+  .lf-page .lf-glow {
+    position: absolute; left: 50%; top: -120px; width: 900px; height: 520px; transform: translateX(-50%);
+    background: radial-gradient(closest-side, rgba(168,85,247,.16), rgba(168,85,247,0));
+    pointer-events: none; z-index: 0; animation: lfDrift 18s ease-in-out infinite alternate;
+  }
+  @keyframes lfDrift { from { transform: translateX(-56%); } to { transform: translateX(-44%); } }
+  .lf-page > * { position: relative; z-index: 1; }
 
-  .lv-head { padding: 48px 0 28px; }
-  .lv-eyebrow {
-    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .14em;
-    text-transform: uppercase; color: #a855f7; margin-bottom: 14px;
-  }
-  .lv-title {
-    font-family: var(--font-display, 'DM Serif Display', serif);
-    font-size: 46px; line-height: 1.05; letter-spacing: -0.01em; margin: 0 0 14px;
-  }
-  .lv-lede { font-size: 17px; line-height: 1.6; color: #b8b8bd; max-width: 620px; margin: 0; }
+  .page-hero.lf-hero { padding-bottom: 8px; }
+  .page-hero.lf-hero.is-live .sub { display: none; }
+  .page-hero.lf-hero.is-live { padding-bottom: 0; }
 
-  .lv-toolbar {
-    display: flex; flex-wrap: wrap; gap: 22px; align-items: center;
-    padding: 20px 0 26px; border-bottom: 1px solid var(--border, #232328);
+  /* status banner */
+  .lf-banner {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+    padding: 11px 16px; margin: 18px 0 12px;
+    border: 1px solid rgba(168,85,247,.35); border-radius: 12px;
+    background: linear-gradient(90deg, rgba(168,85,247,.18), rgba(168,85,247,.06)), #101018;
+    box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    font-size: 15px; color: #ebebee;
   }
-  .lv-toolbar-label {
-    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .1em;
-    text-transform: uppercase; color: #8b8b90;
+  .lf-banner .lf-dot {
+    width: 8px; height: 8px; border-radius: 999px; background: #a855f7;
+    box-shadow: 0 0 8px #a855f7; animation: lfPulse 1.4s ease-in-out infinite;
   }
-  .lv-feedlinks a {
-    font-family: ui-monospace, monospace; font-size: 12px; color: #a855f7;
-    text-decoration: none; margin-left: 10px;
+  @keyframes lfPulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  .lf-banner .lf-sep { color: rgba(255,255,255,.3); }
+  .lf-banner .lf-quiet { font-size: 12px; color: #8b8b90; flex-basis: 100%; }
+  .lf-banner .lf-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .lf-feedlinks { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .08em; color: #8b8b90; }
+  .lf-feedlinks a { color: #a855f7; text-decoration: none; margin-left: 8px; }
+  .lf-feedlinks a:hover { text-decoration: underline; }
+  .lf-pending { display: none; }
+  .lf-pending.show { display: inline-flex; align-items: center; gap: 8px; }
+  .lf-pending button {
+    font: inherit; font-size: 13px; font-weight: 500; color: #0a0a0f; background: #a855f7;
+    border: none; border-radius: 999px; padding: 5px 12px; cursor: pointer;
   }
-  .lv-feedlinks a:hover { text-decoration: underline; }
+  .lf-pending button:hover { background: #b975f9; }
 
-  .lv-body { display: grid; grid-template-columns: 244px 1fr; gap: 40px; padding: 28px 0 80px; }
-  @media (max-width: 860px) { .lv-body { grid-template-columns: 1fr; } }
+  .lf-method { font-size: 13px; color: #8b8b90; margin: 0 0 18px; }
+  .lf-method a { color: #a855f7; text-decoration: none; }
+  .lf-method a:hover { text-decoration: underline; }
 
-  .lv-filters { font-size: 14px; }
-  .lv-fgroup { margin-bottom: 26px; }
-  .lv-fgroup h3 {
-    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .1em;
-    text-transform: uppercase; color: #8b8b90; margin: 0 0 10px; font-weight: 400;
+  /* running event band */
+  .lf-event {
+    position: relative; border-radius: 16px; padding: 24px 26px; margin: 0 0 22px;
+    background: linear-gradient(135deg, rgba(168,85,247,.16), rgba(168,85,247,.04) 60%), #11101a;
+    border: 1px solid rgba(168,85,247,.45);
+    box-shadow: inset 0 0 40px rgba(168,85,247,.10), 0 10px 40px rgba(0,0,0,.35);
   }
-  .lv-fopt { display: block; padding: 5px 0; color: #c9c9ce; cursor: pointer; }
-  .lv-fopt input { margin-right: 8px; accent-color: #a855f7; }
-  .lv-fnote { font-size: 12px; line-height: 1.55; color: #8b8b90; margin-top: 18px; }
-  .lv-clear {
-    background: none; border: none; padding: 0; color: #a855f7;
-    font-size: 12px; cursor: pointer; font-family: inherit;
-  }
-
-  .lv-event {
-    border: 1px solid var(--border, #232328); border-radius: 14px;
-    background: var(--surface, #131317); padding: 22px 24px; margin-bottom: 26px;
-  }
-  .lv-event.is-running { border-color: rgba(168,85,247,.45); }
-  .lv-event-flag {
+  .lf-event.is-next { background: var(--surface, #131317); border-color: var(--border, #232328); box-shadow: none; }
+  .lf-event-flag {
     font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .12em;
     text-transform: uppercase; color: #a855f7; margin-bottom: 10px;
   }
-  .lv-event h2 {
-    font-family: var(--font-display, 'DM Serif Display', serif);
-    font-size: 26px; margin: 0 0 6px; line-height: 1.15;
-  }
-  .lv-event-meta { font-size: 13px; color: #8b8b90; margin-bottom: 12px; }
-  .lv-event p { font-size: 14px; line-height: 1.6; color: #b8b8bd; margin: 0 0 14px; }
-  .lv-event a.lv-open { font-size: 14px; color: #a855f7; text-decoration: none; }
-  .lv-event a.lv-open:hover { text-decoration: underline; }
+  .lf-event.is-running .lf-event-flag { animation: lfPulse 2.2s ease-in-out infinite; }
+  .lf-event h2 { font-family: var(--font-display, 'DM Serif Display', serif); font-size: 26px; margin: 0 0 6px; line-height: 1.15; }
+  .lf-event-meta { font-size: 13px; color: #8b8b90; margin-bottom: 12px; }
+  .lf-event p { font-size: 14px; line-height: 1.6; color: #b8b8bd; margin: 0 0 14px; }
+  .lf-event a.lf-open { font-size: 14px; color: #a855f7; text-decoration: none; }
+  .lf-event a.lf-open:hover { text-decoration: underline; }
 
-  .lv-card {
-    border: 1px solid var(--border, #232328); border-radius: 14px;
-    background: var(--surface, #131317); padding: 22px 24px; margin-bottom: 16px;
+  /* filters */
+  .lf-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 12px; }
+  .lf-dd { position: relative; }
+  .lf-dd > button, .lf-help > button, .lf-mobile-btn {
+    font: inherit; font-size: 14px; color: #ebebee; background: var(--surface, #131317);
+    border: 1px solid var(--border, #232328); border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
   }
-  .lv-card-top { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; }
-  .lv-claim {
-    font-family: var(--font-display, 'DM Serif Display', serif);
-    font-size: 21px; line-height: 1.32; color: #ebebee; margin: 0; flex: 1;
+  .lf-dd > button:hover, .lf-help > button:hover, .lf-mobile-btn:hover { border-color: var(--border-hover, #2c2c33); }
+  .lf-dd > button[aria-expanded="true"] { border-color: rgba(168,85,247,.55); }
+  .lf-chev { width: 10px; height: 10px; transition: transform .18s; }
+  .lf-dd > button[aria-expanded="true"] .lf-chev { transform: rotate(180deg); }
+  .lf-panel {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 260px;
+    background: #121218; border: 1px solid rgba(168,85,247,.35); border-radius: 12px; padding: 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.5);
   }
-  .lv-verdict {
-    flex: none; font-size: 12px; font-weight: 500; padding: 5px 11px;
-    border-radius: 999px; white-space: nowrap;
+  .lf-dd.open .lf-panel { display: block; }
+  .lf-panel input[type="search"] {
+    width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: #ebebee;
+    background: #0d0d13; border: 1px solid var(--border, #232328); border-radius: 8px; padding: 7px 10px; margin-bottom: 8px;
   }
+  .lf-opts { max-height: 260px; overflow: auto; }
+  .lf-opt { display: flex; align-items: center; gap: 9px; padding: 6px 6px; border-radius: 6px; font-size: 14px; color: #c9c9ce; cursor: pointer; }
+  .lf-opt:hover { background: rgba(255,255,255,.04); }
+  .lf-opt input { accent-color: #a855f7; margin: 0; }
+  .lf-opt.hide { display: none; }
+  .lf-panel-note { font-size: 12px; line-height: 1.55; color: #8b8b90; margin: 10px 4px 2px; border-top: 1px solid var(--border, #232328); padding-top: 10px; }
+  .lf-help { position: relative; }
+  .lf-help > button { width: 38px; justify-content: center; padding: 9px 0; font-family: ui-monospace, monospace; }
+  .lf-help .lf-panel { left: auto; right: 0; min-width: 300px; }
+  .lf-legend { display: flex; flex-direction: column; gap: 8px; }
+  .lf-legend div { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #c9c9ce; }
+
+  .lf-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
+  .lf-chip {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500;
+    color: #0a0a0f; background: #a855f7; border-radius: 999px; padding: 5px 11px;
+  }
+  .lf-chip button { font: inherit; background: none; border: none; color: #0a0a0f; cursor: pointer; padding: 0; line-height: 1; }
+  .lf-clear { font: inherit; font-size: 13px; color: #a855f7; background: none; border: none; cursor: pointer; padding: 0; }
+  .lf-clear:hover { text-decoration: underline; }
+
+  /* mobile sheet */
+  .lf-mobile-btn { display: none; }
+  .lf-sheet { display: none; position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.55); }
+  .lf-sheet.open { display: block; }
+  .lf-sheet-inner {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 80vh; overflow: auto;
+    background: #121218; border-top: 1px solid rgba(168,85,247,.35); border-radius: 16px 16px 0 0; padding: 16px 18px 28px;
+  }
+  .lf-sheet-inner { color: #ebebee; }
+  .lf-sheet h3 { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8b8b90; margin: 16px 0 6px; font-weight: 400; }
+  .lf-sheet-head { display: flex; align-items: center; justify-content: space-between; }
+  .lf-sheet-head strong { font-weight: 500; font-size: 15px; }
+  .lf-sheet-head button { font: inherit; background: none; border: none; color: #a855f7; cursor: pointer; }
+
+  /* stream */
+  .lf-stream { position: relative; padding: 6px 0 80px; }
+  .lf-day { display: flex; align-items: center; gap: 14px; margin: 18px 0 12px; }
+  .lf-day span { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #a855f7; }
+  .lf-day::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(168,85,247,.45), rgba(168,85,247,0)); }
+  .lf-row { display: grid; grid-template-columns: 96px 1fr; gap: 0 18px; position: relative; }
+  .lf-rail { position: relative; text-align: right; padding-top: 22px; }
+  .lf-rail::before { content: ""; position: absolute; top: 0; bottom: -16px; right: 9px; width: 2px; background: rgba(168,85,247,.35); }
+  .lf-row:last-child .lf-rail::before { bottom: 0; }
+  .lf-node { position: absolute; right: 4px; top: 24px; width: 12px; height: 12px; border-radius: 999px; background: #0a0a0f; border: 2px solid #a855f7; box-sizing: border-box; }
+  .lf-row.is-newest .lf-node, .lf-row.is-just-in .lf-node { background: #a855f7; box-shadow: 0 0 10px #a855f7; }
+  .lf-rail-time { display: block; white-space: nowrap; padding-right: 26px; font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .06em; color: #7f7f85; }
+  .lf-row.is-just-in .lf-rail-time { color: #a855f7; text-transform: uppercase; letter-spacing: .12em; }
+  .lf-row.is-new-session .lf-rail-time::after { content: "new"; display: block; color: #c084fc; text-transform: uppercase; letter-spacing: .12em; animation: lfFade 60s linear forwards; }
+  @keyframes lfFade { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+  .lf-card {
+    border: 1px solid var(--border, #232328); border-radius: 14px; background: var(--surface, #131317);
+    padding: 20px 22px; margin-bottom: 16px; border-left: 3px solid transparent;
+  }
+  .lf-card:has(details[open]) { border-left-color: #a855f7; background: rgba(255,255,255,.045); }
+  .lf-card:focus-within { border-color: rgba(168,85,247,.45); }
+  .lf-card-top { display: flex; gap: 16px; align-items: flex-start; }
+  .lf-mark { flex: none; width: 24px; height: 24px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; margin-top: 3px; }
+  .lf-mark svg { width: 14px; height: 14px; }
+  .lf-mark.o-outlet_claim { background: rgba(192,132,252,.14); }
+  .lf-mark.o-attributed_claim { background: rgba(56,189,248,.14); }
+  .lf-mark.o-debate_claim { background: rgba(129,140,248,.14); }
+  .lf-claim { font-family: var(--font-display, 'DM Serif Display', serif); font-size: 21px; line-height: 1.32; color: #ebebee; margin: 0; flex: 1; }
+  .lf-verdict { flex: none; font-size: 12px; font-weight: 500; padding: 5px 11px; border-radius: 999px; white-space: nowrap; margin-top: 4px; }
   .v-supported     { color: #4ade80; background: rgba(74,222,128,.12); }
   .v-corroborated  { color: #34d399; background: rgba(52,211,153,.12); }
   .v-plausible     { color: #86efac; background: rgba(134,239,172,.12); }
@@ -95,34 +181,67 @@
   .v-disputed      { color: #fcd34d; background: rgba(252,211,77,.12); }
   .v-not_supported { color: #f87171; background: rgba(248,113,113,.12); }
   .v-not_verifiable{ color: #cbd5e1; background: rgba(203,213,225,.10); }
-  .v-opinion       { color: #9b72cf; background: rgba(155,114,207,.14); }
+  .v-opinion       { color: #b794e6; background: rgba(183,148,230,.14); }
+  .lf-context { font-size: 13px; color: #8b8b90; margin: 10px 0 0 40px; line-height: 1.55; }
+  .lf-context .lf-who { color: #b8b8bd; font-style: italic; }
+  .lf-stale { font-size: 13px; color: #8b8b90; margin: 6px 0 0 40px; }
 
-  .lv-context { font-size: 13px; color: #8b8b90; margin: 12px 0 0; line-height: 1.55; }
-  .lv-context .lv-mark { color: #b8b8bd; font-style: italic; }
-  .lv-stale { font-size: 13px; color: #8b8b90; margin: 6px 0 0; }
-  .lv-foot { display: flex; gap: 18px; align-items: center; margin-top: 14px; }
-  .lv-foot button, .lv-foot a {
-    background: none; border: none; padding: 0; font-family: inherit;
-    font-size: 13px; color: #a855f7; text-decoration: none; cursor: pointer;
+  .lf-ev { margin: 14px 0 0 40px; }
+  .lf-ev summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    height: 40px; padding: 0 14px; box-sizing: border-box; border-radius: 10px;
+    background: rgba(168,85,247,.07); border: 1px solid rgba(168,85,247,.22); font-size: 14px; color: #ebebee;
   }
-  .lv-foot button:hover, .lv-foot a:hover { text-decoration: underline; }
-  .lv-time { font-size: 12px; color: #7f7f85; margin-left: auto; }
+  .lf-ev summary::-webkit-details-marker { display: none; }
+  .lf-ev summary:hover { border-color: rgba(168,85,247,.45); }
+  .lf-ev summary .lf-cue { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #a855f7; }
+  .lf-ev summary .lf-cue .lf-chev { transition: transform .18s; }
+  .lf-ev[open] summary .lf-cue .lf-chev { transform: rotate(180deg); }
+  .lf-ev[open] summary .lf-cue-view { display: none; }
+  .lf-ev:not([open]) summary .lf-cue-hide { display: none; }
+  .lf-ev-body { padding: 12px 4px 4px; }
+  .lf-erow { display: grid; grid-template-columns: 150px 1fr; gap: 14px; padding: 7px 0; font-size: 13px; line-height: 1.55; }
+  .lf-ekey { color: #8b8b90; }
+  .lf-eval { color: #c9c9ce; }
+  .lf-sources { white-space: pre-line; }
 
-  .lv-evidence {
-    display: none; margin-top: 16px; padding-top: 16px;
-    border-top: 1px solid var(--border, #232328);
-  }
-  .lv-evidence.open { display: block; }
-  .lv-erow { display: flex; gap: 14px; padding: 7px 0; font-size: 13px; line-height: 1.55; }
-  .lv-ekey { flex: none; width: 150px; color: #8b8b90; }
-  .lv-eval { color: #c9c9ce; }
-  .lv-sources { white-space: pre-wrap; }
+  .lf-foot { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 14px 0 0 40px; }
+  .lf-foot button, .lf-foot a { background: none; border: none; padding: 0; font-family: inherit; font-size: 13px; color: #a855f7; text-decoration: none; cursor: pointer; }
+  .lf-foot button:hover, .lf-foot a:hover { text-decoration: underline; }
 
-  .lv-empty {
-    border: 1px dashed var(--border, #232328); border-radius: 14px;
-    padding: 40px 28px; text-align: center; color: #8b8b90; font-size: 14px; line-height: 1.6;
+  .lf-empty { border: 1px dashed rgba(168,85,247,.35); border-radius: 14px; padding: 40px 28px; text-align: center; color: #8b8b90; font-size: 14px; line-height: 1.6; }
+  .lf-empty strong { display: block; color: #c9c9ce; font-size: 16px; margin-bottom: 8px; font-weight: 500; }
+  .lf-empty a { color: #a855f7; text-decoration: none; }
+  .lf-empty .lf-note { font-size: 12px; margin-top: 14px; }
+
+  :focus-visible { outline: 2px solid #a855f7; outline-offset: 2px; }
+
+  @media (max-width: 720px) {
+    .lf-filters .lf-dd { display: none; }
+    .lf-mobile-btn { display: inline-flex; }
   }
-  .lv-empty strong { display: block; color: #c9c9ce; font-size: 16px; margin-bottom: 8px; font-weight: 500; }
+  @media (max-width: 640px) {
+    .lf-row { grid-template-columns: 1fr; }
+    .lf-rail { display: none; }
+    .lf-card { padding: 16px 16px; }
+    .lf-context, .lf-stale, .lf-ev, .lf-foot { margin-left: 0; }
+    .lf-mob-time { display: inline-flex; align-items: center; gap: 6px; font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .08em; color: #7f7f85; margin: 10px 0 0; text-transform: uppercase; }
+    .lf-mob-time::before { content: ""; width: 8px; height: 8px; border-radius: 999px; border: 2px solid #a855f7; box-sizing: border-box; }
+    .lf-row.is-just-in .lf-mob-time { color: #a855f7; }
+    .lf-banner { position: static; }
+    .lf-erow { grid-template-columns: 1fr; gap: 2px; }
+  }
+  @media (min-width: 641px) { .lf-mob-time { display: none; } }
+  @media (max-width: 480px) {
+    .lf-card-top { flex-wrap: wrap; }
+    .lf-verdict { order: 3; margin: 8px 0 0 40px; }
+    .lf-claim { flex-basis: calc(100% - 40px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lf-glow, .lf-dot, .lf-event.is-running .lf-event-flag { animation: none !important; }
+    .lf-chev, .lf-ev summary .lf-cue .lf-chev { transition: none; }
+    .lf-row.is-new-session .lf-rail-time::after { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -142,153 +261,141 @@
     </button>
     <div class="nav-links" id="nav-menu">
       <a href="/index.html">Home</a>
-      <a href="/how-it-works.html">How it works</a> <a href="/live" style="color: #a855f7; font-weight: 500;">Live</a>
+      <a href="/how-it-works.html">How it works</a> <a href="/live" style="color: #a855f7; font-weight: 500;">Live Feed</a>
       <a href="/pricing.html">Pricing</a>
       <a href="/leaderboard.html">Leaderboard</a>
       <a href="/debates">Debates</a>
-      <a href="#" class="nav-cta">Get the extension</a>
+      <a href="/how-it-works.html" class="nav-cta">Get the extension</a>
     </div>
   </div>
 </nav>
 
-<section class="page-hero">
-  <div class="hero-grid"></div>
-  <div class="hero-glow" style="top: 55%;"></div>
+<div class="lf-page">
+<div class="lf-grid" aria-hidden="true"></div>
+<div class="lf-glow" aria-hidden="true"></div>
+
+<section class="page-hero lf-hero{% if running_event %} is-live{% endif %}">
   <div class="container page-hero-content">
     <div class="eyebrow fu" style="justify-content:center; max-width:340px; margin:0 auto 28px;">Coverage</div>
-    <h1 class="display h-page fu2">Live.</h1>
-    <p class="sub fu3">Claims we have checked, most recent first. Partial by design — this is what has come through the checking process, not everything that was said.</p>
+    <h1 class="display h-page fu2">Live Feed</h1>
+    <p class="sub fu3">What was claimed, and what we found. Not everything that was said — what has been through the process.</p>
   </div>
 </section>
 
-<main class="lv-wrap">
+<main class="lf-wrap"
+      data-newest="{{ newest_iso }}"
+      data-just-in-minutes="{{ just_in_minutes }}"
+      data-query="{{ filter_query }}">
 
-
-
-  <div class="lv-toolbar">
-    <span class="lv-toolbar-label">Feed</span>
-    <span class="lv-feedlinks"><a href="/live/feed.xml">RSS</a><a href="/live/feed.json">JSON</a></span>
+  <div class="lf-banner" id="lf-banner" role="status" aria-live="polite">
+    {% if running_event %}
+    <span class="lf-dot" aria-hidden="true"></span>
+    <span>Live now — {{ running_event.event_name }}</span>
+    <span class="lf-sep">·</span>
+    <span>Checking claims live</span>
+    <span class="lf-sep">·</span>
+    {% endif %}
+    <span id="lf-last">{% if newest_iso %}Last claim checked <span id="lf-last-rel" data-iso="{{ newest_iso }}">{{ newest_rel }}</span>{% else %}Nothing checked yet{% endif %}</span>
+    <span class="lf-right">
+      <span class="lf-pending" id="lf-pending"><span id="lf-pending-text"></span><button type="button" id="lf-pending-btn">Show</button></span>
+      <span class="lf-feedlinks">FEED<a href="/live/feed.xml">RSS</a><a href="/live/feed.json">JSON</a></span>
+    </span>
+    {% if not running_event and newest_quiet %}
+    <span class="lf-quiet">Claims are checked in bursts, so quiet days are normal.</span>
+    {% endif %}
   </div>
 
-  <div class="lv-body">
+  <p class="lf-method">Every verdict follows our published methodology — <a href="/methodology">how we check claims</a>.</p>
 
-    <form class="lv-filters" method="get" action="/live" id="lv-filters">
+  {% if running_event %}
+  <div class="lf-event is-running">
+    <div class="lf-event-flag">In progress</div>
+    <h2>{{ running_event.event_name }}</h2>
+    <div class="lf-event-meta">{{ running_event.venue }}{% if running_event.started_display %} · started {{ running_event.started_display }}{% endif %}</div>
+    <p>Claims from the floor are checked as they come through and appear in the stream below while this runs.</p>
+    <a class="lf-open" href="/debates/{{ running_event.slug }}">Open the event coverage</a>
+  </div>
+  {% elif next_event %}
+  <div class="lf-event is-next">
+    <div class="lf-event-flag">Next event</div>
+    <h2>{{ next_event.event_name }}</h2>
+    <div class="lf-event-meta">{% if next_event.when_display %}{{ next_event.when_display }}{% endif %}{% if next_event.venue %} · {{ next_event.venue }}{% endif %}</div>
+  </div>
+  {% endif %}
 
-      {% if publications %}
-      <div class="lv-fgroup">
-        <h3>Publication</h3>
-        {% for p in publications %}
-        <label class="lv-fopt">
-          <input type="checkbox" name="publication" value="{{ p }}"
-                 {% if p in selected_publications %}checked{% endif %}
-                 onchange="document.getElementById('lv-filters').submit()">{{ p }}
-        </label>
-        {% endfor %}
-      </div>
-      {% endif %}
+  <form class="lf-filters" method="get" action="/live" id="lf-filters" data-partial="1">
+    {% set has_filter = selected_publications or selected_origins or selected_events %}
 
-      <div class="lv-fgroup">
-        <h3>Where the words came from</h3>
-        {% for key, label in origins %}
-        <label class="lv-fopt">
-          <input type="checkbox" name="origin" value="{{ key }}"
-                 {% if key in selected_origins %}checked{% endif %}
-                 onchange="document.getElementById('lv-filters').submit()">{{ label }}
-        </label>
-        {% endfor %}
-      </div>
-
-      {% if events %}
-      <div class="lv-fgroup">
-        <h3>Event</h3>
-        {% for e in events %}
-        <label class="lv-fopt">
-          <input type="checkbox" name="event" value="{{ e.id }}"
-                 {% if e.id in selected_events %}checked{% endif %}
-                 onchange="document.getElementById('lv-filters').submit()">{{ e.event_name }}
-        </label>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      {% if selected_publications or selected_origins or selected_events %}
-      <button type="button" class="lv-clear" onclick="window.location='/live'">Clear all</button>
-      {% endif %}
-
-      <p class="lv-fnote">There is no filter by person. A page narrowed to one individual is a claim history
-        about that individual, and we do not build those.</p>
-    </form>
-
-    <div class="lv-stream">
-
-      {% if running_event %}
-      <div class="lv-event is-running">
-        <div class="lv-event-flag">Live now</div>
-        <h2>{{ running_event.event_name }}</h2>
-        <div class="lv-event-meta">{{ running_event.venue }}</div>
-        <p>Turns are being checked as they are spoken. Checked claims appear above the rest while this runs.</p>
-        <a class="lv-open" href="/debates/{{ running_event.slug }}">Open the coverage</a>
-      </div>
-      {% elif next_event %}
-      <div class="lv-event">
-        <div class="lv-event-flag">Next event</div>
-        <h2>{{ next_event.event_name }}</h2>
-        <div class="lv-event-meta">{{ next_event.venue }}{% if next_event.when_display %} · {{ next_event.when_display }}{% endif %}</div>
-        <p>We will check turns as they are spoken. Claims appear here once they have been checked.</p>
-        <a class="lv-open" href="/debates/{{ next_event.slug }}">Open the coverage</a>
-      </div>
-      {% endif %}
-
-      {% for c in claims %}
-      <article class="lv-card" id="c{{ c.id }}">
-        <div class="lv-card-top">
-          <p class="lv-claim">{{ c.claim_text }}</p>
-          <span class="lv-verdict v-{{ c.verdict }}">{{ c.verdict_label }}</span>
+    <div class="lf-dd" data-dd="publication">
+      <button type="button" aria-expanded="false" aria-haspopup="true">Publication <svg class="lf-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      <div class="lf-panel">
+        <input type="search" placeholder="Search publications" aria-label="Search publications" data-filter-list="publication">
+        <div class="lf-opts" data-list="publication">
+          {% for p in publications %}
+          <label class="lf-opt"><input type="checkbox" name="publication" value="{{ p }}" {% if p in selected_publications %}checked{% endif %}> {{ p }}</label>
+          {% endfor %}
         </div>
-
-        <p class="lv-context">{{ c.context_pre }}{% if c.context_mark %}<span class="lv-mark">{{ c.context_mark }}</span>{% endif %}{{ c.context_post }}</p>
-
-        {% if c.is_stale %}
-        <p class="lv-stale">Not re-checked since {{ c.last_checked_display }}</p>
-        {% endif %}
-
-        <div class="lv-foot">
-          <button type="button" onclick="lvToggle({{ c.id }})">How it was checked</button>
-          <button type="button" onclick="lvCopy('{{ c.id }}', this)">Copy link</button>
-          <a href="/corrections/new?claim={{ c.id }}">Request a correction</a>
-          <span class="lv-time">{{ c.when_display }}</span>
-        </div>
-
-        <div class="lv-evidence" id="ev{{ c.id }}">
-          {% if c.verification_method %}
-          <div class="lv-erow"><span class="lv-ekey">How it was checked</span><span class="lv-eval">{{ c.verification_method }}</span></div>
-          {% endif %}
-          {% if c.claim_type %}
-          <div class="lv-erow"><span class="lv-ekey">Kind of claim</span><span class="lv-eval">{{ c.claim_type }}</span></div>
-          {% endif %}
-          {% if c.why_checkworthy %}
-          <div class="lv-erow"><span class="lv-ekey">Why we checked it</span><span class="lv-eval">{{ c.why_checkworthy }}</span></div>
-          {% endif %}
-          {% if show_sources and c.sources_used %}
-          <div class="lv-erow"><span class="lv-ekey">What we read</span><span class="lv-eval lv-sources">{{ c.sources_used }}</span></div>
-          {% endif %}
-          {% if c.correction_note %}
-          <div class="lv-erow"><span class="lv-ekey">Corrected</span><span class="lv-eval">{{ c.correction_note }}</span></div>
-          {% endif %}
-          <div class="lv-erow"><span class="lv-ekey"></span><span class="lv-eval"><a href="/methodology" style="color:#a855f7;text-decoration:none;">What this method involves</a></span></div>
-        </div>
-      </article>
-      {% else %}
-      <div class="lv-empty">
-        <strong>Nothing checked matches that combination</strong>
-        This page only carries claims we have finished checking, so a narrow filter empties quickly.
-        Widen it, or take a filter off.
       </div>
-      {% endfor %}
-
     </div>
+
+    <div class="lf-dd" data-dd="origin">
+      <button type="button" aria-expanded="false" aria-haspopup="true">Where the words came from <svg class="lf-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      <div class="lf-panel">
+        <div class="lf-opts">
+          {% for key, label in origins %}
+          <label class="lf-opt"><input type="checkbox" name="origin" value="{{ key }}" {% if key in selected_origins %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </div>
+        <p class="lf-panel-note">There is no filter by person. A page narrowed to one individual is a claim history about that individual, and we do not build those.</p>
+      </div>
+    </div>
+
+    <div class="lf-dd" data-dd="event">
+      <button type="button" aria-expanded="false" aria-haspopup="true">Event <svg class="lf-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      <div class="lf-panel">
+        <div class="lf-opts">
+          {% for e in events %}
+          <label class="lf-opt"><input type="checkbox" name="event" value="{{ e.id }}" {% if e.id in selected_events %}checked{% endif %}> {{ e.event_name }}</label>
+          {% else %}
+          <span class="lf-opt">No events listed</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="lf-mobile-btn" id="lf-mobile-btn">Filter <svg class="lf-chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+
+    <div class="lf-help">
+      <button type="button" aria-expanded="false" aria-label="What the marks mean">?</button>
+      <div class="lf-panel">
+        <div class="lf-legend">
+          <div><span class="lf-mark o-outlet_claim">{{ marks.outlet_claim | safe }}</span> The publication's own words</div>
+          <div><span class="lf-mark o-attributed_claim">{{ marks.attributed_claim | safe }}</span> Reported from somebody else</div>
+          <div><span class="lf-mark o-debate_claim">{{ marks.debate_claim | safe }}</span> Said at an event</div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="lf-chips" id="lf-chips">
+    {% for p in selected_publications %}<span class="lf-chip">{{ p }} <button type="button" data-remove="publication" data-value="{{ p }}" aria-label="Remove {{ p }}">×</button></span>{% endfor %}
+    {% for key, label in origins %}{% if key in selected_origins %}<span class="lf-chip">{{ label }} <button type="button" data-remove="origin" data-value="{{ key }}" aria-label="Remove {{ label }}">×</button></span>{% endif %}{% endfor %}
+    {% for e in events %}{% if e.id in selected_events %}<span class="lf-chip">{{ e.event_name }} <button type="button" data-remove="event" data-value="{{ e.id }}" aria-label="Remove {{ e.event_name }}">×</button></span>{% endif %}{% endfor %}
+    {% if has_filter %}<button type="button" class="lf-clear" id="lf-clear">Clear all</button>{% endif %}
+  </div>
+
+  <div class="lf-stream" id="lf-stream">
+    {% include 'live_stream.html' %}
   </div>
 </main>
+</div>
+
+<div class="lf-sheet" id="lf-sheet" aria-hidden="true">
+  <div class="lf-sheet-inner" role="dialog" aria-label="Filter">
+    <div class="lf-sheet-head"><strong>Filter</strong><button type="button" id="lf-sheet-close">Done</button></div>
+    <div id="lf-sheet-body"></div>
+  </div>
+</div>
 
 <footer class="site-footer">
   <div class="site-footer-inner">
@@ -305,32 +412,197 @@
       <a href="/how-it-works">How it works</a>
       <a href="/leaderboard">Leaderboard</a>
       <a href="/pricing">Pricing</a>
+      <a href="/developers">Developers</a>
+      <a href="/status">Status</a>
     </nav>
     <div class="site-footer-meta">Methodology v1.7.1 &middot; Automated &middot; Auditable</div>
   </div>
 </footer>
 
 <script>
-function lvToggle(id) {
-  var el = document.getElementById('ev' + id);
-  if (el) el.classList.toggle('open');
-}
-function lvCopy(id, btn) {
-  var url = window.location.origin + '/c/' + id;
-  var done = function () {
-    var old = btn.textContent;
-    btn.textContent = 'Link copied';
-    setTimeout(function () { btn.textContent = old; }, 1800);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(done, done);
-  } else {
-    var t = document.createElement('textarea');
-    t.value = url; document.body.appendChild(t); t.select();
-    try { document.execCommand('copy'); } catch (e) {}
-    document.body.removeChild(t); done();
+(function () {
+  var main = document.querySelector('main.lf-wrap');
+  var form = document.getElementById('lf-filters');
+  var stream = document.getElementById('lf-stream');
+  var JUST_IN_MIN = parseInt(main.getAttribute('data-just-in-minutes') || '15', 10);
+  var newestIso = main.getAttribute('data-newest') || '';
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- relative time ---- */
+  function rel(iso, short) {
+    if (!iso) return '';
+    var s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    if (s < 60) return short ? 'just now' : 'just now';
+    if (s < 3600) { var m = Math.floor(s / 60); return short ? m + ' min' : m + ' min ago'; }
+    if (s < 86400) { var h = Math.floor(s / 3600); return short ? h + ' hr' : h + ' hr ago'; }
+    var d = Math.floor(s / 86400); return short ? d + ' d' : d + ' day' + (d === 1 ? '' : 's') + ' ago';
   }
-}
+  function tick() {
+    var last = document.getElementById('lf-last-rel');
+    if (last) last.textContent = rel(last.getAttribute('data-iso'));
+    stream.querySelectorAll('.lf-row[data-iso]').forEach(function (row) {
+      var iso = row.getAttribute('data-iso');
+      var justIn = (Date.now() - Date.parse(iso)) < JUST_IN_MIN * 60000;
+      row.classList.toggle('is-just-in', justIn);
+      var age = Date.now() - Date.parse(iso);
+      row.querySelectorAll('.lf-rail-time, .lf-mob-time').forEach(function (t) {
+        if (t.hasAttribute('data-clock')) return;           /* event-local clock time is fixed */
+        if (justIn) t.textContent = 'Just in';
+        else if (age < 86400000) t.textContent = rel(iso, true);   /* older rows keep the server clock time */
+      });
+    });
+  }
+  tick(); setInterval(tick, 30000);
+
+  /* ---- dropdowns ---- */
+  function closeAll(except) {
+    document.querySelectorAll('.lf-dd.open, .lf-help.open').forEach(function (dd) {
+      if (dd !== except) { dd.classList.remove('open'); dd.querySelector('button').setAttribute('aria-expanded', 'false'); }
+    });
+  }
+  document.querySelectorAll('.lf-dd > button, .lf-help > button').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var dd = btn.parentNode; var open = dd.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false'); closeAll(dd);
+      var s = dd.querySelector('input[type="search"]'); if (open && s) s.focus();
+    });
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.lf-dd, .lf-help')) closeAll(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeAll(); closeSheet(); } });
+  document.querySelectorAll('input[data-filter-list]').forEach(function (inp) {
+    inp.addEventListener('input', function () {
+      var q = inp.value.toLowerCase();
+      var list = document.querySelector('[data-list="' + inp.getAttribute('data-filter-list') + '"]');
+      list.querySelectorAll('.lf-opt').forEach(function (o) { o.classList.toggle('hide', q && o.textContent.toLowerCase().indexOf(q) === -1); });
+    });
+  });
+
+  /* ---- filtering: partial reload, scroll preserved; full GET as fallback ---- */
+  function query() {
+    var fd = new FormData(form), parts = [];
+    fd.forEach(function (v, k) { if (v) parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(v)); });
+    return parts.join('&');
+  }
+  function applyFilters() {
+    var q = query(); var y = window.scrollY;
+    fetch('/live?partial=1' + (q ? '&' + q : ''), { headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (html) {
+        stream.innerHTML = html;
+        history.replaceState(null, '', '/live' + (q ? '?' + q : ''));
+        main.setAttribute('data-query', q);
+        rebuildChips(); tick(); markNewest();
+        window.scrollTo(0, y);
+      })
+      .catch(function () { window.location = '/live' + (q ? '?' + q : ''); });
+  }
+  form.addEventListener('change', function (e) { if (e.target.matches('input[type="checkbox"]')) applyFilters(); });
+  function rebuildChips() {
+    var chips = document.getElementById('lf-chips'); chips.innerHTML = ''; var any = false;
+    form.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) {
+      any = true; var label = cb.parentNode.textContent.trim();
+      var span = document.createElement('span'); span.className = 'lf-chip';
+      span.appendChild(document.createTextNode(label + ' '));
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = '×';
+      b.setAttribute('aria-label', 'Remove ' + label);
+      b.addEventListener('click', function () { cb.checked = false; applyFilters(); });
+      span.appendChild(b); chips.appendChild(span);
+    });
+    if (any) {
+      var c = document.createElement('button'); c.type = 'button'; c.className = 'lf-clear'; c.textContent = 'Clear all';
+      c.addEventListener('click', clearAll); chips.appendChild(c);
+    }
+  }
+  function clearAll() { form.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) { cb.checked = false; }); applyFilters(); }
+  document.querySelectorAll('#lf-chips [data-remove]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var cb = form.querySelector('input[name="' + b.getAttribute('data-remove') + '"][value="' + b.getAttribute('data-value').replace(/"/g, '\\"') + '"]');
+      if (cb) cb.checked = false; applyFilters();
+    });
+  });
+  var clr = document.getElementById('lf-clear'); if (clr) clr.addEventListener('click', clearAll);
+  stream.addEventListener('click', function (e) { if (e.target.matches('[data-clear-filters]')) { e.preventDefault(); clearAll(); } });
+
+  /* ---- mobile sheet: moves the real panels into the sheet and back ---- */
+  var sheet = document.getElementById('lf-sheet'), sheetBody = document.getElementById('lf-sheet-body');
+  var homes = [];
+  function openSheet() {
+    document.querySelectorAll('.lf-dd').forEach(function (dd) {
+      var panel = dd.querySelector('.lf-panel'); homes.push([dd, panel]);
+      var h = document.createElement('h3'); h.textContent = dd.querySelector('button').textContent.trim();
+      sheetBody.appendChild(h); sheetBody.appendChild(panel); panel.style.display = 'block'; panel.style.position = 'static'; panel.style.boxShadow = 'none';
+    });
+    sheet.classList.add('open'); sheet.setAttribute('aria-hidden', 'false');
+  }
+  function closeSheet() {
+    if (!sheet.classList.contains('open')) return;
+    homes.forEach(function (pair) { pair[1].removeAttribute('style'); pair[0].appendChild(pair[1]); });
+    homes = []; sheetBody.innerHTML = '';
+    sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true');
+  }
+  document.getElementById('lf-mobile-btn').addEventListener('click', openSheet);
+  document.getElementById('lf-sheet-close').addEventListener('click', closeSheet);
+  sheet.addEventListener('click', function (e) { if (e.target === sheet) closeSheet(); });
+
+  /* ---- arrivals: announce, insert on click, scroll preserved ---- */
+  var pendingEl = document.getElementById('lf-pending'), pendingText = document.getElementById('lf-pending-text');
+  var pendingCount = 0;
+  function markNewest() {
+    var first = stream.querySelector('.lf-row'); stream.querySelectorAll('.lf-row.is-newest').forEach(function (r) { r.classList.remove('is-newest'); });
+    if (first) { first.classList.add('is-newest'); newestIso = first.getAttribute('data-iso') || newestIso; main.setAttribute('data-newest', newestIso); }
+  }
+  function poll() {
+    if (!newestIso) return;
+    var q = main.getAttribute('data-query');
+    fetch('/live/pending?since=' + encodeURIComponent(newestIso) + (q ? '&' + q : ''), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) return; pendingCount = j.count || 0;
+        if (pendingCount > 0) { pendingText.textContent = pendingCount + ' new'; pendingEl.classList.add('show'); }
+        else pendingEl.classList.remove('show');
+      }).catch(function () {});
+  }
+  setInterval(poll, 150000);
+  document.getElementById('lf-pending-btn').addEventListener('click', function () {
+    var q = main.getAttribute('data-query'); var y = window.scrollY;
+    fetch('/live?partial=1&since=' + encodeURIComponent(newestIso) + (q ? '&' + q : ''), { headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var tmp = document.createElement('div'); tmp.innerHTML = html;
+        var rows = Array.prototype.slice.call(tmp.querySelectorAll('.lf-row, .lf-day')).reverse();
+        var anchor = stream.querySelector('.lf-day') ? stream.querySelector('.lf-day').nextSibling : stream.firstChild;
+        var firstDay = stream.querySelector('.lf-day');
+        rows.forEach(function (row) {
+          if (row.classList.contains('lf-day')) { if (firstDay && firstDay.textContent.trim() === row.textContent.trim()) return; }
+          row.classList.add('is-new-session');
+          stream.insertBefore(row, anchor); anchor = row;
+        });
+        var empty = stream.querySelector('.lf-empty'); if (empty && stream.querySelector('.lf-row')) empty.remove();
+        pendingEl.classList.remove('show'); pendingCount = 0;
+        markNewest(); tick();
+        var nodes = stream.querySelectorAll('.lf-row.is-new-session .lf-node'); var i = 0;
+        (function light() { if (i < nodes.length) { nodes[i].style.boxShadow = '0 0 10px #a855f7'; nodes[i].style.background = '#a855f7'; i++; setTimeout(light, reduced ? 0 : 180); } })();
+        window.scrollTo(0, y);
+        if (window.scrollY !== y) window.scrollTo(0, y);
+      }).catch(function () {});
+  });
+  markNewest();
+
+  /* ---- copy link / citation ---- */
+  function flash(btn, text) { var old = btn.textContent; btn.textContent = text; setTimeout(function () { btn.textContent = old; }, 1800); }
+  function copyText(t, btn, doneText) {
+    var done = function () { flash(btn, doneText); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, done);
+    else { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta); done(); }
+  }
+  stream.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-copy]'); if (!b) return;
+    var id = b.getAttribute('data-id'), url = window.location.origin + '/c/' + id;
+    if (b.getAttribute('data-copy') === 'link') copyText(url, b, 'Link copied');
+    else copyText('\u201C' + b.getAttribute('data-claim') + '\u201D \u2014 ' + b.getAttribute('data-verdict') + '. Verum Signal, checked ' + b.getAttribute('data-date') + '. ' + url, b, 'Citation copied');
+  });
+})();
 </script>
 </body>
 </html>
