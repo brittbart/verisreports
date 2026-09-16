@@ -192,7 +192,7 @@
           <div class="preliminary-note">Preliminary distribution — outlet not yet at the {{ outlet.threshold }}-verdict scoring threshold.</div>
         {% endif %}
         {% set verdict_labels = {'supported':'Supported','plausible':'Plausible','corroborated':'Corroborated','overstated':'Overstated','disputed':'Disputed','not_supported':'Not supported'} %}
-        {% set verdict_weights = {'supported':'+1.0','plausible':'+0.5','corroborated':'+0.5','overstated':'-0.5','disputed':'-1.0','not_supported':'-1.5'} %}
+        {% set verdict_weights = {'supported':'+1.0','plausible':'+0.5','corroborated':'+0.75','overstated':'-0.5','disputed':'-1.0','not_supported':'-1.5'} %}
         <div class="dist-counts">
           {% for t in scoreable_types %}
             {% set c = outlet.verdict_breakdown[t] %}
