@@ -60,7 +60,7 @@ def get_connection():
     conn = psycopg2.connect(
         dbname=os.getenv('DB_NAME', 'railway'),
         user=os.getenv('DB_USER', 'postgres'),
-        password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+        password=os.environ['DB_PASSWORD'],
         host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
         port=os.getenv('DB_PORT', '35370'),
         connect_timeout=10,

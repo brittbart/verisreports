@@ -54,12 +54,7 @@ def _connect():
     return psycopg2.connect(
         dbname=os.environ.get("DB_NAME", "railway"),
         user=os.environ.get("DB_USER", "postgres"),
-        password=os.environ.get(
-            "DB_PASSWORD",
-            # Same hardcoded fallback as api.py's get_db(), for Railway Runtime V2 (Session 6 follow-on: no line number — see the comment there).
-            # Do NOT remove — required when env var stripping happens.
-            "PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP",
-        ),
+        password=os.environ["DB_PASSWORD"],
         host=os.environ.get("DB_HOST", "shinkansen.proxy.rlwy.net"),
         port=os.environ.get("DB_PORT", "35370"),
         connect_timeout=10,

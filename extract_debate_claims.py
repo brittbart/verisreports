@@ -260,7 +260,7 @@ def _log_filtered(utterance_id, event_id, speaker_id, stage, reason, text, conn=
         if _own_conn:
             conn = psycopg2.connect(
                 dbname=os.getenv('DB_NAME', 'railway'), user=os.getenv('DB_USER', 'postgres'),
-                password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'), host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
+                password=os.environ['DB_PASSWORD'], host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
                 port=os.getenv('DB_PORT', '35370'), connect_timeout=5,
             )
         with conn.cursor() as cur:
@@ -499,7 +499,7 @@ def get_connection():
     return psycopg2.connect(
         dbname=os.getenv('DB_NAME', 'railway'),
         user=os.getenv('DB_USER', 'postgres'),
-        password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+        password=os.environ['DB_PASSWORD'],
         host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
         port=os.getenv('DB_PORT', '35370'),
         connect_timeout=10,
@@ -904,7 +904,7 @@ def get_fresh_connection():
     return psycopg2.connect(
         dbname=os.getenv('DB_NAME', 'railway'),
         user=os.getenv('DB_USER', 'postgres'),
-        password=os.getenv('DB_PASSWORD', 'PXLJKUdf14OB8bq4dWgF2P0gCs4FjVP'),
+        password=os.environ['DB_PASSWORD'],
         host=os.getenv('DB_HOST', 'shinkansen.proxy.rlwy.net'),
         port=os.getenv('DB_PORT', '35370'),
         connect_timeout=10,
