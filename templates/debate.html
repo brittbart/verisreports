@@ -1570,10 +1570,19 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.stream_active === false) {
-            // Stream not producing utterances — show static UI, not live UI
+            // Stream not producing utterances. Nothing captured yet = the debate
+            // has not started (upcoming); anything captured = it has ended (static).
+            // 2026-09-15: pre-stream pages were showing "Recorded event · Complete".
             document.body.classList.remove('is-live');
-            document.body.classList.add('is-static');
+            if ((data.utterances_captured || 0) === 0) {
+              document.body.classList.remove('is-static');
+              document.body.classList.add('is-upcoming');
+            } else {
+              document.body.classList.remove('is-upcoming');
+              document.body.classList.add('is-static');
+            }
           } else if (data.stream_active === true) {
+            document.body.classList.remove('is-upcoming');
             // Stream is active — ensure live UI is shown
             document.body.classList.remove('is-static');
             document.body.classList.add('is-live');
