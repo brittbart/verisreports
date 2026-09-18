@@ -91,10 +91,35 @@ def outlet_meta(domain, score, tier, scoreable_count):
     )
 
 
-def debate_meta(event_name, slug, claim_count, event_date_str):
+def debate_title(event_name, participants=None):
+    """S13: candidate names first (the search terms), then the event name."""
+    names = []
+    for p in participants or []:
+        if not isinstance(p, dict):
+            continue
+        n = " ".join(str(p.get("name") or "").split())
+        role = str(p.get("role") or "").lower()
+        if n and n.lower() != "moderator" and role != "moderator" and n not in names:
+            names.append(n)
+    if len(names) == 2:
+        lead = f"{names[0]} vs. {names[1]}"
+    elif 3 <= len(names) <= 4:
+        lead = ", ".join(names[:-1]) + " and " + names[-1]
+    elif len(names) == 1:
+        lead = names[0]
+    else:
+        lead = ""
+    return f"{lead}: {event_name} — Verum Signal" if lead else f"{event_name} — Verum Signal"
+
+
+def debate_meta(event_name, slug, claim_count, event_date_str, participants=None):
     """Meta tags for a debate detail page."""
-    desc = f"{event_name} — {claim_count} claims evaluated in real time. Verum Signal live debate coverage."
-    page_title = f"{event_name} — Verum Signal"
+    _when = f", {event_date_str}" if event_date_str else ""
+    if claim_count:
+        desc = f"{event_name}{_when} — {claim_count} claims evaluated in real time. Verum Signal live debate coverage."
+    else:
+        desc = f"{event_name}{_when}: follow each claim live, with the evidence behind it, on Verum Signal."
+    page_title = debate_title(event_name, participants)
     page_url = f"{SITE_URL}/debates/{slug}"
     og_img = (f"{SITE_URL}/api/og/debate?name={_urlenc(event_name)}&claims={claim_count}"
               f"&sig={og_sig('debate', event_name, claim_count)}")

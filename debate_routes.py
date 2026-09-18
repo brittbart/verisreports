@@ -10,7 +10,7 @@ from datetime import date
 from flask import render_template, abort, jsonify
 from api_leaderboard import METHODOLOGY_VERSION, VERDICT_LABELS
 import ast as _ast, os as _os
-from seo import debate_meta, debates_index_meta
+from seo import debate_meta, debates_index_meta, debate_title
 import event_time
 # Public-facing methodology version — gated by attorney approval.
 # Derived from PUBLIC_METHODOLOGY_VERSIONS env var (same source as mobile_routes.py).
@@ -682,7 +682,9 @@ def register_debate_routes(app, get_db_conn):
             ops_preview=ops_preview,
             ops_token=ops_token,
             methodology_version=PUBLIC_METHODOLOGY_VERSION,
-            seo_meta=debate_meta(event["event_name"], slug, len(claims), event.get("event_date_str", "")),
+            seo_meta=debate_meta(event["event_name"], slug, len(claims), event.get("event_date_str", ""),
+                                 event.get("participants")),
+            page_title=debate_title(event["event_name"], event.get("participants")),
         )
 
     @app.route("/api/debates")
