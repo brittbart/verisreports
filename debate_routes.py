@@ -683,7 +683,8 @@ def register_debate_routes(app, get_db_conn):
             ops_token=ops_token,
             methodology_version=PUBLIC_METHODOLOGY_VERSION,
             seo_meta=debate_meta(event["event_name"], slug, len(claims), event.get("event_date_str", ""),
-                                 event.get("participants")),
+                                 event.get("participants"), event.get("event_start_iso"),
+                                 event.get("stream_url")),
             page_title=debate_title(event["event_name"], event.get("participants")),
         )
 

@@ -112,7 +112,37 @@ def debate_title(event_name, participants=None):
     return f"{lead}: {event_name} — Verum Signal" if lead else f"{event_name} — Verum Signal"
 
 
-def debate_meta(event_name, slug, claim_count, event_date_str, participants=None):
+def debate_event_jsonld(event_name, page_url, description, image, start_iso, stream_url, participants=None):
+    """S13: schema.org Event for a debate with a known stream; '' when either is missing."""
+    import json as _json
+    if not start_iso or not stream_url or not str(stream_url).startswith(("http://", "https://")):
+        return ""
+    names = []
+    for p in participants or []:
+        if not isinstance(p, dict):
+            continue
+        n = " ".join(str(p.get("name") or "").split())
+        if n and n.lower() != "moderator" and str(p.get("role") or "").lower() != "moderator" and n not in names:
+            names.append(n)
+    ld = {
+        "@context": "https://schema.org",
+        "@type": "Event",
+        "name": event_name,
+        "startDate": str(start_iso),
+        "eventStatus": "https://schema.org/EventScheduled",
+        "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
+        "location": {"@type": "VirtualLocation", "url": str(stream_url)},
+        "description": description,
+        "image": [image],
+        "url": page_url,
+    }
+    if names:
+        ld["performer"] = [{"@type": "Person", "name": n} for n in names]
+    body = _json.dumps(ld, ensure_ascii=False).replace("</", "<\\/")
+    return '<script type="application/ld+json">' + body + "</script>"
+
+
+def debate_meta(event_name, slug, claim_count, event_date_str, participants=None, start_iso=None, stream_url=None):
     """Meta tags for a debate detail page."""
     _when = f", {event_date_str}" if event_date_str else ""
     if claim_count:
@@ -128,6 +158,7 @@ def debate_meta(event_name, slug, claim_count, event_date_str, participants=None
         description=desc,
         url=page_url,
         og_image=og_img,
+        extra=debate_event_jsonld(event_name, page_url, desc, og_img, start_iso, stream_url, participants),
     )
 
 
