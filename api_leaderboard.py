@@ -153,7 +153,7 @@ WHERE c.verdict IS NOT NULL
   AND a.published_at < NOW() - INTERVAL '6 hours'
   AND LOWER(a.source_name) != ALL(%s)
 GROUP BY a.source_name
-HAVING COUNT(*) >= %s
+HAVING COUNT(*) FILTER (WHERE c.verdict NOT IN ('not_verifiable', 'opinion')) >= %s
 ORDER BY a.source_name;
 """
 
@@ -165,9 +165,11 @@ SELECT COUNT(*) FROM (
     JOIN claims c ON c.article_id = a.id
     WHERE c.verdict IS NOT NULL
       AND c.claim_origin = 'outlet_claim'
+      AND a.published_at IS NOT NULL
+      AND a.published_at < NOW() - INTERVAL '6 hours'
       AND LOWER(a.source_name) != ALL(%s)
     GROUP BY a.source_name
-    HAVING COUNT(*) > 0 AND COUNT(*) < %s
+    HAVING COUNT(*) > 0 AND COUNT(*) FILTER (WHERE c.verdict NOT IN ('not_verifiable', 'opinion')) < %s
 ) sub;
 """
 
@@ -215,7 +217,7 @@ def _row_to_outlet(row):
     weighted_sum = row["weighted_sum"] or 0
     scoreable_count = row["scoreable_count"] or 0
     score = compute_score(weighted_sum, scoreable_count)
-    tier = compute_tier(row["verdict_count"])
+    tier = compute_tier(scoreable_count)
     score_band = compute_score_band(score)
 
     def _iso(ts):

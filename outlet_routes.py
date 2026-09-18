@@ -205,10 +205,10 @@ def _build_outlet_view(get_db_conn, domain_lc):
             'history':            [],
             'verdicts':           [],
         }
-    is_scored = agg['verdict_count'] >= INCLUSION_THRESHOLD
+    is_scored = agg['scoreable_count'] >= INCLUSION_THRESHOLD
     score = compute_score(agg['weighted_sum'], agg['scoreable_count']) if is_scored else None
     band = compute_score_band(score) if score is not None else None
-    tier = compute_tier(agg['verdict_count'])
+    tier = compute_tier(agg['scoreable_count'])
     return {
         'domain':            domain_lc,
         'state':             'scored' if is_scored else 'sub_threshold',
