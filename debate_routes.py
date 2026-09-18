@@ -633,7 +633,7 @@ def register_debate_routes(app, get_db_conn):
             complete_events=complete_events,
             stats=stats,
             methodology_version=PUBLIC_METHODOLOGY_VERSION,
-            seo_meta=debates_index_meta(stats.get("total_events", 0), stats.get("total_claims", 0)),
+            seo_meta=debates_index_meta(len(events), stats.get("total_claims", 0)),
         )
 
     @app.route("/debates/<slug>")

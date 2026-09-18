@@ -88,7 +88,7 @@ def debates_index_meta(total_events, total_claims):
     return meta_tags(
         title="Debates — Verum Signal",
         description=desc,
-        url=f"{SITE_URL}/debates",
+        url=f"{SITE_URL}/debates/list",
     )
 
 

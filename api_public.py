@@ -1020,6 +1020,21 @@ def developers_page():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verum Signal — Developer API</title>
+<!-- S13 SEO -->
+<meta name="description" content="Build with the Verum Signal API: outlet scores, claim records and debate claims, with documentation and access details.">
+<link rel="canonical" href="https://verumsignal.com/developers">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Verum Signal">
+<meta property="og:title" content="Verum Signal — Developer API">
+<meta property="og:description" content="Build with the Verum Signal API: outlet scores, claim records and debate claims, with documentation and access details.">
+<meta property="og:url" content="https://verumsignal.com/developers">
+<meta property="og:image" content="https://verumsignal.com/static/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Verum Signal — Developer API">
+<meta name="twitter:description" content="Build with the Verum Signal API: outlet scores, claim records and debate claims, with documentation and access details.">
+<meta name="twitter:image" content="https://verumsignal.com/static/og-default.png">
 <style>
   :root { --bg:#0a0a0f; --fg:#e8e8f0; --dim:#888; --accent:#a855f7; --pink:#ec4899; --card:#111118; --border:#1e1e2e; --green:#4ade80; --mono:ui-monospace,"SF Mono",Menlo,monospace; }
   *{box-sizing:border-box;margin:0;padding:0}

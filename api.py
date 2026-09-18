@@ -492,6 +492,8 @@ def _render_verify_error(message):
 <html lang="en">
 <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Link expired — Verum Signal</title>
+<!-- S13 SEO -->
+<meta name="robots" content="noindex">
 <style>
 * {{ box-sizing: border-box; }}
 body {{ margin: 0; background: #1a0d2e; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; color: #e7dffb; }}
@@ -7251,6 +7253,21 @@ footer a{color:var(--dim);text-decoration:none}footer a:hover{color:var(--fg)}""
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dispute a Verdict — Verum Signal</title>
+<!-- S13 SEO -->
+<meta name="description" content="Submit a dispute about a Verum Signal verdict or claim: the article, the claim and your reasoning.">
+<link rel="canonical" href="https://verumsignal.com/disputes">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Verum Signal">
+<meta property="og:title" content="Dispute a Verdict — Verum Signal">
+<meta property="og:description" content="Submit a dispute about a Verum Signal verdict or claim: the article, the claim and your reasoning.">
+<meta property="og:url" content="https://verumsignal.com/disputes">
+<meta property="og:image" content="https://verumsignal.com/static/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dispute a Verdict — Verum Signal">
+<meta name="twitter:description" content="Submit a dispute about a Verum Signal verdict or claim: the article, the claim and your reasoning.">
+<meta name="twitter:image" content="https://verumsignal.com/static/og-default.png">
 <style>{CSS}</style></head>
 <body><div class="wrap">
 <div class="logo"><a href="/">VERUM <em>SIGNAL</em></a></div>
@@ -7355,6 +7372,8 @@ def status_page():
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="60">
 <title>Verum Signal Status</title>
+<!-- S13 SEO -->
+<meta name="robots" content="noindex">
 <style>
 :root{{--bg:#0a0a0f;--fg:#e8e8f0;--dim:#888;--accent:#a855f7;--card:#111118;--border:#1e1e2e;--mono:ui-monospace,SF Mono,Menlo,monospace}}
 *{{box-sizing:border-box;margin:0;padding:0}}
@@ -8999,7 +9018,7 @@ def live_page():
         just_in_minutes=LIVE_JUST_IN_MINUTES,
         filter_query=urlencode(q),
         partial=False,
-        seo_meta='',
+        seo_meta=_live_seo_meta(),
         **common,
     )
 
@@ -9026,6 +9045,44 @@ def live_pending():
                    latest=latest.replace(tzinfo=_tz.utc).isoformat().replace('+00:00', 'Z') if latest else None)
     resp.headers['Cache-Control'] = 'no-cache'
     return resp
+
+
+# S13 SEO: head tags for /live and /c/<id>.
+_S13_VERDICT_LABELS = {'supported': 'Supported', 'plausible': 'Plausible', 'corroborated': 'Corroborated',
+                       'overstated': 'Overstated', 'disputed': 'Disputed', 'not_supported': 'Not supported',
+                       'not_verifiable': 'Not verifiable', 'opinion': 'Opinion'}
+
+
+def _s13_short(text, n):
+    t = ' '.join((text or '').split())
+    return t if len(t) <= n else t[:n - 1].rstrip() + '…'
+
+
+def _live_seo_meta():
+    from seo import meta_tags
+    return meta_tags(title='Live Feed — Verum Signal',
+                     description='Claims from news articles and live debates as they are checked, '
+                                 'with the verdict and the evidence behind each one.',
+                     url='/live')
+
+
+def _claim_page_title(r):
+    label = _S13_VERDICT_LABELS.get(r.get('verdict'), 'Claim')
+    return f"{label}: {_s13_short(r.get('claim_text'), 80)} — Verum Signal"
+
+
+def _claim_seo_meta(r):
+    from seo import meta_tags
+    label = _S13_VERDICT_LABELS.get(r.get('verdict'), 'Claim')
+    if r.get('claim_origin') == 'debate_claim' and r.get('event_name'):
+        ctx = f"{r['speaker']}, {r['event_name']}" if r.get('speaker') else r['event_name']
+    elif r.get('source_name'):
+        ctx = f"Reported by {r['source_name']}"
+    else:
+        ctx = 'Verum Signal claim record'
+    desc = f"{label}. {ctx}. {_s13_short(r.get('claim_text'), 110)}"
+    return meta_tags(title=_claim_page_title(r), description=desc, url=f"/c/{int(r['id'])}",
+                     og_type='article')
 
 
 @app.route('/c/<int:claim_id>')
@@ -9056,7 +9113,8 @@ def live_claim_permalink(claim_id):
                            selected_events=[], running_event=None, next_event=None,
                            newest_iso=r['last_checked_iso'], newest_rel=r['when_display'], newest_quiet=False,
                            just_in_minutes=LIVE_JUST_IN_MINUTES, filter_query='', partial=False,
-                           show_sources=LIVE_SHOW_SOURCES, seo_meta='')
+                           show_sources=LIVE_SHOW_SOURCES, seo_meta=_claim_seo_meta(r),
+                           page_title=_claim_page_title(r))
 
 
 @app.route('/live/feed.json')
