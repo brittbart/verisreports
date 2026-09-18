@@ -59,7 +59,9 @@ def report_meta(source, title, score, url, short_hash=None):
     score_str = f"Score: {score}/100" if score is not None else "Unscored"
     desc = f"{score_str} — Verum Signal credibility report for {source}. Claim-level verification with sources."
     page_title = f"{source} — {score_str} — Verum Signal"
-    page_url = f"{SITE_URL}/r/{short_hash}" if short_hash else f"{SITE_URL}/report?url={_urlenc(url)}"
+    # S13: canonical = the URL that renders (/r/ redirects here), encoded as the /r/ redirect encodes it
+    from urllib.parse import urlencode as _qenc
+    page_url = f"{SITE_URL}/report?{_qenc({'url': url})}"
     _s = '' if score is None else str(score)
     og_img = (f"{SITE_URL}/api/og/report?source={_urlenc(source)}&score={_s}&title={_urlenc(title or '')}"
               f"&sig={og_sig('report', source, _s, title or '')}")
