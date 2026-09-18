@@ -267,6 +267,25 @@ def _s13_timing_start():
     g._s13_t0 = _t.perf_counter()
 
 
+_S13_ASSET_PATHS = frozenset({'/styles.css', '/chrome.js', '/report.css', '/methodology/report.css',
+                               '/methodology/data.js'})
+
+
+@app.after_request
+def _s13_static_cache(resp):
+    # S13: browser caching for static files only (see _S13_ASSET_PATHS); pages and APIs untouched.
+    try:
+        p = request.path
+        if request.method in ('GET', 'HEAD') and resp.status_code in (200, 304):
+            if p.startswith('/static/vendor/'):
+                resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            elif (p.startswith('/static/') and not p.endswith('.html')) or p in _S13_ASSET_PATHS:
+                resp.headers['Cache-Control'] = 'public, max-age=3600'
+    except Exception:
+        pass
+    return resp
+
+
 @app.after_request
 def _s13_timing_header(resp):
     try:
