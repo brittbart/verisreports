@@ -1829,6 +1829,31 @@ def short_report(hash_value):
 
 
 
+import re as _s13_re
+# S13: crawlers and link-preview bots never start on-demand (paid) work on /report.
+_S13_CRAWLER_RE = _s13_re.compile(
+    r'googlebot|google-inspectiontool|googleother|storebot-google|adsbot-google|mediapartners-google|'
+    r'feedfetcher-google|google-extended|bingbot|bingpreview|msnbot|slurp|duckduckbot|baiduspider|yandex|'
+    r'sogou|exabot|seznambot|naverbot|yeti/|facebookexternalhit|facebookcatalog|facebot|meta-externalagent|'
+    r'twitterbot|linkedinbot|slackbot|slack-imgproxy|discordbot|telegrambot|whatsapp|skypeuripreview|'
+    r'redditbot|pinterest|embedly|iframely|applebot|petalbot|ahrefsbot|semrushbot|mj12bot|dotbot|rogerbot|'
+    r'screaming frog|gptbot|chatgpt-user|oai-searchbot|claudebot|claude-user|claude-searchbot|anthropic-ai|'
+    r'ccbot|perplexitybot|bytespider|amazonbot|diffbot|youbot|cohere-ai|headlesschrome|crawler|spider',
+    _s13_re.I)
+
+
+def _vs_is_crawler():
+    ua = (request.headers.get('User-Agent') or '').strip()
+    return not ua or bool(_S13_CRAWLER_RE.search(ua))
+
+
+def _vs_crawler_page():
+    return ('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="robots" content="noindex">'
+            '<title>Not analyzed yet \u2014 Verum Signal</title></head><body>'
+            '<p>This article has not been analyzed on Verum Signal yet.</p></body></html>',
+            404, {'Content-Type': 'text/html'})
+
+
 def _build_report_data(rows, *, url, title, source, as_of, score, rating,
                        callout_text=None, extraction_method=None):
     """Canonical report data dict — single source of truth for all three /report paths.
@@ -2233,6 +2258,8 @@ setTimeout(checkStatus, 3000);
 </script>
 </body>
 </html>"""
+                if _vs_is_crawler():
+                    return _vs_crawler_page()
                 return loading_html, 200, {'Content-Type': 'text/html'}
             # On-demand extraction — clean rewrite per Opus architecture brief
             # Session 6 follow-on (Opus Task 3): only same-origin/direct
@@ -2244,6 +2271,8 @@ setTimeout(checkStatus, 3000);
             # docstring in patch_report_csrf_guard.py for the full reasoning).
             if request.headers.get('Sec-Fetch-Site') == 'cross-site':
                 return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Verum Signal</title><style>body{background:#080810;color:#f0f0f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}.w{text-align:center;padding:48px}.mark{display:flex;align-items:center;justify-content:center;margin-bottom:28px}h2{font-size:20px;font-weight:600;margin:0 0 12px;color:#f0f0f8}p{color:rgba(240,240,248,.55);margin:0 0 24px;font-size:14px;line-height:1.6}a{color:#a855f7;text-decoration:none}</style></head><body><div class="w"><div class="mark"><svg viewBox="3 5 135 18" height="24" xmlns="http://www.w3.org/2000/svg"><path d="M4 14 Q7 6 10 14 Q13 22 16 14 Q19 6 22 14" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="14" r="2.5" fill="#ec4899"/><text x="32" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="700" fill="#ffffff" letter-spacing="1.5">VERUM</text><text x="88" y="19" font-family="Trebuchet MS,sans-serif" font-size="13" font-weight="400" font-style="italic" fill="#c084fc" letter-spacing="1.5">SIGNAL</text></svg></div><h2>Start this analysis from Verum Signal</h2><p>This link tried to start a new analysis directly from another site. Paste the article URL on verumsignal.com to run it yourself.</p><a href="/">&#8592; Back to search</a></div></body></html>', 403, {'Content-Type': 'text/html'}
+            if _vs_is_crawler():
+                return _vs_crawler_page()
             import anthropic as _anth
             from extract_claims import extract_claims_from_article
             from verdict_engine import analyse_claim
@@ -2427,6 +2456,9 @@ setTimeout(checkStatus, 3000);
                     print(f"[reverify] lock held for article {art_id} — serving cached rows")
                     _should_reverify = False
                     conn.close()  # release conn when skipping re-verify
+            if _should_reverify and _vs_is_crawler():
+                conn.close()
+                return _vs_crawler_page()
             if _should_reverify:
                 # Trigger on-demand extraction for articles in DB but not yet extracted.
                 # Routed through fetch_article_content (the three-method fetcher) to handle
