@@ -41,6 +41,10 @@ ALLOWED_API_PATHS = ('/v1', '/docs', '/openapi.yaml')
 
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 100
+# S12 API follow-up: enum sets validated on /v1/outlets?tier= and /v1/claims?verdict=
+VALID_TIERS = {'published', 'stabilizing', 'limited_data', 'tracked'}
+VALID_VERDICTS = {'supported', 'plausible', 'corroborated', 'overstated', 'disputed',
+                  'not_supported', 'not_verifiable', 'opinion'}
 
 # ---------------------------------------------------------------------------
 # Host enforcement — api.verumsignal.com only serves /v1, /docs, /openapi.yaml
@@ -281,10 +285,14 @@ def get_pagination_params():
     Returns (cursor, limit, error_response). error_response is None on
     success, or a (json_body, 400) tuple if the cursor is malformed or
     negative -- the caller must return it immediately when not None."""
+    limit_raw = request.args.get('limit', DEFAULT_LIMIT)
     try:
-        limit = min(int(request.args.get('limit', DEFAULT_LIMIT)), MAX_LIMIT)
+        limit = int(limit_raw)
     except (ValueError, TypeError):
-        limit = DEFAULT_LIMIT
+        return None, None, (jsonify({"error": f"Invalid limit: '{limit_raw}' is not a valid integer"}), 400)
+    if limit < 1:
+        return None, None, (jsonify({"error": f"Invalid limit: {limit} must be between 1 and {MAX_LIMIT}"}), 400)
+    limit = min(limit, MAX_LIMIT)  # S12 API follow-up: floor + 400 instead of LIMIT -N -> 500
     cursor_raw = request.args.get('cursor', '0')
     try:
         cursor = int(cursor_raw)
@@ -394,6 +402,10 @@ def claims():
             filters.append('outlet_id = %s')
             params.append(outlet.lower())
         if verdict:
+            if verdict not in VALID_VERDICTS:
+                resp = jsonify({'error': f"Invalid verdict: '{verdict}'", 'allowed': sorted(VALID_VERDICTS)})
+                resp.status_code = 400
+                return resp
             filters.append('verdict_label = %s')
             params.append(verdict)
         if origin:
@@ -411,7 +423,7 @@ def claims():
         params.append(limit)
 
         cur.execute(f"""
-            SELECT id, claim_text, claim_origin, verdict_label,
+            SELECT id, claim_id, claim_text, claim_origin, verdict_label,
                    outlet_id, outlet_name,
                    article_title, article_url, article_published_at,
                    evaluated_at, methodology_version, report_url,
@@ -425,13 +437,14 @@ def claims():
         rows = cur.fetchall()
         data = []
         for row in rows:
-            (rid, claim_text, claim_origin, verdict_label,
+            (rid, claim_id, claim_text, claim_origin, verdict_label,
              outlet_id, outlet_name,
              article_title, article_url, article_published_at,
              evaluated_at, methodology_version, report_url,
              cursor_key) = row
             data.append({
-                'id': rid,
+                'id': rid,            # deprecated: materialized row id; use claim_id
+                'claim_id': claim_id,
                 'claim_text': claim_text,
                 'claim_origin': claim_origin,
                 'verdict': verdict_label,
@@ -546,6 +559,10 @@ def outlets():
         filters = ['cursor_key > %s']
         params  = [cursor]
         if tier:
+            if tier not in VALID_TIERS:
+                resp = jsonify({'error': f"Invalid tier: '{tier}'", 'allowed': sorted(VALID_TIERS)})
+                resp.status_code = 400
+                return resp
             filters.append('tier = %s')
             params.append(tier)
         where = ' AND '.join(filters)
@@ -778,8 +795,9 @@ def debate_claims(slug):
     conn = get_db()
     cur = conn.cursor()
     try:
-        # Verify event exists
-        cur.execute("SELECT event_id FROM api_debate_claims WHERE event_slug = %s LIMIT 1", (slug,))
+        # Verify the event exists and is public (S12 API follow-up): a public event with
+        # no claims yet is a 200 with an empty page, not "not found".
+        cur.execute("SELECT id FROM events WHERE slug = %s AND is_public = TRUE LIMIT 1", (slug,))
         if not cur.fetchone():
             resp = jsonify({'error': f'Debate not found: {slug}'})
             resp.status_code = 404
@@ -792,6 +810,10 @@ def debate_claims(slug):
             filters.append('LOWER(speaker_name) = %s')
             params.append(speaker.lower())
         if verdict:
+            if verdict not in VALID_VERDICTS:
+                resp = jsonify({'error': f"Invalid verdict: '{verdict}'", 'allowed': sorted(VALID_VERDICTS)})
+                resp.status_code = 400
+                return resp
             filters.append('verdict_label = %s')
             params.append(verdict)
 
@@ -799,7 +821,7 @@ def debate_claims(slug):
         params.append(limit)
 
         cur.execute(f"""
-            SELECT id, claim_text, verdict_label,
+            SELECT id, claim_id, claim_text, verdict_label,
                    speaker_name, speaker_party,
                    event_slug, event_name, event_date,
                    evaluated_at, methodology_version, event_url,
@@ -813,13 +835,14 @@ def debate_claims(slug):
         rows = cur.fetchall()
         data = []
         for row in rows:
-            (rid, claim_text, verdict_label,
+            (rid, claim_id, claim_text, verdict_label,
              speaker_name, speaker_party,
              event_slug, event_name, event_date,
              evaluated_at, methodology_version, event_url,
              raw_status, cursor_key) = row
             data.append({
-                'id': rid,
+                'id': rid,            # deprecated: materialized row id; use claim_id
+                'claim_id': claim_id,
                 'claim_text': claim_text,
                 'verdict': verdict_label,
                 'verdict_status': raw_status if raw_status else 'final',
