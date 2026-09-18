@@ -301,6 +301,7 @@ def _s13_timing_header(resp):
     return resp
 
 
+from privacy_utils import ip_hash as _privacy_ip_hash  # S13: IP addresses are stored hashed
 from api_leaderboard import register_leaderboard_routes
 from api_leaderboard import compute_score, compute_score_band, compute_tier, WEIGHTS, SCOREABLE_VERDICTS, INCLUSION_THRESHOLD
 from api_leaderboard import SCORING_CONDITIONS_SQL, WEIGHTED_SUM_SQL  # shared scoring definition (S12)
@@ -1528,7 +1529,7 @@ def api_beta_request_submit():
         return jsonify({'success': False, 'error': 'invalid_email'}), 400
     if len(name) > 200 or len(email) > 200 or len(organization) > 300 or len(use_case) > 5000:
         return jsonify({'success': False, 'error': 'field_too_long'}), 400
-    ip         = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    ip         = _privacy_ip_hash(request.headers.get('X-Forwarded-For', request.remote_addr or ''))
     user_agent = request.headers.get('User-Agent', '')[:500]
     conn = get_db(); cur = conn.cursor()
     try:
@@ -6801,9 +6802,7 @@ def api_page_view():
         referrer = (data.get('r') or '')[:500] or None
         session_id = (data.get('s') or '')[:64] or None
         screen_width = data.get('w')
-        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        if ip:
-            ip = ip.split(',')[0].strip()
+        ip = _privacy_ip_hash(request.headers.get('X-Forwarded-For', request.remote_addr))
         ua = (request.headers.get('User-Agent') or '')[:500]
         is_mobile_app = 'verum-signal-app' in ua.lower() or data.get('app') is True
 

@@ -249,7 +249,7 @@ def _log_usage(cur, conn, key_id, endpoint, status_code, elapsed_ms):
             INSERT INTO api_usage (key_id, endpoint, status_code, response_time_ms, ip)
             VALUES (%s, %s, %s, %s, %s)
         """, (key_id, endpoint, status_code, elapsed_ms,
-              request.headers.get('X-Forwarded-For', request.remote_addr)))
+              _privacy_ip_hash(request.headers.get('X-Forwarded-For', request.remote_addr))))
         if 200 <= status_code < 300:
             cur.execute("""
                 INSERT INTO api_monthly_usage (key_id, year_month, call_count, last_updated)
@@ -264,12 +264,15 @@ def _log_usage(cur, conn, key_id, endpoint, status_code, elapsed_ms):
         conn.rollback()
 
 
+from privacy_utils import ip_hash as _privacy_ip_hash  # S13: IP addresses are stored hashed
+
+
 def _update_key_last_used(cur, conn, key_id):
     try:
         cur.execute("""
             UPDATE api_keys SET last_used_at = NOW(), last_used_ip = %s
             WHERE id = %s
-        """, (request.headers.get('X-Forwarded-For', request.remote_addr), key_id))
+        """, (_privacy_ip_hash(request.headers.get('X-Forwarded-For', request.remote_addr)), key_id))
         conn.commit()
     except Exception as e:
         log.error(f"Failed to update last_used: {e}")

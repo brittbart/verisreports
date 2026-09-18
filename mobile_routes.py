@@ -958,7 +958,7 @@ def register_mobile_routes(app, get_db_fn):
                 "[mobile_routes] RETIRED SSE route hit: slug=%s ua=%s ip=%s",
                 slug,
                 request.headers.get('User-Agent', '-'),
-                request.headers.get('X-Forwarded-For', request.remote_addr or '-'),
+                __import__('privacy_utils').ip_hash(request.headers.get('X-Forwarded-For', request.remote_addr or '-')) or '-',
             )
             return jsonify({
                 'error': 'gone',
