@@ -50,6 +50,24 @@ def main() -> int:
         # because the container filesystem is ephemeral. After migration is
         # stable, refactor to store batch IDs in DB instead.
         harvest_pending_batches()
+        # Flag articles as verified once any claim on them carries a verdict, so
+        # report_page() serves them from cache instead of re-running extraction
+        # (S12 trace finding, 2026-09-14). Idempotent; same statement as
+        # backfill_claims_verified.py.
+        try:
+            from verdict_engine import get_connection as _gc_mark
+            _mc = _gc_mark(); _mu = _mc.cursor()
+            _mu.execute("""
+                UPDATE articles a SET claims_verified = TRUE, verified_at = COALESCE(a.verified_at, NOW())
+                WHERE a.claims_verified IS NOT TRUE
+                  AND EXISTS (SELECT 1 FROM claims c WHERE c.article_id = a.id AND c.verdict IS NOT NULL)
+            """)
+            mark_articles_verified = _mu.rowcount
+            _mc.commit(); _mu.close(); _mc.close()
+            if mark_articles_verified:
+                print(f"Marked {mark_articles_verified} article(s) claims_verified")
+        except Exception as _me:
+            print(f"WARNING: could not mark articles verified: {_me}")
         # Verify any unverified debate claims from recent events
         from verdict_engine import get_connection
         conn = get_connection()

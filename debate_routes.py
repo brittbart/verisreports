@@ -708,7 +708,7 @@ def register_debate_routes(app, get_db_conn):
             if event is None:
                 return jsonify({'error': 'Event not found'}), 404
             event['claims'] = claims
-            return jsonify(event)
+            return jsonify({k: v for k, v in event.items() if k != 'notes'})  # notes is an ops column (S12 #5)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 

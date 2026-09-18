@@ -238,6 +238,8 @@ def refresh_outlets(cur) -> int:
         JOIN articles a ON a.id = c.article_id
         WHERE c.claim_origin = 'outlet_claim'
           AND c.verdict IS NOT NULL
+          AND a.published_at IS NOT NULL
+          AND a.published_at < NOW() - INTERVAL '6 hours'
           AND LOWER(a.source_name) != ALL(%s)
         GROUP BY LOWER(a.source_name), a.source_name
         HAVING COUNT(*) >= %s

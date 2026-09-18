@@ -665,7 +665,7 @@ def debates_list():
                 "description": e['event_subtitle'],
                 "event_date":  event_date.isoformat() if event_date else None,
                 "venue":       e['venue'],
-                "notes":       e['notes'],
+                "notes":       None,  # events.notes is an ops column, never served (S12 #5)
                 "stream_url":  e['stream_url'],
                 "is_live":     is_live,
                 "is_upcoming": is_upcoming,
@@ -776,7 +776,7 @@ def debate_detail(slug):
                 "start_time_str": (e['start_time'].strftime('%-I:%M %p') + ' ' + (e['timezone'] or '')).strip() if e['start_time'] else None,
                 "timezone":    e['timezone'],
                 "venue":       e['venue'],
-                "notes":       e['notes'],
+                "notes":       None,  # events.notes is an ops column, never served (S12 #5)
                 "is_live":     False,
                 "event_start_iso": (
                     datetime.combine(e['event_date'], e['start_time']).isoformat() + '-07:00'
