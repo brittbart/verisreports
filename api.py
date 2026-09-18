@@ -112,6 +112,45 @@ def get_db():
         ))
     )
 
+# S13: time database connects per request; reported in the Server-Timing response header.
+_s13_get_db_raw = get_db
+
+
+def get_db():
+    import time as _t
+    _t0 = _t.perf_counter()
+    conn = _s13_get_db_raw()
+    try:
+        from flask import g, has_request_context
+        if has_request_context():
+            g._s13_db_n = getattr(g, '_s13_db_n', 0) + 1
+            g._s13_db_ms = getattr(g, '_s13_db_ms', 0.0) + (_t.perf_counter() - _t0) * 1000
+    except Exception:
+        pass
+    return conn
+
+
+@app.before_request
+def _s13_timing_start():
+    import time as _t
+    from flask import g
+    g._s13_t0 = _t.perf_counter()
+
+
+@app.after_request
+def _s13_timing_header(resp):
+    try:
+        import time as _t
+        from flask import g
+        if hasattr(g, '_s13_t0'):
+            _total = (_t.perf_counter() - g._s13_t0) * 1000
+            resp.headers['Server-Timing'] = (f'dbconnect;dur={getattr(g, "_s13_db_ms", 0.0):.0f};'
+                                             f'desc="{getattr(g, "_s13_db_n", 0)} connects", app;dur={_total:.0f}')
+    except Exception:
+        pass
+    return resp
+
+
 from api_leaderboard import register_leaderboard_routes
 from api_leaderboard import compute_score, compute_score_band, compute_tier, WEIGHTS, SCOREABLE_VERDICTS, INCLUSION_THRESHOLD
 from api_leaderboard import SCORING_CONDITIONS_SQL, WEIGHTED_SUM_SQL  # shared scoring definition (S12)
