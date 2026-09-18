@@ -34,7 +34,8 @@ def meta_tags(*, title, description, url, og_image=None, og_type="website", extr
     img = og_image or OG_IMAGE_DEFAULT
     canonical = url if url.startswith("http") else f"{SITE_URL}{url}"
 
-    tags = f'''<meta name="description" content="{_esc(description)}">
+    tags = f'''<meta name="robots" content="max-image-preview:large">
+<meta name="description" content="{_esc(description)}">
 <link rel="canonical" href="{canonical}">
 <meta property="og:type" content="{og_type}">
 <meta property="og:site_name" content="{SITE_NAME}">

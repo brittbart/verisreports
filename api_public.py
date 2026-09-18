@@ -1021,6 +1021,7 @@ def developers_page():
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verum Signal — Developer API</title>
 <!-- S13 SEO -->
+<meta name="robots" content="max-image-preview:large">
 <meta name="description" content="Build with the Verum Signal API: outlet scores, claim records and debate claims, with documentation and access details.">
 <link rel="canonical" href="https://verumsignal.com/developers">
 <meta property="og:type" content="website">

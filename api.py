@@ -28,6 +28,15 @@ def redirect_api_paths():
         if request.query_string:
             new_url += f'?{request.query_string.decode()}'
         return redirect(new_url, code=301)
+    # S13: /path/ -> /path (301) for page views. Not the API host, API or static paths, and never a
+    # path starting with '//' (the redirect would point off-site).
+    _p = request.path
+    if (request.method in ('GET', 'HEAD') and len(_p) > 1 and _p.endswith('/') and not _p.startswith('//')
+            and host != 'api.verumsignal.com' and not _p.startswith(('/v1', '/api/', '/mobile/', '/static/'))):
+        new_url = _p.rstrip('/')
+        if request.query_string:
+            new_url += f'?{request.query_string.decode()}'
+        return redirect(new_url, code=301)
     if host == 'verumsignal.com':
         if request.path.startswith('/v1') or request.path == '/openapi.yaml':
             new_url = f'https://api.verumsignal.com{request.path}'
@@ -7556,6 +7565,7 @@ footer a{color:var(--dim);text-decoration:none}footer a:hover{color:var(--fg)}""
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dispute a Verdict — Verum Signal</title>
 <!-- S13 SEO -->
+<meta name="robots" content="max-image-preview:large">
 <meta name="description" content="Submit a dispute about a Verum Signal verdict or claim: the article, the claim and your reasoning.">
 <link rel="canonical" href="https://verumsignal.com/disputes">
 <meta property="og:type" content="website">
