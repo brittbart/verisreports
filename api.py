@@ -107,6 +107,7 @@ def get_db():
 
 from api_leaderboard import register_leaderboard_routes
 from api_leaderboard import compute_score, compute_score_band, compute_tier, WEIGHTS, SCOREABLE_VERDICTS, INCLUSION_THRESHOLD
+from api_leaderboard import SCORING_CONDITIONS_SQL, WEIGHTED_SUM_SQL  # shared scoring definition (S12)
 from outlet_routes import register_outlet_routes
 from api_public import api_public, is_api_host, ALLOWED_API_PATHS
 register_leaderboard_routes(app, get_db)
@@ -660,25 +661,12 @@ def get_source():
                 COUNT(*) FILTER (
                     WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
                 )                                                    AS scoreable_count,
-                SUM(CASE c.verdict
-                    WHEN 'supported'     THEN  1.0
-                    WHEN 'plausible'     THEN  0.5
-                    WHEN 'corroborated'  THEN  0.75
-                    WHEN 'overstated'    THEN -0.5
-                    WHEN 'disputed'      THEN -1.0
-                    WHEN 'not_supported' THEN -1.5
-                    ELSE 0
-                END) FILTER (
-                    WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
-                )                                                    AS weighted_sum,
+                ''' + WEIGHTED_SUM_SQL + '''                                                    AS weighted_sum,
                 MAX(c.first_seen)                                    AS last_verdict_at
             FROM articles a
             JOIN claims   c ON c.article_id = a.id
             WHERE LOWER(a.source_name) = %s
-              AND c.verdict IS NOT NULL
-              AND c.claim_origin = 'outlet_claim'
-              AND a.published_at IS NOT NULL
-              AND a.published_at < NOW() - INTERVAL '6 hours'
+              AND ''' + SCORING_CONDITIONS_SQL + '''
         ''', (core,))
         row = cur.fetchone()
         conn.close()
@@ -3362,7 +3350,7 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
     try:
         _ic = get_db()
         _ic_cur = _ic.cursor()
-        _ic_cur.execute("SELECT verdict FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim' AND a.published_at IS NOT NULL AND a.published_at < NOW() - INTERVAL '6 hours'", (source,))
+        _ic_cur.execute("SELECT verdict FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND " + SCORING_CONDITIONS_SQL + "", (source,))
         _outlet_verdicts = [r[0] for r in _ic_cur.fetchall()]
         _ic.close()
         _scoreable_outlet = [v for v in _outlet_verdicts if v in WEIGHTS]

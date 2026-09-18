@@ -108,12 +108,32 @@ WEIGHT_DISPLAY = {
 # - Priority threshold: PRIORITY_THRESHOLD=30 -- enforced in verdict_engine.py SQL directly,
 #   not via this constant. Consolidation deferred to Session 10 db.py refactor.
 
-# Breaking news gate -- 6 hours (methodology Section 5.3)
-# P2-012: This constant is the named reference for the methodology value but is NOT the
-# authoritative source -- the gate is hardcoded inline in api_leaderboard.py (~line 150),
-# api.py (x2), outlet_routes.py (x2), and verdict_engine.py. Consolidation to use this
-# constant as the single source of truth is deferred to Session 10 db.py refactor.
+# Breaking news gate -- 6 hours (methodology Section 02). Authoritative: read by
+# SCORING_CONDITIONS_SQL below.
 BREAKING_NEWS_GATE_HOURS = 6
+
+# ==============================================================================
+# Shared scoring SQL (S12, 2026-09-17). The ONE definition of which claims count
+# toward an outlet's score and how they are weighted, built from the constants
+# above. Used by every surface that publishes an outlet score: LEADERBOARD_SQL and
+# EXCLUDED_OUTLET_COUNT_SQL below; api.py get_source (/api/source) and report_page;
+# outlet_routes.py (outlet page score and history); railway_api_refresh.py
+# refresh_outlets (mobile app and public API). Queries alias claims AS c and
+# articles AS a. verdict_engine.calculate_reliability_score keeps its own copy: it
+# writes sources.reliability_score, which no surface reads.
+# ==============================================================================
+SCORING_CONDITIONS_SQL = (
+    "c.verdict IS NOT NULL"
+    " AND c.claim_origin = 'outlet_claim'"
+    " AND a.published_at IS NOT NULL"
+    f" AND a.published_at < NOW() - INTERVAL '{BREAKING_NEWS_GATE_HOURS} hours'"
+)
+SCOREABLE_SQL = "c.verdict NOT IN (" + ", ".join(f"'{v}'" for v in sorted(EXCLUDED_VERDICTS)) + ")"
+WEIGHTED_SUM_SQL = (
+    "SUM(CASE c.verdict "
+    + " ".join(f"WHEN '{v}' THEN {w}" for v, w in WEIGHTS.items())
+    + " ELSE 0 END) FILTER (WHERE " + SCOREABLE_SQL + ")"
+)
 
 
 LEADERBOARD_SQL = """
@@ -132,25 +152,12 @@ SELECT
     COUNT(*) FILTER (
         WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
     )                                                    AS scoreable_count,
-    SUM(CASE c.verdict
-        WHEN 'supported'     THEN  1.0
-        WHEN 'plausible'     THEN  0.5
-        WHEN 'corroborated'  THEN  0.75
-        WHEN 'overstated'    THEN -0.5
-        WHEN 'disputed'      THEN -1.0
-        WHEN 'not_supported' THEN -1.5
-        ELSE 0
-    END) FILTER (
-        WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
-    )                                                    AS weighted_sum,
+    """ + WEIGHTED_SUM_SQL + """                                                    AS weighted_sum,
     MIN(c.first_seen) AS first_verdict_at,
     MAX(c.first_seen) AS last_verdict_at
 FROM articles a
 JOIN claims   c ON c.article_id = a.id
-WHERE c.verdict IS NOT NULL
-  AND c.claim_origin = 'outlet_claim'
-  AND a.published_at IS NOT NULL
-  AND a.published_at < NOW() - INTERVAL '6 hours'
+WHERE """ + SCORING_CONDITIONS_SQL + """
   AND LOWER(a.source_name) != ALL(%s)
 GROUP BY a.source_name
 HAVING COUNT(*) FILTER (WHERE c.verdict NOT IN ('not_verifiable', 'opinion')) >= %s
@@ -163,10 +170,7 @@ SELECT COUNT(*) FROM (
     SELECT a.source_name
     FROM articles a
     JOIN claims c ON c.article_id = a.id
-    WHERE c.verdict IS NOT NULL
-      AND c.claim_origin = 'outlet_claim'
-      AND a.published_at IS NOT NULL
-      AND a.published_at < NOW() - INTERVAL '6 hours'
+    WHERE """ + SCORING_CONDITIONS_SQL + """
       AND LOWER(a.source_name) != ALL(%s)
     GROUP BY a.source_name
     HAVING COUNT(*) > 0 AND COUNT(*) FILTER (WHERE c.verdict NOT IN ('not_verifiable', 'opinion')) < %s

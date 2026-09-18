@@ -17,6 +17,9 @@ from api_leaderboard import (
     INCLUSION_THRESHOLD,
     WEIGHTS,
     SCOREABLE_VERDICTS,
+    SCORING_CONDITIONS_SQL,
+    SCOREABLE_SQL,
+    WEIGHTED_SUM_SQL,
 )
 import ast as _ast, os as _os
 # Public-facing methodology version — gated by attorney approval.
@@ -56,25 +59,12 @@ def _get_outlet_aggregates(get_db_conn, domain_lc):
                 COUNT(*) FILTER (
                     WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
                 )                                                    AS scoreable_count,
-                SUM(CASE c.verdict
-                    WHEN 'supported'     THEN  1.0
-                    WHEN 'plausible'     THEN  0.5
-                    WHEN 'corroborated'  THEN  0.75
-                    WHEN 'overstated'    THEN -0.5
-                    WHEN 'disputed'      THEN -1.0
-                    WHEN 'not_supported' THEN -1.5
-                    ELSE 0
-                END) FILTER (
-                    WHERE c.verdict NOT IN ('not_verifiable', 'opinion')
-                )                                                    AS weighted_sum,
+                ''' + WEIGHTED_SUM_SQL + '''                                                    AS weighted_sum,
                 MAX(c.first_seen)                                    AS last_verdict_at
             FROM articles a
             JOIN claims   c ON c.article_id = a.id
             WHERE LOWER(a.source_name) = %s
-              AND c.verdict IS NOT NULL
-              AND c.claim_origin = 'outlet_claim'
-              AND a.published_at IS NOT NULL
-              AND a.published_at < NOW() - INTERVAL '6 hours'
+              AND ''' + SCORING_CONDITIONS_SQL + '''
         ''', (domain_lc,))
         row = cur.fetchone()
         cur.close()
@@ -154,11 +144,7 @@ def _get_score_history(get_db_conn, domain_lc):
             FROM claims c
             JOIN articles a ON a.id = c.article_id
             WHERE LOWER(a.source_name) = %s
-              AND c.verdict IS NOT NULL
-              AND c.claim_origin = 'outlet_claim'
-              AND c.verdict NOT IN ('not_verifiable', 'opinion')
-              AND a.published_at IS NOT NULL
-              AND a.published_at < NOW() - INTERVAL '6 hours'
+              AND ''' + SCORING_CONDITIONS_SQL + ' AND ' + SCOREABLE_SQL + '''
             ORDER BY COALESCE(a.published_at, a.fetched_at) ASC NULLS LAST,
                      c.id ASC
         ''', (domain_lc,))

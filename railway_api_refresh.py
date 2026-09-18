@@ -66,12 +66,10 @@ del _ast
 
 METHODOLOGY_VERSION = 'v1.6'   # stamp on api_outlets (outlet scoring uses leaderboard formula)
 
-from api_leaderboard import EXCLUDED_DOMAINS
+from api_leaderboard import EXCLUDED_DOMAINS, SCORING_CONDITIONS_SQL, WEIGHTS, compute_tier  # shared scoring definition (S12)
 # Tiers (from api_leaderboard.py — single source of truth for scoring)
 INCLUSION_THRESHOLD = 20
-TIER_PUBLISHED       = 100
-TIER_STABILIZING     = 50
-TIER_LIMITED_DATA    = 20
+# Tier thresholds: api_leaderboard.compute_tier (shared); _compute_tier snake_cases its labels.
 
 
 def get_methodology_version_for_claim(row_version: Optional[str]) -> Optional[str]:
@@ -179,25 +177,20 @@ def refresh_claims(cur) -> int:
 # ---------------------------------------------------------------------------
 
 def _compute_tier(scoreable_count: int) -> str:
-    if scoreable_count >= TIER_PUBLISHED:
-        return 'published'
-    if scoreable_count >= TIER_STABILIZING:
-        return 'stabilizing'
-    if scoreable_count >= TIER_LIMITED_DATA:
-        return 'limited_data'
-    return 'tracked'
+    # API tier names are the shared compute_tier labels in snake_case
+    return compute_tier(scoreable_count).lower().replace(' ', '_')
 
 
 def _compute_score(supported, plausible, corroborated,
                    overstated, disputed, not_supported) -> Optional[float]:
     """Mirror of api_leaderboard.py scoring formula."""
     weighted_sum = (
-        supported    * 1.0  +
-        plausible    * 0.5  +
-        corroborated * 0.75 +
-        overstated   * -0.5 +
-        disputed     * -1.0 +
-        not_supported * -1.5
+        supported     * WEIGHTS['supported'] +
+        plausible     * WEIGHTS['plausible'] +
+        corroborated  * WEIGHTS['corroborated'] +
+        overstated    * WEIGHTS['overstated'] +
+        disputed      * WEIGHTS['disputed'] +
+        not_supported * WEIGHTS['not_supported']
     )
     scoreable = (supported + plausible + corroborated +
                  overstated + disputed + not_supported)
@@ -236,10 +229,7 @@ def refresh_outlets(cur) -> int:
             MAX(c.last_checked)             AS last_evaluated_at
         FROM claims c
         JOIN articles a ON a.id = c.article_id
-        WHERE c.claim_origin = 'outlet_claim'
-          AND c.verdict IS NOT NULL
-          AND a.published_at IS NOT NULL
-          AND a.published_at < NOW() - INTERVAL '6 hours'
+        WHERE """ + SCORING_CONDITIONS_SQL + """
           AND LOWER(a.source_name) != ALL(%s)
         GROUP BY LOWER(a.source_name), a.source_name
         HAVING COUNT(*) >= %s
