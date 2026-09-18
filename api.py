@@ -3216,10 +3216,42 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             'ASSESSED CLAIMS:' + chr(10) + _claims_text + chr(10) +
             'Return ONLY valid JSON: {"article_summary": "...", "overall_signal": "...", "watch_for": ["...", "...", "..."]}'
         )
-        _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
-        from token_logging import log_usage as _log_usage; _log_usage('api_report_summary', _msg)
-        _text = _msg.content[0].text.strip()
-        _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
+        # S13: cached per exact prompt -- generated once, regenerated only when the claims,
+        # verdicts, reasoning, article score or prompt change.
+        def _rsc_ok(_r):
+            return (isinstance(_r, dict) and isinstance(_r.get('article_summary'), str)
+                    and isinstance(_r.get('overall_signal'), str) and isinstance(_r.get('watch_for'), list))
+        _sum_key = __import__('hashlib').sha256(_prompt.encode('utf-8')).hexdigest()
+        _result = None
+        try:
+            _rc = get_db()
+            try:
+                with _rc.cursor() as _rcu:
+                    _rcu.execute('SELECT result FROM report_summary_cache WHERE key = %s', (_sum_key,))
+                    _row = _rcu.fetchone()
+            finally:
+                _rc.close()
+            if _row and _rsc_ok(_row[0]):
+                _result = _row[0]
+        except Exception as _rce:
+            print(f'[report_summary_cache] read failed: {_rce}')
+        if _result is None:
+            _msg = _client.messages.create(model='claude-sonnet-4-6', max_tokens=800, messages=[{'role':'user','content':_prompt}])
+            from token_logging import log_usage as _log_usage; _log_usage('api_report_summary', _msg)
+            _text = _msg.content[0].text.strip()
+            _result = __import__('json').loads(_text[_text.find('{'):_text.rfind('}')+1])
+            if _rsc_ok(_result):
+                try:
+                    _rc = get_db()
+                    try:
+                        with _rc.cursor() as _rcu:
+                            _rcu.execute('INSERT INTO report_summary_cache (key, result) VALUES (%s, %s::jsonb) '
+                                         'ON CONFLICT (key) DO NOTHING', (_sum_key, __import__('json').dumps(_result)))
+                        _rc.commit()
+                    finally:
+                        _rc.close()
+                except Exception as _rce:
+                    print(f'[report_summary_cache] write failed: {_rce}')
         article_summary = smartquotes(_result.get('article_summary', ''))
         overall_signal = smartquotes(_result.get('overall_signal', ''))
         watch_for = [smartquotes(w) for w in _result.get('watch_for', [])]
