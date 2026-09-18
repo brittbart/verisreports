@@ -1127,13 +1127,20 @@ def sitemap_xml():
     for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing", "/live", "/developers"]:
         pages.append(f"  <url><loc>https://verumsignal.com{path}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>")
     # Outlet pages
-    cur.execute("SELECT DISTINCT outlet_id FROM api_outlets WHERE score IS NOT NULL ORDER BY outlet_id")
+    # S13: <lastmod> from content dates (latest verdict / latest claim check), YYYY-MM-DD only
+    import re as _lm_re
+    def _lastmod(v):
+        d = str(v)[:10] if v else ""
+        return f"<lastmod>{d}</lastmod>" if _lm_re.match(r"^\d{4}-\d{2}-\d{2}$", d) else ""
+    cur.execute("SELECT outlet_id, MAX(last_evaluated_at) FROM api_outlets WHERE score IS NOT NULL"
+                " GROUP BY outlet_id ORDER BY outlet_id")
     for row in cur.fetchall():
-        pages.append(f"  <url><loc>https://verumsignal.com/outlet/{row[0]}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>")
+        pages.append(f"  <url><loc>https://verumsignal.com/outlet/{row[0]}</loc>{_lastmod(row[1])}<changefreq>daily</changefreq><priority>0.7</priority></url>")
     # Debate pages
-    cur.execute("SELECT slug FROM events WHERE is_public = TRUE ORDER BY event_date DESC")
+    cur.execute("SELECT e.slug, MAX(c.last_checked) FROM events e LEFT JOIN claims c ON c.event_id = e.id"
+                " WHERE e.is_public = TRUE GROUP BY e.slug, e.event_date ORDER BY e.event_date DESC NULLS LAST")
     for row in cur.fetchall():
-        pages.append(f"  <url><loc>https://verumsignal.com/debates/{row[0]}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>")
+        pages.append(f"  <url><loc>https://verumsignal.com/debates/{row[0]}</loc>{_lastmod(row[1])}<changefreq>weekly</changefreq><priority>0.7</priority></url>")
     # Report pages (/r/...) are left out: each render runs a paid model call (report summary)
     # until that is cached (S13 SEO audit).
     cur.close()
