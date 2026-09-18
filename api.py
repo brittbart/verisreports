@@ -691,7 +691,7 @@ def get_source():
         weighted_sum     = row[10] or 0
         last_verdict_at  = row[11]
 
-        if verdict_count < INCLUSION_THRESHOLD:
+        if scoreable_count < INCLUSION_THRESHOLD:  # scoreable verdicts only (methodology 06, 08)
             return jsonify({
                 'domain': domain,
                 'status': 'not_found',
@@ -700,7 +700,7 @@ def get_source():
             })
 
         score = compute_score(weighted_sum, scoreable_count)
-        tier  = compute_tier(verdict_count)
+        tier  = compute_tier(scoreable_count)
         band  = compute_score_band(score)
 
         as_of = last_verdict_at.strftime('%B %d, %Y') if last_verdict_at else None
