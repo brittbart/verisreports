@@ -2340,9 +2340,7 @@ def report_page():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Analyzing — Verum Signal</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fonts/fonts-226d8c84b7.css">
 <style>
   :root{{
     --vs-bg:#0a0a0a;
@@ -2644,9 +2642,7 @@ setTimeout(checkStatus, 3000);
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Daily limit reached — Verum Signal</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fonts/fonts-226d8c84b7.css">
 <style>
   *{{box-sizing:border-box;}}
   body{{margin:0;background:#080810;color:#e8e8f0;font-family:'DM Sans',ui-sans-serif,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;}}
@@ -2824,9 +2820,7 @@ setTimeout(checkStatus, 3000);
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Daily limit reached — Verum Signal</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fonts/fonts-226d8c84b7.css">
 <style>
   *{{box-sizing:border-box;}}
   body{{margin:0;background:#080810;color:#e8e8f0;font-family:'DM Sans',ui-sans-serif,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;}}
@@ -3024,7 +3018,7 @@ setTimeout(checkStatus, 3000);
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Verum Signal &mdash; Report Unavailable</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fonts/fonts-226d8c84b7.css">
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
 body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}}
@@ -6886,8 +6880,7 @@ tr:hover td{background:rgba(168,85,247,0.03)}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:800px){.two-col{grid-template-columns:1fr}}
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/vendor/fonts/fonts-226d8c84b7.css">
 </head>
 <body>
 <a href="?refresh=1" class="refresh">↻ Refresh</a>

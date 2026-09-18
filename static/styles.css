@@ -1,4 +1,5 @@
 /* VerumSignal — shared styles */
+@import url("/static/vendor/fonts/fonts-226d8c84b7.css");
 :root {
   --black: #0A0A0F;
   --violet: #A855F7;
