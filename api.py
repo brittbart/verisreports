@@ -1313,7 +1313,7 @@ def sitemap_pages_xml():
     cur = conn.cursor()
     pages = []
     # Static pages
-    for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing", "/live", "/developers"]:
+    for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing", "/live", "/developers", "/about"]:
         pages.append(f"  <url><loc>https://verumsignal.com{path}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>")
     # Outlet pages
     # S13: <lastmod> from content dates (latest verdict / latest claim check), YYYY-MM-DD only
@@ -1552,6 +1552,10 @@ def terms_html():
 @app.route('/privacy', methods=['GET'])
 def privacy_clean():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'privacy.html')
+
+@app.route('/about', methods=['GET'])
+def about_page():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'about.html')
 
 @app.route('/index.html', methods=['GET'])
 def index_html():
