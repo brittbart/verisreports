@@ -21,7 +21,7 @@
         <span class="lf-verdict v-{{ c.verdict }}">{{ c.verdict_label }}</span>
       </div>
 
-      <p class="lf-context">{{ c.context_pre }}{% if c.context_mark %}<span class="lf-who">{{ c.context_mark }}</span>{% endif %}{{ c.context_post }}</p>
+      <p class="lf-context">{% if c.source_name and c.claim_origin != 'debate_claim' and c.context_pre.startswith(c.source_name) %}<a href="/outlet/{{ c.source_name|lower }}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">{{ c.source_name }}</a>{{ c.context_pre[c.source_name|length:] }}{% else %}{{ c.context_pre }}{% endif %}{% if c.context_mark %}<span class="lf-who">{{ c.context_mark }}</span>{% endif %}{{ c.context_post }}</p>
       <span class="lf-mob-time">{% if c.is_just_in %}Just in{% else %}{{ c.rail_time }}{% endif %}</span>
 
       {% if c.is_stale %}

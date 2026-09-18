@@ -89,7 +89,20 @@ def outlet_meta(domain, score, tier, scoreable_count):
         description=desc,
         url=page_url,
         og_image=og_img,
+        extra=breadcrumb_jsonld([("Home", "/"), ("Leaderboard", "/leaderboard"), (domain, f"/outlet/{domain}")]),
     )
+
+
+def breadcrumb_jsonld(items):
+    """S13: schema.org BreadcrumbList from [(name, path_or_url), ...]."""
+    import json as _json
+    elems = []
+    for i, (name, url) in enumerate(items, 1):
+        full = url if str(url).startswith("http") else f"{SITE_URL}{url}"
+        elems.append({"@type": "ListItem", "position": i, "name": str(name), "item": full})
+    body = _json.dumps({"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": elems},
+                       ensure_ascii=False).replace("</", "<\\/")
+    return '<script type="application/ld+json">' + body + "</script>"
 
 
 def debate_title(event_name, participants=None):
@@ -159,7 +172,9 @@ def debate_meta(event_name, slug, claim_count, event_date_str, participants=None
         description=desc,
         url=page_url,
         og_image=og_img,
-        extra=debate_event_jsonld(event_name, page_url, desc, og_img, start_iso, stream_url, participants),
+        extra="\n".join(x for x in (
+            debate_event_jsonld(event_name, page_url, desc, og_img, start_iso, stream_url, participants),
+            breadcrumb_jsonld([("Home", "/"), ("Debates", "/debates/list"), (event_name, page_url)])) if x),
     )
 
 

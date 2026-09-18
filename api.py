@@ -9393,8 +9393,11 @@ def _claim_seo_meta(r):
     else:
         ctx = 'Verum Signal claim record'
     desc = f"{label}. {ctx}. {_s13_short(r.get('claim_text'), 110)}"
+    from seo import breadcrumb_jsonld
     return meta_tags(title=_claim_page_title(r), description=desc, url=f"/c/{int(r['id'])}",
-                     og_type='article')
+                     og_type='article',
+                     extra=breadcrumb_jsonld([('Home', '/'), ('Live Feed', '/live'),
+                                              (_s13_short(r.get('claim_text'), 60), f"/c/{int(r['id'])}")]))
 
 
 @app.route('/c/<int:claim_id>')
