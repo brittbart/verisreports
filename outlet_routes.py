@@ -231,13 +231,15 @@ def register_outlet_routes(app, get_db_conn):
         if not DOMAIN_RE.match(domain_lc):
             abort(400, description="Invalid outlet identifier")
         outlet = _build_outlet_view(get_db_conn, domain_lc)
+        # S13 SEO: no counted verdicts -> same page, 404 status (was a 200 soft 404)
+        status = 404 if not outlet.get("verdict_count") else 200
         return render_template(
             "outlet.html",
             outlet=outlet,
             methodology_version=PUBLIC_METHODOLOGY_VERSION,
             seo_meta=outlet_meta(outlet["domain"], outlet.get("score"), outlet.get("tier"), outlet.get("scoreable_count", 0)),
             inclusion_threshold=INCLUSION_THRESHOLD,
-        )
+        ), status
 
     @app.route("/api/source/verdicts", methods=["GET"])
     def get_source_verdicts():
