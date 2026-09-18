@@ -1116,9 +1116,9 @@ def styles():
 def robots_txt():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'robots.txt')
 
-@app.route("/sitemap.xml", methods=["GET"])
-def sitemap_xml():
-    """Auto-generated XML sitemap. Invisible until robots.txt allows crawling."""
+@app.route("/sitemap-pages.xml", methods=["GET"])
+def sitemap_pages_xml():
+    """Main, outlet and debate pages (listed in the /sitemap.xml index). Invisible until robots.txt allows crawling."""
     from flask import Response
     conn = get_db()
     cur = conn.cursor()
@@ -1149,6 +1149,71 @@ def sitemap_xml():
         + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "\n".join(pages) + "\n</urlset>")
     return Response(xml, mimetype="application/xml")
+
+# S13 SEO: /sitemap.xml is an index -- /sitemap-pages.xml (main, outlet, debate pages) plus
+# claim pages in files of up to 40,000 by claim id. Claims: every claim with a verdict, except
+# claims from events that are not public; <lastmod> = the claim's latest check.
+_SITEMAP_CLAIMS_CHUNK = 40000
+_SITEMAP_CLAIMS_WHERE = ("c.verdict IS NOT NULL AND (c.event_id IS NULL OR c.event_id IN "
+                         "(SELECT id FROM events WHERE is_public = TRUE))")
+
+
+def _sitemap_day(v):
+    import re as _sm_re
+    d = str(v)[:10] if v else ""
+    return d if _sm_re.match(r"^\d{4}-\d{2}-\d{2}$", d) else ""
+
+
+@app.route("/sitemap.xml", methods=["GET"])
+def sitemap_xml():
+    from flask import Response
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT (c.id - 1) / %s, MAX(c.last_checked) FROM claims c WHERE " + _SITEMAP_CLAIMS_WHERE
+                    + " GROUP BY 1 ORDER BY 1", (_SITEMAP_CLAIMS_CHUNK,))
+        buckets = cur.fetchall()
+        cur.close()
+    finally:
+        conn.close()
+    parts = ["  <sitemap><loc>https://verumsignal.com/sitemap-pages.xml</loc></sitemap>"]
+    for b, lm in buckets:
+        d = _sitemap_day(lm)
+        parts.append(f"  <sitemap><loc>https://verumsignal.com/sitemap-claims-{int(b) + 1}.xml</loc>"
+                     + (f"<lastmod>{d}</lastmod>" if d else "") + "</sitemap>")
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+           + "\n".join(parts) + "\n</sitemapindex>")
+    return Response(xml, mimetype="application/xml")
+
+
+@app.route("/sitemap-claims-<int:n>.xml", methods=["GET"])
+def sitemap_claims_xml(n):
+    from flask import Response
+    if n < 1:
+        abort(404)
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT c.id, c.last_checked FROM claims c WHERE c.id > %s AND c.id <= %s AND "
+                    + _SITEMAP_CLAIMS_WHERE + " ORDER BY c.id",
+                    ((n - 1) * _SITEMAP_CLAIMS_CHUNK, n * _SITEMAP_CLAIMS_CHUNK))
+        rows = cur.fetchall()
+        cur.close()
+    finally:
+        conn.close()
+    if not rows:
+        abort(404)
+    urls = []
+    for cid, lm in rows:
+        d = _sitemap_day(lm)
+        urls.append(f"  <url><loc>https://verumsignal.com/c/{int(cid)}</loc>"
+                    + (f"<lastmod>{d}</lastmod>" if d else "") + "</url>")
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+           + "\n".join(urls) + "\n</urlset>")
+    return Response(xml, mimetype="application/xml")
+
 
 def _og_default():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'og-default.png')

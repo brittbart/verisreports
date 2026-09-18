@@ -1366,6 +1366,7 @@
                   {% if c.report_url and c.report_url != '#' %}
                   <a href="{{ c.report_url }}" class="dt-claim-report">View full report &rarr;</a>
                   {% endif %}
+                  {% if c.id %}<a href="/c/{{ c.id }}" class="dt-claim-report">Claim page &rarr;</a>{% endif %}
                 </div>
               </div>
             </article>
