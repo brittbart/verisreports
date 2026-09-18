@@ -8,12 +8,21 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import os
 
-# Fonts
-_FONT_DIR = "/usr/share/fonts/truetype/dejavu"
+# Fonts -- S13: shipped in fonts/ (Railway has no system DejaVu); then the system folder;
+# then Pillow's scalable default font. Never the fixed-size bitmap font.
+_FONT_DIRS = [os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts"),
+              "/usr/share/fonts/truetype/dejavu"]
 def _font(name, size):
+    for d in _FONT_DIRS:
+        p = os.path.join(d, name)
+        if os.path.exists(p):
+            try:
+                return ImageFont.truetype(p, size)
+            except Exception:
+                pass
     try:
-        return ImageFont.truetype(os.path.join(_FONT_DIR, name), size)
-    except:
+        return ImageFont.load_default(size=size)
+    except Exception:
         return ImageFont.load_default()
 
 FONT_BOLD = lambda s: _font("DejaVuSans-Bold.ttf", s)
