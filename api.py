@@ -1115,21 +1115,20 @@ def sitemap_xml():
     cur = conn.cursor()
     pages = []
     # Static pages
-    for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing"]:
+    for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing", "/live", "/developers"]:
         pages.append(f"  <url><loc>https://verumsignal.com{path}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>")
     # Outlet pages
-    cur.execute("SELECT DISTINCT domain FROM api_outlets WHERE score IS NOT NULL ORDER BY domain")
+    cur.execute("SELECT DISTINCT outlet_id FROM api_outlets WHERE score IS NOT NULL ORDER BY outlet_id")
     for row in cur.fetchall():
         pages.append(f"  <url><loc>https://verumsignal.com/outlet/{row[0]}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>")
     # Debate pages
     cur.execute("SELECT slug FROM events WHERE is_public = TRUE ORDER BY event_date DESC")
     for row in cur.fetchall():
         pages.append(f"  <url><loc>https://verumsignal.com/debates/{row[0]}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>")
-    # Report short URLs
-    cur.execute("SELECT short_hash FROM articles WHERE short_hash IS NOT NULL AND short_hash != '' ORDER BY verified_at DESC NULLS LAST LIMIT 500")
-    for row in cur.fetchall():
-        pages.append(f"  <url><loc>https://verumsignal.com/r/{row[0]}</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>")
+    # Report pages (/r/...) are left out: each render runs a paid model call (report summary)
+    # until that is cached (S13 SEO audit).
     cur.close()
+    conn.close()
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
         + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "\n".join(pages) + "\n</urlset>")
