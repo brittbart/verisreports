@@ -6622,6 +6622,58 @@ tr:hover td{background:rgba(168,85,247,0.04)}
         priority_dist=priority_dist, oldest=oldest)
 
 
+@app.route('/ops/disputes/<int:dispute_id>/review', methods=['POST'])
+def ops_dispute_review(dispute_id):
+    # S13: dispute review (policy: /corrections). Uphold = reset the claim for re-checking, set its
+    # correction note and record dispute_upheld in its revision_history; decline / need more
+    # information = save the reason. Every outcome records reviewer, time and note on the
+    # dispute. Ops credentials and same-origin form posts only.
+    auth_err = _ops_auth()
+    if auth_err is not None:
+        return auth_err
+    from flask import Response, redirect
+    import json as _json
+    if request.headers.get('Sec-Fetch-Site') not in (None, 'same-origin'):
+        return Response('Cross-site request refused', status=403, mimetype='text/plain')
+    _origin = (request.headers.get('Origin') or '').rstrip('/')
+    if _origin and _origin not in ('https://verumsignal.com', 'https://www.verumsignal.com'):
+        return Response('Cross-site request refused', status=403, mimetype='text/plain')
+    action = (request.form.get('action') or '').strip()
+    note = (request.form.get('note') or '').strip()
+    reviewer = (request.form.get('reviewer') or '').strip()[:60]
+    if action not in ('uphold', 'decline', 'needs_info') or not note or not reviewer:
+        return Response('Outcome, note and reviewer are all required.', status=400, mimetype='text/plain')
+    status = {'uphold': 'upheld', 'decline': 'declined', 'needs_info': 'needs_info'}[action]
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT claim_id FROM outlet_disputes WHERE id = %s FOR UPDATE", (dispute_id,))
+        row = cur.fetchone()
+        if not row:
+            conn.rollback()
+            return Response('Dispute not found.', status=404, mimetype='text/plain')
+        claim_id = row[0]
+        if action == 'uphold':
+            if not claim_id:
+                conn.rollback()
+                return Response('Uphold needs a dispute linked to a claim. Decline it or ask for more information instead.',
+                                status=400, mimetype='text/plain')
+            entry = _json.dumps([{'action': 'dispute_upheld', 'dispute_id': dispute_id, 'by': reviewer,
+                                  'at': datetime.utcnow().isoformat() + 'Z', 'note': note}])
+            cur.execute("""UPDATE claims SET verdict = NULL, verdict_status = 'provisional', correction_note = %s,
+                                  revision_history = COALESCE(revision_history, '[]'::jsonb) || %s::jsonb
+                            WHERE id = %s""", (note, entry, claim_id))
+            if cur.rowcount != 1:
+                conn.rollback()
+                return Response('Claim not found.', status=404, mimetype='text/plain')
+        cur.execute("""UPDATE outlet_disputes SET status = %s, resolution = %s, reviewed_at = NOW(), reviewed_by = %s
+                        WHERE id = %s""", (status, note, reviewer, dispute_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return redirect('/ops/disputes', code=303)
+
+
 # ── /ops/disputes ─────────────────────────────────────────────────────────────
 
 @app.route('/ops/disputes', methods=['GET'])
@@ -6635,7 +6687,8 @@ def ops_disputes():
     try:
         cur.execute("""
             SELECT id, domain, claim_id, contact_email, dispute_text,
-                   outlet_response, status, submitted_at, reviewed_at, resolution
+                   outlet_response, status, submitted_at, reviewed_at, resolution,
+                   dispute_type, reviewed_by
             FROM outlet_disputes
             ORDER BY submitted_at DESC
         """)
@@ -6672,6 +6725,13 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-d
 .status-badge.pending{background:rgba(251,191,36,0.15);color:var(--yellow)}
 .status-badge.resolved{background:rgba(74,222,128,0.12);color:var(--ok)}
 .status-badge.rejected{background:rgba(248,113,113,0.12);color:var(--bad)}
+.status-badge.upheld{background:rgba(74,222,128,0.12);color:var(--ok)}
+.status-badge.declined{background:rgba(248,113,113,0.12);color:var(--bad)}
+.status-badge.needs_info{background:rgba(251,191,36,0.15);color:var(--yellow)}
+.review{margin:0 0 12px}.review summary{cursor:pointer;color:var(--accent);font-size:12px}
+.review form{display:grid;gap:8px;margin-top:10px;max-width:560px}
+.review select,.review textarea,.review input{width:100%;background:#0a0a0a;color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font:inherit}
+.review button{justify-self:start;background:var(--accent);color:#fff;border:none;border-radius:4px;padding:6px 14px;cursor:pointer}
 .dispute-text{color:var(--fg-dim);font-size:13px;margin-top:8px;line-height:1.6}
 .empty{color:var(--fg-dim);padding:32px 0;text-align:center}
 </style></head><body>
@@ -6682,13 +6742,26 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--fg-d
 <div class="stat-grid">
   <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">{{ disputes|length }}</div></div>
   <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:var(--yellow)">{{ status_counts.get('pending', 0) }}</div></div>
-  <div class="stat-card"><div class="stat-label">Resolved</div><div class="stat-value" style="color:var(--ok)">{{ status_counts.get('resolved', 0) }}</div></div>
-  <div class="stat-card"><div class="stat-label">Rejected</div><div class="stat-value" style="color:var(--bad)">{{ status_counts.get('rejected', 0) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Upheld</div><div class="stat-value" style="color:var(--ok)">{{ status_counts.get('upheld', 0) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Declined</div><div class="stat-value" style="color:var(--bad)">{{ status_counts.get('declined', 0) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Need info</div><div class="stat-value" style="color:var(--yellow)">{{ status_counts.get('needs_info', 0) }}</div></div>
 </div>
 
 {% if disputes %}
 {% for d in disputes %}
 <div class="dispute-card">
+<details class="review"><summary>Review{% if d.dispute_type %} · {{ d.dispute_type }}{% endif %}{% if d.reviewed_by %} · last: {{ d.status }} by {{ d.reviewed_by }}, {{ d.reviewed_at }}{% endif %}</summary>
+<form method="POST" action="/ops/disputes/{{ d.id }}/review">
+  <label>Outcome<select name="action" required>
+    <option value="uphold"{% if not d.claim_id %} disabled{% endif %}>Uphold: re-check the claim and add a correction note</option>
+    <option value="decline">Decline, with the reason</option>
+    <option value="needs_info">Need more information</option>
+  </select></label>
+  <label>Note (for uphold, this becomes the claim's public correction note)<textarea name="note" rows="3" required></textarea></label>
+  <label>Reviewer<input name="reviewer" maxlength="60" required></label>
+  <button type="submit">Save review</button>
+  <div class="dispute-meta">Uphold resets the verdict; the claim page returns 404 until the verdict run re-checks it (debate claims first; article claims in the batch only at priority 30+). Attribution or wording fixes: <a href="/ops/attribution" style="color:var(--accent)">/ops/attribution</a>, then record the outcome here.</div>
+</form></details>
   <div class="dispute-header">
     <div>
       <span class="dispute-domain">{{ d.domain }}</span>
