@@ -3490,18 +3490,8 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
             pass
     html = html.replace('{{staleness_notice}}', _staleness_notice)
     html = html.replace("{{seo_meta}}", report_meta(source=str(source), title=str(title), score=score, url=str(url), short_hash=short_url_hash))
-    # ClaimReview JSON-LD structured data for Google rich snippets
-    from seo import claim_review_jsonld
-    jsonld_blocks = []
-    _review_date = as_of or ""
-    for _c in (free_set if depth == 2 else claims):
-        _cv = _c.get("verdict")
-        _ct = _c.get("claim_text", "")
-        if _cv and _ct:
-            jsonld_blocks.append(claim_review_jsonld(
-                claim_text=_ct, verdict=_cv, article_url=str(url),
-                article_title=str(title), source_name=str(source), review_date=_review_date))
-    html = html.replace("</head>", "\n".join(jsonld_blocks) + "\n</head>", 1)
+    # S13: ClaimReview JSON-LD removed -- Google no longer shows it, and it labelled verdicts
+    # True/False with Verum Signal as fact-check reviewer (outside the brand rules).
     from flask import Response
     return Response(html, mimetype='text/html')
 
