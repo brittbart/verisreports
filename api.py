@@ -1076,8 +1076,27 @@ def methodology_page():
 @app.route('/methodology/archive/v1.5', methods=['GET'])
 def methodology_v15():
     # Serves the v1.5-era static methodology page (preserved verbatim).
-    # Live methodology is at /methodology (currently v1.6).
+    # Live methodology is at /methodology (currently v1.7.1).
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'methodology.html')
+
+
+_METHODOLOGY_ARCHIVES = ('v1.6', 'v1.7')
+
+
+@app.route('/methodology/archive/<ver>', methods=['GET'])
+def methodology_archive(ver):
+    # Superseded React-era versions: the data.js that stood when the next version
+    # replaced it, rendered by the current Report.jsx (docs/session13/build_methodology_archives.py).
+    if ver not in _METHODOLOGY_ARCHIVES:
+        return ('Not found', 404)
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology/archive', ver), 'index.html')
+
+
+@app.route('/methodology/archive/<ver>/data.js', methods=['GET'])
+def methodology_archive_data(ver):
+    if ver not in _METHODOLOGY_ARCHIVES:
+        return ('Not found', 404)
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static/methodology/archive', ver), 'data.js')
 
 
 @app.route('/how-it-works.html', methods=['GET'])
@@ -3345,9 +3364,9 @@ body{{background:#080810;color:#e8e8f0;font-family:'DM Sans',sans-serif;min-heig
         _ic_cur = _ic.cursor()
         _ic_cur.execute("SELECT verdict FROM claims c JOIN articles a ON c.article_id = a.id WHERE a.source_name = %s AND c.verdict IS NOT NULL AND c.claim_origin = 'outlet_claim' AND a.published_at IS NOT NULL AND a.published_at < NOW() - INTERVAL '6 hours'", (source,))
         _outlet_verdicts = [r[0] for r in _ic_cur.fetchall()]
-        _verdict_count = len(_outlet_verdicts)
         _ic.close()
         _scoreable_outlet = [v for v in _outlet_verdicts if v in WEIGHTS]
+        _verdict_count = len(_scoreable_outlet)  # tier + inclusion on scoreable verdicts (methodology 06, 08)
         _ws = sum(WEIGHTS[v] for v in _scoreable_outlet)
         outlet_score = compute_score(_ws, len(_scoreable_outlet))
         outlet_rating = compute_score_band(outlet_score)
