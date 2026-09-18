@@ -3,14 +3,47 @@
 ip_hash(raw)     How an IP address is stored anywhere except short-lived rate limiting: SHA-256 of
                  "<SECRET_KEY>:<first X-Forwarded-For entry>", hex -- the scheme anon_verify_counts
                  already uses. One-way; the same address always gives the same value.
-run_retention()  Deletes page views, extension lookups and API usage rows older than 90 days, and
-                 anonymous-check counters older than 90 days. Called by railway_verdicts.py as its own
-                 job_runs stage ("retention"). Returns the number of rows deleted.
+run_retention()  1. Rolls each complete UTC day of page views, once, into page_view_daily (page without
+                    its query string, app or web, views, distinct sessions) and
+                    page_view_referrers_daily (referring site, views): totals only, nothing that
+                    identifies a visitor. Written once per day, never overwritten; kept permanently.
+                 2. Deletes page views and API usage from before the 90-day window, on whole UTC days
+                    so a day is never half-counted, and anonymous-check counters older than 90 days.
+                 Per-key monthly API counts stay in api_monthly_usage. Called by railway_verdicts.py
+                 as its own job_runs stage ("retention"). Returns the number of rows deleted.
 """
 import hashlib
 import os
 
 RETENTION_DAYS = 90
+_UTC_MIDNIGHT = "date_trunc('day', NOW() AT TIME ZONE 'UTC')"
+TODAY_TZ = f"({_UTC_MIDNIGHT} AT TIME ZONE 'UTC')"
+CUTOFF_TZ = f"(({_UTC_MIDNIGHT} - INTERVAL '{RETENTION_DAYS} days') AT TIME ZONE 'UTC')"
+CUTOFF_NAIVE = f"({_UTC_MIDNIGHT} - INTERVAL '{RETENTION_DAYS} days')"
+_URL_HOST = "'^[A-Za-z][A-Za-z0-9+.-]*://([^/:?#]+)'"
+
+AGGREGATE_SQL = [
+    ("page_view_daily", f"""
+        INSERT INTO page_view_daily (day, path, is_mobile_app, views, sessions)
+        SELECT (created_at AT TIME ZONE 'UTC')::date, split_part(path, '?', 1), COALESCE(is_mobile_app, false),
+               COUNT(*), COUNT(DISTINCT session_id)
+          FROM page_views
+         WHERE created_at < {TODAY_TZ}
+         GROUP BY 1, 2, 3
+        ON CONFLICT (day, path, is_mobile_app) DO NOTHING"""),
+    ("page_view_referrers_daily", f"""
+        INSERT INTO page_view_referrers_daily (day, referrer_host, views)
+        SELECT (created_at AT TIME ZONE 'UTC')::date, lower(substring(referrer from {_URL_HOST})), COUNT(*)
+          FROM page_views
+         WHERE created_at < {TODAY_TZ} AND substring(referrer from {_URL_HOST}) IS NOT NULL
+         GROUP BY 1, 2
+        ON CONFLICT (day, referrer_host) DO NOTHING"""),
+]
+RETENTION_SQL = [
+    ("page_views", f"DELETE FROM page_views WHERE created_at < {CUTOFF_TZ}"),
+    ("api_usage", f"DELETE FROM api_usage WHERE created_at < {CUTOFF_NAIVE}"),
+    ("anon_verify_counts", f"DELETE FROM anon_verify_counts WHERE day < (NOW() AT TIME ZONE 'UTC')::date - {RETENTION_DAYS}"),
+]
 
 
 def ip_hash(raw):
@@ -34,25 +67,23 @@ def _connect():
                             port=os.environ.get('DB_PORT', '5432'))
 
 
-RETENTION_SQL = [
-    ("page_views", f"DELETE FROM page_views WHERE created_at < NOW() - INTERVAL '{RETENTION_DAYS} days'"),
-    ("api_source_hit_log", f"DELETE FROM api_source_hit_log WHERE hit_at < NOW() - INTERVAL '{RETENTION_DAYS} days'"),
-    ("api_usage", f"DELETE FROM api_usage WHERE created_at < NOW() - INTERVAL '{RETENTION_DAYS} days'"),
-    ("anon_verify_counts", f"DELETE FROM anon_verify_counts WHERE day < CURRENT_DATE - {RETENTION_DAYS}"),
-]
-
-
 def run_retention(conn=None):
     own = conn is None
     conn = conn or _connect()
     total = 0
     try:
         cur = conn.cursor()
+        for table, sql in AGGREGATE_SQL:
+            cur.execute(sql)
+            print(f"[retention] {table}: {cur.rowcount} day totals written")
         for table, sql in RETENTION_SQL:
             cur.execute(sql)
-            print(f"[retention] {table}: {cur.rowcount} rows older than {RETENTION_DAYS} days deleted")
+            print(f"[retention] {table}: {cur.rowcount} rows from before the {RETENTION_DAYS}-day window deleted")
             total += cur.rowcount
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         if own:
             conn.close()
