@@ -21,6 +21,13 @@ def redirect_api_paths():
     """Redirect /v1/* and /openapi.yaml from main domain to api subdomain."""
     from flask import request, redirect
     host = request.host.split(':')[0]
+    # S13: one canonical host. Page views on www go to verumsignal.com (301); other
+    # methods (form posts, webhooks) are served where they arrive.
+    if host == 'www.verumsignal.com' and request.method in ('GET', 'HEAD'):
+        new_url = f'https://verumsignal.com{request.path}'
+        if request.query_string:
+            new_url += f'?{request.query_string.decode()}'
+        return redirect(new_url, code=301)
     if host == 'verumsignal.com':
         if request.path.startswith('/v1') or request.path == '/openapi.yaml':
             new_url = f'https://api.verumsignal.com{request.path}'
