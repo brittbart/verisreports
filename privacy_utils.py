@@ -9,6 +9,7 @@ run_retention()  1. Rolls each complete UTC day of page views, once, into page_v
                     identifies a visitor. Written once per day, never overwritten; kept permanently.
                  2. Deletes page views and API usage from before the 90-day window, on whole UTC days
                     so a day is never half-counted, and anonymous-check counters older than 90 days.
+                 3. Deletes disputes two years after they were reviewed, contact email included.
                  Per-key monthly API counts stay in api_monthly_usage. Called by railway_verdicts.py
                  as its own job_runs stage ("retention"). Returns the number of rows deleted.
 """
@@ -43,6 +44,7 @@ RETENTION_SQL = [
     ("page_views", f"DELETE FROM page_views WHERE created_at < {CUTOFF_TZ}"),
     ("api_usage", f"DELETE FROM api_usage WHERE created_at < {CUTOFF_NAIVE}"),
     ("anon_verify_counts", f"DELETE FROM anon_verify_counts WHERE day < (NOW() AT TIME ZONE 'UTC')::date - {RETENTION_DAYS}"),
+    ("outlet_disputes", "DELETE FROM outlet_disputes WHERE reviewed_at < (NOW() AT TIME ZONE 'UTC') - INTERVAL '2 years'"),
 ]
 
 
