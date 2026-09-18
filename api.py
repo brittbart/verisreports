@@ -1143,13 +1143,22 @@ def sitemap_xml():
         + "\n".join(pages) + "\n</urlset>")
     return Response(xml, mimetype="application/xml")
 
+def _og_default():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'og-default.png')
+
+
+# S13: the three preview-image routes draw only what a page rendered -- the URL must carry
+# the signature seo.py adds. Missing or altered parameters get the default image.
 @app.route("/api/og/report", methods=["GET"])
 def og_report():
     from og_images import generate_report_og
+    from seo import og_sig_ok
     from flask import Response
     source = request.args.get("source", "")
     score = request.args.get("score", "")
     title = request.args.get("title", "")
+    if not og_sig_ok("report", request.args.get("sig", ""), source, score, title):
+        return _og_default()
     score_val = int(score) if score and score.isdigit() else None
     buf = generate_report_og(source, score_val, title)
     return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
@@ -1157,9 +1166,12 @@ def og_report():
 @app.route("/api/og/outlet", methods=["GET"])
 def og_outlet():
     from og_images import generate_outlet_og
+    from seo import og_sig_ok
     from flask import Response
     domain = request.args.get("domain", "")
     score = request.args.get("score", "")
+    if not og_sig_ok("outlet", request.args.get("sig", ""), domain, score):
+        return _og_default()
     score_val = int(score) if score and score.isdigit() else None
     buf = generate_outlet_og(domain, score_val)
     return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
@@ -1167,9 +1179,12 @@ def og_outlet():
 @app.route("/api/og/debate", methods=["GET"])
 def og_debate():
     from og_images import generate_debate_og
+    from seo import og_sig_ok
     from flask import Response
     name = request.args.get("name", "")
     claims = request.args.get("claims", "0")
+    if not og_sig_ok("debate", request.args.get("sig", ""), name, claims):
+        return _og_default()
     claims_val = int(claims) if claims.isdigit() else 0
     buf = generate_debate_og(name, claims_val)
     return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})

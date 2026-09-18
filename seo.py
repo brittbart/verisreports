@@ -12,6 +12,23 @@ SITE_DESC = "Credibility signal reports for news articles. Claim-level verificat
 OG_IMAGE_DEFAULT = f"{SITE_URL}/static/og-default.png"
 
 
+import hmac as _hmac, hashlib as _hashlib, os as _os
+
+
+def og_sig(kind, *parts):
+    """S13: signature for a preview-image URL; empty when SECRET_KEY is unset."""
+    key = _os.environ.get("SECRET_KEY")
+    if not key:
+        return ""
+    msg = "\x1f".join(["og-preview-v1", kind] + [str(p) for p in parts]).encode("utf-8")
+    return _hmac.new(key.encode("utf-8"), msg, _hashlib.sha256).hexdigest()[:32]
+
+
+def og_sig_ok(kind, sig, *parts):
+    expected = og_sig(kind, *parts)
+    return bool(expected) and bool(sig) and _hmac.compare_digest(expected, sig)
+
+
 def meta_tags(*, title, description, url, og_image=None, og_type="website", extra=None):
     """Generate HTML meta tags for a page's <head> section."""
     img = og_image or OG_IMAGE_DEFAULT
@@ -43,7 +60,9 @@ def report_meta(source, title, score, url, short_hash=None):
     desc = f"{score_str} — Verum Signal credibility report for {source}. Claim-level verification with sources."
     page_title = f"{source} — {score_str} — Verum Signal"
     page_url = f"{SITE_URL}/r/{short_hash}" if short_hash else f"{SITE_URL}/report?url={_urlenc(url)}"
-    og_img = f"{SITE_URL}/api/og/report?source={_urlenc(source)}&score={score or ''}&title={_urlenc(title or '')}"
+    _s = '' if score is None else str(score)
+    og_img = (f"{SITE_URL}/api/og/report?source={_urlenc(source)}&score={_s}&title={_urlenc(title or '')}"
+              f"&sig={og_sig('report', source, _s, title or '')}")
     return meta_tags(
         title=page_title,
         description=desc,
@@ -59,7 +78,9 @@ def outlet_meta(domain, score, tier, scoreable_count):
     desc = f"{domain} — {score_str}. {scoreable_count} claims evaluated. {tier} tier. Verum Signal outlet reliability profile."
     page_title = f"{domain} — {score_str} — Verum Signal"
     page_url = f"{SITE_URL}/outlet/{domain}"
-    og_img = f"{SITE_URL}/api/og/outlet?domain={_urlenc(domain)}&score={score or ''}"
+    _s = '' if score is None else str(score)
+    og_img = (f"{SITE_URL}/api/og/outlet?domain={_urlenc(domain)}&score={_s}&sig={og_sig('outlet', domain, _s)}"
+              if scoreable_count else OG_IMAGE_DEFAULT)
     return meta_tags(
         title=page_title,
         description=desc,
@@ -73,7 +94,8 @@ def debate_meta(event_name, slug, claim_count, event_date_str):
     desc = f"{event_name} — {claim_count} claims evaluated in real time. Verum Signal live debate coverage."
     page_title = f"{event_name} — Verum Signal"
     page_url = f"{SITE_URL}/debates/{slug}"
-    og_img = f"{SITE_URL}/api/og/debate?name={_urlenc(event_name)}&claims={claim_count}"
+    og_img = (f"{SITE_URL}/api/og/debate?name={_urlenc(event_name)}&claims={claim_count}"
+              f"&sig={og_sig('debate', event_name, claim_count)}")
     return meta_tags(
         title=page_title,
         description=desc,
