@@ -1404,6 +1404,38 @@ def sitemap_claims_xml(n):
     return Response(xml, mimetype="application/xml")
 
 
+@app.route("/api/og/claim/<int:claim_id>", methods=["GET"])
+def og_claim(claim_id):
+    # S13: claim share card drawn only from the stored claim (text, verdict, speaker or outlet).
+    # Unknown ids, claims without a verdict and claims from non-public events get the default image.
+    from og_images import generate_claim_og
+    from flask import Response
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("""SELECT c.claim_text, c.verdict, c.claim_origin, c.speaker, a.source_name,
+                              e.event_name, c.event_id, e.is_public
+                         FROM claims c
+                    LEFT JOIN articles a ON a.id = c.article_id
+                    LEFT JOIN events e ON e.id = c.event_id
+                        WHERE c.id = %s AND c.verdict IS NOT NULL""", (claim_id,))
+        row = cur.fetchone()
+        cur.close()
+    finally:
+        conn.close()
+    if not row or (row[6] is not None and not row[7]):
+        return _og_default()
+    text, verdict, origin, speaker, source, event_name = row[:6]
+    if origin == 'debate_claim':
+        ctx = ' · '.join(x for x in (speaker, event_name) if x)
+    elif source:
+        ctx = f'Reported by {source}'
+    else:
+        ctx = ''
+    buf = generate_claim_og(verdict, text, ctx)
+    return Response(buf.getvalue(), mimetype="image/png", headers={"Cache-Control": "public, max-age=3600"})
+
+
 def _og_default():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'og-default.png')
 
@@ -9414,7 +9446,7 @@ def _claim_seo_meta(r):
     desc = f"{label}. {ctx}. {_s13_short(r.get('claim_text'), 110)}"
     from seo import breadcrumb_jsonld
     return meta_tags(title=_claim_page_title(r), description=desc, url=f"/c/{int(r['id'])}",
-                     og_type='article',
+                     og_type='article', og_image=f"https://verumsignal.com/api/og/claim/{int(r['id'])}",
                      extra=breadcrumb_jsonld([('Home', '/'), ('Live Feed', '/live'),
                                               (_s13_short(r.get('claim_text'), 60), f"/c/{int(r['id'])}")]))
 

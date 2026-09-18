@@ -184,6 +184,72 @@ def generate_outlet_og(domain, score):
     return buf
 
 
+CLAIM_VERDICT_LABELS = {
+    'supported': 'SUPPORTED', 'plausible': 'PLAUSIBLE', 'corroborated': 'CORROBORATED',
+    'overstated': 'OVERSTATED', 'disputed': 'DISPUTED', 'not_supported': 'NOT SUPPORTED',
+    'not_verifiable': 'NOT VERIFIABLE', 'opinion': 'OPINION',
+}
+
+
+def generate_claim_og(verdict, claim_text, context):
+    """Generate OG image for a claim page (S13): verdict pill, claim text, who and where."""
+    img = Image.new('RGB', (1200, 630), BG)
+    draw = ImageDraw.Draw(img)
+
+    _draw_wordmark(draw, 48, 40)
+    draw.text((48, 90), "CLAIM", fill=TEXT3, font=FONT_MONO(14))
+
+    # Verdict pill
+    label = CLAIM_VERDICT_LABELS.get(verdict, str(verdict or '').upper().replace('_', ' '))
+    pill_color = VERDICT_COLORS.get(verdict, TEXT3)
+    lum = 0.299 * pill_color[0] + 0.587 * pill_color[1] + 0.114 * pill_color[2]
+    pill_font = FONT_BOLD(20)
+    bbox = draw.textbbox((0, 0), label, font=pill_font)
+    pw, ph = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    draw.rounded_rectangle([48, 124, 48 + pw + 32, 124 + ph + 22], radius=8, fill=pill_color)
+    draw.text((64, 124 + 11 - bbox[1]), label, fill=BG if lum > 140 else WHITE, font=pill_font)
+
+    # Claim text (no quotation marks: extracted claims are not always verbatim); up to 5 lines
+    text_font = FONT_BOLD(34)
+    words = ' '.join(str(claim_text or '').split()).split(' ')
+    lines, current = [], ''
+    for w in words:
+        test = current + ' ' + w if current else w
+        if draw.textbbox((0, 0), test, font=text_font)[2] > 1100:
+            if current:
+                lines.append(current)
+            current = w
+        else:
+            current = test
+    if current:
+        lines.append(current)
+    if len(lines) > 5:
+        lines = lines[:5]
+        last = lines[4]
+        while last and draw.textbbox((0, 0), last + '…', font=text_font)[2] > 1100:
+            last = last[:-1]
+        lines[4] = last.rstrip() + '…'
+    y = 200
+    for line in lines:
+        draw.text((48, y), line, fill=WHITE, font=text_font)
+        y += 48
+
+    # Who and where
+    ctx = ' '.join(str(context or '').split())
+    ctx_font = FONT_REG(22)
+    while ctx and draw.textbbox((0, 0), ctx, font=ctx_font)[2] > 1100:
+        ctx = ctx[:-2].rstrip() + '…'
+    draw.text((48, min(y + 22, 520)), ctx, fill=TEXT2, font=ctx_font)
+
+    draw.text((48, 560), "verumsignal.com", fill=TEXT3, font=FONT_MONO(14))
+    draw.text((48, 580), "Signal through the noise", fill=TEXT3, font=FONT_REG(13))
+
+    buf = BytesIO()
+    img.save(buf, format='PNG', optimize=True)
+    buf.seek(0)
+    return buf
+
+
 def generate_debate_og(name, claims):
     """Generate OG image for a debate page."""
     img = Image.new('RGB', (1200, 630), BG)
