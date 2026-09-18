@@ -112,18 +112,139 @@ def get_db():
         ))
     )
 
-# S13: time database connects per request; reported in the Server-Timing response header.
+# S13: connection reuse. The database is reachable only through Railway's public proxy, where
+# a new connection costs ~35-900 ms and pages open 1-3 of them. Per worker process, up to
+# _S13_POOL_MAX_IDLE connections are kept for reuse. get_db() returns a wrapper whose close()
+# returns the connection: an open transaction is rolled back, then DISCARD ALL clears all
+# session state (SET, advisory locks, temp tables, prepared statements) and autocommit /
+# isolation / read-only / cursor_factory are restored to defaults. A connection idle longer
+# than _S13_POOL_CHECK_S is checked with SELECT 1 before reuse; one that fails is dropped.
+# A connection older than _S13_POOL_MAX_AGE_S is closed instead of kept. Pools are per
+# process (pid), so a forked worker never uses its parent's sockets.
+# Kill switch: Railway variable S13_DB_POOL=0 -> a fresh connection per call, as before.
+# Server-Timing reports get_db calls, how many opened a new connection, and the time spent.
+import threading as _s13_threading
+import psycopg2.extensions as _s13_pgext
 _s13_get_db_raw = get_db
+_S13_POOL_MAX_IDLE = 4
+_S13_POOL_MAX_AGE_S = 600
+_S13_POOL_CHECK_S = 10
+_s13_pool = {}
+_s13_pool_lock = _s13_threading.Lock()
+
+
+class _S13PooledConn:
+    def __init__(self, conn, created):
+        object.__setattr__(self, '_s13_conn', conn)
+        object.__setattr__(self, '_s13_created', created)
+
+    def __getattr__(self, name):
+        c = object.__getattribute__(self, '_s13_conn')
+        if c is None:
+            raise psycopg2.InterfaceError('connection already closed')
+        return getattr(c, name)
+
+    def __setattr__(self, name, value):
+        c = object.__getattribute__(self, '_s13_conn')
+        if c is None:
+            raise psycopg2.InterfaceError('connection already closed')
+        setattr(c, name, value)
+
+    @property
+    def closed(self):
+        c = object.__getattribute__(self, '_s13_conn')
+        return 1 if c is None else c.closed
+
+    def __enter__(self):
+        object.__getattribute__(self, '_s13_conn').__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        return object.__getattribute__(self, '_s13_conn').__exit__(*exc)
+
+    def close(self):
+        _s13_pool_return(self)
+
+    def __del__(self):
+        try:
+            _s13_pool_return(self)
+        except Exception:
+            pass
+
+
+def _s13_pool_return(w):
+    import time as _t
+    c = object.__getattribute__(w, '_s13_conn')
+    if c is None:
+        return
+    object.__setattr__(w, '_s13_conn', None)
+    try:
+        if c.closed:
+            return
+        ts = c.get_transaction_status()
+        if ts == _s13_pgext.TRANSACTION_STATUS_UNKNOWN:
+            c.close()
+            return
+        if ts != _s13_pgext.TRANSACTION_STATUS_IDLE:
+            c.rollback()
+        c.autocommit = True
+        with c.cursor() as _cu:
+            _cu.execute('DISCARD ALL')
+        c.autocommit = False
+        c.set_session(isolation_level='DEFAULT', readonly='DEFAULT', deferrable='DEFAULT')
+        c.cursor_factory = None
+        created = object.__getattribute__(w, '_s13_created')
+        now = _t.monotonic()
+        if now - created < _S13_POOL_MAX_AGE_S:
+            with _s13_pool_lock:
+                idle = _s13_pool.setdefault(os.getpid(), [])
+                if len(idle) < _S13_POOL_MAX_IDLE:
+                    idle.append((c, created, now))
+                    return
+        c.close()
+    except Exception:
+        try:
+            c.close()
+        except Exception:
+            pass
 
 
 def get_db():
     import time as _t
     _t0 = _t.perf_counter()
-    conn = _s13_get_db_raw()
+    new = 0
+    conn = None
+    if os.environ.get('S13_DB_POOL', '1') == '0':
+        conn = _s13_get_db_raw()
+        new = 1
+    else:
+        while conn is None:
+            with _s13_pool_lock:
+                idle = _s13_pool.get(os.getpid())
+                item = idle.pop() if idle else None
+            if item is None:
+                conn = _S13PooledConn(_s13_get_db_raw(), _t.monotonic())
+                new = 1
+                break
+            raw, created, last_used = item
+            if _t.monotonic() - last_used > _S13_POOL_CHECK_S:
+                try:
+                    raw.autocommit = True
+                    with raw.cursor() as _cu:
+                        _cu.execute('SELECT 1')
+                    raw.autocommit = False
+                except Exception:
+                    try:
+                        raw.close()
+                    except Exception:
+                        pass
+                    continue
+            conn = _S13PooledConn(raw, created)
     try:
         from flask import g, has_request_context
         if has_request_context():
             g._s13_db_n = getattr(g, '_s13_db_n', 0) + 1
+            g._s13_db_new = getattr(g, '_s13_db_new', 0) + new
             g._s13_db_ms = getattr(g, '_s13_db_ms', 0.0) + (_t.perf_counter() - _t0) * 1000
     except Exception:
         pass
@@ -145,7 +266,8 @@ def _s13_timing_header(resp):
         if hasattr(g, '_s13_t0'):
             _total = (_t.perf_counter() - g._s13_t0) * 1000
             resp.headers['Server-Timing'] = (f'dbconnect;dur={getattr(g, "_s13_db_ms", 0.0):.0f};'
-                                             f'desc="{getattr(g, "_s13_db_n", 0)} connects", app;dur={_total:.0f}')
+                                             f'desc="{getattr(g, "_s13_db_n", 0)} get_db, '
+                                             f'{getattr(g, "_s13_db_new", 0)} new", app;dur={_total:.0f}')
     except Exception:
         pass
     return resp
