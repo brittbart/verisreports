@@ -5,7 +5,7 @@ function cx(...parts) { return parts.filter(Boolean).join(' '); }
 const VERDICT_META = {
   supported:      { label: "SUPPORTED",      weight: "+1.0",  tone: "pos",     blurb: "Confirmed by two independent sources." },
   plausible:      { label: "PLAUSIBLE",      weight: "+0.5",  tone: "pos",     blurb: "Consistent with evidence; only one credible source found." },
-  corroborated:   { label: "CORROBORATED",   weight: "+0.5",  tone: "pos",     blurb: "5+ outlets report consistently without contradiction." },
+  corroborated:   { label: "CORROBORATED",   weight: "+0.75", tone: "pos",     blurb: "5+ outlets report consistently without contradiction." },
   overstated:     { label: "OVERSTATED",     weight: "-0.5",  tone: "neg",     blurb: "Core fact is real but exaggerated or framed misleadingly." },
   disputed:       { label: "DISPUTED",       weight: "-1.0",  tone: "neg",     blurb: "At least one credible source directly contradicts the claim." },
   not_supported:  { label: "NOT_SUPPORTED",  weight: "-1.5",  tone: "neg",     blurb: "Evidence actively contradicts the claim." },
@@ -110,7 +110,20 @@ function SectionRenderer({ section }) {
       </div>
       <div className="vs-section__body">
         {(s.body || []).map((p, i) => <p key={i} className="vs-p">{p}</p>)}
+        {(s.attribution || []).length > 0 && (
+          <ul className="vs-checks">
+            {s.attribution.map(([title, desc], i) => (
+              <li key={i}><b>{title}</b>{desc && " -- " + desc}</li>
+            ))}
+          </ul>
+        )}
         {s.kind === "pipeline" && <PipelineDiagram />}
+        {(s.steps || []).map((st, i) => (
+          <div key={"step" + i} className="vs-sub">
+            <div className="vs-sub__title">{"Step " + st.num + " \u2014 " + st.title}</div>
+            <p className="vs-p">{st.body}</p>
+          </div>
+        ))}
         {(s.sub || []).map((sub, i) => (
           <div key={i} className="vs-sub">
             <div className="vs-sub__title">{sub.title}</div>
