@@ -1220,12 +1220,16 @@ def submit_dispute():
         dispute_id,submitted_at = cur.fetchone()
         conn.commit()
         conn.close()
-        return jsonify({"status":"received","dispute_id":dispute_id,"domain":domain,"submitted_at":submitted_at.isoformat(),"message":"Your dispute has been logged and will appear publicly on the Verum Signal leaderboard. All disputes are reviewed within 10 business days. If a verdict is found incorrect it will be re-assessed and updated."})
+        return jsonify({"status":"received","dispute_id":dispute_id,"domain":domain,"submitted_at":submitted_at.isoformat(),"message":"Your dispute has been received. A person reviews each dispute against the published methodology; we aim to respond within 10 business days. If it is upheld, the claim is re-checked or corrected and its page shows a correction note. Policy: https://verumsignal.com/corrections"})
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
 @app.route("/api/disputes", methods=["GET"])
 def get_disputes():
+    # S13: dispute submissions are not published (policy: /corrections) -- ops only.
+    _deny = _ops_auth()
+    if _deny is not None:
+        return _deny
     domain = request.args.get("domain","").strip().lower().replace("www.","")
     if not domain: return jsonify({"error":"domain required"}),400
     try:
@@ -1313,7 +1317,7 @@ def sitemap_pages_xml():
     cur = conn.cursor()
     pages = []
     # Static pages
-    for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing", "/live", "/developers", "/about"]:
+    for path in ["/", "/leaderboard", "/methodology", "/how-it-works", "/debates", "/pricing", "/live", "/developers", "/about", "/corrections"]:
         pages.append(f"  <url><loc>https://verumsignal.com{path}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>")
     # Outlet pages
     # S13: <lastmod> from content dates (latest verdict / latest claim check), YYYY-MM-DD only
@@ -1556,6 +1560,10 @@ def privacy_clean():
 @app.route('/about', methods=['GET'])
 def about_page():
     return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'about.html')
+
+@app.route('/corrections', methods=['GET'])
+def corrections_page():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), 'static'), 'corrections.html')
 
 @app.route('/index.html', methods=['GET'])
 def index_html():
@@ -7510,6 +7518,31 @@ def public_disputes():
     from flask import request as _req
     submitted = False
     error = None
+    # S13: a dispute can name its claim (?claim=<id> from "Dispute this claim"). The claim is
+    # looked up (claims with a verdict, not from a non-public event) and stored with the dispute;
+    # the type goes in dispute_type (outlet_response is for an outlet's reply). Wording follows
+    # the published policy at /corrections.
+    import html as _h
+    claim_ctx = None
+    _cid = (_req.values.get('claim_id') or _req.args.get('claim') or '').strip()
+    if _cid.isdigit():
+        try:
+            _c2 = get_db()
+            try:
+                with _c2.cursor() as _cu:
+                    _cu.execute("""SELECT c.id, c.claim_text, a.url, a.source_name, e.slug, c.event_id, e.is_public
+                                     FROM claims c
+                                LEFT JOIN articles a ON a.id = c.article_id
+                                LEFT JOIN events e ON e.id = c.event_id
+                                    WHERE c.id = %s AND c.verdict IS NOT NULL""", (int(_cid),))
+                    _r = _cu.fetchone()
+            finally:
+                _c2.close()
+            if _r and (_r[5] is None or _r[6]):
+                claim_ctx = {'id': _r[0], 'text': _r[1] or '', 'url': _r[2] or '',
+                             'domain': (_r[3] or '').lower() or (('event:' + _r[4]) if _r[4] else 'verumsignal.com')}
+        except Exception:
+            claim_ctx = None
     if _req.method == 'POST':
         try:
             dtype = _req.form.get('dispute_type','').strip()
@@ -7517,17 +7550,22 @@ def public_disputes():
             claim_text = _req.form.get('claim_text','').strip()
             dispute_text = _req.form.get('dispute_text','').strip()
             contact_email = _req.form.get('contact_email','').strip()
-            if not article_url or not dispute_text or not contact_email:
+            if not dispute_text or not contact_email or not (article_url or claim_ctx):
                 error = 'Please fill in all required fields.'
             else:
                 from urllib.parse import urlparse as _up
-                domain = (_up(article_url).hostname or '').replace('www.','')
+                if claim_ctx:
+                    domain = claim_ctx['domain']
+                    article_url = article_url or claim_ctx['url']
+                    claim_text = claim_text or claim_ctx['text']
+                else:
+                    domain = (_up(article_url).hostname or '').replace('www.','')
                 conn = get_db()
                 cur = conn.cursor()
                 full_text = f"[{dtype.upper()}] Article: {article_url}\n\nClaim: {claim_text}\n\nDispute: {dispute_text}"
                 cur.execute(
-                    "INSERT INTO outlet_disputes (domain, claim_id, contact_email, dispute_text, outlet_response, status, submitted_at) VALUES (%s, NULL, %s, %s, %s, 'pending', NOW())",
-                    (domain, contact_email, full_text, dtype))
+                    "INSERT INTO outlet_disputes (domain, claim_id, contact_email, dispute_text, outlet_response, dispute_type, status, submitted_at) VALUES (%s, %s, %s, %s, NULL, %s, 'pending', NOW())",
+                    (domain or 'unknown', claim_ctx['id'] if claim_ctx else None, contact_email, full_text, dtype or None))
                 conn.commit(); cur.close(); conn.close()
                 submitted = True
         except Exception as e:
@@ -7564,27 +7602,14 @@ footer a{color:var(--dim);text-decoration:none}footer a:hover{color:var(--fg)}""
 
     SUCCESS = """<div class="success">
       <h2>Dispute received</h2>
-      <p style="color:#888;margin-top:8px">We will acknowledge within 48 hours and complete review within 14 days.<br>
+      <p style="color:#888;margin-top:8px">A person reviews each dispute against the published methodology. We aim to respond within 10 business days.<br>
+      If it is upheld, the claim is re-checked or corrected and its page shows a correction note.<br>
       Questions? Email <a href="mailto:disputes@verumsignal.com" style="color:#a855f7">disputes@verumsignal.com</a></p>
     </div>"""
 
     ERR = f'<div class="error-msg">{error}</div>' if error else ''
 
-    FORM = """
-    <p style="font-size:13px;color:#888;margin-bottom:16px">Select dispute type:</p>
-    <form method="POST">
-      <label class="tier">
-        <input type="radio" name="dispute_type" value="reader" required>
-        <h3>Reader correction</h3>
-        <p>I found a factual error. I am not affiliated with the outlet.</p>
-      </label>
-      <label class="tier">
-        <input type="radio" name="dispute_type" value="outlet_reply">
-        <h3>Outlet right-of-reply</h3>
-        <p>I represent the outlet whose content was scored and wish to formally challenge a verdict.</p>
-      </label>
-      <div class="form-section">
-        <div class="field">
+    _url_field = """        <div class="field">
           <label>Article URL *</label>
           <input type="url" name="article_url" placeholder="https://example.com/article" required>
         </div>
@@ -7592,7 +7617,35 @@ footer a{color:var(--dim);text-decoration:none}footer a:hover{color:var(--fg)}""
           <label>Claim being disputed (optional but helpful)</label>
           <textarea name="claim_text" placeholder="Paste the specific claim text you are disputing..." rows="3"></textarea>
         </div>
-        <div class="field">
+"""
+    _claim_box = ''
+    if claim_ctx:
+        _url_field = ''
+        _claim_box = ('<div class="form-section" style="margin-top:0;margin-bottom:16px"><div class="field" style="margin-bottom:0">'
+                      '<label>Claim being disputed</label><p style="font-size:14px">' + _h.escape(claim_ctx['text']) + '</p>'
+                      '<div class="hint"><a href="/c/' + str(claim_ctx['id']) + '" style="color:var(--accent)">Claim page</a></div>'
+                      '</div></div><input type="hidden" name="claim_id" value="' + str(claim_ctx['id']) + '">')
+    FORM = ("""
+    <p style="font-size:13px;color:#888;margin-bottom:16px">Select dispute type:</p>
+    <form method="POST">
+""" + _claim_box + """
+      <label class="tier">
+        <input type="radio" name="dispute_type" value="reader" required>
+        <h3>Reader</h3>
+        <p>I believe a verdict, attribution or claim wording is wrong. I am not affiliated with the outlet or the person quoted.</p>
+      </label>
+      <label class="tier">
+        <input type="radio" name="dispute_type" value="outlet_reply">
+        <h3>Outlet</h3>
+        <p>I represent the outlet whose article the claim comes from.</p>
+      </label>
+      <label class="tier">
+        <input type="radio" name="dispute_type" value="subject">
+        <h3>Person quoted</h3>
+        <p>I am, or represent, the person the claim is attributed to.</p>
+      </label>
+      <div class="form-section">
+""" + _url_field + """        <div class="field">
           <label>Your dispute *</label>
           <textarea name="dispute_text" placeholder="Explain what is incorrect and provide counter-evidence or sources..." required></textarea>
           <div class="hint">Be specific. Include links to authoritative sources where possible.</div>
@@ -7606,12 +7659,11 @@ footer a{color:var(--dim);text-decoration:none}footer a:hover{color:var(--fg)}""
       </div>
     </form>
     <p class="policy">
-      <strong>Our process:</strong> All disputes are acknowledged within 48 hours and reviewed within 14 days.
-      If a verdict is incorrect, it will be updated with a public audit trail entry.
-      Outlet right-of-reply responses are published alongside the disputed verdict.
-      Disputes are never silently dismissed.
-      For urgent matters, email <a href="mailto:disputes@verumsignal.com" style="color:var(--accent)">disputes@verumsignal.com</a>.
-    </p>"""
+      <strong>Our process:</strong> A person reviews each dispute against the published methodology. We aim to respond within 10 business days.
+      If a dispute is upheld, the claim is re-checked or corrected, and its page shows a correction note.
+      Dispute submissions and your contact details are not published.
+      <a href="/corrections" style="color:var(--accent)">Read the full policy</a>.
+    </p>""")
 
     body = SUCCESS if submitted else (ERR + FORM)
 

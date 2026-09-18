@@ -54,7 +54,7 @@
         <a href="/c/{{ c.id }}">Claim page</a>
         <button type="button" data-copy="link" data-id="{{ c.id }}">Copy link</button>
         <button type="button" data-copy="citation" data-id="{{ c.id }}" data-claim="{{ c.claim_text }}" data-verdict="{{ c.verdict_label }}" data-date="{{ c.cite_date }}">Copy citation</button>
-        <a href="/corrections/new?claim={{ c.id }}">Request a correction</a>
+        <a href="/disputes?claim={{ c.id }}">Dispute this claim</a>
       </div>
     </article>
   </div>
