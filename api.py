@@ -9586,7 +9586,8 @@ def live_claim_permalink(claim_id):
                              FROM claims c
                         LEFT JOIN articles a ON a.id = c.article_id
                         LEFT JOIN events   e ON e.id = c.event_id
-                            WHERE c.id = %s AND c.verdict IS NOT NULL""", (claim_id,))
+                            WHERE c.id = %s AND c.verdict IS NOT NULL
+                              AND (c.event_id IS NULL OR e.is_public IS TRUE)""", (claim_id,))
             row = cur.fetchone()
             if not row:
                 abort(404)
