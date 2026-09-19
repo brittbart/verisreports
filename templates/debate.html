@@ -1196,7 +1196,7 @@
                     title="Reliability assessments in the 60-minute review window"
                     tabindex="0" aria-label="Provisional assessments pending review">
                 <span class="prov-dot"></span>
-                <strong class="dt-p-provisional-num">{{ prov_ct }}</strong> verifying
+                <strong class="dt-p-provisional-num">{{ prov_ct }}</strong> provisional
               </span>
             </span>
           </div>
@@ -1781,9 +1781,9 @@
       var verdictPillClass = 'v-pill--' + verdictKey.replace(/_/g, '-');
 
       var verdictHtml = isProvisional
-        ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>verifying</span>'
+        ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>provisional</span>'
         : '<span class="v-pill ' + verdictPillClass + '">' + verdictLabel + '</span>' +
-          (claim.is_provisional ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>verifying</span>' : '');
+          (claim.is_provisional ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>provisional</span>' : '');
 
       var summaryHtml = (!isProvisional && claim.verdict_summary)
         ? '<p class="dt-claim-summary">' + escHtml(claim.verdict_summary) + '</p>'
@@ -1857,7 +1857,7 @@
                      existing.querySelector('.dt-claim-body > div:last-child');
       if (pillArea) {
         var provBadge = claim.is_provisional
-          ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>verifying</span>' : '';
+          ? '<span class="vs-badge-provisional" title="This assessment may be revised within 60 minutes"><span class="prov-dot"></span>provisional</span>' : '';
         var expandText = '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);letter-spacing:0.06em;">Click to expand</span>';
         pillArea.innerHTML = '<span class="v-pill v-pill--' + verdictKey.replace(/_/g,'-') + '">' + verdictLabel + '</span>' + provBadge + expandText;
       }

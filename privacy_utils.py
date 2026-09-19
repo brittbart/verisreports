@@ -40,6 +40,7 @@ AGGREGATE_SQL = [
          GROUP BY 1, 2
         ON CONFLICT (day, referrer_host) DO NOTHING"""),
 ]
+_WINDOW = {"outlet_disputes": "reviewed more than two years ago"}
 RETENTION_SQL = [
     ("page_views", f"DELETE FROM page_views WHERE created_at < {CUTOFF_TZ}"),
     ("api_usage", f"DELETE FROM api_usage WHERE created_at < {CUTOFF_NAIVE}"),
@@ -80,7 +81,7 @@ def run_retention(conn=None):
             print(f"[retention] {table}: {cur.rowcount} day totals written")
         for table, sql in RETENTION_SQL:
             cur.execute(sql)
-            print(f"[retention] {table}: {cur.rowcount} rows from before the {RETENTION_DAYS}-day window deleted")
+            print(f"[retention] {table}: {cur.rowcount} rows {_WINDOW.get(table, f'from before the {RETENTION_DAYS}-day window')} deleted")
             total += cur.rowcount
         conn.commit()
     except Exception:

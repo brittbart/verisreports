@@ -302,6 +302,7 @@ def _s13_timing_header(resp):
 
 
 from privacy_utils import ip_hash as _privacy_ip_hash  # S13: IP addresses are stored hashed
+import mimetypes as _s13_mt; _s13_mt.add_type('font/woff2', '.woff2')  # S13: self-hosted fonts served as font/woff2
 from api_leaderboard import register_leaderboard_routes
 from api_leaderboard import compute_score, compute_score_band, compute_tier, WEIGHTS, SCOREABLE_VERDICTS, INCLUSION_THRESHOLD
 from api_leaderboard import SCORING_CONDITIONS_SQL, WEIGHTED_SUM_SQL  # shared scoring definition (S12)
