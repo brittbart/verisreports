@@ -90,17 +90,23 @@ def main() -> int:
         batch_id = run_batch_verdict_engine(limit=VERDICTS_PER_RUN)
         if batch_id:
             ctx.record(items_processed=VERDICTS_PER_RUN)
-    # S13 privacy retention (policy: /privacy): its own stage, so a failure never fails the verdict run.
+    return 0
+
+def _s13_retention():
+    # S13 privacy retention (policy: /privacy). Runs after every verdict run -- including runs that
+    # return early or fail -- as its own job_runs stage; its own failure never changes the exit code.
     try:
         from privacy_utils import run_retention
         with run_stage("retention") as rctx:
             rctx.record(items_processed=run_retention())
     except Exception as e:
         print(f"[retention] failed: {e}")
-    return 0
+
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception:
         sys.exit(1)
+    finally:
+        _s13_retention()
